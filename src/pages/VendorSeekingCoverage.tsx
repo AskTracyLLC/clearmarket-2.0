@@ -15,7 +15,7 @@ interface SeekingCoveragePost {
   title: string;
   description: string | null;
   state_code: string | null;
-  county_fips: string | null;
+  county_id: string | null;
   covers_entire_state: boolean;
   inspection_types: string[];
   systems_required_array: string[];
@@ -125,14 +125,14 @@ const VendorSeekingCoverage = () => {
       return;
     }
 
-    // Fetch county data separately for posts that have county_fips
+    // Fetch county data separately for posts that have county_id
     const postsWithCounties = await Promise.all(
       (posts || []).map(async (post) => {
-        if (post.county_fips) {
+        if (post.county_id) {
           const { data: countyData } = await supabase
             .from("us_counties")
             .select("county_name, state_name")
-            .eq("county_fips", post.county_fips)
+            .eq("id", post.county_id)
             .maybeSingle();
           
           return { ...post, us_counties: countyData };

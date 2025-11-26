@@ -31,7 +31,7 @@ const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   state_code: z.string().min(1, "State is required"),
-  county_fips: z.string().nullable(),
+  county_id: z.string().nullable(),
   covers_entire_state: z.boolean(),
   inspection_types: z.array(z.string()).min(1, "At least one inspection type is required"),
   inspection_types_other: z.string().optional(),
@@ -81,7 +81,7 @@ export const SeekingCoverageDialog = ({
       title: "",
       description: "",
       state_code: "",
-      county_fips: null,
+      county_id: null,
       county_name: "",
       covers_entire_state: false,
       inspection_types: [],
@@ -140,7 +140,7 @@ export const SeekingCoverageDialog = ({
         title: editingPost.title,
         description: editingPost.description || "",
         state_code: editingPost.state_code,
-        county_fips: editingPost.county_fips,
+        county_id: editingPost.county_id,
         county_name: "", // Will be populated from lookup if needed
         covers_entire_state: editingPost.covers_entire_state,
         inspection_types: editingPost.inspection_types.filter((t: string) => !t.startsWith("Other:")),
@@ -154,7 +154,7 @@ export const SeekingCoverageDialog = ({
         title: "",
         description: "",
         state_code: "",
-        county_fips: null,
+        county_id: null,
         county_name: "",
         covers_entire_state: false,
         inspection_types: [],
@@ -185,7 +185,7 @@ export const SeekingCoverageDialog = ({
     const filteredSystemsRequired = finalSystemsRequired.filter((s) => s !== "Other");
 
     // Validation
-    if (!data.covers_entire_state && !data.county_fips) {
+    if (!data.covers_entire_state && !data.county_id) {
       toast({
         title: "Validation Error",
         description: "Please select a county or turn on 'Covers entire state'.",
@@ -195,10 +195,10 @@ export const SeekingCoverageDialog = ({
       return;
     }
 
-    // Look up county name if county_fips is set
+    // Look up county name if county_id is set
     let countyName = null;
-    if (data.county_fips && !data.covers_entire_state) {
-      const selectedCounty = counties.find(c => c.county_fips === data.county_fips);
+    if (data.county_id && !data.covers_entire_state) {
+      const selectedCounty = counties.find(c => c.id === data.county_id);
       countyName = selectedCounty?.county_name || null;
     }
 
@@ -206,7 +206,7 @@ export const SeekingCoverageDialog = ({
       title: data.title,
       description: data.description || null,
       state_code: data.state_code,
-      county_fips: data.covers_entire_state ? null : data.county_fips,
+      county_id: data.covers_entire_state ? null : data.county_id,
       covers_entire_state: data.covers_entire_state,
       inspection_types: filteredInspectionTypes,
       systems_required_array: filteredSystemsRequired,
@@ -303,7 +303,7 @@ export const SeekingCoverageDialog = ({
               value={watch("state_code")} 
               onValueChange={(value) => {
                 setValue("state_code", value);
-                setValue("county_fips", null);
+                setValue("county_id", null);
               }}
             >
               <SelectTrigger>
@@ -328,7 +328,7 @@ export const SeekingCoverageDialog = ({
               onCheckedChange={(checked) => {
                 setValue("covers_entire_state", checked);
                 if (checked) {
-                  setValue("county_fips", null);
+                  setValue("county_id", null);
                 }
               }}
             />
@@ -340,7 +340,7 @@ export const SeekingCoverageDialog = ({
           {/* County */}
           {!coversEntireState && (
             <div>
-              <Label htmlFor="county_fips">
+              <Label htmlFor="county_id">
                 County <span className="text-destructive">*</span>
               </Label>
               {!stateCode ? (
@@ -349,9 +349,9 @@ export const SeekingCoverageDialog = ({
                 <p className="text-sm text-muted-foreground mt-1">Loading counties...</p>
               ) : (
                 <Select
-                  value={watch("county_fips") || ""}
+                  value={watch("county_id") || ""}
                   onValueChange={(value) => {
-                    setValue("county_fips", value);
+                    setValue("county_id", value);
                     const selectedCounty = counties.find(c => c.id === value);
                     setValue("county_name", selectedCounty?.county_name || "");
                   }}
@@ -368,7 +368,7 @@ export const SeekingCoverageDialog = ({
                   </SelectContent>
                 </Select>
               )}
-              {errors.county_fips && <p className="text-sm text-destructive mt-1">{errors.county_fips.message}</p>}
+              {errors.county_id && <p className="text-sm text-destructive mt-1">{errors.county_id.message}</p>}
             </div>
           )}
 
