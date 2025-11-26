@@ -6,9 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Edit2, XCircle, Copy, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle } from "lucide-react";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface SeekingCoveragePost {
   id: string;
@@ -36,11 +43,13 @@ const VendorSeekingCoverage = () => {
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
-  const [activePosts, setActivePosts] = useState<SeekingCoveragePost[]>([]);
-  const [closedPosts, setClosedPosts] = useState<SeekingCoveragePost[]>([]);
+  const [allPosts, setAllPosts] = useState<SeekingCoveragePost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<SeekingCoveragePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SeekingCoveragePost | null>(null);
+  const [viewingPost, setViewingPost] = useState<SeekingCoveragePost | null>(null);
+  const [filterStatus, setFilterStatus] = useState<"all" | "open" | "closed" | "expired">("all");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -143,10 +152,29 @@ const VendorSeekingCoverage = () => {
       })
     );
 
-    // Split into active and closed
-    setActivePosts(postsWithCounties.filter((p) => p.status === "active"));
-    setClosedPosts(postsWithCounties.filter((p) => p.status === "expired" || p.status === "closed"));
+    setAllPosts(postsWithCounties);
   };
+
+  // Filter posts based on selected filter
+  useEffect(() => {
+    const now = new Date();
+    
+    switch (filterStatus) {
+      case "open":
+        setFilteredPosts(allPosts.filter((p) => p.status === "active"));
+        break;
+      case "closed":
+        setFilteredPosts(allPosts.filter((p) => p.status === "closed"));
+        break;
+      case "expired":
+        setFilteredPosts(allPosts.filter((p) => p.status === "expired" || (p.auto_expires_at && new Date(p.auto_expires_at) < now)));
+        break;
+      case "all":
+      default:
+        setFilteredPosts(allPosts);
+        break;
+    }
+  }, [filterStatus, allPosts]);
 
   const handleCreateNew = () => {
     // Check vendor profile completion
@@ -241,7 +269,7 @@ const VendorSeekingCoverage = () => {
 
   const handleDelete = async (postId: string) => {
     // Show confirmation dialog
-    if (!confirm("Are you sure you want to delete this Seeking Coverage request? This will remove it from your list but keep it in the internal logs.")) {
+    if (!confirm("Are you sure you want to delete this Seeking Coverage post? This will hide it from all reps but preserve it in your internal history.")) {
       return;
     }
 
@@ -269,13 +297,6 @@ const VendorSeekingCoverage = () => {
     loadPosts();
   };
 
-  const handleDuplicate = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Duplicate will be available in a later release.",
-    });
-  };
-
   const getLocationDisplay = (post: SeekingCoveragePost) => {
     if (post.covers_entire_state) {
       return `Statewide – ${post.state_code}`;
@@ -283,6 +304,26 @@ const VendorSeekingCoverage = () => {
 
     const countyName = post.us_counties?.county_name || "Unknown County";
     return `${countyName}, ${post.state_code}`;
+  };
+
+  const getStatusBadge = (post: SeekingCoveragePost) => {
+    const now = new Date();
+    const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
+
+    if (post.status === "active" && !isExpired) {
+      return <Badge className="bg-green-600/20 text-green-600 border-green-600/30">Open</Badge>;
+    } else if (post.status === "closed") {
+      return <Badge variant="outline" className="text-muted-foreground">Closed</Badge>;
+    } else if (post.status === "expired" || isExpired) {
+      return <Badge className="bg-orange-600/20 text-orange-600 border-orange-600/30">Expired</Badge>;
+    }
+    return null;
+  };
+
+  const isExpiringSoon = (post: SeekingCoveragePost) => {
+    if (!post.auto_expires_at || post.status !== "active") return false;
+    const daysUntilExpiry = differenceInDays(new Date(post.auto_expires_at), new Date());
+    return daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
   };
 
   if (authLoading || loading) {
@@ -331,33 +372,57 @@ const VendorSeekingCoverage = () => {
           </Button>
         </div>
 
-        {/* Active Requests Section */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Active Requests</h2>
-          {activePosts.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">
-                No active requests yet. Create your first Seeking Coverage post to get started.
+        {/* Filter Tabs */}
+        <div className="mb-6">
+          <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="open">Open</TabsTrigger>
+              <TabsTrigger value="closed">Closed</TabsTrigger>
+              <TabsTrigger value="expired">Expired</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Posts List */}
+        {filteredPosts.length === 0 ? (
+          <Card className="p-12 text-center border-2 border-dashed">
+            <div className="max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                No Seeking Coverage posts yet
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Create your first post to let reps know where you need coverage.
               </p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {activePosts.map((post) => (
-                <Card key={post.id} className="p-6 bg-card-elevated border border-border">
+              <Button onClick={handleCreateNew}>
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Create Seeking Coverage Post
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredPosts.map((post) => {
+              const isActive = post.status === "active";
+              const isClosed = post.status === "closed";
+              const now = new Date();
+              const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
+              const canReopen = (isClosed || post.status === "expired") && (!post.auto_expires_at || new Date(post.auto_expires_at) >= now);
+
+              return (
+                <Card key={post.id} className={`p-6 ${isActive ? 'bg-card-elevated' : 'bg-muted/20 opacity-75'} border border-border`}>
                   <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold text-foreground mb-2">{post.title}</h3>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-semibold text-foreground">{post.title}</h3>
+                        {getStatusBadge(post)}
+                      </div>
                       <p className="text-sm text-muted-foreground mb-1">{getLocationDisplay(post)}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {post.is_accepting_responses ? (
-                        <Badge className="bg-secondary/20 text-secondary border-secondary/30">
-                          Accepting Responses
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">
-                          Not Accepting
-                        </Badge>
+                      {isExpiringSoon(post) && (
+                        <div className="flex items-center gap-2 text-orange-600 text-sm mt-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Expiring soon ({differenceInDays(new Date(post.auto_expires_at!), new Date())} days left)</span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -389,73 +454,48 @@ const VendorSeekingCoverage = () => {
                   {/* Auto-Expiry */}
                   {post.auto_expires_at && (
                     <p className="text-xs text-muted-foreground mb-4">
-                      Auto-expires on {format(new Date(post.auto_expires_at), "MMM d, yyyy")}
+                      {isExpired ? 'Expired on' : 'Auto-expires on'} {format(new Date(post.auto_expires_at), "MMM d, yyyy")}
                     </p>
                   )}
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-4 border-t border-border">
-                    <Button variant="secondary" size="sm" onClick={() => handleEdit(post)}>
-                      <Edit2 className="h-4 w-4 mr-2" />
-                      Edit
+                    <Button variant="secondary" size="sm" onClick={() => setViewingPost(post)}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleClose(post.id)}>
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Close Request
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={handleDuplicate}>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate (Coming Soon)
-                    </Button>
+                    {isActive && (
+                      <>
+                        <Button variant="secondary" size="sm" onClick={() => handleEdit(post)}>
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleClose(post.id)}>
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Close
+                        </Button>
+                      </>
+                    )}
+                    {!isActive && (
+                      <>
+                        {canReopen && (
+                          <Button variant="secondary" size="sm" onClick={() => handleReopen(post.id)}>
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Reopen
+                          </Button>
+                        )}
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(post.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </Card>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Expired / Closed Requests Section */}
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Expired / Closed Requests</h2>
-          {closedPosts.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">No expired or closed requests.</p>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {closedPosts.map((post) => (
-                <Card key={post.id} className="p-6 bg-muted/20 border border-border opacity-75">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">{post.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-1">{getLocationDisplay(post)}</p>
-                    </div>
-                    <Badge variant="outline" className="text-muted-foreground">
-                      {post.status === "expired" ? "Expired" : "Closed"}
-                    </Badge>
-                  </div>
-
-                  {post.auto_expires_at && (
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Originally expired on {format(new Date(post.auto_expires_at), "MMM d, yyyy")}
-                    </p>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => handleReopen(post.id)}>
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reopen
-                    </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDelete(post.id)}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Dialog for Create/Edit */}
@@ -468,6 +508,73 @@ const VendorSeekingCoverage = () => {
           loadPosts();
         }}
       />
+
+      {/* View Detail Dialog */}
+      <Dialog open={!!viewingPost} onOpenChange={(open) => !open && setViewingPost(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Seeking Coverage Details</DialogTitle>
+          </DialogHeader>
+          {viewingPost && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-1">{viewingPost.title}</h3>
+                <p className="text-sm text-muted-foreground">{getLocationDisplay(viewingPost)}</p>
+              </div>
+
+              {viewingPost.description && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Description</p>
+                  <p className="text-sm text-muted-foreground">{viewingPost.description}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-medium mb-2">Inspection Types</p>
+                <div className="flex flex-wrap gap-2">
+                  {viewingPost.inspection_types.map((type, idx) => (
+                    <Badge key={idx} variant="outline">{type}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Systems Required</p>
+                <div className="flex flex-wrap gap-2">
+                  {viewingPost.systems_required_array.map((system, idx) => (
+                    <Badge key={idx} variant="outline">{system}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-sm font-medium">Status</p>
+                  <div className="mt-1">{getStatusBadge(viewingPost)}</div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Accepting Responses</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingPost.is_accepting_responses ? "Yes" : "No"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Created</p>
+                <p className="text-sm text-muted-foreground">{format(new Date(viewingPost.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+              </div>
+
+              {viewingPost.auto_expires_at && (
+                <div>
+                  <p className="text-sm font-medium">Auto-expires</p>
+                  <p className="text-sm text-muted-foreground">{format(new Date(viewingPost.auto_expires_at), "MMM d, yyyy")}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
