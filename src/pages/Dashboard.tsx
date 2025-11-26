@@ -342,21 +342,33 @@ const Dashboard = () => {
 
             {isVendor && (
               <>
+                {/* MVP PREVIEW - Find Reps (read-only) */}
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/find-reps")}>
+                  <div className="flex items-start gap-4">
+                    <Users className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Find Reps</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          MVP Preview
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Search and filter field representatives by location, systems used, and inspection types (unlock coming soon).
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Browse Reps →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
                 {/* TODO: COMING SOON - Seeking Coverage posts */}
                 <div onClick={() => handleComingSoonClick("Seeking Coverage")}>
                   <ComingSoonCard
                     icon={<PlusCircle className="h-6 w-6" />}
                     title="Seeking Coverage"
                     description="Create posts to find qualified field reps for your coverage needs. Specify location, inspection types, and required systems."
-                  />
-                </div>
-
-                {/* TODO: COMING SOON - Find Reps feature */}
-                <div onClick={() => handleComingSoonClick("Find Reps")}>
-                  <ComingSoonCard
-                    icon={<Users className="h-6 w-6" />}
-                    title="Find Reps"
-                    description="Search and filter field representatives by location, certifications, systems used, and reputation scores."
                   />
                 </div>
               </>
