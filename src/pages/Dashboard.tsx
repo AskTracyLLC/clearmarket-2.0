@@ -375,14 +375,26 @@ const Dashboard = () => {
                   </div>
                 </Card>
 
-                {/* TODO: COMING SOON - Seeking Coverage posts */}
-                <div onClick={() => handleComingSoonClick("Seeking Coverage")}>
-                  <ComingSoonCard
-                    icon={<PlusCircle className="h-6 w-6" />}
-                    title="Seeking Coverage"
-                    description="Create posts to find qualified field reps for your coverage needs. Specify location, inspection types, and required systems."
-                  />
-                </div>
+                {/* MVP READY - Seeking Coverage */}
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/seeking-coverage")}>
+                  <div className="flex items-start gap-4">
+                    <PlusCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Seeking Coverage</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          MVP Ready
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Create posts to find qualified field reps for your coverage needs. Specify location, inspection types, and required systems.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Manage Posts →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
               </>
             )}
           </div>
