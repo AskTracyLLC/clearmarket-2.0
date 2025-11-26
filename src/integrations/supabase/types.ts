@@ -14,7 +14,313 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          metadata: Json | null
+          signature_timestamp: string | null
+          signed_name: string | null
+          storage_path: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          id?: string
+          metadata?: Json | null
+          signature_timestamp?: string | null
+          signed_name?: string | null
+          storage_path?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          metadata?: Json | null
+          signature_timestamp?: string | null
+          signed_name?: string | null
+          storage_path?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read: boolean
+          recipient_id: string
+          sender_id: string
+          subject: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          recipient_id: string
+          sender_id: string
+          subject?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          recipient_id?: string
+          sender_id?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          has_signed_terms: boolean
+          id: string
+          is_admin: boolean
+          is_fieldrep: boolean
+          is_moderator: boolean
+          is_support: boolean
+          is_vendor_admin: boolean
+          is_vendor_staff: boolean
+          terms_signed_at: string | null
+          terms_version: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          has_signed_terms?: boolean
+          id: string
+          is_admin?: boolean
+          is_fieldrep?: boolean
+          is_moderator?: boolean
+          is_support?: boolean
+          is_vendor_admin?: boolean
+          is_vendor_staff?: boolean
+          terms_signed_at?: string | null
+          terms_version?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          has_signed_terms?: boolean
+          id?: string
+          is_admin?: boolean
+          is_fieldrep?: boolean
+          is_moderator?: boolean
+          is_support?: boolean
+          is_vendor_admin?: boolean
+          is_vendor_staff?: boolean
+          terms_signed_at?: string | null
+          terms_version?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rep_profile: {
+        Row: {
+          bio: string | null
+          business_name: string | null
+          certifications: string[] | null
+          coverage_areas: string[] | null
+          created_at: string
+          id: string
+          systems_used: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          business_name?: string | null
+          certifications?: string[] | null
+          coverage_areas?: string[] | null
+          created_at?: string
+          id?: string
+          systems_used?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bio?: string | null
+          business_name?: string | null
+          certifications?: string[] | null
+          coverage_areas?: string[] | null
+          created_at?: string
+          id?: string
+          systems_used?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seeking_coverage_posts: {
+        Row: {
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          inspection_type: string | null
+          location: string | null
+          status: string
+          systems_required: string[] | null
+          title: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          inspection_type?: string | null
+          location?: string | null
+          status?: string
+          systems_required?: string[] | null
+          title: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          inspection_type?: string | null
+          location?: string | null
+          status?: string
+          systems_required?: string[] | null
+          title?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeking_coverage_posts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_wallet: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_wallet_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_profile: {
+        Row: {
+          company_description: string | null
+          company_name: string
+          created_at: string
+          id: string
+          regions_covered: string[] | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          company_description?: string | null
+          company_name: string
+          created_at?: string
+          id?: string
+          regions_covered?: string[] | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          company_description?: string | null
+          company_name?: string
+          created_at?: string
+          id?: string
+          regions_covered?: string[] | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
