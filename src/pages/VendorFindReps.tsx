@@ -30,6 +30,7 @@ const INSPECTION_TYPE_OPTIONS = [
 
 interface RepResult {
   id: string;
+  anonymous_id: string | null;
   city: string;
   state: string;
   systems_used: string[];
@@ -97,7 +98,7 @@ export default function VendorFindReps() {
     try {
       let query = supabase
         .from("rep_profile")
-        .select("id, city, state, systems_used, inspection_types, is_accepting_new_vendors");
+        .select("id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors");
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -298,7 +299,7 @@ export default function VendorFindReps() {
                   <Card key={rep.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">
-                        FieldRep#{rep.id.slice(0, 8)}
+                        {rep.anonymous_id || `FieldRep#${rep.id.slice(0, 8)}`}
                       </CardTitle>
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <MapPin className="h-4 w-4" />
