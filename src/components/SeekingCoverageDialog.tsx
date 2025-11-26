@@ -38,6 +38,7 @@ const seekingCoverageSchema = z.object({
   systems_required_array: z.array(z.string()).min(1, "At least one system is required"),
   systems_required_other: z.string().optional(),
   is_accepting_responses: z.boolean(),
+  county_name: z.string().optional(),
 });
 
 type SeekingCoverageForm = z.infer<typeof seekingCoverageSchema>;
@@ -81,6 +82,7 @@ export const SeekingCoverageDialog = ({
       description: "",
       state_code: "",
       county_fips: null,
+      county_name: "",
       covers_entire_state: false,
       inspection_types: [],
       inspection_types_other: "",
@@ -139,6 +141,7 @@ export const SeekingCoverageDialog = ({
         description: editingPost.description || "",
         state_code: editingPost.state_code,
         county_fips: editingPost.county_fips,
+        county_name: "", // Will be populated from lookup if needed
         covers_entire_state: editingPost.covers_entire_state,
         inspection_types: editingPost.inspection_types.filter((t: string) => !t.startsWith("Other:")),
         inspection_types_other: inspectionTypesOther || "",
@@ -152,6 +155,7 @@ export const SeekingCoverageDialog = ({
         description: "",
         state_code: "",
         county_fips: null,
+        county_name: "",
         covers_entire_state: false,
         inspection_types: [],
         inspection_types_other: "",
@@ -189,6 +193,13 @@ export const SeekingCoverageDialog = ({
       });
       setSaving(false);
       return;
+    }
+
+    // Look up county name if county_fips is set
+    let countyName = null;
+    if (data.county_fips && !data.covers_entire_state) {
+      const selectedCounty = counties.find(c => c.county_fips === data.county_fips);
+      countyName = selectedCounty?.county_name || null;
     }
 
     const payload = {
@@ -339,14 +350,18 @@ export const SeekingCoverageDialog = ({
               ) : (
                 <Select
                   value={watch("county_fips") || ""}
-                  onValueChange={(value) => setValue("county_fips", value)}
+                  onValueChange={(value) => {
+                    setValue("county_fips", value);
+                    const selectedCounty = counties.find(c => c.id === value);
+                    setValue("county_name", selectedCounty?.county_name || "");
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select county" />
                   </SelectTrigger>
                   <SelectContent>
                     {counties.map((county) => (
-                      <SelectItem key={county.id} value={county.county_fips}>
+                      <SelectItem key={county.id} value={county.id}>
                         {county.county_name}
                       </SelectItem>
                     ))}
