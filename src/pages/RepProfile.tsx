@@ -727,7 +727,8 @@ const RepProfile = () => {
                   title: "Coverage Area Updated",
                   description: "Your coverage area has been updated successfully.",
                 });
-                loadCoverageAreas();
+                await loadCoverageAreas();
+                navigate("/dashboard");
               }
             } else {
               // Insert new
@@ -746,7 +747,8 @@ const RepProfile = () => {
                   title: "Coverage Area Added",
                   description: "Your coverage area has been added successfully.",
                 });
-                loadCoverageAreas();
+                await loadCoverageAreas();
+                navigate("/dashboard");
               }
             }
           }}
