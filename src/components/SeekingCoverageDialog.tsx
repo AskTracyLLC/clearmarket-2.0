@@ -46,7 +46,6 @@ type SeekingCoverageForm = z.infer<typeof seekingCoverageSchema>;
 interface County {
   id: string;
   county_name: string;
-  county_fips: string;
 }
 
 interface SeekingCoverageDialogProps {
@@ -108,7 +107,7 @@ export const SeekingCoverageDialog = ({
       setLoadingCounties(true);
       const { data, error } = await supabase
         .from("us_counties")
-        .select("id, county_name, county_fips")
+        .select("id, county_name")
         .eq("state_code", stateCode)
         .order("county_name");
 
@@ -368,7 +367,7 @@ export const SeekingCoverageDialog = ({
                   </SelectContent>
                 </Select>
               )}
-              {errors.county_id && <p className="text-sm text-destructive mt-1">{errors.county_id.message}</p>}
+              {errors.county_id && <p className="text-sm text-destructive mt-1">{String(errors.county_id.message)}</p>}
             </div>
           )}
 
