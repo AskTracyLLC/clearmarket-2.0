@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -49,6 +50,10 @@ export default function VendorFindReps() {
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [selectedInspectionTypes, setSelectedInspectionTypes] = useState<string[]>([]);
   const [onlyAccepting, setOnlyAccepting] = useState(false);
+  
+  // "Other" text search inputs
+  const [otherSystemText, setOtherSystemText] = useState<string>("");
+  const [otherInspectionTypeText, setOtherInspectionTypeText] = useState<string>("");
 
   // Results state
   const [results, setResults] = useState<RepResult[]>([]);
@@ -117,20 +122,46 @@ export default function VendorFindReps() {
       // Client-side filtering for systems and inspection types (since they're arrays)
       let filtered = data || [];
 
-      if (selectedSystems.length > 0) {
-        filtered = filtered.filter((rep) =>
-          selectedSystems.some((sys) =>
+      if (selectedSystems.length > 0 || otherSystemText.trim()) {
+        filtered = filtered.filter((rep) => {
+          // Check standard system checkboxes
+          const matchesStandardSystems = selectedSystems.length === 0 || selectedSystems.some((sys) =>
             rep.systems_used?.some((repSys: string) => repSys.includes(sys))
-          )
-        );
+          );
+          
+          // Check "Other: X" text search (ILIKE-style: case-insensitive contains)
+          const matchesOtherSystem = !otherSystemText.trim() || rep.systems_used?.some((repSys: string) => {
+            if (repSys.startsWith("Other: ")) {
+              const otherValue = repSys.substring(7); // Remove "Other: " prefix
+              return otherValue.toLowerCase().includes(otherSystemText.toLowerCase());
+            }
+            return false;
+          });
+          
+          // Match if either standard OR other matches (OR logic)
+          return matchesStandardSystems || matchesOtherSystem;
+        });
       }
 
-      if (selectedInspectionTypes.length > 0) {
-        filtered = filtered.filter((rep) =>
-          selectedInspectionTypes.some((type) =>
+      if (selectedInspectionTypes.length > 0 || otherInspectionTypeText.trim()) {
+        filtered = filtered.filter((rep) => {
+          // Check standard inspection type checkboxes
+          const matchesStandardTypes = selectedInspectionTypes.length === 0 || selectedInspectionTypes.some((type) =>
             rep.inspection_types?.some((repType: string) => repType.includes(type))
-          )
-        );
+          );
+          
+          // Check "Other: X" text search (ILIKE-style: case-insensitive contains)
+          const matchesOtherType = !otherInspectionTypeText.trim() || rep.inspection_types?.some((repType: string) => {
+            if (repType.startsWith("Other: ")) {
+              const otherValue = repType.substring(7); // Remove "Other: " prefix
+              return otherValue.toLowerCase().includes(otherInspectionTypeText.toLowerCase());
+            }
+            return false;
+          });
+          
+          // Match if either standard OR other matches (OR logic)
+          return matchesStandardTypes || matchesOtherType;
+        });
       }
 
       setResults(filtered as RepResult[]);
@@ -230,6 +261,25 @@ export default function VendorFindReps() {
                   </div>
                 ))}
               </div>
+              
+              {/* "Other" system text search */}
+              {selectedSystems.includes("Other") && (
+                <div className="mt-3">
+                  <Label htmlFor="other-system-text" className="text-sm">
+                    Other system (search text)
+                  </Label>
+                  <Input
+                    id="other-system-text"
+                    value={otherSystemText}
+                    onChange={(e) => setOtherSystemText(e.target.value)}
+                    placeholder="e.g., Safeguard, Safeview"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Search for reps using custom systems
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Inspection Types Filter */}
@@ -252,6 +302,25 @@ export default function VendorFindReps() {
                   </div>
                 ))}
               </div>
+              
+              {/* "Other" inspection type text search */}
+              {selectedInspectionTypes.includes("Other") && (
+                <div className="mt-3">
+                  <Label htmlFor="other-inspection-text" className="text-sm">
+                    Other inspection type (search text)
+                  </Label>
+                  <Input
+                    id="other-inspection-text"
+                    value={otherInspectionTypeText}
+                    onChange={(e) => setOtherInspectionTypeText(e.target.value)}
+                    placeholder="e.g., Mystery Shopper, Disaster"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Search for reps performing custom inspection types
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Accepting New Vendors Filter */}
