@@ -54,10 +54,12 @@ ClearMarket 2.0 is a professional networking platform connecting independent Fie
    - Updates profile with terms acceptance
 
 6. **Dashboard** (`/dashboard`)
-   - Role-based dashboard (Rep vs Vendor)
-   - Placeholder for future features
+   - **MVP Features**: Basic profile display (name, email, role)
+   - **Coming Soon Cards**: Find Work, Looking for Work (Reps) / Seeking Coverage, Find Reps (Vendors)
+   - **Getting Started Checklist**: Onboarding progress tracker
+   - Navigation header with Home link
    - Sign out functionality
-   - Profile status display
+   - All non-MVP features clearly marked as "Coming Soon"
    - Automatic onboarding redirect if incomplete
 
 ### ✅ Design System
@@ -124,6 +126,14 @@ If a user signs in after initial setup, they're automatically redirected to thei
 - **user_wallet**: Credit balance for unlocking contacts
 
 All tables use UUIDs, have created_at/updated_at timestamps, and proper foreign key relationships.
+
+## MVP Scope Lock
+
+ClearMarket 2.0 is intentionally limited to MVP features only. All unimplemented features are clearly marked as "Coming Soon" to avoid broken links or half-implemented functionality. Current MVP includes:
+- ✅ Authentication (signup, signin, role selection, terms)
+- ✅ Basic profile display
+- ✅ Dashboard with onboarding checklist
+- 🔒 Everything else is locked with "Coming Soon" indicators
 
 ## Next Steps
 

@@ -250,6 +250,32 @@ This document provides detailed information about the database schema, including
 4. **Use consistent document_type values** when storing signed agreements
 5. **Always check RLS policies** when adding new tables or queries
 
+### MVP Scope - Feature Implementation Status
+
+**✅ IMPLEMENTED (MVP)**
+- User authentication (signup, signin, role selection)
+- Terms & NDA flow with e-signature
+- Basic profile display
+- Dashboard with onboarding checklist
+
+**🔒 COMING SOON (Not Yet Implemented)**
+- Messaging system (`messages` table exists but UI not built)
+- Seeking Coverage posts creation (`seeking_coverage_posts` table exists but UI not built)
+- Looking for Work posts (table not created yet)
+- Credit system and payments (`user_wallet` table exists but UI not built)
+- Rep/Vendor search and filtering
+- Profile editing (beyond basic info)
+- Document uploads and certifications
+- Reviews and reputation system
+
+**Important**: Any UI attempting to use "Coming Soon" features should display a toast message:
+```typescript
+toast({
+  title: "Coming Soon",
+  description: "This feature is not available yet in ClearMarket 2.0. Stay tuned!",
+});
+```
+
 ---
 
 ## Contact & Questions
