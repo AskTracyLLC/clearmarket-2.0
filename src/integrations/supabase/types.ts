@@ -292,6 +292,7 @@ export type Database = {
           county_id: string | null
           covers_entire_state: boolean
           created_at: string
+          deleted_at: string | null
           description: string | null
           expires_at: string | null
           id: string
@@ -313,6 +314,7 @@ export type Database = {
           county_id?: string | null
           covers_entire_state?: boolean
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
@@ -334,6 +336,7 @@ export type Database = {
           county_id?: string | null
           covers_entire_state?: boolean
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
           id?: string
