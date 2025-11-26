@@ -9,7 +9,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Version identifier for profiles.terms_version and display
 const TERMS_VERSION = "1.0";
+// Document type identifier for documents.document_type
+const DOCUMENT_TYPE = "terms_and_nda_v1";
 
 const Terms = () => {
   const navigate = useNavigate();
@@ -62,7 +65,7 @@ const Terms = () => {
       return;
     }
 
-    // Create document record
+    // Create document record with consistent document_type
     const documentData = {
       title: `Terms & Conditions Agreement - ${TERMS_VERSION}`,
       signed_name: signature.trim(),
@@ -74,7 +77,7 @@ const Terms = () => {
       .from('documents')
       .insert({
         user_id: user.id,
-        document_type: 'nda_tos',
+        document_type: DOCUMENT_TYPE, // Consistent: terms_and_nda_v1
         title: documentData.title,
         signed_name: documentData.signed_name,
         signature_timestamp: documentData.signature_timestamp,
