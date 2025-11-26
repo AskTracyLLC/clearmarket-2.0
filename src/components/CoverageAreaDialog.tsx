@@ -7,17 +7,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES } from "@/lib/constants";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface CoverageArea {
   id?: string;
   state_code: string;
   state_name: string;
   county_name: string;
+  county_id: string | null;
   covers_entire_state: boolean;
   covers_entire_county: boolean;
   base_price: string;
   rush_price: string;
   inspection_types: string[];
+  region_note: string;
 }
 
 interface CoverageAreaDialogProps {
@@ -39,22 +43,27 @@ const INSPECTION_TYPES = [
  */
 export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: CoverageAreaDialogProps) => {
   const [stateCode, setStateCode] = useState("");
+  const [countyId, setCountyId] = useState<string | null>(null);
   const [countyName, setCountyName] = useState("");
   const [coversEntireState, setCoversEntireState] = useState(false);
   const [coversEntireCounty, setCoversEntireCounty] = useState(false);
   const [basePrice, setBasePrice] = useState("");
   const [rushPrice, setRushPrice] = useState("");
+  const [regionNote, setRegionNote] = useState("");
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
   const [otherInspectionType, setOtherInspectionType] = useState("");
+  const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
 
   useEffect(() => {
     if (editData) {
       setStateCode(editData.state_code);
+      setCountyId(editData.county_id || null);
       setCountyName(editData.county_name || "");
       setCoversEntireState(editData.covers_entire_state);
       setCoversEntireCounty(editData.covers_entire_county);
       setBasePrice(editData.base_price || "");
       setRushPrice(editData.rush_price || "");
+      setRegionNote(editData.region_note || "");
       
       const types = editData.inspection_types || [];
       const standardTypes = types.filter(t => INSPECTION_TYPES.includes(t));
@@ -70,19 +79,55 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
     }
   }, [editData, open]);
 
+  // Fetch counties when state changes
+  useEffect(() => {
+    const fetchCounties = async () => {
+      if (!stateCode) {
+        setCounties([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("us_counties")
+        .select("id, county_name")
+        .eq("state_code", stateCode)
+        .order("county_name");
+
+      if (error) {
+        console.error("Error fetching counties:", error);
+        setCounties([]);
+      } else {
+        setCounties(data || []);
+      }
+    };
+
+    fetchCounties();
+  }, [stateCode]);
+
   const resetForm = () => {
     setStateCode("");
+    setCountyId(null);
     setCountyName("");
     setCoversEntireState(false);
     setCoversEntireCounty(false);
     setBasePrice("");
     setRushPrice("");
+    setRegionNote("");
     setInspectionTypes([]);
     setOtherInspectionType("");
   };
 
   const handleSave = () => {
-    if (!stateCode) return;
+    if (!stateCode) {
+      toast.error("Please select a state");
+      return;
+    }
+
+    // Validate county requirement when covers_entire_state is OFF
+    if (!coversEntireState && !countyId) {
+      toast.error("Please select a county or turn on 'Covers entire state'");
+      return;
+    }
 
     const selectedState = US_STATES.find(s => s.value === stateCode);
     if (!selectedState) return;
@@ -104,11 +149,13 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       id: editData?.id,
       state_code: stateCode,
       state_name: selectedState.label,
-      county_name: countyName.trim() || "",
+      county_name: countyName || "",
+      county_id: countyId,
       covers_entire_state: finalCoversEntireState,
       covers_entire_county: finalCoversEntireCounty,
       base_price: basePrice.trim(),
       rush_price: rushPrice.trim(),
+      region_note: regionNote.trim(),
       inspection_types: finalInspectionTypes.length > 0 ? finalInspectionTypes : [],
     };
 
@@ -160,21 +207,42 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
             />
           </div>
 
-          {/* County (optional) */}
+          {/* County dropdown - validated */}
           {!coversEntireState && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="county">County (optional)</Label>
-                <Input
-                  id="county"
-                  placeholder="e.g., Milwaukee County"
-                  value={countyName}
-                  onChange={(e) => setCountyName(e.target.value)}
-                />
+                <Label htmlFor="county">County *</Label>
+                <Select 
+                  value={countyId || ""} 
+                  onValueChange={(value) => {
+                    setCountyId(value);
+                    const selected = counties.find(c => c.id === value);
+                    setCountyName(selected?.county_name || "");
+                  }}
+                  disabled={!stateCode}
+                >
+                  <SelectTrigger id="county">
+                    <SelectValue placeholder={stateCode ? "Select county..." : "Select a state first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {counties.map(county => (
+                      <SelectItem key={county.id} value={county.id}>
+                        {county.county_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {/* Legacy county warning */}
+                {editData && !countyId && countyName && (
+                  <p className="text-xs text-yellow-600 dark:text-yellow-500">
+                    ⚠️ This county was saved before validation existed. Please pick the closest match from the list to clean it up.
+                  </p>
+                )}
               </div>
 
-              {/* Covers Entire County toggle - only if county is provided */}
-              {countyName.trim() && (
+              {/* Covers Entire County toggle - only if county is selected */}
+              {countyId && (
                 <div className="flex items-center justify-between py-2">
                   <Label htmlFor="covers-entire-county" className="cursor-pointer">
                     Covers entire county
@@ -214,6 +282,17 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
               placeholder="e.g., 200.00"
               value={rushPrice}
               onChange={(e) => setRushPrice(e.target.value)}
+            />
+          </div>
+
+          {/* Region Note */}
+          <div className="space-y-2">
+            <Label htmlFor="region-note">Region notes (optional)</Label>
+            <Input
+              id="region-note"
+              placeholder="Any special notes about this area (optional)"
+              value={regionNote}
+              onChange={(e) => setRegionNote(e.target.value)}
             />
           </div>
 
