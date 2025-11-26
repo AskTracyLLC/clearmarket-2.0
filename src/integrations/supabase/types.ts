@@ -156,6 +156,7 @@ export type Database = {
       }
       rep_profile: {
         Row: {
+          anonymous_id: string | null
           bio: string | null
           business_name: string | null
           certifications: string[] | null
@@ -173,6 +174,7 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          anonymous_id?: string | null
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
@@ -190,6 +192,7 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          anonymous_id?: string | null
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
@@ -300,6 +303,7 @@ export type Database = {
       }
       vendor_profile: {
         Row: {
+          anonymous_id: string | null
           city: string | null
           company_description: string | null
           company_name: string
@@ -315,6 +319,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          anonymous_id?: string | null
           city?: string | null
           company_description?: string | null
           company_name: string
@@ -330,6 +335,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          anonymous_id?: string | null
           city?: string | null
           company_description?: string | null
           company_name?: string
