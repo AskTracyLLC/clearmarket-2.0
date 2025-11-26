@@ -288,7 +288,13 @@ export const SeekingCoverageDialog = ({
             <Label htmlFor="state_code">
               State <span className="text-destructive">*</span>
             </Label>
-            <Select value={watch("state_code")} onValueChange={(value) => setValue("state_code", value)}>
+            <Select 
+              value={watch("state_code")} 
+              onValueChange={(value) => {
+                setValue("state_code", value);
+                setValue("county_fips", null);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select state" />
               </SelectTrigger>
@@ -326,16 +332,17 @@ export const SeekingCoverageDialog = ({
               <Label htmlFor="county_fips">
                 County <span className="text-destructive">*</span>
               </Label>
-              {!watch("state_code") ? (
+              {!stateCode ? (
                 <p className="text-sm text-muted-foreground mt-1">Select a state first</p>
+              ) : loadingCounties ? (
+                <p className="text-sm text-muted-foreground mt-1">Loading counties...</p>
               ) : (
                 <Select
                   value={watch("county_fips") || ""}
                   onValueChange={(value) => setValue("county_fips", value)}
-                  disabled={loadingCounties}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={loadingCounties ? "Loading counties..." : "Select county"} />
+                    <SelectValue placeholder="Select county" />
                   </SelectTrigger>
                   <SelectContent>
                     {counties.map((county) => (
