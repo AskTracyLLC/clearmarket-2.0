@@ -53,3 +53,26 @@ export const US_STATES = [
   { value: "WI", label: "Wisconsin" },
   { value: "WY", label: "Wyoming" },
 ];
+
+/**
+ * MVP PLACEHOLDER: Systems list for Field Reps
+ * NOTE: This is temporary MVP storage. Will be normalized to dedicated table in Phase 2.
+ */
+export const SYSTEMS_LIST = [
+  "EZInspections",
+  "InspectorADE",
+  "PPW / Property Pres Wizard",
+  "Form.com / Compass360",
+  "Other",
+] as const;
+
+/**
+ * MVP PLACEHOLDER: Inspection types for Field Reps
+ * NOTE: This is temporary MVP storage. Will be normalized to dedicated table in Phase 2.
+ */
+export const INSPECTION_TYPES_LIST = [
+  "Property Inspections",
+  "Loss / Insurance Claims (Appointment-based)",
+  "Commercial",
+  "Other",
+] as const;
