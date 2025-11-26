@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -63,6 +64,7 @@ export const SeekingCoverageDialog = ({
 }: SeekingCoverageDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [counties, setCounties] = useState<County[]>([]);
   const [loadingCounties, setLoadingCounties] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -237,6 +239,7 @@ export const SeekingCoverageDialog = ({
           description: "Your seeking coverage post has been updated successfully.",
         });
         onSave();
+        navigate("/vendor/seeking-coverage");
       }
     } else {
       // Create new
@@ -255,6 +258,7 @@ export const SeekingCoverageDialog = ({
           description: "Your seeking coverage post has been created successfully.",
         });
         onSave();
+        navigate("/vendor/seeking-coverage");
       }
     }
 
