@@ -114,6 +114,9 @@ If a user signs in after initial setup, they're automatically redirected to thei
 ### Core Tables
 - **profiles**: Extended auth.users with role flags and terms acceptance
 - **rep_profile**: Business name, coverage areas, systems, certifications
+  - ⚠️ **PLACEHOLDER FIELDS**: `coverage_areas` and `systems_used` are temporary text arrays
+  - **Future**: Will be replaced with dedicated `coverage_areas` table with normalized state/county/pricing fields
+  - **Note**: Do not build complex matching or search logic on these fields yet
 - **vendor_profile**: Company name, description, website, regions
 - **documents**: Signed agreements with e-signature and timestamp
 - **seeking_coverage_posts**: Vendor job postings with location and requirements
