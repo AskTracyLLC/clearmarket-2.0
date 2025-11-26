@@ -289,6 +289,7 @@ export type Database = {
         Row: {
           auto_expires_at: string | null
           county_fips: string | null
+          county_id: string | null
           covers_entire_state: boolean
           created_at: string
           description: string | null
@@ -309,6 +310,7 @@ export type Database = {
         Insert: {
           auto_expires_at?: string | null
           county_fips?: string | null
+          county_id?: string | null
           covers_entire_state?: boolean
           created_at?: string
           description?: string | null
@@ -329,6 +331,7 @@ export type Database = {
         Update: {
           auto_expires_at?: string | null
           county_fips?: string | null
+          county_id?: string | null
           covers_entire_state?: boolean
           created_at?: string
           description?: string | null
@@ -347,6 +350,13 @@ export type Database = {
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "seeking_coverage_posts_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "seeking_coverage_posts_vendor_id_fkey"
             columns: ["vendor_id"]
