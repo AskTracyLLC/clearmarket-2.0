@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Edit2, XCircle, Copy } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit2, XCircle, Copy, RotateCcw, Trash2 } from "lucide-react";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format } from "date-fns";
 
@@ -23,6 +23,7 @@ interface SeekingCoveragePost {
   status: string;
   auto_expires_at: string | null;
   created_at: string;
+  deleted_at: string | null;
   us_counties?: {
     county_name: string;
     state_name: string;
@@ -108,11 +109,12 @@ const VendorSeekingCoverage = () => {
       console.error("Error auto-expiring posts:", updateError);
     }
 
-    // Fetch all posts
+    // Fetch all non-deleted posts
     const { data: posts, error: postsError } = await supabase
       .from("seeking_coverage_posts")
       .select("*")
       .eq("vendor_id", user.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (postsError) {
@@ -197,15 +199,71 @@ const VendorSeekingCoverage = () => {
     if (error) {
       toast({
         title: "Error",
-        description: "Failed to close post.",
+        description: "Unable to update this request. Please try again or contact support.",
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Post Closed",
-      description: "Your seeking coverage post has been closed.",
+      title: "Request Closed",
+      description: "Your seeking coverage request has been closed.",
+    });
+
+    loadPosts();
+  };
+
+  const handleReopen = async (postId: string) => {
+    const { error } = await supabase
+      .from("seeking_coverage_posts")
+      .update({
+        status: "active",
+        is_accepting_responses: true,
+      })
+      .eq("id", postId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Unable to update this request. Please try again or contact support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Request Reopened",
+      description: "Your seeking coverage request is now active again.",
+    });
+
+    loadPosts();
+  };
+
+  const handleDelete = async (postId: string) => {
+    // Show confirmation dialog
+    if (!confirm("Are you sure you want to delete this Seeking Coverage request? This will remove it from your list but keep it in the internal logs.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("seeking_coverage_posts")
+      .update({
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", postId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Unable to update this request. Please try again or contact support.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Request Deleted",
+      description: "Your seeking coverage request has been deleted.",
     });
 
     loadPosts();
@@ -215,13 +273,6 @@ const VendorSeekingCoverage = () => {
     toast({
       title: "Coming Soon",
       description: "Duplicate will be available in a later release.",
-    });
-  };
-
-  const handleReopen = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Reopen / Renew will be available in a later release.",
     });
   };
 
@@ -390,9 +441,16 @@ const VendorSeekingCoverage = () => {
                     </p>
                   )}
 
-                  <Button variant="ghost" size="sm" onClick={handleReopen}>
-                    Reopen / Renew (Coming Soon)
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => handleReopen(post.id)}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reopen
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(post.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>
