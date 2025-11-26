@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import RepProfile from "./pages/RepProfile";
 import VendorProfile from "./pages/VendorProfile";
 import VendorFindReps from "./pages/VendorFindReps";
+import VendorSeekingCoverage from "./pages/VendorSeekingCoverage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/rep/profile" element={<RepProfile />} />
             <Route path="/vendor/profile" element={<VendorProfile />} />
             <Route path="/vendor/find-reps" element={<VendorFindReps />} />
+            <Route path="/vendor/seeking-coverage" element={<VendorSeekingCoverage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

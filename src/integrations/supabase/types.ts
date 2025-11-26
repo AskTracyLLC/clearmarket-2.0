@@ -287,40 +287,61 @@ export type Database = {
       }
       seeking_coverage_posts: {
         Row: {
+          auto_expires_at: string | null
+          county_fips: string | null
+          covers_entire_state: boolean
           created_at: string
           description: string | null
           expires_at: string | null
           id: string
           inspection_type: string | null
+          inspection_types: string[]
+          is_accepting_responses: boolean
           location: string | null
+          state_code: string | null
           status: string
           systems_required: string[] | null
+          systems_required_array: string[]
           title: string
           updated_at: string
           vendor_id: string
         }
         Insert: {
+          auto_expires_at?: string | null
+          county_fips?: string | null
+          covers_entire_state?: boolean
           created_at?: string
           description?: string | null
           expires_at?: string | null
           id?: string
           inspection_type?: string | null
+          inspection_types?: string[]
+          is_accepting_responses?: boolean
           location?: string | null
+          state_code?: string | null
           status?: string
           systems_required?: string[] | null
+          systems_required_array?: string[]
           title: string
           updated_at?: string
           vendor_id: string
         }
         Update: {
+          auto_expires_at?: string | null
+          county_fips?: string | null
+          covers_entire_state?: boolean
           created_at?: string
           description?: string | null
           expires_at?: string | null
           id?: string
           inspection_type?: string | null
+          inspection_types?: string[]
+          is_accepting_responses?: boolean
           location?: string | null
+          state_code?: string | null
           status?: string
           systems_required?: string[] | null
+          systems_required_array?: string[]
           title?: string
           updated_at?: string
           vendor_id?: string
