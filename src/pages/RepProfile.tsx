@@ -118,9 +118,38 @@ const RepProfile = () => {
         setValue("state", repData.state || "");
         setValue("zip_code", repData.zip_code || "");
         setValue("bio", repData.bio || "");
-        // MVP fields
-        setValue("systems_used", repData.systems_used || []);
-        setValue("inspection_types", repData.inspection_types || []);
+        
+        // MVP fields - parse "Other: X" format back into checkbox + text field
+        const systemsArray = repData.systems_used || [];
+        const systemsForCheckboxes: string[] = [];
+        let systemsOtherText = "";
+        
+        systemsArray.forEach((system: string) => {
+          if (system.startsWith("Other: ")) {
+            systemsForCheckboxes.push("Other");
+            systemsOtherText = system.substring(7); // Remove "Other: " prefix
+          } else {
+            systemsForCheckboxes.push(system);
+          }
+        });
+        
+        const inspectionTypesArray = repData.inspection_types || [];
+        const inspectionTypesForCheckboxes: string[] = [];
+        let inspectionTypesOtherText = "";
+        
+        inspectionTypesArray.forEach((type: string) => {
+          if (type.startsWith("Other: ")) {
+            inspectionTypesForCheckboxes.push("Other");
+            inspectionTypesOtherText = type.substring(7); // Remove "Other: " prefix
+          } else {
+            inspectionTypesForCheckboxes.push(type);
+          }
+        });
+        
+        setValue("systems_used", systemsForCheckboxes);
+        setValue("systems_used_other", systemsOtherText);
+        setValue("inspection_types", inspectionTypesForCheckboxes);
+        setValue("inspection_types_other", inspectionTypesOtherText);
         setValue("is_accepting_new_vendors", repData.is_accepting_new_vendors ?? true);
         setValue("willing_to_travel_out_of_state", repData.willing_to_travel_out_of_state ?? false);
       } else {
