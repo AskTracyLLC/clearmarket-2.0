@@ -108,30 +108,52 @@ const Dashboard = () => {
   const isRep = profile?.is_fieldrep;
   const isVendor = profile?.is_vendor_admin;
 
-  // Calculate profile completion for Reps
+  // Calculate profile completion for Reps (MVP version)
   const calculateRepCompletion = () => {
     if (!repProfile) return 0;
     let completed = 0;
-    let total = 3;
+    let total = 5; // city, state, zip, at least one system, at least one inspection type
     
     if (repProfile.city) completed++;
     if (repProfile.state) completed++;
     if (repProfile.zip_code) completed++;
+    if (repProfile.systems_used && repProfile.systems_used.length > 0) completed++;
+    if (repProfile.inspection_types && repProfile.inspection_types.length > 0) completed++;
     
     return Math.round((completed / total) * 100);
+  };
+
+  // Get missing items for rep profile
+  const getRepMissingItems = () => {
+    if (!repProfile) return [];
+    const missing = [];
+    if (!repProfile.city) missing.push("City");
+    if (!repProfile.state) missing.push("State");
+    if (!repProfile.zip_code) missing.push("ZIP Code");
+    if (!repProfile.systems_used || repProfile.systems_used.length === 0) missing.push("At least one System Used");
+    if (!repProfile.inspection_types || repProfile.inspection_types.length === 0) missing.push("At least one Inspection Type");
+    return missing;
   };
 
   // Calculate profile completion for Vendors
   const calculateVendorCompletion = () => {
     if (!vendorProfile) return 0;
     let completed = 0;
-    let total = 3;
+    let total = 2; // company_name, state
     
     if (vendorProfile.company_name) completed++;
-    if (vendorProfile.city) completed++;
     if (vendorProfile.state) completed++;
     
     return Math.round((completed / total) * 100);
+  };
+
+  // Get missing items for vendor profile
+  const getVendorMissingItems = () => {
+    if (!vendorProfile) return [];
+    const missing = [];
+    if (!vendorProfile.company_name) missing.push("Company Name");
+    if (!vendorProfile.state) missing.push("State");
+    return missing;
   };
 
   // Rep onboarding checklist items
@@ -212,51 +234,81 @@ const Dashboard = () => {
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Profile Completion Card */}
+            {/* Profile Status Card */}
             <Card className="p-6 bg-card-elevated border border-border">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  {isRep ? (
-                    <User className="h-6 w-6 text-primary flex-shrink-0" />
-                  ) : (
-                    <Building2 className="h-6 w-6 text-primary flex-shrink-0" />
-                  )}
-                  <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-foreground mb-2">
-                      {isRep ? "My Profile" : "My Company Profile"}
-                    </h2>
-                    <div className="mb-4">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-1 bg-muted rounded-full h-2">
-                          <div 
-                            className="bg-primary rounded-full h-2 transition-all duration-300"
-                            style={{ 
-                              width: `${isRep ? calculateRepCompletion() : calculateVendorCompletion()}%` 
-                            }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-foreground">
-                          {isRep ? calculateRepCompletion() : calculateVendorCompletion()}%
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {isRep 
-                          ? calculateRepCompletion() === 100 
-                            ? "Profile complete! Great work." 
-                            : "Complete your profile to get started"
-                          : calculateVendorCompletion() === 100
-                            ? "Profile complete! Great work."
-                            : "Complete your company profile to get started"
-                        }
-                      </p>
+              <div className="flex items-start gap-4">
+                {isRep ? (
+                  <User className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                ) : (
+                  <Building2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                )}
+                <div className="flex-1">
+                  <h2 className="text-xl font-semibold text-foreground mb-4">
+                    {isRep ? "My Profile" : "My Company Profile"}
+                  </h2>
+                  
+                  {/* Completion percentage */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-muted-foreground">Profile Completion</span>
+                      <span className="text-sm font-semibold text-foreground">
+                        {isRep ? calculateRepCompletion() : calculateVendorCompletion()}%
+                      </span>
                     </div>
-                    <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                      <Button size="sm" variant="secondary">
-                        <Edit className="h-4 w-4 mr-2" />
-                        {isRep ? "Complete My Profile" : "Complete Company Profile"}
-                      </Button>
-                    </Link>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-secondary h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${isRep ? calculateRepCompletion() : calculateVendorCompletion()}%` 
+                        }}
+                      />
+                    </div>
                   </div>
+
+                  {/* Missing items */}
+                  {isRep && getRepMissingItems().length > 0 && (
+                    <div className="mb-4 p-3 bg-muted/30 rounded-md border border-border">
+                      <p className="text-sm font-medium text-foreground mb-2">Still needed:</p>
+                      <ul className="space-y-1">
+                        {getRepMissingItems().map((item, idx) => (
+                          <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
+                            <span className="text-secondary">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {isVendor && getVendorMissingItems().length > 0 && (
+                    <div className="mb-4 p-3 bg-muted/30 rounded-md border border-border">
+                      <p className="text-sm font-medium text-foreground mb-2">Still needed:</p>
+                      <ul className="space-y-1">
+                        {getVendorMissingItems().map((item, idx) => (
+                          <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
+                            <span className="text-secondary">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {isRep && calculateRepCompletion() === 100 && (
+                    <p className="text-sm text-secondary mb-4">✓ Your profile is complete!</p>
+                  )}
+
+                  {isVendor && calculateVendorCompletion() === 100 && (
+                    <p className="text-sm text-secondary mb-4">✓ Your profile is complete!</p>
+                  )}
+
+                  <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                    <Button size="sm" variant="secondary">
+                      <Edit className="h-4 w-4 mr-2" />
+                      {isRep 
+                        ? (calculateRepCompletion() === 100 ? "View My Profile" : "Complete My Profile")
+                        : (calculateVendorCompletion() === 100 ? "View Company Profile" : "Complete Company Profile")
+                      }
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </Card>

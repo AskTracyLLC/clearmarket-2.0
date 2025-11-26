@@ -163,10 +163,13 @@ export type Database = {
           coverage_areas: string[] | null
           created_at: string
           id: string
+          inspection_types: string[] | null
+          is_accepting_new_vendors: boolean | null
           state: string | null
           systems_used: string[] | null
           updated_at: string
           user_id: string
+          willing_to_travel_out_of_state: boolean | null
           zip_code: string | null
         }
         Insert: {
@@ -177,10 +180,13 @@ export type Database = {
           coverage_areas?: string[] | null
           created_at?: string
           id?: string
+          inspection_types?: string[] | null
+          is_accepting_new_vendors?: boolean | null
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id: string
+          willing_to_travel_out_of_state?: boolean | null
           zip_code?: string | null
         }
         Update: {
@@ -191,10 +197,13 @@ export type Database = {
           coverage_areas?: string[] | null
           created_at?: string
           id?: string
+          inspection_types?: string[] | null
+          is_accepting_new_vendors?: boolean | null
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id?: string
+          willing_to_travel_out_of_state?: boolean | null
           zip_code?: string | null
         }
         Relationships: [
