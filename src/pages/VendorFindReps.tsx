@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, MapPin, CheckCircle2, XCircle } from "lucide-react";
+import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -25,14 +26,6 @@ const INSPECTION_TYPE_OPTIONS = [
   "Loss/Insurance Claims",
   "Commercial",
   "Other"
-];
-
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", 
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
 ];
 
 interface RepResult {
@@ -205,11 +198,11 @@ export default function VendorFindReps() {
                 <SelectTrigger id="state-filter" className="mt-2">
                   <SelectValue placeholder="All states" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border border-border z-50">
                   <SelectItem value="all">All states</SelectItem>
                   {US_STATES.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
+                    <SelectItem key={state.value} value={state.value}>
+                      {state.value} - {state.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -309,7 +302,7 @@ export default function VendorFindReps() {
                       </CardTitle>
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <MapPin className="h-4 w-4" />
-                        {rep.city}, {rep.state}
+                        {rep.city}, {US_STATES.find(s => s.value === rep.state)?.label || rep.state}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
