@@ -145,8 +145,8 @@ const RepProfile = () => {
         description: "Your profile has been updated successfully.",
       });
 
-      // Refresh profile data
-      await loadProfile();
+      // Redirect to dashboard
+      navigate("/dashboard");
     } catch (error: any) {
       console.error("Error saving profile:", error);
       toast({
