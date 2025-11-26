@@ -12,16 +12,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { US_STATES } from "@/lib/constants";
-import { ArrowLeft, Save } from "lucide-react";
+import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Validation schema for vendor profile
+// Validation schema for vendor profile (MVP)
 const vendorProfileSchema = z.object({
   company_name: z.string().trim().min(1, "Company name is required").max(100, "Company name must be less than 100 characters"),
-  city: z.string().trim().max(100, "City must be less than 100 characters").optional().nullable(),
+  city: z.string().trim().min(1, "City is required").max(100, "City must be less than 100 characters"),
   state: z.string().min(1, "State is required"),
   company_description: z.string().trim().max(1000, "Description must be less than 1000 characters").optional().nullable(),
   website: z.string().trim().url("Must be a valid URL").max(255, "Website URL must be less than 255 characters").optional().or(z.literal("")),
+  // MVP PLACEHOLDER: These arrays will be migrated to normalized tables in Phase 2
+  systems_used: z.array(z.string()).min(1, "Please select at least one system"),
+  systems_used_other: z.string().trim().max(100).optional().nullable(),
+  primary_inspection_types: z.array(z.string()).min(1, "Please select at least one inspection type"),
+  primary_inspection_types_other: z.string().trim().max(100).optional().nullable(),
+  is_accepting_new_reps: z.boolean(),
 });
 
 type VendorProfileForm = z.infer<typeof vendorProfileSchema>;
@@ -43,9 +52,17 @@ const VendorProfile = () => {
     formState: { errors },
   } = useForm<VendorProfileForm>({
     resolver: zodResolver(vendorProfileSchema),
+    defaultValues: {
+      systems_used: [],
+      primary_inspection_types: [],
+      is_accepting_new_reps: true,
+    },
   });
 
   const selectedState = watch("state");
+  const systemsUsed = watch("systems_used") || [];
+  const inspectionTypes = watch("primary_inspection_types") || [];
+  const descriptionText = watch("company_description") || "";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -101,6 +118,39 @@ const VendorProfile = () => {
         setValue("state", vendorData.state || "");
         setValue("company_description", vendorData.company_description || "");
         setValue("website", vendorData.website || "");
+        
+        // MVP fields - parse "Other: X" format back into checkbox + text field
+        const systemsArray = vendorData.systems_used || [];
+        const systemsForCheckboxes: string[] = [];
+        let systemsOtherText = "";
+        
+        systemsArray.forEach((system: string) => {
+          if (system.startsWith("Other: ")) {
+            systemsForCheckboxes.push("Other");
+            systemsOtherText = system.substring(7); // Remove "Other: " prefix
+          } else {
+            systemsForCheckboxes.push(system);
+          }
+        });
+        
+        const inspectionTypesArray = vendorData.primary_inspection_types || [];
+        const inspectionTypesForCheckboxes: string[] = [];
+        let inspectionTypesOtherText = "";
+        
+        inspectionTypesArray.forEach((type: string) => {
+          if (type.startsWith("Other: ")) {
+            inspectionTypesForCheckboxes.push("Other");
+            inspectionTypesOtherText = type.substring(7); // Remove "Other: " prefix
+          } else {
+            inspectionTypesForCheckboxes.push(type);
+          }
+        });
+        
+        setValue("systems_used", systemsForCheckboxes);
+        setValue("systems_used_other", systemsOtherText);
+        setValue("primary_inspection_types", inspectionTypesForCheckboxes);
+        setValue("primary_inspection_types_other", inspectionTypesOtherText);
+        setValue("is_accepting_new_reps", vendorData.is_accepting_new_reps ?? true);
       } else {
         // Create new vendor profile with empty company_name (will be set on first save)
         const { data: newVendorProfile, error: createError } = await supabase
@@ -133,14 +183,32 @@ const VendorProfile = () => {
     setSaving(true);
 
     try {
+      // MVP: Prepare systems_used array
+      let finalSystemsUsed = [...data.systems_used];
+      if (data.systems_used.includes("Other") && data.systems_used_other) {
+        finalSystemsUsed = finalSystemsUsed.filter(s => s !== "Other");
+        finalSystemsUsed.push(`Other: ${data.systems_used_other}`);
+      }
+
+      // MVP: Prepare primary_inspection_types array
+      let finalInspectionTypes = [...data.primary_inspection_types];
+      if (data.primary_inspection_types.includes("Other") && data.primary_inspection_types_other) {
+        finalInspectionTypes = finalInspectionTypes.filter(t => t !== "Other");
+        finalInspectionTypes.push(`Other: ${data.primary_inspection_types_other}`);
+      }
+
       const { error } = await supabase
         .from("vendor_profile")
         .update({
           company_name: data.company_name,
-          city: data.city || null,
+          city: data.city,
           state: data.state,
           company_description: data.company_description || null,
           website: data.website || null,
+          // MVP PLACEHOLDER fields - will be normalized in Phase 2
+          systems_used: finalSystemsUsed,
+          primary_inspection_types: finalInspectionTypes,
+          is_accepting_new_reps: data.is_accepting_new_reps,
         })
         .eq("id", vendorProfile.id);
 
@@ -189,19 +257,29 @@ const VendorProfile = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
+      <div className="container mx-auto px-4 py-12 max-w-3xl">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">My Company Profile</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Vendor Profile</h1>
           <p className="text-muted-foreground">
-            Update your company information
+            Complete your profile to connect with field reps
           </p>
         </div>
 
+        {/* Profile completion warning */}
+        {(!watch("company_name") || !watch("city") || !watch("state") || systemsUsed.length === 0 || inspectionTypes.length === 0) && (
+          <Alert className="mb-6 border-secondary/50 bg-secondary/10">
+            <AlertCircle className="h-4 w-4 text-secondary" />
+            <AlertDescription className="text-foreground">
+              To connect with field reps, please complete your company information and select at least one Inspection Type and System Used.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Card className="p-6 bg-card-elevated border border-border space-y-6">
-            {/* Read-only fields */}
+          <Card className="p-6 bg-card-elevated border border-border space-y-8">
+            {/* Section: Account Information (Read-only) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">Account Information</h3>
+              <h3 className="text-xl font-semibold text-foreground">Account Information</h3>
               
               <div>
                 <Label className="text-muted-foreground">Full Name</Label>
@@ -222,9 +300,9 @@ const VendorProfile = () => {
               </div>
             </div>
 
-            {/* Editable fields */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Company Details</h3>
+            {/* Section A: Company Info */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <h3 className="text-xl font-semibold text-foreground">Company Info</h3>
 
               <div>
                 <Label htmlFor="company_name">
@@ -242,11 +320,50 @@ const VendorProfile = () => {
               </div>
 
               <div>
-                <Label htmlFor="city">City</Label>
+                <Label htmlFor="website">Website <span className="text-muted-foreground text-sm">(Optional)</span></Label>
+                <Input
+                  id="website"
+                  {...register("website")}
+                  placeholder="https://yourcompany.com"
+                  className={errors.website ? "border-destructive" : ""}
+                  type="url"
+                />
+                {errors.website && (
+                  <p className="text-sm text-destructive mt-1">{errors.website.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="company_description">Short Company Description <span className="text-muted-foreground text-sm">(Optional)</span></Label>
+                <Textarea
+                  id="company_description"
+                  {...register("company_description")}
+                  placeholder="Tell reps about your company and what you do..."
+                  className={errors.company_description ? "border-destructive" : ""}
+                  rows={4}
+                  maxLength={1000}
+                />
+                {errors.company_description && (
+                  <p className="text-sm text-destructive mt-1">{errors.company_description.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {descriptionText.length} / 1000 characters
+                </p>
+              </div>
+            </div>
+
+            {/* Section B: Location */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <h3 className="text-xl font-semibold text-foreground">Location</h3>
+
+              <div>
+                <Label htmlFor="city">
+                  City <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="city"
                   {...register("city")}
-                  placeholder="Enter your city (optional)"
+                  placeholder="Enter your city"
                   className={errors.city ? "border-destructive" : ""}
                 />
                 {errors.city && (
@@ -274,37 +391,129 @@ const VendorProfile = () => {
                   <p className="text-sm text-destructive mt-1">{errors.state.message}</p>
                 )}
               </div>
+            </div>
 
+            {/* Section C: Systems We Use (MVP) */}
+            <div className="space-y-4 pb-6 border-b border-border">
               <div>
-                <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
-                  {...register("website")}
-                  placeholder="https://yourcompany.com (optional)"
-                  className={errors.website ? "border-destructive" : ""}
-                  type="url"
-                />
-                {errors.website && (
-                  <p className="text-sm text-destructive mt-1">{errors.website.message}</p>
-                )}
+                <h3 className="text-xl font-semibold text-foreground mb-1">Systems We Use</h3>
+                <p className="text-sm text-muted-foreground">Select the inspection systems your company uses</p>
+              </div>
+              
+              <div className="space-y-3">
+                {SYSTEMS_LIST.map((system) => (
+                  <div key={system} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={`vendor-system-${system}`}
+                      checked={systemsUsed.includes(system)}
+                      onCheckedChange={(checked) => {
+                        const current = systemsUsed;
+                        if (checked) {
+                          setValue("systems_used", [...current, system]);
+                        } else {
+                          setValue("systems_used", current.filter((s) => s !== system));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`vendor-system-${system}`} className="text-foreground font-normal cursor-pointer">
+                      {system}
+                    </Label>
+                  </div>
+                ))}
               </div>
 
+              {/* Other system free text */}
+              {systemsUsed.includes("Other") && (
+                <div className="ml-7">
+                  <Label htmlFor="systems_used_other" className="text-sm">
+                    Please specify other system
+                  </Label>
+                  <Input
+                    id="systems_used_other"
+                    {...register("systems_used_other")}
+                    placeholder="Enter system name"
+                    className="mt-1"
+                    maxLength={100}
+                  />
+                </div>
+              )}
+
+              {errors.systems_used && (
+                <p className="text-sm text-destructive">{errors.systems_used.message}</p>
+              )}
+            </div>
+
+            {/* Section D: Inspection Types We Assign (MVP) */}
+            <div className="space-y-4 pb-6 border-b border-border">
               <div>
-                <Label htmlFor="company_description">Short Company Description</Label>
-                <Textarea
-                  id="company_description"
-                  {...register("company_description")}
-                  placeholder="Tell reps about your company and what you do..."
-                  className={errors.company_description ? "border-destructive" : ""}
-                  rows={4}
-                  maxLength={1000}
+                <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types We Assign</h3>
+                <p className="text-sm text-muted-foreground">Select the types of inspections you assign to field reps</p>
+              </div>
+
+              <div className="space-y-3">
+                {INSPECTION_TYPES_LIST.map((type) => (
+                  <div key={type} className="flex items-center space-x-3">
+                    <Checkbox
+                      id={`vendor-inspection-${type}`}
+                      checked={inspectionTypes.includes(type)}
+                      onCheckedChange={(checked) => {
+                        const current = inspectionTypes;
+                        if (checked) {
+                          setValue("primary_inspection_types", [...current, type]);
+                        } else {
+                          setValue("primary_inspection_types", current.filter((t) => t !== type));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`vendor-inspection-${type}`} className="text-foreground font-normal cursor-pointer">
+                      {type}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+
+              {/* Other inspection type free text */}
+              {inspectionTypes.includes("Other") && (
+                <div className="ml-7">
+                  <Label htmlFor="primary_inspection_types_other" className="text-sm">
+                    Please specify other inspection type
+                  </Label>
+                  <Input
+                    id="primary_inspection_types_other"
+                    {...register("primary_inspection_types_other")}
+                    placeholder="Enter inspection type"
+                    className="mt-1"
+                    maxLength={100}
+                  />
+                </div>
+              )}
+
+              {errors.primary_inspection_types && (
+                <p className="text-sm text-destructive">{errors.primary_inspection_types.message}</p>
+              )}
+            </div>
+
+            {/* Section E: Availability */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-1">Availability</h3>
+                <p className="text-sm text-muted-foreground">Manage your rep recruitment status</p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_accepting_new_reps" className="text-foreground font-normal">
+                    Accepting New Reps
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Are you currently looking to add new field representatives?
+                  </p>
+                </div>
+                <Switch
+                  id="is_accepting_new_reps"
+                  checked={watch("is_accepting_new_reps")}
+                  onCheckedChange={(checked) => setValue("is_accepting_new_reps", checked)}
                 />
-                {errors.company_description && (
-                  <p className="text-sm text-destructive mt-1">{errors.company_description.message}</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  {watch("company_description")?.length || 0} / 1000 characters
-                </p>
               </div>
             </div>
 
