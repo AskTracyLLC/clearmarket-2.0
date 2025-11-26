@@ -157,12 +157,14 @@ export type Database = {
       rep_coverage_areas: {
         Row: {
           base_price: number | null
+          county_id: string | null
           county_name: string | null
           covers_entire_county: boolean
           covers_entire_state: boolean
           created_at: string
           id: string
           inspection_types: string[] | null
+          region_note: string | null
           rush_price: number | null
           state_code: string
           state_name: string
@@ -171,12 +173,14 @@ export type Database = {
         }
         Insert: {
           base_price?: number | null
+          county_id?: string | null
           county_name?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
           id?: string
           inspection_types?: string[] | null
+          region_note?: string | null
           rush_price?: number | null
           state_code: string
           state_name: string
@@ -185,12 +189,14 @@ export type Database = {
         }
         Update: {
           base_price?: number | null
+          county_id?: string | null
           county_name?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
           id?: string
           inspection_types?: string[] | null
+          region_note?: string | null
           rush_price?: number | null
           state_code?: string
           state_name?: string
@@ -198,6 +204,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rep_coverage_areas_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rep_coverage_areas_user_id_fkey"
             columns: ["user_id"]
@@ -321,6 +334,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      us_counties: {
+        Row: {
+          county_fips: string | null
+          county_name: string
+          created_at: string
+          id: string
+          state_code: string
+          state_name: string
+        }
+        Insert: {
+          county_fips?: string | null
+          county_name: string
+          created_at?: string
+          id?: string
+          state_code: string
+          state_name: string
+        }
+        Update: {
+          county_fips?: string | null
+          county_name?: string
+          created_at?: string
+          id?: string
+          state_code?: string
+          state_name?: string
+        }
+        Relationships: []
       }
       user_wallet: {
         Row: {

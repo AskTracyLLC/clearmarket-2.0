@@ -603,6 +603,12 @@ const RepProfile = () => {
                               </div>
                             )}
 
+                            {coverage.region_note && (
+                              <p className="text-xs text-muted-foreground italic mb-2">
+                                {coverage.region_note}
+                              </p>
+                            )}
+
                             {coverage.inspection_types && coverage.inspection_types.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {coverage.inspection_types.map((type: string, idx: number) => (
@@ -694,10 +700,12 @@ const RepProfile = () => {
               state_code: data.state_code,
               state_name: data.state_name,
               county_name: data.county_name || null,
+              county_id: data.county_id || null,
               covers_entire_state: data.covers_entire_state,
               covers_entire_county: data.covers_entire_county,
               base_price: data.base_price ? parseFloat(data.base_price) : null,
               rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
+              region_note: data.region_note || null,
               inspection_types: data.inspection_types.length > 0 ? data.inspection_types : null,
             };
 
