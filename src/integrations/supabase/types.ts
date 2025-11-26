@@ -305,8 +305,11 @@ export type Database = {
           company_name: string
           created_at: string
           id: string
+          is_accepting_new_reps: boolean | null
+          primary_inspection_types: string[] | null
           regions_covered: string[] | null
           state: string | null
+          systems_used: string[] | null
           updated_at: string
           user_id: string
           website: string | null
@@ -317,8 +320,11 @@ export type Database = {
           company_name: string
           created_at?: string
           id?: string
+          is_accepting_new_reps?: boolean | null
+          primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
           state?: string | null
+          systems_used?: string[] | null
           updated_at?: string
           user_id: string
           website?: string | null
@@ -329,8 +335,11 @@ export type Database = {
           company_name?: string
           created_at?: string
           id?: string
+          is_accepting_new_reps?: boolean | null
+          primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
           state?: string | null
+          systems_used?: string[] | null
           updated_at?: string
           user_id?: string
           website?: string | null

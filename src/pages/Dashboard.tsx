@@ -135,14 +135,16 @@ const Dashboard = () => {
     return missing;
   };
 
-  // Calculate profile completion for Vendors
+  // Calculate profile completion for Vendors (MVP version)
   const calculateVendorCompletion = () => {
     if (!vendorProfile) return 0;
     let completed = 0;
-    let total = 2; // company_name, state
+    let total = 4; // company_name, city+state, at least one system, at least one inspection type
     
     if (vendorProfile.company_name) completed++;
-    if (vendorProfile.state) completed++;
+    if (vendorProfile.city && vendorProfile.state) completed++;
+    if (vendorProfile.systems_used && vendorProfile.systems_used.length > 0) completed++;
+    if (vendorProfile.primary_inspection_types && vendorProfile.primary_inspection_types.length > 0) completed++;
     
     return Math.round((completed / total) * 100);
   };
@@ -152,7 +154,9 @@ const Dashboard = () => {
     if (!vendorProfile) return [];
     const missing = [];
     if (!vendorProfile.company_name) missing.push("Company Name");
-    if (!vendorProfile.state) missing.push("State");
+    if (!vendorProfile.city || !vendorProfile.state) missing.push("City and State");
+    if (!vendorProfile.systems_used || vendorProfile.systems_used.length === 0) missing.push("At least one System Used");
+    if (!vendorProfile.primary_inspection_types || vendorProfile.primary_inspection_types.length === 0) missing.push("At least one Inspection Type");
     return missing;
   };
 
