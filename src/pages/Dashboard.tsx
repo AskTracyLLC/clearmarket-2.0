@@ -332,14 +332,26 @@ const Dashboard = () => {
             {/* Coming Soon Cards - Role-specific */}
             {isRep && (
               <>
-                {/* TODO: COMING SOON - Find Work feature */}
-                <div onClick={() => handleComingSoonClick("Find Work")}>
-                  <ComingSoonCard
-                    icon={<Search className="h-6 w-6" />}
-                    title="Find Work"
-                    description="Browse Seeking Coverage posts from verified vendors in your area. Filter by location, inspection type, and systems used."
-                  />
-                </div>
+                {/* MVP READY - Find Work */}
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/find-work")}>
+                  <div className="flex items-start gap-4">
+                    <Search className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Find Work</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          MVP Ready
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Browse Seeking Coverage posts from verified vendors in your area. Matched to your coverage, inspection types, and systems.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Browse Opportunities →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
 
                 {/* TODO: COMING SOON - Looking for Work posts */}
                 <div onClick={() => handleComingSoonClick("Looking for Work")}>

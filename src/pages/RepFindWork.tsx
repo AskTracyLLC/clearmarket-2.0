@@ -1,0 +1,756 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2 } from "lucide-react";
+import { US_STATES } from "@/lib/constants";
+
+// MVP options for inspection types and systems
+const SYSTEM_OPTIONS = [
+  "EZInspections",
+  "InspectorADE",
+  "PPW",
+  "Form.com",
+  "Other"
+];
+
+const INSPECTION_TYPE_OPTIONS = [
+  "Property Inspections",
+  "Loss/Insurance Claims",
+  "Commercial",
+  "Other"
+];
+
+interface SeekingCoveragePost {
+  id: string;
+  vendor_id: string;
+  title: string;
+  description: string | null;
+  state_code: string | null;
+  county_id: string | null;
+  inspection_types: string[];
+  systems_required_array: string[];
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+  is_accepting_responses: boolean;
+}
+
+interface VendorInfo {
+  anonymous_id: string | null;
+  company_name: string;
+  is_accepting_new_reps: boolean;
+}
+
+interface CountyInfo {
+  county_name: string;
+  state_code: string;
+}
+
+interface CoverageArea {
+  id: string;
+  state_code: string;
+  county_id: string | null;
+  county_name: string | null;
+  covers_entire_state: boolean;
+  covers_entire_county: boolean;
+}
+
+interface MatchedPost extends SeekingCoveragePost {
+  vendor: VendorInfo;
+  county: CountyInfo | null;
+}
+
+export default function RepFindWork() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [repProfile, setRepProfile] = useState<any>(null);
+  const [coverageAreas, setCoverageAreas] = useState<CoverageArea[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Filter state
+  const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedCounty, setSelectedCounty] = useState<string>("all");
+  const [availableCounties, setAvailableCounties] = useState<CountyInfo[]>([]);
+  const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
+  const [selectedInspectionTypes, setSelectedInspectionTypes] = useState<string[]>([]);
+  const [onlyAcceptingReps, setOnlyAcceptingReps] = useState(true);
+
+  // Results state
+  const [allPosts, setAllPosts] = useState<MatchedPost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<MatchedPost[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searching, setSearching] = useState(false);
+
+  // Detail dialog
+  const [viewingPost, setViewingPost] = useState<MatchedPost | null>(null);
+
+  // Check auth and rep role
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (!authLoading && !user) {
+        navigate("/signin");
+        return;
+      }
+
+      if (user) {
+        // Load profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
+        setProfile(profileData);
+
+        if (!profileData?.is_fieldrep) {
+          toast.error("Access denied: Field Rep role required");
+          navigate("/dashboard");
+          return;
+        }
+
+        // Load rep profile
+        const { data: repData } = await supabase
+          .from("rep_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        setRepProfile(repData);
+
+        // Load coverage areas
+        const { data: coverageData } = await supabase
+          .from("rep_coverage_areas")
+          .select("id, state_code, county_id, county_name, covers_entire_state, covers_entire_county")
+          .eq("user_id", user.id);
+
+        setCoverageAreas(coverageData || []);
+      }
+
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [authLoading, user, navigate]);
+
+  // Load counties when state filter changes
+  useEffect(() => {
+    const loadCounties = async () => {
+      if (selectedState === "all") {
+        setAvailableCounties([]);
+        setSelectedCounty("all");
+        return;
+      }
+
+      const { data } = await supabase
+        .from("us_counties")
+        .select("county_name, state_code")
+        .eq("state_code", selectedState)
+        .order("county_name");
+
+      setAvailableCounties(data || []);
+      setSelectedCounty("all");
+    };
+
+    loadCounties();
+  }, [selectedState]);
+
+  // Check if rep profile is incomplete
+  const isProfileIncomplete = () => {
+    if (!repProfile) return true;
+    return !repProfile.city || 
+           !repProfile.state || 
+           !repProfile.zip_code || 
+           !repProfile.systems_used?.length ||
+           !repProfile.inspection_types?.length ||
+           coverageAreas.length === 0;
+  };
+
+  const handleSearch = async () => {
+    if (!user || !repProfile) return;
+
+    setSearching(true);
+    setHasSearched(true);
+
+    try {
+      // Get state codes from rep's coverage areas
+      const repStateCodes = [...new Set(coverageAreas.map(c => c.state_code))];
+
+      if (repStateCodes.length === 0) {
+        toast.error("Please add coverage areas to your profile first");
+        setAllPosts([]);
+        setFilteredPosts([]);
+        setSearching(false);
+        return;
+      }
+
+      // Query seeking_coverage_posts
+      let query = supabase
+        .from("seeking_coverage_posts")
+        .select(`
+          *,
+          vendor:profiles!vendor_id(anonymous_id),
+          vendor_profile!vendor_id(company_name, is_accepting_new_reps),
+          county:us_counties!county_id(county_name, state_code)
+        `)
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .in("state_code", repStateCodes);
+
+      // Apply expires_at filter (null or >= now)
+      query = query.or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
+
+      const { data: posts, error } = await query;
+
+      if (error) throw error;
+
+      // Transform and filter posts based on matching rules
+      const matched = (posts || [])
+        .map((post: any) => ({
+          ...post,
+          vendor: {
+            anonymous_id: post.vendor?.anonymous_id || null,
+            company_name: post.vendor_profile?.company_name || "Unknown Vendor",
+            is_accepting_new_reps: post.vendor_profile?.is_accepting_new_reps ?? true,
+          },
+          county: post.county,
+        }))
+        .filter((post: MatchedPost) => {
+          // 1. Coverage match
+          const coverageMatch = coverageAreas.some((coverage) => {
+            if (coverage.state_code !== post.state_code) return false;
+            
+            // If rep covers entire state, match
+            if (coverage.covers_entire_state) return true;
+            
+            // If post has no specific county, match (state-level post)
+            if (!post.county_id) return true;
+            
+            // If rep covers entire county or specific county matches
+            if (coverage.county_id === post.county_id) return true;
+            
+            return false;
+          });
+
+          if (!coverageMatch) return false;
+
+          // 2. Inspection type match (at least one must match)
+          const inspectionMatch = post.inspection_types.some((postType: string) =>
+            repProfile.inspection_types?.some((repType: string) => 
+              postType.toLowerCase().includes(repType.toLowerCase()) ||
+              repType.toLowerCase().includes(postType.toLowerCase())
+            )
+          );
+
+          if (!inspectionMatch) return false;
+
+          // 3. Systems match (at least one must match OR post has no system requirements)
+          const systemsMatch = 
+            !post.systems_required_array?.length ||
+            post.systems_required_array.some((postSys: string) =>
+              repProfile.systems_used?.some((repSys: string) =>
+                postSys.toLowerCase().includes(repSys.toLowerCase()) ||
+                repSys.toLowerCase().includes(postSys.toLowerCase())
+              )
+            );
+
+          if (!systemsMatch) return false;
+
+          // 4. Availability flags
+          if (!repProfile.is_accepting_new_vendors) return false;
+          if (onlyAcceptingReps && !post.vendor.is_accepting_new_reps) return false;
+
+          return true;
+        });
+
+      setAllPosts(matched as MatchedPost[]);
+      applyClientSideFilters(matched as MatchedPost[]);
+      toast.success(`Found ${matched.length} matching opportunities`);
+    } catch (error: any) {
+      console.error("Search error:", error);
+      toast.error("Failed to search for work");
+      setAllPosts([]);
+      setFilteredPosts([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const applyClientSideFilters = (posts: MatchedPost[]) => {
+    let filtered = [...posts];
+
+    // State filter
+    if (selectedState !== "all") {
+      filtered = filtered.filter(p => p.state_code === selectedState);
+    }
+
+    // County filter
+    if (selectedCounty !== "all") {
+      filtered = filtered.filter(p => p.county?.county_name === selectedCounty);
+    }
+
+    // Inspection type filter
+    if (selectedInspectionTypes.length > 0) {
+      filtered = filtered.filter(p =>
+        p.inspection_types.some(type =>
+          selectedInspectionTypes.some(selected =>
+            type.toLowerCase().includes(selected.toLowerCase())
+          )
+        )
+      );
+    }
+
+    // Systems filter
+    if (selectedSystems.length > 0) {
+      filtered = filtered.filter(p =>
+        !p.systems_required_array?.length ||
+        p.systems_required_array.some(sys =>
+          selectedSystems.some(selected =>
+            sys.toLowerCase().includes(selected.toLowerCase())
+          )
+        )
+      );
+    }
+
+    setFilteredPosts(filtered);
+  };
+
+  // Reapply filters when filter state changes
+  useEffect(() => {
+    if (hasSearched) {
+      applyClientSideFilters(allPosts);
+    }
+  }, [selectedState, selectedCounty, selectedInspectionTypes, selectedSystems]);
+
+  const toggleSystem = (system: string) => {
+    setSelectedSystems((prev) =>
+      prev.includes(system)
+        ? prev.filter((s) => s !== system)
+        : [...prev, system]
+    );
+  };
+
+  const toggleInspectionType = (type: string) => {
+    setSelectedInspectionTypes((prev) =>
+      prev.includes(type)
+        ? prev.filter((t) => t !== type)
+        : [...prev, type]
+    );
+  };
+
+  const handleInterestedClick = () => {
+    toast.info("Interest flow coming soon! For now, make sure your profile and coverage are up to date.");
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const isExpiringSoon = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    const diff = new Date(expiresAt).getTime() - new Date().getTime();
+    const days = diff / (1000 * 60 * 60 * 24);
+    return days <= 7 && days > 0;
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user || !profile?.is_fieldrep) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Find Work</h1>
+              <p className="text-muted-foreground mt-1">
+                Browse Seeking Coverage opportunities that match your profile
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/dashboard")}>
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Profile Incomplete Banner */}
+        {isProfileIncomplete() && (
+          <Card className="mb-6 border-destructive/50 bg-destructive/10">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    Complete your profile to see matching opportunities
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    To appear in vendor searches and see matched work, please complete your location, 
+                    inspection types, systems used, and add at least one coverage area.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => navigate("/rep/profile")}>
+                    Complete My Profile
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search Filters */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Filter Opportunities
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* State Filter */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="state-filter">State</Label>
+                <Select value={selectedState} onValueChange={setSelectedState}>
+                  <SelectTrigger id="state-filter" className="mt-2">
+                    <SelectValue placeholder="All my states" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    <SelectItem value="all">All my states</SelectItem>
+                    {[...new Set(coverageAreas.map(c => c.state_code))].map((stateCode) => {
+                      const state = US_STATES.find(s => s.value === stateCode);
+                      return (
+                        <SelectItem key={stateCode} value={stateCode}>
+                          {stateCode} - {state?.label || stateCode}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* County Filter */}
+              <div>
+                <Label htmlFor="county-filter">County</Label>
+                <Select 
+                  value={selectedCounty} 
+                  onValueChange={setSelectedCounty}
+                  disabled={selectedState === "all" || availableCounties.length === 0}
+                >
+                  <SelectTrigger id="county-filter" className="mt-2">
+                    <SelectValue placeholder="All counties in state" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    <SelectItem value="all">All my counties in this state</SelectItem>
+                    {availableCounties.map((county) => (
+                      <SelectItem key={county.county_name} value={county.county_name}>
+                        {county.county_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Inspection Types Filter */}
+            <div>
+              <Label>Inspection Types</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                {INSPECTION_TYPE_OPTIONS.map((type) => (
+                  <div key={type} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`type-${type}`}
+                      checked={selectedInspectionTypes.includes(type)}
+                      onCheckedChange={() => toggleInspectionType(type)}
+                    />
+                    <Label
+                      htmlFor={`type-${type}`}
+                      className="font-normal cursor-pointer"
+                    >
+                      {type}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Systems Filter */}
+            <div>
+              <Label>Systems Required</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
+                {SYSTEM_OPTIONS.map((system) => (
+                  <div key={system} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`system-${system}`}
+                      checked={selectedSystems.includes(system)}
+                      onCheckedChange={() => toggleSystem(system)}
+                    />
+                    <Label
+                      htmlFor={`system-${system}`}
+                      className="font-normal cursor-pointer"
+                    >
+                      {system}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Only Accepting Reps Filter */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="accepting-filter"
+                checked={onlyAcceptingReps}
+                onCheckedChange={(checked) => setOnlyAcceptingReps(checked as boolean)}
+              />
+              <Label htmlFor="accepting-filter" className="font-normal cursor-pointer">
+                Only show vendors accepting new reps
+              </Label>
+            </div>
+
+            {/* Search Button */}
+            <Button
+              onClick={handleSearch}
+              disabled={searching || isProfileIncomplete()}
+              className="w-full md:w-auto"
+            >
+              {searching ? "Searching..." : "Search Opportunities"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Results Section */}
+        {hasSearched && (
+          <div>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">
+              {filteredPosts.length} {filteredPosts.length === 1 ? "Opportunity" : "Opportunities"} Found
+            </h2>
+
+            {filteredPosts.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-lg font-medium text-foreground mb-2">
+                    No matching opportunities right now
+                  </p>
+                  <p className="text-muted-foreground mb-4">
+                    Try expanding your coverage, inspection types, or systems—or check back later 
+                    as new Seeking Coverage posts are added.
+                  </p>
+                  <Button variant="outline" onClick={() => navigate("/rep/profile")}>
+                    Review My Profile
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredPosts.map((post) => (
+                  <Card key={post.id} className="hover:border-primary/50 transition-colors">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-foreground">
+                            {post.vendor.anonymous_id || `Vendor#${post.vendor_id.slice(0, 8)}`}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {post.status}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg line-clamp-2">{post.title}</CardTitle>
+                      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                        <MapPin className="h-4 w-4" />
+                        {post.county?.county_name ? `${post.county.county_name}, ` : ""}{post.state_code}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Description Preview */}
+                      {post.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {post.description}
+                        </p>
+                      )}
+
+                      {/* Inspection Types */}
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Inspection Types
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {post.inspection_types.map((type, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs">
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Systems Required */}
+                      {post.systems_required_array && post.systems_required_array.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-1">
+                            Systems Required
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {post.systems_required_array.map((system, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {system}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Date Info */}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>Posted {formatDate(post.created_at)}</span>
+                      </div>
+
+                      {/* Expiring Soon Warning */}
+                      {isExpiringSoon(post.expires_at) && (
+                        <div className="flex items-center gap-2 text-xs text-orange-500">
+                          <AlertCircle className="h-3 w-3" />
+                          <span>Expiring soon</span>
+                        </div>
+                      )}
+
+                      {post.expires_at === null && (
+                        <p className="text-xs text-muted-foreground">Open until filled</p>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setViewingPost(post)}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={handleInterestedClick}
+                        >
+                          I'm Interested
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!viewingPost} onOpenChange={() => setViewingPost(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{viewingPost?.title}</DialogTitle>
+            <DialogDescription>
+              Posted by {viewingPost?.vendor.anonymous_id || "Anonymous Vendor"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingPost && (
+            <div className="space-y-4">
+              {/* Location */}
+              <div>
+                <Label className="text-sm font-medium">Location</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {viewingPost.county?.county_name ? `${viewingPost.county.county_name}, ` : ""}{viewingPost.state_code}
+                </p>
+              </div>
+
+              {/* Description */}
+              {viewingPost.description && (
+                <div>
+                  <Label className="text-sm font-medium">Description</Label>
+                  <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                    {viewingPost.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Inspection Types */}
+              <div>
+                <Label className="text-sm font-medium">Inspection Types</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {viewingPost.inspection_types.map((type, idx) => (
+                    <Badge key={idx} variant="outline">
+                      {type}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Systems Required */}
+              {viewingPost.systems_required_array && viewingPost.systems_required_array.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Systems Required</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {viewingPost.systems_required_array.map((system, idx) => (
+                      <Badge key={idx} variant="secondary">
+                        {system}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Posted</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {formatDate(viewingPost.created_at)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Expires</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingPost.expires_at ? formatDate(viewingPost.expires_at) : "Open until filled"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <Button className="w-full" onClick={handleInterestedClick}>
+                I'm Interested
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

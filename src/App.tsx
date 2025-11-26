@@ -11,6 +11,7 @@ import RoleSelection from "./pages/RoleSelection";
 import Terms from "./pages/Terms";
 import Dashboard from "./pages/Dashboard";
 import RepProfile from "./pages/RepProfile";
+import RepFindWork from "./pages/RepFindWork";
 import VendorProfile from "./pages/VendorProfile";
 import VendorFindReps from "./pages/VendorFindReps";
 import VendorSeekingCoverage from "./pages/VendorSeekingCoverage";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/onboarding/terms" element={<Terms />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/rep/profile" element={<RepProfile />} />
+            <Route path="/rep/find-work" element={<RepFindWork />} />
             <Route path="/vendor/profile" element={<VendorProfile />} />
             <Route path="/vendor/find-reps" element={<VendorFindReps />} />
             <Route path="/vendor/seeking-coverage" element={<VendorSeekingCoverage />} />
