@@ -159,34 +159,43 @@ export type Database = {
           bio: string | null
           business_name: string | null
           certifications: string[] | null
+          city: string | null
           coverage_areas: string[] | null
           created_at: string
           id: string
+          state: string | null
           systems_used: string[] | null
           updated_at: string
           user_id: string
+          zip_code: string | null
         }
         Insert: {
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
+          city?: string | null
           coverage_areas?: string[] | null
           created_at?: string
           id?: string
+          state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id: string
+          zip_code?: string | null
         }
         Update: {
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
+          city?: string | null
           coverage_areas?: string[] | null
           created_at?: string
           id?: string
+          state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id?: string
+          zip_code?: string | null
         }
         Relationships: [
           {
@@ -282,31 +291,37 @@ export type Database = {
       }
       vendor_profile: {
         Row: {
+          city: string | null
           company_description: string | null
           company_name: string
           created_at: string
           id: string
           regions_covered: string[] | null
+          state: string | null
           updated_at: string
           user_id: string
           website: string | null
         }
         Insert: {
+          city?: string | null
           company_description?: string | null
           company_name: string
           created_at?: string
           id?: string
           regions_covered?: string[] | null
+          state?: string | null
           updated_at?: string
           user_id: string
           website?: string | null
         }
         Update: {
+          city?: string | null
           company_description?: string | null
           company_name?: string
           created_at?: string
           id?: string
           regions_covered?: string[] | null
+          state?: string | null
           updated_at?: string
           user_id?: string
           website?: string | null

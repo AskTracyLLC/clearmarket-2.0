@@ -55,12 +55,29 @@ ClearMarket 2.0 is a professional networking platform connecting independent Fie
 
 6. **Dashboard** (`/dashboard`)
    - **MVP Features**: Basic profile display (name, email, role)
+   - **Profile Completion Card**: Shows percentage complete with link to profile edit
    - **Coming Soon Cards**: Find Work, Looking for Work (Reps) / Seeking Coverage, Find Reps (Vendors)
    - **Getting Started Checklist**: Onboarding progress tracker
    - Navigation header with Home link
    - Sign out functionality
    - All non-MVP features clearly marked as "Coming Soon"
    - Automatic onboarding redirect if incomplete
+
+7. **Rep Profile** (`/rep/profile`)
+   - Edit basic profile information: City, State, ZIP, Bio
+   - Read-only display of Full Name and Email
+   - Form validation with Zod (required: City, State, ZIP)
+   - Auto-creates rep_profile on first visit
+   - Success/error toast notifications
+   - Back to dashboard navigation
+
+8. **Vendor Profile** (`/vendor/profile`)
+   - Edit company information: Company Name, City, State, Description, Website
+   - Read-only display of Full Name and Email
+   - Form validation with Zod (required: Company Name, State)
+   - Auto-creates vendor_profile on first visit
+   - Success/error toast notifications
+   - Back to dashboard navigation
 
 ### ✅ Design System
 
@@ -131,7 +148,8 @@ All tables use UUIDs, have created_at/updated_at timestamps, and proper foreign 
 
 ClearMarket 2.0 is intentionally limited to MVP features only. All unimplemented features are clearly marked as "Coming Soon" to avoid broken links or half-implemented functionality. Current MVP includes:
 - ✅ Authentication (signup, signin, role selection, terms)
-- ✅ Basic profile display
+- ✅ Basic profile editing (Reps: city/state/ZIP/bio, Vendors: company info)
+- ✅ Profile completion tracking
 - ✅ Dashboard with onboarding checklist
 - 🔒 Everything else is locked with "Coming Soon" indicators
 
@@ -140,14 +158,14 @@ ClearMarket 2.0 is intentionally limited to MVP features only. All unimplemented
 The foundation is solid and ready for iteration. Future features to implement:
 
 ### For Field Reps:
-- Complete profile setup (coverage areas, systems, certifications)
+- ~~Complete profile setup (coverage areas, systems, certifications)~~ **Basic profile editing now available**
 - Browse and search Seeking Coverage posts
 - Message vendors
 - View and manage reputation/reviews
 - Upload certifications
 
 ### For Vendors:
-- Complete company profile
+- ~~Complete company profile~~ **Basic company profile editing now available**
 - Create Seeking Coverage posts
 - Search and filter field reps
 - Purchase and use credits to unlock rep contacts

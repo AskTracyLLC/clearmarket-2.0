@@ -10,6 +10,8 @@ import SignIn from "./pages/SignIn";
 import RoleSelection from "./pages/RoleSelection";
 import Terms from "./pages/Terms";
 import Dashboard from "./pages/Dashboard";
+import RepProfile from "./pages/RepProfile";
+import VendorProfile from "./pages/VendorProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,8 @@ const App = () => (
             <Route path="/onboarding/role" element={<RoleSelection />} />
             <Route path="/onboarding/terms" element={<Terms />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/rep/profile" element={<RepProfile />} />
+            <Route path="/vendor/profile" element={<VendorProfile />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

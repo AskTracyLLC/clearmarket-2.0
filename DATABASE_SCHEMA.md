@@ -45,6 +45,9 @@ This document provides detailed information about the database schema, including
 | business_name | text | YES | - | Rep's business/company name |
 | bio | text | YES | - | Professional bio |
 | certifications | text[] | YES | - | Array of certification names |
+| city | text | YES | - | **MVP field** - Rep's primary city |
+| state | text | YES | - | **MVP field** - Rep's primary state (2-letter code) |
+| zip_code | text | YES | - | **MVP field** - Rep's ZIP code |
 | coverage_areas | text[] | YES | - | **⚠️ PLACEHOLDER - See below** |
 | systems_used | text[] | YES | - | **⚠️ PLACEHOLDER - See below** |
 | created_at | timestamp | NO | now() | Record creation timestamp |
@@ -95,6 +98,8 @@ This document provides detailed information about the database schema, including
 | company_name | text | NO | - | Vendor company name |
 | company_description | text | YES | - | Company overview |
 | website | text | YES | - | Company website URL |
+| city | text | YES | - | **MVP field** - Vendor's primary city |
+| state | text | YES | - | **MVP field** - Vendor's primary state (2-letter code) |
 | regions_covered | text[] | YES | - | Regions/states vendor operates in |
 | created_at | timestamp | NO | now() | Record creation timestamp |
 | updated_at | timestamp | NO | now() | Last update timestamp |
@@ -256,6 +261,9 @@ This document provides detailed information about the database schema, including
 - User authentication (signup, signin, role selection)
 - Terms & NDA flow with e-signature
 - Basic profile display
+- **Profile editing for Reps** (city, state, ZIP, bio)
+- **Profile editing for Vendors** (company name, city, state, description, website)
+- **Profile completion tracking** on dashboard
 - Dashboard with onboarding checklist
 
 **🔒 COMING SOON (Not Yet Implemented)**

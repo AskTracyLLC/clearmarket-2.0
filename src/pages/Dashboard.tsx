@@ -8,13 +8,15 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
+  const [repProfile, setRepProfile] = useState<any>(null);
+  const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +53,27 @@ const Dashboard = () => {
         navigate("/onboarding/role");
         return;
       }
+
+      // Load role-specific profile
+      if (data.is_fieldrep) {
+        const { data: repData } = await supabase
+          .from("rep_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        setRepProfile(repData);
+      }
+
+      if (data.is_vendor_admin) {
+        const { data: vendorData } = await supabase
+          .from("vendor_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        setVendorProfile(vendorData);
+      }
     }
 
     setLoading(false);
@@ -84,6 +107,32 @@ const Dashboard = () => {
 
   const isRep = profile?.is_fieldrep;
   const isVendor = profile?.is_vendor_admin;
+
+  // Calculate profile completion for Reps
+  const calculateRepCompletion = () => {
+    if (!repProfile) return 0;
+    let completed = 0;
+    let total = 3;
+    
+    if (repProfile.city) completed++;
+    if (repProfile.state) completed++;
+    if (repProfile.zip_code) completed++;
+    
+    return Math.round((completed / total) * 100);
+  };
+
+  // Calculate profile completion for Vendors
+  const calculateVendorCompletion = () => {
+    if (!vendorProfile) return 0;
+    let completed = 0;
+    let total = 3;
+    
+    if (vendorProfile.company_name) completed++;
+    if (vendorProfile.city) completed++;
+    if (vendorProfile.state) completed++;
+    
+    return Math.round((completed / total) * 100);
+  };
 
   // Rep onboarding checklist items
   const repChecklistItems = [
@@ -163,32 +212,50 @@ const Dashboard = () => {
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-6">
-            {/* My Profile Card - MVP Feature */}
+            {/* Profile Completion Card */}
             <Card className="p-6 bg-card-elevated border border-border">
-              <div className="flex items-start gap-4 mb-4">
-                {isRep ? (
-                  <User className="h-6 w-6 text-primary" />
-                ) : (
-                  <Building2 className="h-6 w-6 text-primary" />
-                )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-foreground mb-2">
-                    {isRep ? "My Profile" : "My Company Profile"}
-                  </h2>
-                  <div className="space-y-2 text-sm">
-                    <p className="text-muted-foreground">
-                      <span className="font-medium text-foreground">Name:</span> {profile?.full_name || "Not set"}
-                    </p>
-                    <p className="text-muted-foreground">
-                      <span className="font-medium text-foreground">Email:</span> {profile?.email}
-                    </p>
-                    <p className="text-muted-foreground">
-                      <span className="font-medium text-foreground">Role:</span> {isRep ? "Field Representative" : "Vendor"}
-                    </p>
-                    {/* TODO: Add city, state, ZIP fields when profile editing is implemented */}
-                    <p className="text-xs text-secondary mt-4">
-                      Full profile editing coming soon
-                    </p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 flex-1">
+                  {isRep ? (
+                    <User className="h-6 w-6 text-primary flex-shrink-0" />
+                  ) : (
+                    <Building2 className="h-6 w-6 text-primary flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-foreground mb-2">
+                      {isRep ? "My Profile" : "My Company Profile"}
+                    </h2>
+                    <div className="mb-4">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex-1 bg-muted rounded-full h-2">
+                          <div 
+                            className="bg-primary rounded-full h-2 transition-all duration-300"
+                            style={{ 
+                              width: `${isRep ? calculateRepCompletion() : calculateVendorCompletion()}%` 
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-foreground">
+                          {isRep ? calculateRepCompletion() : calculateVendorCompletion()}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {isRep 
+                          ? calculateRepCompletion() === 100 
+                            ? "Profile complete! Great work." 
+                            : "Complete your profile to get started"
+                          : calculateVendorCompletion() === 100
+                            ? "Profile complete! Great work."
+                            : "Complete your company profile to get started"
+                        }
+                      </p>
+                    </div>
+                    <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                      <Button size="sm" variant="secondary">
+                        <Edit className="h-4 w-4 mr-2" />
+                        {isRep ? "Complete My Profile" : "Complete Company Profile"}
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </div>
