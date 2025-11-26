@@ -154,6 +154,59 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_coverage_areas: {
+        Row: {
+          base_price: number | null
+          county_name: string | null
+          covers_entire_county: boolean
+          covers_entire_state: boolean
+          created_at: string
+          id: string
+          inspection_types: string[] | null
+          rush_price: number | null
+          state_code: string
+          state_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_price?: number | null
+          county_name?: string | null
+          covers_entire_county?: boolean
+          covers_entire_state?: boolean
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          rush_price?: number | null
+          state_code: string
+          state_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_price?: number | null
+          county_name?: string | null
+          covers_entire_county?: boolean
+          covers_entire_state?: boolean
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          rush_price?: number | null
+          state_code?: string
+          state_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_coverage_areas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_profile: {
         Row: {
           anonymous_id: string | null

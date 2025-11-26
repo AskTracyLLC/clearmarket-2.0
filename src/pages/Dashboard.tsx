@@ -62,7 +62,17 @@ const Dashboard = () => {
           .eq("user_id", user.id)
           .maybeSingle();
         
-        setRepProfile(repData);
+        // Get coverage areas count for completion calculation
+        if (repData) {
+          const { count } = await supabase
+            .from("rep_coverage_areas")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", user.id);
+          
+          setRepProfile({ ...repData, coverage_count: count || 0 });
+        } else {
+          setRepProfile(repData);
+        }
       }
 
       if (data.is_vendor_admin) {
@@ -108,17 +118,18 @@ const Dashboard = () => {
   const isRep = profile?.is_fieldrep;
   const isVendor = profile?.is_vendor_admin;
 
-  // Calculate profile completion for Reps (MVP version)
+  // Calculate profile completion for Reps (MVP version + coverage areas)
   const calculateRepCompletion = () => {
     if (!repProfile) return 0;
     let completed = 0;
-    let total = 5; // city, state, zip, at least one system, at least one inspection type
+    let total = 6; // city, state, zip, at least one system, at least one inspection type, at least one coverage area
     
     if (repProfile.city) completed++;
     if (repProfile.state) completed++;
     if (repProfile.zip_code) completed++;
     if (repProfile.systems_used && repProfile.systems_used.length > 0) completed++;
     if (repProfile.inspection_types && repProfile.inspection_types.length > 0) completed++;
+    if (repProfile.coverage_count > 0) completed++;
     
     return Math.round((completed / total) * 100);
   };
@@ -132,6 +143,7 @@ const Dashboard = () => {
     if (!repProfile.zip_code) missing.push("ZIP Code");
     if (!repProfile.systems_used || repProfile.systems_used.length === 0) missing.push("At least one System Used");
     if (!repProfile.inspection_types || repProfile.inspection_types.length === 0) missing.push("At least one Inspection Type");
+    if (!repProfile.coverage_count || repProfile.coverage_count === 0) missing.push("At least one Coverage Area");
     return missing;
   };
 
@@ -170,8 +182,8 @@ const Dashboard = () => {
     {
       id: "coverage",
       label: "Add your coverage areas and pricing",
-      completed: false,
-      comingSoon: true,
+      completed: repProfile?.coverage_count > 0,
+      comingSoon: false,
     },
     {
       id: "documents",

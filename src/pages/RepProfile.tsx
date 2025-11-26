@@ -13,10 +13,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { CoverageAreaDialog } from "@/components/CoverageAreaDialog";
 
 // Validation schema for rep profile (MVP)
 const repProfileSchema = z.object({
@@ -43,6 +45,9 @@ const RepProfile = () => {
   const [repProfile, setRepProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
+  const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
+  const [editingCoverage, setEditingCoverage] = useState<any>(null);
 
   const {
     register,
@@ -163,6 +168,9 @@ const RepProfile = () => {
         if (createError) throw createError;
         setRepProfile(newRepProfile);
       }
+
+      // Load coverage areas
+      await loadCoverageAreas();
     } catch (error: any) {
       console.error("Error loading profile:", error);
       toast({
@@ -175,60 +183,69 @@ const RepProfile = () => {
     }
   };
 
-  const onSubmit = async (data: RepProfileForm) => {
-    if (!user || !repProfile) return;
+  // Load coverage areas for this rep
+  const loadCoverageAreas = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("rep_coverage_areas")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("state_code", { ascending: true });
 
+    if (error) {
+      console.error("Error loading coverage areas:", error);
+    } else {
+      setCoverageAreas(data || []);
+    }
+  };
+
+  const onSubmit = async (data: RepProfileForm) => {
     setSaving(true);
 
-    try {
-      // MVP: Prepare systems_used array
-      let finalSystemsUsed = [...data.systems_used];
-      if (data.systems_used.includes("Other") && data.systems_used_other) {
-        finalSystemsUsed = finalSystemsUsed.filter(s => s !== "Other");
-        finalSystemsUsed.push(`Other: ${data.systems_used_other}`);
-      }
+    // Prepare systems_used array
+    let systemsUsed = data.systems_used.filter(s => s !== "Other");
+    if (data.systems_used.includes("Other") && data.systems_used_other) {
+      systemsUsed.push(`Other: ${data.systems_used_other}`);
+    }
 
-      // MVP: Prepare inspection_types array
-      let finalInspectionTypes = [...data.inspection_types];
-      if (data.inspection_types.includes("Other") && data.inspection_types_other) {
-        finalInspectionTypes = finalInspectionTypes.filter(t => t !== "Other");
-        finalInspectionTypes.push(`Other: ${data.inspection_types_other}`);
-      }
+    // Prepare inspection_types array
+    let inspectionTypes = data.inspection_types.filter(t => t !== "Other");
+    if (data.inspection_types.includes("Other") && data.inspection_types_other) {
+      inspectionTypes.push(`Other: ${data.inspection_types_other}`);
+    }
 
-      const { error } = await supabase
-        .from("rep_profile")
-        .update({
-          city: data.city,
-          state: data.state,
-          zip_code: data.zip_code,
-          bio: data.bio || null,
-          // MVP PLACEHOLDER fields - will be normalized in Phase 2
-          systems_used: finalSystemsUsed,
-          inspection_types: finalInspectionTypes,
-          is_accepting_new_vendors: data.is_accepting_new_vendors,
-          willing_to_travel_out_of_state: data.willing_to_travel_out_of_state,
-        })
-        .eq("id", repProfile.id);
+    const updateData = {
+      city: data.city,
+      state: data.state,
+      zip_code: data.zip_code,
+      bio: data.bio || null,
+      systems_used: systemsUsed,
+      inspection_types: inspectionTypes,
+      is_accepting_new_vendors: data.is_accepting_new_vendors,
+      willing_to_travel_out_of_state: data.willing_to_travel_out_of_state,
+    };
 
-      if (error) throw error;
+    const { error } = await supabase
+      .from("rep_profile")
+      .update(updateData)
+      .eq("user_id", user!.id);
 
+    if (error) {
+      console.error("Error updating profile:", error);
       toast({
-        title: "Success",
-        description: "Your profile has been updated successfully.",
-      });
-
-      // Redirect to dashboard
-      navigate("/dashboard");
-    } catch (error: any) {
-      console.error("Error saving profile:", error);
-      toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to save profile. Please try again.",
-        variant: "destructive",
       });
-    } finally {
-      setSaving(false);
+    } else {
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been saved successfully.",
+      });
+      navigate("/dashboard");
     }
+
+    setSaving(false);
   };
 
   if (authLoading || loading) {
@@ -515,6 +532,147 @@ const RepProfile = () => {
               </div>
             </div>
 
+            {/* Section E: Coverage & Pricing (MVP) */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Coverage & Pricing (MVP)
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Add the states and counties you're willing to cover, and your typical pricing. 
+                  This is MVP data that future matching and Seeking Coverage will use.
+                </p>
+              </div>
+
+              {coverageAreas.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
+                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    No coverage areas added yet. Vendors won't see you in searches until you add at least one state.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setEditingCoverage(null);
+                      setCoverageDialogOpen(true);
+                    }}
+                  >
+                    Add Coverage Area
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {coverageAreas.map((coverage) => (
+                      <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-foreground">
+                                {coverage.state_code} - {coverage.state_name}
+                              </h4>
+                              {coverage.covers_entire_state && (
+                                <Badge variant="secondary">Entire State</Badge>
+                              )}
+                            </div>
+                            
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {coverage.covers_entire_state 
+                                ? "All counties" 
+                                : coverage.county_name || "No specific county"}
+                              {!coverage.covers_entire_state && coverage.covers_entire_county && coverage.county_name && (
+                                <Badge variant="secondary" className="ml-2">Entire County</Badge>
+                              )}
+                            </p>
+
+                            {(coverage.base_price || coverage.rush_price) && (
+                              <div className="flex items-center gap-4 text-sm mb-2">
+                                {coverage.base_price && (
+                                  <span className="flex items-center gap-1 text-foreground">
+                                    <DollarSign className="h-3 w-3" />
+                                    Base: ${parseFloat(coverage.base_price).toFixed(2)}
+                                  </span>
+                                )}
+                                {coverage.rush_price && (
+                                  <span className="flex items-center gap-1 text-foreground">
+                                    <DollarSign className="h-3 w-3" />
+                                    Rush: ${parseFloat(coverage.rush_price).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {coverage.inspection_types && coverage.inspection_types.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {coverage.inspection_types.map((type: string, idx: number) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {type}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCoverage(coverage);
+                                setCoverageDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from("rep_coverage_areas")
+                                  .delete()
+                                  .eq("id", coverage.id);
+
+                                if (error) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description: "Failed to delete coverage area.",
+                                  });
+                                } else {
+                                  toast({
+                                    title: "Coverage Area Deleted",
+                                    description: "Coverage area removed successfully.",
+                                  });
+                                  loadCoverageAreas();
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingCoverage(null);
+                      setCoverageDialogOpen(true);
+                    }}
+                  >
+                    Add Another Coverage Area
+                  </Button>
+                </>
+              )}
+            </div>
+
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">
               <Button type="submit" disabled={saving}>
@@ -524,6 +682,67 @@ const RepProfile = () => {
             </div>
           </Card>
         </form>
+
+        {/* Coverage Area Dialog */}
+        <CoverageAreaDialog
+          open={coverageDialogOpen}
+          onOpenChange={setCoverageDialogOpen}
+          editData={editingCoverage}
+          onSave={async (data) => {
+            const payload: any = {
+              user_id: user!.id,
+              state_code: data.state_code,
+              state_name: data.state_name,
+              county_name: data.county_name || null,
+              covers_entire_state: data.covers_entire_state,
+              covers_entire_county: data.covers_entire_county,
+              base_price: data.base_price ? parseFloat(data.base_price) : null,
+              rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
+              inspection_types: data.inspection_types.length > 0 ? data.inspection_types : null,
+            };
+
+            if (data.id) {
+              // Update existing
+              const { error } = await supabase
+                .from("rep_coverage_areas")
+                .update(payload)
+                .eq("id", data.id);
+
+              if (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to update coverage area.",
+                });
+              } else {
+                toast({
+                  title: "Coverage Area Updated",
+                  description: "Your coverage area has been updated successfully.",
+                });
+                loadCoverageAreas();
+              }
+            } else {
+              // Insert new
+              const { error } = await supabase
+                .from("rep_coverage_areas")
+                .insert([payload]);
+
+              if (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to add coverage area.",
+                });
+              } else {
+                toast({
+                  title: "Coverage Area Added",
+                  description: "Your coverage area has been added successfully.",
+                });
+                loadCoverageAreas();
+              }
+            }
+          }}
+        />
       </div>
     </div>
   );
