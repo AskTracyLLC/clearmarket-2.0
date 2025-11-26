@@ -227,13 +227,11 @@ const VendorSeekingCoverage = () => {
 
   const getLocationDisplay = (post: SeekingCoveragePost) => {
     if (post.covers_entire_state) {
-      const stateName = post.us_counties?.state_name || post.state_code || "Unknown";
-      return `Statewide – ${stateName}`;
+      return `Statewide – ${post.state_code}`;
     }
 
     const countyName = post.us_counties?.county_name || "Unknown County";
-    const stateName = post.us_counties?.state_name || post.state_code || "Unknown";
-    return `${countyName}, ${stateName}`;
+    return `${countyName}, ${post.state_code}`;
   };
 
   if (authLoading || loading) {
