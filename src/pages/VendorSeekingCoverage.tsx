@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users } from "lucide-react";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,6 +54,9 @@ const VendorSeekingCoverage = () => {
   const [editingPost, setEditingPost] = useState<SeekingCoveragePost | null>(null);
   const [viewingPost, setViewingPost] = useState<SeekingCoveragePost | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "open" | "closed" | "expired">("all");
+  
+  // Interested reps count per post
+  const [interestedCounts, setInterestedCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -157,6 +160,24 @@ const VendorSeekingCoverage = () => {
     );
 
     setAllPosts(postsWithCounties);
+
+    // Load interested rep counts for all posts
+    if (posts && posts.length > 0) {
+      const postIds = posts.map((p) => p.id);
+      const { data: interestData } = await supabase
+        .from("rep_interest")
+        .select("post_id")
+        .in("post_id", postIds)
+        .neq("status", "declined");
+
+      if (interestData) {
+        const counts: Record<string, number> = {};
+        interestData.forEach((item: any) => {
+          counts[item.post_id] = (counts[item.post_id] || 0) + 1;
+        });
+        setInterestedCounts(counts);
+      }
+    }
   };
 
   // Filter posts based on selected filter
@@ -478,12 +499,32 @@ const VendorSeekingCoverage = () => {
                     </p>
                   )}
 
+                  {/* Interested Reps Badge */}
+                  {interestedCounts[post.id] > 0 && (
+                    <div className="pt-3 border-t border-border">
+                      <Badge variant="secondary" className="text-xs">
+                        <Users className="h-3 w-3 mr-1" />
+                        {interestedCounts[post.id]} Interested Rep{interestedCounts[post.id] !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-4 border-t border-border">
                     <Button variant="secondary" size="sm" onClick={() => setViewingPost(post)}>
                       <Eye className="h-4 w-4 mr-2" />
                       View
                     </Button>
+                    {interestedCounts[post.id] > 0 && (
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        onClick={() => navigate(`/vendor/seeking-coverage/${post.id}/interested`)}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        View Interested Reps
+                      </Button>
+                    )}
                     {isActive && (
                       <>
                         <Button variant="secondary" size="sm" onClick={() => handleEdit(post)}>

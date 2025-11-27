@@ -15,6 +15,7 @@ import RepFindWork from "./pages/RepFindWork";
 import VendorProfile from "./pages/VendorProfile";
 import VendorFindReps from "./pages/VendorFindReps";
 import VendorSeekingCoverage from "./pages/VendorSeekingCoverage";
+import VendorInterestedReps from "./pages/VendorInterestedReps";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/vendor/profile" element={<VendorProfile />} />
             <Route path="/vendor/find-reps" element={<VendorFindReps />} />
             <Route path="/vendor/seeking-coverage" element={<VendorSeekingCoverage />} />
+            <Route path="/vendor/seeking-coverage/:postId/interested" element={<VendorInterestedReps />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

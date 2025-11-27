@@ -220,6 +220,48 @@ export type Database = {
           },
         ]
       }
+      rep_interest: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          rep_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          rep_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          rep_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_interest_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_interest_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_profile: {
         Row: {
           anonymous_id: string | null

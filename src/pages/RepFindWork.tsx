@@ -98,6 +98,10 @@ export default function RepFindWork() {
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
 
+  // Rep interest tracking
+  const [repInterest, setRepInterest] = useState<Set<string>>(new Set());
+  const [expressedInterestLoading, setExpressedInterestLoading] = useState<string | null>(null);
+
   // Detail dialog
   const [viewingPost, setViewingPost] = useState<MatchedPost | null>(null);
 
@@ -141,6 +145,18 @@ export default function RepFindWork() {
           .eq("user_id", user.id);
 
         setCoverageAreas(coverageData || []);
+
+        // Load rep_interest records to track which posts this rep has already expressed interest in
+        if (repData) {
+          const { data: interestData } = await supabase
+            .from("rep_interest")
+            .select("post_id")
+            .eq("rep_id", repData.id);
+
+          if (interestData) {
+            setRepInterest(new Set(interestData.map((i: any) => i.post_id)));
+          }
+        }
       }
 
       setLoading(false);
@@ -415,9 +431,41 @@ export default function RepFindWork() {
     );
   };
 
-  const handleInterestedClick = (postId: string) => {
-    console.log("Rep interested in post:", { repId: user?.id, postId });
-    toast.info("Connection requests are coming soon. This is a preview of the Find Work experience.");
+  const handleInterestedClick = async (postId: string) => {
+    if (!repProfile?.id) {
+      toast.error("Rep profile not found");
+      return;
+    }
+
+    setExpressedInterestLoading(postId);
+
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .insert({
+          post_id: postId,
+          rep_id: repProfile.id,
+          status: "interested",
+        });
+
+      if (error) {
+        if (error.code === "23505") {
+          // Unique constraint violation - already expressed interest
+          toast.info("You've already expressed interest in this post");
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success("Your interest has been sent to the vendor.");
+        // Add to local state
+        setRepInterest((prev) => new Set([...prev, postId]));
+      }
+    } catch (error: any) {
+      console.error("Error expressing interest:", error);
+      toast.error("Failed to express interest. Please try again.");
+    } finally {
+      setExpressedInterestLoading(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -492,6 +540,16 @@ export default function RepFindWork() {
           </Card>
         ) : (
           <>
+        {/* Helper Text */}
+        <Card className="mb-8 bg-primary/5 border-primary/20">
+          <CardContent className="py-4">
+            <p className="text-sm text-foreground">
+              <strong>How it works:</strong> When you click "I'm Interested", the vendor will see your profile for this county and can shortlist you. 
+              Contact and connection workflows will be added in a later phase.
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Search Filters - Only show if profile is complete */}
 
         {/* Search Filters */}
@@ -804,13 +862,25 @@ export default function RepFindWork() {
                           <ExternalLink className="h-3 w-3 mr-1" />
                           View Details
                         </Button>
-                         <Button
-                           size="sm"
-                           className="flex-1"
-                           onClick={() => handleInterestedClick(post.id)}
-                         >
-                           I'm Interested
-                         </Button>
+                        {repInterest.has(post.id) ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1"
+                            disabled
+                          >
+                            Interest Sent
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleInterestedClick(post.id)}
+                            disabled={expressedInterestLoading === post.id}
+                          >
+                            {expressedInterestLoading === post.id ? "Sending..." : "I'm Interested"}
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -896,9 +966,19 @@ export default function RepFindWork() {
               </div>
 
               {/* Action Button */}
-              <Button className="w-full" onClick={() => handleInterestedClick(viewingPost.id)}>
-                I'm Interested
-              </Button>
+              {repInterest.has(viewingPost.id) ? (
+                <Button className="w-full" variant="secondary" disabled>
+                  Interest Sent
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full" 
+                  onClick={() => handleInterestedClick(viewingPost.id)}
+                  disabled={expressedInterestLoading === viewingPost.id}
+                >
+                  {expressedInterestLoading === viewingPost.id ? "Sending..." : "I'm Interested"}
+                </Button>
+              )}
             </div>
           )}
         </DialogContent>
