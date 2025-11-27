@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +41,33 @@ const seekingCoverageSchema = z.object({
   systems_required_other: z.string().optional(),
   is_accepting_responses: z.boolean(),
   county_name: z.string().optional(),
-});
+  pay_type: z.enum(["fixed", "range"]),
+  pay_min: z.string().min(1, "Minimum pay is required"),
+  pay_max: z.string().optional(),
+  pay_notes: z.string().optional(),
+}).refine(
+  (data) => {
+    const min = parseFloat(data.pay_min);
+    return !isNaN(min) && min > 0;
+  },
+  {
+    message: "Minimum pay must be a valid number greater than 0",
+    path: ["pay_min"],
+  }
+).refine(
+  (data) => {
+    if (data.pay_type === "range" && data.pay_max) {
+      const min = parseFloat(data.pay_min);
+      const max = parseFloat(data.pay_max);
+      return !isNaN(max) && max >= min;
+    }
+    return true;
+  },
+  {
+    message: "Maximum pay must be greater than or equal to minimum pay",
+    path: ["pay_max"],
+  }
+);
 
 type SeekingCoverageForm = z.infer<typeof seekingCoverageSchema>;
 
@@ -90,6 +117,10 @@ export const SeekingCoverageDialog = ({
       systems_required_array: [],
       systems_required_other: "",
       is_accepting_responses: true,
+      pay_type: "fixed" as const,
+      pay_min: "",
+      pay_max: "",
+      pay_notes: "",
     },
   });
 
@@ -97,6 +128,7 @@ export const SeekingCoverageDialog = ({
   const coversEntireState = watch("covers_entire_state");
   const inspectionTypes = watch("inspection_types") || [];
   const systemsRequired = watch("systems_required_array") || [];
+  const payType = watch("pay_type");
 
   // Load counties when state changes
   useEffect(() => {
@@ -149,6 +181,10 @@ export const SeekingCoverageDialog = ({
         systems_required_array: editingPost.systems_required_array.filter((s: string) => !s.startsWith("Other:")),
         systems_required_other: systemsOther || "",
         is_accepting_responses: editingPost.is_accepting_responses,
+        pay_type: editingPost.pay_type || "fixed",
+        pay_min: editingPost.pay_min ? String(editingPost.pay_min) : "",
+        pay_max: editingPost.pay_max ? String(editingPost.pay_max) : "",
+        pay_notes: editingPost.pay_notes || "",
       });
     } else if (!editingPost && open) {
       reset({
@@ -163,6 +199,10 @@ export const SeekingCoverageDialog = ({
         systems_required_array: [],
         systems_required_other: "",
         is_accepting_responses: true,
+        pay_type: "fixed",
+        pay_min: "",
+        pay_max: "",
+        pay_notes: "",
       });
     }
   }, [editingPost, open, reset]);
@@ -217,6 +257,10 @@ export const SeekingCoverageDialog = ({
         ? editingPost.auto_expires_at
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
       vendor_id: user.id,
+      pay_type: data.pay_type,
+      pay_min: parseFloat(data.pay_min),
+      pay_max: data.pay_type === "range" && data.pay_max ? parseFloat(data.pay_max) : null,
+      pay_notes: data.pay_notes || null,
     };
 
     if (editingPost) {
@@ -446,6 +490,109 @@ export const SeekingCoverageDialog = ({
               rows={4}
               {...register("description")}
             />
+          </div>
+
+          {/* Pricing Section */}
+          <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+            <div>
+              <Label className="text-base font-semibold">What are you paying?</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Reps will only see this post if your offered rate meets their minimum for this county.
+              </p>
+            </div>
+
+            {/* Pay Type Selection */}
+            <div>
+              <Label>Payment Structure <span className="text-destructive">*</span></Label>
+              <RadioGroup
+                value={payType}
+                onValueChange={(value) => setValue("pay_type", value as "fixed" | "range")}
+                className="mt-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="fixed" id="pay-fixed" />
+                  <Label htmlFor="pay-fixed" className="cursor-pointer font-normal">
+                    Fixed price per completed inspection
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="range" id="pay-range" />
+                  <Label htmlFor="pay-range" className="cursor-pointer font-normal">
+                    Price range (min-max)
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Pay Inputs */}
+            {payType === "fixed" ? (
+              <div>
+                <Label htmlFor="pay_min">
+                  Offered Rate Per Inspection (USD) <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="pay_min"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="e.g., 35.00"
+                  {...register("pay_min")}
+                  className="mt-2"
+                />
+                {errors.pay_min && (
+                  <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="pay_min">
+                    Minimum Rate (USD) <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="pay_min"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 30.00"
+                    {...register("pay_min")}
+                    className="mt-2"
+                  />
+                  {errors.pay_min && (
+                    <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="pay_max">
+                    Maximum Rate (USD) <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="pay_max"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="e.g., 45.00"
+                    {...register("pay_max")}
+                    className="mt-2"
+                  />
+                  {errors.pay_max && (
+                    <p className="text-sm text-destructive mt-1">{errors.pay_max.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Pricing Notes */}
+            <div>
+              <Label htmlFor="pay_notes">Pricing Notes (optional)</Label>
+              <Textarea
+                id="pay_notes"
+                placeholder="e.g., higher for remote/rural, bonus for rush..."
+                rows={2}
+                {...register("pay_notes")}
+                className="mt-2"
+              />
+            </div>
           </div>
 
           {/* Accepting Responses */}

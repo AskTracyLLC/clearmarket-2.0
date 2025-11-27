@@ -43,6 +43,10 @@ interface SeekingCoveragePost {
   created_at: string;
   expires_at: string | null;
   is_accepting_responses: boolean;
+  pay_type: string;
+  pay_min: number | null;
+  pay_max: number | null;
+  pay_notes: string | null;
 }
 
 interface VendorInfo {
@@ -63,6 +67,8 @@ interface CoverageArea {
   county_name: string | null;
   covers_entire_state: boolean;
   covers_entire_county: boolean;
+  base_price: number | null;
+  rush_price: number | null;
 }
 
 interface MatchedPost extends SeekingCoveragePost {
@@ -128,10 +134,10 @@ export default function RepFindWork() {
 
         setRepProfile(repData);
 
-        // Load coverage areas
+        // Load coverage areas with pricing
         const { data: coverageData } = await supabase
           .from("rep_coverage_areas")
-          .select("id, state_code, county_id, county_name, covers_entire_state, covers_entire_county")
+          .select("id, state_code, county_id, county_name, covers_entire_state, covers_entire_county, base_price, rush_price")
           .eq("user_id", user.id);
 
         setCoverageAreas(coverageData || []);
@@ -252,8 +258,8 @@ export default function RepFindWork() {
           county: post.us_counties,
         }))
         .filter((post: MatchedPost) => {
-          // 1. Coverage match
-          const coverageMatch = coverageAreas.some((coverage) => {
+          // 1. Coverage match with pricing check
+          const matchingCoverage = coverageAreas.find((coverage) => {
             if (coverage.state_code !== post.state_code) return false;
             
             // If rep covers entire state, match
@@ -268,9 +274,28 @@ export default function RepFindWork() {
             return false;
           });
 
-          if (!coverageMatch) return false;
+          if (!matchingCoverage) return false;
 
-          // 2. Inspection type match (at least one must match)
+          // 2. Pricing validation: vendor pay must meet rep's base_price
+          // Skip posts with incomplete coverage pricing
+          if (matchingCoverage.base_price === null || matchingCoverage.base_price === undefined) {
+            return false;
+          }
+
+          // Check if vendor pay meets or exceeds rep's base_price
+          const vendorPay = post.pay_max !== null && post.pay_max !== undefined 
+            ? post.pay_max 
+            : post.pay_min;
+          
+          if (vendorPay === null || vendorPay === undefined) {
+            return false; // Exclude posts with no pricing set
+          }
+
+          if (vendorPay < matchingCoverage.base_price) {
+            return false; // Vendor pay doesn't meet rep's minimum
+          }
+
+          // 3. Inspection type match (at least one must match)
           // Handle "Other: CustomText" format like we do in profile pages
           const inspectionMatch = post.inspection_types.some((postType: string) => {
             const postBase = postType.startsWith("Other:") 
@@ -288,7 +313,7 @@ export default function RepFindWork() {
 
           if (!inspectionMatch) return false;
 
-          // 3. Systems match (at least one must match OR post has no system requirements)
+          // 4. Systems match (at least one must match OR post has no system requirements)
           // Handle "Other: CustomText" format
           const systemsMatch = 
             !post.systems_required_array?.length ||
@@ -308,7 +333,7 @@ export default function RepFindWork() {
 
           if (!systemsMatch) return false;
 
-          // 4. Vendor availability check (exclude vendors not accepting new reps)
+          // 5. Vendor availability check (exclude vendors not accepting new reps)
           if (!post.vendor.is_accepting_new_reps) return false;
 
           return true;
@@ -453,7 +478,7 @@ export default function RepFindWork() {
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 To see matching work, please complete your profile and coverage areas first. 
                 Required: City, State, at least one System Used, at least one Inspection Type, 
-                and at least one Coverage Area.
+                and at least one Coverage Area with a Base Rate set.
               </p>
               <Button onClick={() => navigate("/rep/profile")}>
                 Complete My Profile
@@ -706,6 +731,22 @@ export default function RepFindWork() {
                               </Badge>
                             ))}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Pricing */}
+                      {post.pay_min && (
+                        <div className="p-2 bg-primary/5 rounded border border-primary/20">
+                          <p className="text-xs text-muted-foreground mb-0.5">Offered Rate:</p>
+                          <p className="text-sm font-semibold text-primary">
+                            {post.pay_type === "fixed" 
+                              ? `$${post.pay_min.toFixed(2)} / order`
+                              : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
+                            }
+                          </p>
+                          {post.pay_notes && (
+                            <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{post.pay_notes}</p>
+                          )}
                         </div>
                       )}
 
