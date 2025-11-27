@@ -3,10 +3,11 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, CheckCircle2, XCircle, Star } from "lucide-react";
+import { ArrowLeft, MapPin, CheckCircle2, XCircle, Star, User, MessageSquare } from "lucide-react";
 
 interface InterestedRep {
   id: string; // rep_interest.id
@@ -17,11 +18,15 @@ interface InterestedRep {
     anonymous_id: string | null;
     city: string | null;
     state: string | null;
+    zip_code: string | null;
     systems_used: string[] | null;
     inspection_types: string[] | null;
+    is_accepting_new_vendors: boolean | null;
+    willing_to_travel_out_of_state: boolean | null;
   };
   rep_coverage_areas: {
     base_price: number | null;
+    rush_price: number | null;
   }[];
 }
 
@@ -45,6 +50,8 @@ export default function VendorInterestedReps() {
   const [post, setPost] = useState<SeekingCoveragePost | null>(null);
   const [interestedReps, setInterestedReps] = useState<InterestedRep[]>([]);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [selectedRep, setSelectedRep] = useState<InterestedRep | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -91,8 +98,11 @@ export default function VendorInterestedReps() {
             anonymous_id,
             city,
             state,
+            zip_code,
             systems_used,
-            inspection_types
+            inspection_types,
+            is_accepting_new_vendors,
+            willing_to_travel_out_of_state
           )
         `)
         .eq("post_id", postId)
@@ -105,8 +115,8 @@ export default function VendorInterestedReps() {
         (interestData || []).map(async (interest: any) => {
           const { data: coverageData } = await supabase
             .from("rep_coverage_areas")
-            .select("base_price")
-            .eq("user_id", interest.rep_profile.user_id)
+            .select("base_price, rush_price")
+            .eq("user_id", interest.rep_id)
             .eq("county_id", postData.county_id || null);
 
           return {
@@ -159,6 +169,15 @@ export default function VendorInterestedReps() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const handleViewProfile = (rep: InterestedRep) => {
+    setSelectedRep(rep);
+    setIsProfileModalOpen(true);
+  };
+
+  const handleMessageRep = () => {
+    toast.info("Direct messaging is coming soon. For now, mark reps as Connected and manage them from your network.");
   };
 
   if (authLoading || loading) {
@@ -269,11 +288,12 @@ export default function VendorInterestedReps() {
                         </h3>
                         {getStatusBadge(interest.status)}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                         <MapPin className="h-4 w-4" />
                         {interest.rep_profile.city}, {interest.rep_profile.state}
+                        {interest.rep_profile.zip_code && ` ${interest.rep_profile.zip_code}`}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground">
                         Expressed interest on {new Date(interest.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -312,24 +332,61 @@ export default function VendorInterestedReps() {
                     </div>
                   )}
 
-                  {/* Pricing Alignment */}
-                  {vendorPay && repMinimum && (
-                    <div className="mb-4 p-3 bg-muted/30 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Pricing:</p>
-                      <p className="text-sm">
-                        Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
-                      </p>
-                      <p className="text-sm">
-                        Rep minimum for this county: <span className="font-semibold">${repMinimum.toFixed(2)}</span>
-                      </p>
-                      {vendorPay >= repMinimum && (
-                        <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
-                      )}
-                    </div>
-                  )}
+                  {/* Pricing Section */}
+                  <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-2">Pricing for this county:</p>
+                    {repCoverage ? (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-sm">
+                            Base Rate: <span className="font-semibold">${repCoverage.base_price?.toFixed(2) || "Not set"}</span>
+                          </p>
+                          {repCoverage.rush_price && (
+                            <p className="text-sm">
+                              Rush Rate: <span className="font-semibold">${repCoverage.rush_price.toFixed(2)}</span>
+                            </p>
+                          )}
+                        </div>
+                        {vendorPay && repMinimum && (
+                          <>
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-sm">
+                                Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
+                              </p>
+                            </div>
+                            {vendorPay >= repMinimum && (
+                              <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
+                            )}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Base Rate: Not set</p>
+                    )}
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-4 border-t border-border">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewProfile(interest)}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      View Profile
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleMessageRep}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Message Rep
+                    </Button>
+                  </div>
+
+                  {/* Status Management Buttons */}
+                  <div className="flex gap-2 pt-2">
                     {interest.status === "interested" && (
                       <>
                         <Button
@@ -396,6 +453,119 @@ export default function VendorInterestedReps() {
           </div>
         )}
       </div>
+
+      {/* Rep Profile Preview Modal */}
+      <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedRep?.rep_profile.anonymous_id || "Field Rep Profile"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedRep && (
+            <div className="space-y-6">
+              {/* Location */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Location</h3>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  {selectedRep.rep_profile.city}, {selectedRep.rep_profile.state}
+                  {selectedRep.rep_profile.zip_code && ` ${selectedRep.rep_profile.zip_code}`}
+                </div>
+              </div>
+
+              {/* Systems Used */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Systems I Use</h3>
+                {selectedRep.rep_profile.systems_used && selectedRep.rep_profile.systems_used.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRep.rep_profile.systems_used.map((system, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs">
+                        {system}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">This rep has not completed this section yet.</p>
+                )}
+              </div>
+
+              {/* Inspection Types */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Inspection Types</h3>
+                {selectedRep.rep_profile.inspection_types && selectedRep.rep_profile.inspection_types.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRep.rep_profile.inspection_types.map((type, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {type}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">This rep has not completed this section yet.</p>
+                )}
+              </div>
+
+              {/* Coverage in This Area */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Coverage in This Area</h3>
+                {selectedRep.rep_coverage_areas.length > 0 ? (
+                  <div className="p-3 bg-muted/30 rounded-lg space-y-2">
+                    {post && (
+                      <p className="text-sm font-medium">
+                        {post.state_code} - County (for this post)
+                      </p>
+                    )}
+                    <div className="space-y-1">
+                      <p className="text-sm">
+                        Base Rate: <span className="font-semibold">
+                          ${selectedRep.rep_coverage_areas[0].base_price?.toFixed(2) || "Not set"}
+                        </span>
+                      </p>
+                      {selectedRep.rep_coverage_areas[0].rush_price && (
+                        <p className="text-sm">
+                          Rush Rate: <span className="font-semibold">
+                            ${selectedRep.rep_coverage_areas[0].rush_price.toFixed(2)}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Base Rate: Not set</p>
+                )}
+              </div>
+
+              {/* Availability & Preferences */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Availability & Preferences</h3>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    Accepting New Vendors: <span className="font-medium">
+                      {selectedRep.rep_profile.is_accepting_new_vendors ? "Yes" : "No"}
+                    </span>
+                  </p>
+                  <p>
+                    Willing to Travel Out of State: <span className="font-medium">
+                      {selectedRep.rep_profile.willing_to_travel_out_of_state ? "Yes" : "No"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Status */}
+              {selectedRep.status === "connected" && (
+                <div className="p-3 bg-green-600/10 border border-green-600/20 rounded-lg">
+                  <p className="text-sm text-green-600">
+                    ✓ Status: Connected on this Seeking Coverage post
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
