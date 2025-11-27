@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          is_pinned_for_one: boolean | null
+          is_pinned_for_two: boolean | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          participant_one: string
+          participant_two: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_pinned_for_one?: boolean | null
+          is_pinned_for_two?: boolean | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          participant_one: string
+          participant_two: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_pinned_for_one?: boolean | null
+          is_pinned_for_two?: boolean | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          participant_one?: string
+          participant_two?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_participant_one_fkey"
+            columns: ["participant_one"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_two_fkey"
+            columns: ["participant_two"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string
@@ -61,6 +112,7 @@ export type Database = {
       messages: {
         Row: {
           body: string
+          conversation_id: string | null
           created_at: string
           id: string
           read: boolean
@@ -70,6 +122,7 @@ export type Database = {
         }
         Insert: {
           body: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           read?: boolean
@@ -79,6 +132,7 @@ export type Database = {
         }
         Update: {
           body?: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           read?: boolean
@@ -87,6 +141,13 @@ export type Database = {
           subject?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_recipient_id_fkey"
             columns: ["recipient_id"]
