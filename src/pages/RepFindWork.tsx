@@ -114,7 +114,7 @@ export default function RepFindWork() {
         setProfile(profileData);
 
         if (!profileData?.is_fieldrep) {
-          toast.error("Access denied: Field Rep role required");
+          toast.error("Find Work is only available to Field Reps.");
           navigate("/dashboard");
           return;
         }
@@ -165,12 +165,11 @@ export default function RepFindWork() {
     loadCounties();
   }, [selectedState]);
 
-  // Check if rep profile is incomplete
+  // Check if rep profile is incomplete (required for matching)
   const isProfileIncomplete = () => {
     if (!repProfile) return true;
     return !repProfile.city || 
            !repProfile.state || 
-           !repProfile.zip_code || 
            !repProfile.systems_used?.length ||
            !repProfile.inspection_types?.length ||
            coverageAreas.length === 0;
@@ -194,7 +193,8 @@ export default function RepFindWork() {
         return;
       }
 
-      // Query seeking_coverage_posts (without joins; we'll fetch vendor info separately)
+      // Query seeking_coverage_posts matching rep's coverage areas
+      // Only show "open" posts that are accepting responses, not deleted, and not expired
       let query = supabase
         .from("seeking_coverage_posts")
         .select(`
@@ -202,6 +202,7 @@ export default function RepFindWork() {
           us_counties!county_id(county_name, state_code)
         `)
         .eq("status", "active")
+        .eq("is_accepting_responses", true)
         .is("deleted_at", null)
         .in("state_code", repStateCodes);
 
@@ -270,30 +271,45 @@ export default function RepFindWork() {
           if (!coverageMatch) return false;
 
           // 2. Inspection type match (at least one must match)
-          const inspectionMatch = post.inspection_types.some((postType: string) =>
-            repProfile.inspection_types?.some((repType: string) => 
-              postType.toLowerCase().includes(repType.toLowerCase()) ||
-              repType.toLowerCase().includes(postType.toLowerCase())
-            )
-          );
+          // Handle "Other: CustomText" format like we do in profile pages
+          const inspectionMatch = post.inspection_types.some((postType: string) => {
+            const postBase = postType.startsWith("Other:") 
+              ? postType.substring(6).trim().toLowerCase() 
+              : postType.toLowerCase();
+            
+            return repProfile.inspection_types?.some((repType: string) => {
+              const repBase = repType.startsWith("Other:") 
+                ? repType.substring(6).trim().toLowerCase() 
+                : repType.toLowerCase();
+              
+              return postBase.includes(repBase) || repBase.includes(postBase);
+            });
+          });
 
           if (!inspectionMatch) return false;
 
           // 3. Systems match (at least one must match OR post has no system requirements)
+          // Handle "Other: CustomText" format
           const systemsMatch = 
             !post.systems_required_array?.length ||
-            post.systems_required_array.some((postSys: string) =>
-              repProfile.systems_used?.some((repSys: string) =>
-                postSys.toLowerCase().includes(repSys.toLowerCase()) ||
-                repSys.toLowerCase().includes(postSys.toLowerCase())
-              )
-            );
+            post.systems_required_array.some((postSys: string) => {
+              const postSysBase = postSys.startsWith("Other:") 
+                ? postSys.substring(6).trim().toLowerCase() 
+                : postSys.toLowerCase();
+              
+              return repProfile.systems_used?.some((repSys: string) => {
+                const repSysBase = repSys.startsWith("Other:") 
+                  ? repSys.substring(6).trim().toLowerCase() 
+                  : repSys.toLowerCase();
+                
+                return postSysBase.includes(repSysBase) || repSysBase.includes(postSysBase);
+              });
+            });
 
           if (!systemsMatch) return false;
 
-          // 4. Availability flags
-          if (!repProfile.is_accepting_new_vendors) return false;
-          if (onlyAcceptingReps && !post.vendor.is_accepting_new_reps) return false;
+          // 4. Vendor availability check (exclude vendors not accepting new reps)
+          if (!post.vendor.is_accepting_new_reps) return false;
 
           return true;
         });
@@ -373,8 +389,9 @@ export default function RepFindWork() {
     );
   };
 
-  const handleInterestedClick = () => {
-    toast.info("Interest flow coming soon! For now, make sure your profile and coverage are up to date.");
+  const handleInterestedClick = (postId: string) => {
+    console.log("Rep interested in post:", { repId: user?.id, postId });
+    toast.info("Connection requests are coming soon. This is a preview of the Find Work experience.");
   };
 
   const formatDate = (dateString: string) => {
@@ -411,9 +428,10 @@ export default function RepFindWork() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Find Work</h1>
+              <h1 className="text-3xl font-bold text-foreground">Find Work in Your Coverage Areas</h1>
               <p className="text-muted-foreground mt-1">
-                Browse Seeking Coverage opportunities that match your profile
+                These opportunities are based on your coverage areas, systems, and inspection types. 
+                Update your profile to refine matches.
               </p>
             </div>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
@@ -424,28 +442,27 @@ export default function RepFindWork() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Profile Incomplete Banner */}
-        {isProfileIncomplete() && (
-          <Card className="mb-6 border-destructive/50 bg-destructive/10">
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Complete your profile to see matching opportunities
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    To appear in vendor searches and see matched work, please complete your location, 
-                    inspection types, systems used, and add at least one coverage area.
-                  </p>
-                  <Button size="sm" variant="outline" onClick={() => navigate("/rep/profile")}>
-                    Complete My Profile
-                  </Button>
-                </div>
-              </div>
+        {/* Profile Incomplete Blocking Panel */}
+        {isProfileIncomplete() ? (
+          <Card className="border-destructive bg-destructive/5">
+            <CardContent className="py-12 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                Profile Incomplete
+              </h2>
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                To see matching work, please complete your profile and coverage areas first. 
+                Required: City, State, at least one System Used, at least one Inspection Type, 
+                and at least one Coverage Area.
+              </p>
+              <Button onClick={() => navigate("/rep/profile")}>
+                Complete My Profile
+              </Button>
             </CardContent>
           </Card>
-        )}
+        ) : (
+          <>
+        {/* Search Filters - Only show if profile is complete */}
 
         {/* Search Filters */}
         <Card className="mb-8">
@@ -558,13 +575,27 @@ export default function RepFindWork() {
             </div>
 
             {/* Search Button */}
-            <Button
-              onClick={handleSearch}
-              disabled={searching || isProfileIncomplete()}
-              className="w-full md:w-auto"
-            >
-              {searching ? "Searching..." : "Search Opportunities"}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleSearch}
+                disabled={searching || isProfileIncomplete()}
+                className="flex-1 md:flex-none md:w-auto"
+              >
+                {searching ? "Searching..." : "Search Opportunities"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedState("all");
+                  setSelectedCounty("all");
+                  setSelectedSystems([]);
+                  setSelectedInspectionTypes([]);
+                  setOnlyAcceptingReps(true);
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -578,16 +609,44 @@ export default function RepFindWork() {
             {filteredPosts.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <p className="text-lg font-medium text-foreground mb-2">
-                    No matching opportunities right now
-                  </p>
-                  <p className="text-muted-foreground mb-4">
-                    Try expanding your coverage, inspection types, or systems—or check back later 
-                    as new Seeking Coverage posts are added.
-                  </p>
-                  <Button variant="outline" onClick={() => navigate("/rep/profile")}>
-                    Review My Profile
-                  </Button>
+                  {allPosts.length === 0 ? (
+                    // No matches at all without filters
+                    <>
+                      <p className="text-lg font-medium text-foreground mb-2">
+                        No active Seeking Coverage posts match your profile right now
+                      </p>
+                      <p className="text-muted-foreground mb-4">
+                        Vendors may not have posted yet, or your filters may be too narrow. 
+                        Try expanding your coverage areas, systems, or inspection types.
+                      </p>
+                      <Button variant="outline" onClick={() => navigate("/rep/profile")}>
+                        Review My Profile
+                      </Button>
+                    </>
+                  ) : (
+                    // Filters narrowed results to zero
+                    <>
+                      <p className="text-lg font-medium text-foreground mb-2">
+                        No posts match these filters
+                      </p>
+                      <p className="text-muted-foreground mb-4">
+                        Try clearing filters or adjusting your search criteria. 
+                        You have {allPosts.length} {allPosts.length === 1 ? "post" : "posts"} matching your base coverage.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setSelectedState("all");
+                          setSelectedCounty("all");
+                          setSelectedSystems([]);
+                          setSelectedInspectionTypes([]);
+                          applyClientSideFilters(allPosts);
+                        }}
+                      >
+                        Clear All Filters
+                      </Button>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -679,13 +738,13 @@ export default function RepFindWork() {
                           <ExternalLink className="h-3 w-3 mr-1" />
                           View Details
                         </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={handleInterestedClick}
-                        >
-                          I'm Interested
-                        </Button>
+                         <Button
+                           size="sm"
+                           className="flex-1"
+                           onClick={() => handleInterestedClick(post.id)}
+                         >
+                           I'm Interested
+                         </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -693,6 +752,8 @@ export default function RepFindWork() {
               </div>
             )}
           </div>
+        )}
+          </>
         )}
       </div>
 
@@ -769,7 +830,7 @@ export default function RepFindWork() {
               </div>
 
               {/* Action Button */}
-              <Button className="w-full" onClick={handleInterestedClick}>
+              <Button className="w-full" onClick={() => handleInterestedClick(viewingPost.id)}>
                 I'm Interested
               </Button>
             </div>
