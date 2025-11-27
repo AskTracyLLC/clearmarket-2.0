@@ -194,15 +194,11 @@ export default function RepFindWork() {
         return;
       }
 
-      // Query seeking_coverage_posts
+      // Query seeking_coverage_posts (without joins; we'll fetch vendor info separately)
       let query = supabase
         .from("seeking_coverage_posts")
         .select(`
           *,
-          profiles!vendor_id(
-            id,
-            vendor_profile(anonymous_id, company_name, is_accepting_new_reps)
-          ),
           us_counties!county_id(county_name, state_code)
         `)
         .eq("status", "active")
@@ -216,14 +212,41 @@ export default function RepFindWork() {
 
       if (error) throw error;
 
+      // Load vendor profiles for these posts so we can get anonymous IDs and availability
+      const vendorIds = Array.from(
+        new Set((posts || []).map((p: any) => p.vendor_id).filter(Boolean)),
+      );
+
+      let vendorMap: Record<string, VendorInfo> = {};
+
+      if (vendorIds.length > 0) {
+        const { data: vendors, error: vendorError } = await supabase
+          .from("vendor_profile")
+          .select("user_id, anonymous_id, company_name, is_accepting_new_reps")
+          .in("user_id", vendorIds);
+
+        if (vendorError) throw vendorError;
+
+        vendorMap = Object.fromEntries(
+          (vendors || []).map((v: any) => [
+            v.user_id,
+            {
+              anonymous_id: v.anonymous_id,
+              company_name: v.company_name,
+              is_accepting_new_reps: v.is_accepting_new_reps ?? true,
+            } as VendorInfo,
+          ]),
+        );
+      }
+
       // Transform and filter posts based on matching rules
       const matched = (posts || [])
         .map((post: any) => ({
           ...post,
-          vendor: {
-            anonymous_id: post.profiles?.vendor_profile?.anonymous_id || null,
-            company_name: post.profiles?.vendor_profile?.company_name || "Unknown Vendor",
-            is_accepting_new_reps: post.profiles?.vendor_profile?.is_accepting_new_reps ?? true,
+          vendor: vendorMap[post.vendor_id] || {
+            anonymous_id: null,
+            company_name: "Unknown Vendor",
+            is_accepting_new_reps: true,
           },
           county: post.us_counties,
         }))
@@ -576,7 +599,7 @@ export default function RepFindWork() {
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium text-foreground">
-                            {post.vendor.anonymous_id || `Vendor#${post.vendor_id.slice(0, 8)}`}
+                            {post.vendor.anonymous_id ?? "Vendor"}
                           </span>
                         </div>
                         <Badge variant="secondary" className="text-xs">
