@@ -199,9 +199,11 @@ export default function RepFindWork() {
         .from("seeking_coverage_posts")
         .select(`
           *,
-          vendor:profiles!vendor_id(anonymous_id),
-          vendor_profile!vendor_id(company_name, is_accepting_new_reps),
-          county:us_counties!county_id(county_name, state_code)
+          profiles!vendor_id(
+            anonymous_id,
+            vendor_profile(company_name, is_accepting_new_reps)
+          ),
+          us_counties!county_id(county_name, state_code)
         `)
         .eq("status", "active")
         .is("deleted_at", null)
@@ -219,11 +221,11 @@ export default function RepFindWork() {
         .map((post: any) => ({
           ...post,
           vendor: {
-            anonymous_id: post.vendor?.anonymous_id || null,
-            company_name: post.vendor_profile?.company_name || "Unknown Vendor",
-            is_accepting_new_reps: post.vendor_profile?.is_accepting_new_reps ?? true,
+            anonymous_id: post.profiles?.anonymous_id || null,
+            company_name: post.profiles?.vendor_profile?.company_name || "Unknown Vendor",
+            is_accepting_new_reps: post.profiles?.vendor_profile?.is_accepting_new_reps ?? true,
           },
-          county: post.county,
+          county: post.us_counties,
         }))
         .filter((post: MatchedPost) => {
           // 1. Coverage match
