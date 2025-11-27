@@ -150,6 +150,10 @@ export default function VendorInterestedReps() {
             .select(`
               base_price,
               rush_price,
+              state_code,
+              state_name,
+              county_name,
+              county_id,
               us_counties:county_id (
                 county_name,
                 state_code,
@@ -164,11 +168,15 @@ export default function VendorInterestedReps() {
 
           const normalizedAllStateCoverage =
             (allStateCoverageRaw || [])
-              .filter(row => row.us_counties?.state_code === postData.state_code)
+              .filter(row => {
+                const rowState =
+                  row.us_counties?.state_code || row.state_code;
+                return rowState === postData.state_code;
+              })
               .map(row => ({
-                county_name: row.us_counties?.county_name ?? null,
-                state_code: row.us_counties?.state_code ?? "",
-                state_name: row.us_counties?.state_name ?? "",
+                county_name: row.us_counties?.county_name || row.county_name || null,
+                state_code: row.us_counties?.state_code || row.state_code || "",
+                state_name: row.us_counties?.state_name || row.state_name || "",
                 base_price: row.base_price ?? null,
                 rush_price: row.rush_price ?? null,
               }));
