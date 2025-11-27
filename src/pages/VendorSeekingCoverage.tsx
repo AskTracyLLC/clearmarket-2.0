@@ -31,6 +31,10 @@ interface SeekingCoveragePost {
   auto_expires_at: string | null;
   created_at: string;
   deleted_at: string | null;
+  pay_type: string;
+  pay_min: number | null;
+  pay_max: number | null;
+  pay_notes: string | null;
   us_counties?: {
     county_name: string;
     state_name: string;
@@ -450,6 +454,22 @@ const VendorSeekingCoverage = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Pricing */}
+                  {post.pay_min && (
+                    <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Offered Rate:</p>
+                      <p className="text-lg font-semibold text-primary">
+                        {post.pay_type === "fixed" 
+                          ? `$${post.pay_min.toFixed(2)} / order`
+                          : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
+                        }
+                      </p>
+                      {post.pay_notes && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">{post.pay_notes}</p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Auto-Expiry */}
                   {post.auto_expires_at && (

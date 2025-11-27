@@ -300,6 +300,10 @@ export type Database = {
           inspection_types: string[]
           is_accepting_responses: boolean
           location: string | null
+          pay_max: number | null
+          pay_min: number | null
+          pay_notes: string | null
+          pay_type: string | null
           state_code: string | null
           status: string
           systems_required: string[] | null
@@ -322,6 +326,10 @@ export type Database = {
           inspection_types?: string[]
           is_accepting_responses?: boolean
           location?: string | null
+          pay_max?: number | null
+          pay_min?: number | null
+          pay_notes?: string | null
+          pay_type?: string | null
           state_code?: string | null
           status?: string
           systems_required?: string[] | null
@@ -344,6 +352,10 @@ export type Database = {
           inspection_types?: string[]
           is_accepting_responses?: boolean
           location?: string | null
+          pay_max?: number | null
+          pay_min?: number | null
+          pay_notes?: string | null
+          pay_type?: string | null
           state_code?: string | null
           status?: string
           systems_required?: string[] | null

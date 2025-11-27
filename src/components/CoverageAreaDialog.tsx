@@ -129,6 +129,12 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       return;
     }
 
+    // Validate base_price requirement
+    if (!basePrice || parseFloat(basePrice) <= 0) {
+      toast.error("Base Rate is required and must be greater than 0");
+      return;
+    }
+
     const selectedState = US_STATES.find(s => s.value === stateCode);
     if (!selectedState) return;
 
@@ -259,30 +265,37 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
 
           {/* Base Price */}
           <div className="space-y-2">
-            <Label htmlFor="base-price">Base Price (USD, optional)</Label>
+            <Label htmlFor="base-price">Base Rate (USD) *</Label>
             <Input
               id="base-price"
               type="number"
               step="0.01"
-              min="0"
-              placeholder="e.g., 150.00"
+              min="0.01"
+              placeholder="e.g., 35.00"
               value={basePrice}
               onChange={(e) => setBasePrice(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Your Base Rate is the minimum you're willing to accept per inspection in this county. 
+              Vendors whose rates fall below this will not see you as a match.
+            </p>
           </div>
 
           {/* Rush Price */}
           <div className="space-y-2">
-            <Label htmlFor="rush-price">Rush Price (USD, optional)</Label>
+            <Label htmlFor="rush-price">Rush Rate (USD, optional)</Label>
             <Input
               id="rush-price"
               type="number"
               step="0.01"
               min="0"
-              placeholder="e.g., 200.00"
+              placeholder="e.g., 50.00"
               value={rushPrice}
               onChange={(e) => setRushPrice(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">
+              Optional higher rate for rush work (stored for future use).
+            </p>
           </div>
 
           {/* Region Note */}
