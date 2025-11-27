@@ -480,6 +480,10 @@ export default function RepFindWork() {
                 Required: City, State, at least one System Used, at least one Inspection Type, 
                 and at least one Coverage Area with a Base Rate set.
               </p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                <strong>Note:</strong> Set your Base Rate for each county in your Coverage settings 
+                to see matching posts. Posts that don't meet your pricing requirements won't be shown.
+              </p>
               <Button onClick={() => navigate("/rep/profile")}>
                 Complete My Profile
               </Button>

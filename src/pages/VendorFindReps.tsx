@@ -29,14 +29,36 @@ const INSPECTION_TYPE_OPTIONS = [
   "Other"
 ];
 
+interface SeekingCoveragePost {
+  id: string;
+  title: string;
+  state_code: string;
+  county_id: string | null;
+  covers_entire_state: boolean;
+  pay_type: string;
+  pay_min: number | null;
+  pay_max: number | null;
+}
+
+interface RepCoverageArea {
+  id: string;
+  user_id: string;
+  state_code: string;
+  county_id: string | null;
+  covers_entire_state: boolean;
+  base_price: number | null;
+}
+
 interface RepResult {
   id: string;
+  user_id: string;
   anonymous_id: string | null;
   city: string;
   state: string;
   systems_used: string[];
   inspection_types: string[];
   is_accepting_new_vendors: boolean;
+  coverageAreas: RepCoverageArea[];
 }
 
 export default function VendorFindReps() {
@@ -44,6 +66,10 @@ export default function VendorFindReps() {
   const { user, loading: authLoading } = useAuth();
   const [profiles, setProfiles] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Vendor's seeking coverage posts
+  const [vendorPosts, setVendorPosts] = useState<SeekingCoveragePost[]>([]);
+  const [selectedPost, setSelectedPost] = useState<string | null>(null);
 
   // Filter state
   const [selectedState, setSelectedState] = useState<string>("all");
@@ -77,6 +103,17 @@ export default function VendorFindReps() {
           navigate("/dashboard");
           return;
         }
+
+        // Load vendor's seeking coverage posts for pricing context
+        const { data: posts } = await supabase
+          .from("seeking_coverage_posts")
+          .select("id, title, state_code, county_id, covers_entire_state, pay_type, pay_min, pay_max")
+          .eq("vendor_id", user.id)
+          .eq("status", "active")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false });
+
+        setVendorPosts(posts || []);
       }
       setLoading(false);
     };
@@ -101,9 +138,12 @@ export default function VendorFindReps() {
     setHasSearched(true);
 
     try {
+      // Get the selected post if pricing filter is enabled
+      const post = selectedPost ? vendorPosts.find(p => p.id === selectedPost) : null;
+
       let query = supabase
         .from("rep_profile")
-        .select("id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors");
+        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors");
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -119,48 +159,88 @@ export default function VendorFindReps() {
 
       if (error) throw error;
 
-      // Client-side filtering for systems and inspection types (since they're arrays)
-      let filtered = data || [];
+      // For each rep, load their coverage areas with pricing
+      const repsWithCoverage = await Promise.all(
+        (data || []).map(async (rep) => {
+          const { data: coverageData } = await supabase
+            .from("rep_coverage_areas")
+            .select("id, user_id, state_code, county_id, covers_entire_state, base_price")
+            .eq("user_id", rep.user_id);
+
+          return {
+            ...rep,
+            coverageAreas: coverageData || [],
+          };
+        })
+      );
+
+      // Client-side filtering for systems and inspection types
+      let filtered = repsWithCoverage;
 
       if (selectedSystems.length > 0 || otherSystemText.trim()) {
         filtered = filtered.filter((rep) => {
-          // Check standard system checkboxes
           const matchesStandardSystems = selectedSystems.length === 0 || selectedSystems.some((sys) =>
             rep.systems_used?.some((repSys: string) => repSys.includes(sys))
           );
           
-          // Check "Other: X" text search (ILIKE-style: case-insensitive contains)
           const matchesOtherSystem = !otherSystemText.trim() || rep.systems_used?.some((repSys: string) => {
             if (repSys.startsWith("Other: ")) {
-              const otherValue = repSys.substring(7); // Remove "Other: " prefix
+              const otherValue = repSys.substring(7);
               return otherValue.toLowerCase().includes(otherSystemText.toLowerCase());
             }
             return false;
           });
           
-          // Match if either standard OR other matches (OR logic)
           return matchesStandardSystems || matchesOtherSystem;
         });
       }
 
       if (selectedInspectionTypes.length > 0 || otherInspectionTypeText.trim()) {
         filtered = filtered.filter((rep) => {
-          // Check standard inspection type checkboxes
           const matchesStandardTypes = selectedInspectionTypes.length === 0 || selectedInspectionTypes.some((type) =>
             rep.inspection_types?.some((repType: string) => repType.includes(type))
           );
           
-          // Check "Other: X" text search (ILIKE-style: case-insensitive contains)
           const matchesOtherType = !otherInspectionTypeText.trim() || rep.inspection_types?.some((repType: string) => {
             if (repType.startsWith("Other: ")) {
-              const otherValue = repType.substring(7); // Remove "Other: " prefix
+              const otherValue = repType.substring(7);
               return otherValue.toLowerCase().includes(otherInspectionTypeText.toLowerCase());
             }
             return false;
           });
           
-          // Match if either standard OR other matches (OR logic)
           return matchesStandardTypes || matchesOtherType;
+        });
+      }
+
+      // Apply pricing filter if a post is selected
+      if (post) {
+        const vendorPay = post.pay_type === "range" && post.pay_max 
+          ? post.pay_max 
+          : post.pay_min;
+
+        filtered = filtered.filter((rep) => {
+          // Rep must have at least one coverage area matching the post's location with valid base_price
+          return rep.coverageAreas.some((coverage: RepCoverageArea) => {
+            // Check if coverage area matches post location
+            const locationMatches = 
+              (post.covers_entire_state && coverage.state_code === post.state_code) ||
+              (post.county_id && coverage.county_id === post.county_id) ||
+              (coverage.covers_entire_state && coverage.state_code === post.state_code);
+
+            if (!locationMatches) return false;
+
+            // Check pricing: base_price must be set and vendor pay must meet it
+            if (coverage.base_price === null || coverage.base_price === undefined) {
+              return false; // Exclude coverage with no base_price set
+            }
+
+            if (vendorPay === null || vendorPay === undefined) {
+              return false; // Exclude if vendor has no pricing
+            }
+
+            return vendorPay >= coverage.base_price;
+          });
         });
       }
 
@@ -223,6 +303,29 @@ export default function VendorFindReps() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Post Selection for Pricing Filter */}
+            {vendorPosts.length > 0 && (
+              <div>
+                <Label htmlFor="post-filter">Filter by Post (for pricing match)</Label>
+                <Select value={selectedPost || "none"} onValueChange={(val) => setSelectedPost(val === "none" ? null : val)}>
+                  <SelectTrigger id="post-filter" className="mt-2">
+                    <SelectValue placeholder="No post selected (all reps)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50">
+                    <SelectItem value="none">No post selected (all reps)</SelectItem>
+                    {vendorPosts.map((post) => (
+                      <SelectItem key={post.id} value={post.id}>
+                        {post.title} - ${post.pay_min}{post.pay_type === "range" && post.pay_max ? `–$${post.pay_max}` : ""} / order
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select a post to only see reps whose pricing aligns with your offer
+                </p>
+              </div>
+            )}
+
             {/* State Filter */}
             <div>
               <Label htmlFor="state-filter">State</Label>
@@ -418,6 +521,15 @@ export default function VendorFindReps() {
                           </>
                         )}
                       </div>
+
+                      {/* Pricing Alignment Indicator (if post selected) */}
+                      {selectedPost && vendorPosts.find(p => p.id === selectedPost) && (
+                        <div className="pt-2 border-t border-border">
+                          <p className="text-xs text-green-600 font-medium">
+                            ✓ Pricing aligned with this rep's minimum
+                          </p>
+                        </div>
+                      )}
 
                       {/* Unlock Button (Disabled) */}
                       <Button
