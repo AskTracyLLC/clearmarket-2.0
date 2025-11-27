@@ -15,6 +15,7 @@ interface InterestedRep {
   status: string;
   created_at: string;
   rep_profile: {
+    user_id: string;
     anonymous_id: string | null;
     city: string | null;
     state: string | null;
@@ -115,6 +116,7 @@ export default function VendorInterestedReps() {
           status,
           created_at,
           rep_profile!inner (
+            user_id,
             anonymous_id,
             city,
             state,
@@ -140,14 +142,14 @@ export default function VendorInterestedReps() {
           const { data: coverageData } = await supabase
             .from("rep_coverage_areas")
             .select("base_price, rush_price")
-            .eq("user_id", interest.rep_id)
+            .eq("user_id", interest.rep_profile.user_id)
             .eq("county_id", postData.county_id || null);
 
           // Get ALL coverage areas for this state
           const { data: allStateCoverage } = await supabase
             .from("rep_coverage_areas")
             .select("county_name, state_code, state_name, base_price, rush_price")
-            .eq("user_id", interest.rep_id)
+            .eq("user_id", interest.rep_profile.user_id)
             .eq("state_code", postData.state_code || "")
             .order("county_name");
 
