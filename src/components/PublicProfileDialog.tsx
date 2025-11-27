@@ -79,80 +79,76 @@ export function PublicProfileDialog({
             ? `${nameParts[0]} ${nameParts[nameParts.length - 1].charAt(0)}.`
             : nameParts[0] || "User";
 
-        // Load rep profile if applicable
-        if (profile.is_fieldrep) {
-          const { data: repProfile } = await supabase
-            .from("rep_profile")
-            .select("*")
+        // Load rep profile
+        const { data: repProfile } = await supabase
+          .from("rep_profile")
+          .select("*")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+
+        // Load vendor profile
+        const { data: vendorProfile } = await supabase
+          .from("vendor_profile")
+          .select("*")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+
+        // If rep profile exists, use it (priority if user has both roles)
+        if (repProfile) {
+          // Load coverage areas
+          const { data: coverageAreas } = await supabase
+            .from("rep_coverage_areas")
+            .select(`
+              state_code,
+              state_name,
+              county_name,
+              covers_entire_state,
+              base_price,
+              rush_price
+            `)
             .eq("user_id", targetUserId)
-            .maybeSingle();
+            .order("state_code");
 
-          if (repProfile) {
-            // Load coverage areas
-            const { data: coverageAreas } = await supabase
-              .from("rep_coverage_areas")
-              .select(`
-                state_code,
-                state_name,
-                county_name,
-                covers_entire_state,
-                base_price,
-                rush_price
-              `)
-              .eq("user_id", targetUserId)
-              .order("state_code");
-
-            setProfileData({
-              role: "rep",
-              anonymousId: repProfile.anonymous_id || "FieldRep#?",
-              displayName,
-              city: repProfile.city,
-              state: repProfile.state,
-              zipCode: repProfile.zip_code,
-              bio: repProfile.bio,
-              systemsUsed: repProfile.systems_used || [],
-              inspectionTypes: repProfile.inspection_types || [],
-              isAcceptingNewVendors: repProfile.is_accepting_new_vendors,
-              willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state,
-              coverageAreas: (coverageAreas || []).map(area => ({
-                stateCode: area.state_code,
-                stateName: area.state_name,
-                countyName: area.county_name,
-                coversEntireState: area.covers_entire_state,
-                basePrice: area.base_price,
-                rushPrice: area.rush_price,
-              })),
-            });
-          } else {
-            setProfileData(null);
-          }
-        }
-        // Load vendor profile if applicable
-        else if (profile.is_vendor_admin) {
-          const { data: vendorProfile } = await supabase
-            .from("vendor_profile")
-            .select("*")
-            .eq("user_id", targetUserId)
-            .maybeSingle();
-
-          if (vendorProfile) {
-            setProfileData({
-              role: "vendor",
-              anonymousId: vendorProfile.anonymous_id || "Vendor#?",
-              displayName,
-              companyName: vendorProfile.company_name,
-              companyDescription: vendorProfile.company_description,
-              website: vendorProfile.website,
-              city: vendorProfile.city,
-              state: vendorProfile.state,
-              systemsUsed: vendorProfile.systems_used || [],
-              inspectionTypes: vendorProfile.primary_inspection_types || [],
-              isAcceptingNewReps: vendorProfile.is_accepting_new_reps,
-            });
-          } else {
-            setProfileData(null);
-          }
-        } else {
+          setProfileData({
+            role: "rep",
+            anonymousId: repProfile.anonymous_id || "FieldRep#?",
+            displayName,
+            city: repProfile.city,
+            state: repProfile.state,
+            zipCode: repProfile.zip_code,
+            bio: repProfile.bio,
+            systemsUsed: repProfile.systems_used || [],
+            inspectionTypes: repProfile.inspection_types || [],
+            isAcceptingNewVendors: repProfile.is_accepting_new_vendors,
+            willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state,
+            coverageAreas: (coverageAreas || []).map(area => ({
+              stateCode: area.state_code,
+              stateName: area.state_name,
+              countyName: area.county_name,
+              coversEntireState: area.covers_entire_state,
+              basePrice: area.base_price,
+              rushPrice: area.rush_price,
+            })),
+          });
+        } 
+        // Otherwise use vendor profile
+        else if (vendorProfile) {
+          setProfileData({
+            role: "vendor",
+            anonymousId: vendorProfile.anonymous_id || "Vendor#?",
+            displayName,
+            companyName: vendorProfile.company_name,
+            companyDescription: vendorProfile.company_description,
+            website: vendorProfile.website,
+            city: vendorProfile.city,
+            state: vendorProfile.state,
+            systemsUsed: vendorProfile.systems_used || [],
+            inspectionTypes: vendorProfile.primary_inspection_types || [],
+            isAcceptingNewReps: vendorProfile.is_accepting_new_reps,
+          });
+        } 
+        // No rep or vendor profile found
+        else {
           setProfileData(null);
         }
       } catch (error) {
