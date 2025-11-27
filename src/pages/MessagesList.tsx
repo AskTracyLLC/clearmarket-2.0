@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, MessageSquare } from "lucide-react";
+import { ArrowLeft, MessageSquare, Eye } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
 interface ConversationWithParticipant {
   id: string;
@@ -15,6 +16,7 @@ interface ConversationWithParticipant {
   participant_one: string;
   participant_two: string;
   otherParticipantName: string;
+  otherParticipantUserId: string;
 }
 
 export default function MessagesList() {
@@ -22,6 +24,8 @@ export default function MessagesList() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<ConversationWithParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -63,6 +67,7 @@ export default function MessagesList() {
           return {
             ...conv,
             otherParticipantName,
+            otherParticipantUserId: otherUserId,
           };
         })
       );
@@ -118,16 +123,28 @@ export default function MessagesList() {
             {conversations.map((conv) => (
               <Card
                 key={conv.id}
-                className="p-4 hover:bg-accent/50 cursor-pointer transition-colors"
-                onClick={() => navigate(`/messages/${conv.id}`)}
+                className="p-4 hover:bg-accent/50 transition-colors"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground mb-1">
-                      {conv.otherParticipantName}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfileUserId(conv.otherParticipantUserId);
+                          setProfileDialogOpen(true);
+                        }}
+                        className="font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                      >
+                        {conv.otherParticipantName}
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                     {conv.last_message_preview && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p 
+                        className="text-sm text-muted-foreground line-clamp-2 cursor-pointer"
+                        onClick={() => navigate(`/messages/${conv.id}`)}
+                      >
                         {conv.last_message_preview}
                       </p>
                     )}
@@ -142,6 +159,12 @@ export default function MessagesList() {
             ))}
           </div>
         )}
+        
+        <PublicProfileDialog
+          open={profileDialogOpen}
+          onOpenChange={setProfileDialogOpen}
+          targetUserId={selectedProfileUserId}
+        />
       </div>
     </div>
   );

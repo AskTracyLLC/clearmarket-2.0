@@ -5,10 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Eye } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
 interface Message {
   id: string;
@@ -30,6 +31,7 @@ export default function MessageThread() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -199,9 +201,18 @@ export default function MessageThread() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Messages
           </Button>
-          <h1 className="text-2xl font-bold text-foreground">
-            Conversation with {otherParticipantName}
-          </h1>
+          <div>
+            <h1 className="text-lg text-muted-foreground mb-1">
+              Conversation with
+            </h1>
+            <button
+              onClick={() => setProfileDialogOpen(true)}
+              className="text-2xl font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
+            >
+              {otherParticipantName}
+              <Eye className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Messages Area */}
@@ -269,6 +280,12 @@ export default function MessageThread() {
             Press Enter to send, Shift+Enter for new line
           </p>
         </Card>
+
+        <PublicProfileDialog
+          open={profileDialogOpen}
+          onOpenChange={setProfileDialogOpen}
+          targetUserId={otherParticipantId}
+        />
       </div>
     </div>
   );
