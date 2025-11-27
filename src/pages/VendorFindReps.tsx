@@ -215,7 +215,8 @@ export default function VendorFindReps() {
 
       // Apply pricing filter if a post is selected
       if (post) {
-        const vendorPay = post.pay_type === "range" && post.pay_max 
+        // Use COALESCE logic: pay_max if available, otherwise pay_min
+        const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
           ? post.pay_max 
           : post.pay_min;
 
@@ -235,11 +236,11 @@ export default function VendorFindReps() {
               return false; // Exclude coverage with no base_price set
             }
 
-            if (vendorPay === null || vendorPay === undefined) {
+            if (vendorEffectiveRate === null || vendorEffectiveRate === undefined) {
               return false; // Exclude if vendor has no pricing
             }
 
-            return vendorPay >= coverage.base_price;
+            return vendorEffectiveRate >= coverage.base_price;
           });
         });
       }
@@ -523,13 +524,38 @@ export default function VendorFindReps() {
                       </div>
 
                       {/* Pricing Alignment Indicator (if post selected) */}
-                      {selectedPost && vendorPosts.find(p => p.id === selectedPost) && (
-                        <div className="pt-2 border-t border-border">
-                          <p className="text-xs text-green-600 font-medium">
-                            ✓ Pricing aligned with this rep's minimum
-                          </p>
-                        </div>
-                      )}
+                      {selectedPost && (() => {
+                        const post = vendorPosts.find(p => p.id === selectedPost);
+                        if (!post) return null;
+                        
+                        const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
+                          ? post.pay_max 
+                          : post.pay_min;
+                        
+                        // Find the matching coverage for this post
+                        const matchingCoverage = rep.coverageAreas.find((coverage: RepCoverageArea) => {
+                          const locationMatches = 
+                            (post.covers_entire_state && coverage.state_code === post.state_code) ||
+                            (post.county_id && coverage.county_id === post.county_id) ||
+                            (coverage.covers_entire_state && coverage.state_code === post.state_code);
+                          return locationMatches && coverage.base_price !== null;
+                        });
+                        
+                        if (!matchingCoverage || !matchingCoverage.base_price) return null;
+                        
+                        const priceDiff = vendorEffectiveRate ? vendorEffectiveRate - matchingCoverage.base_price : 0;
+                        
+                        return (
+                          <div className="pt-2 border-t border-border">
+                            <p className="text-xs text-green-600 font-medium">
+                              ✓ Pricing aligned with this rep's minimum
+                              {priceDiff <= 5 && priceDiff >= 0 && (
+                                <span className="text-muted-foreground ml-1">(close match)</span>
+                              )}
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       {/* Unlock Button (Disabled) */}
                       <Button

@@ -545,6 +545,17 @@ const RepProfile = () => {
                 </p>
               </div>
 
+              {/* Warning for incomplete pricing */}
+              {coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
+                <Alert className="border-orange-500/50 bg-orange-500/10">
+                  <AlertCircle className="h-4 w-4 text-orange-500" />
+                  <AlertDescription className="text-foreground">
+                    <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there. 
+                    Posts that don't meet your pricing requirements won't be shown on Find Work.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {coverageAreas.length === 0 ? (
                 <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
                   <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -574,6 +585,9 @@ const RepProfile = () => {
                               </h4>
                               {coverage.covers_entire_state && (
                                 <Badge variant="secondary">Entire State</Badge>
+                              )}
+                              {(!coverage.base_price && coverage.base_price !== 0) && (
+                                <Badge variant="destructive" className="text-xs">Missing Base Rate</Badge>
                               )}
                             </div>
                             

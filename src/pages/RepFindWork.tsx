@@ -283,15 +283,16 @@ export default function RepFindWork() {
           }
 
           // Check if vendor pay meets or exceeds rep's base_price
-          const vendorPay = post.pay_max !== null && post.pay_max !== undefined 
+          // Use COALESCE logic: pay_max if available, otherwise pay_min
+          const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
             ? post.pay_max 
             : post.pay_min;
           
-          if (vendorPay === null || vendorPay === undefined) {
+          if (vendorEffectiveRate === null || vendorEffectiveRate === undefined) {
             return false; // Exclude posts with no pricing set
           }
 
-          if (vendorPay < matchingCoverage.base_price) {
+          if (vendorEffectiveRate < matchingCoverage.base_price) {
             return false; // Vendor pay doesn't meet rep's minimum
           }
 
@@ -739,20 +740,40 @@ export default function RepFindWork() {
                       )}
 
                       {/* Pricing */}
-                      {post.pay_min && (
-                        <div className="p-2 bg-primary/5 rounded border border-primary/20">
-                          <p className="text-xs text-muted-foreground mb-0.5">Offered Rate:</p>
-                          <p className="text-sm font-semibold text-primary">
-                            {post.pay_type === "fixed" 
-                              ? `$${post.pay_min.toFixed(2)} / order`
-                              : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
-                            }
-                          </p>
-                          {post.pay_notes && (
-                            <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{post.pay_notes}</p>
-                          )}
-                        </div>
-                      )}
+                      {post.pay_min && (() => {
+                        // Find the matching coverage to get base_price
+                        const matchingCoverage = coverageAreas.find((coverage) => {
+                          if (coverage.state_code !== post.state_code) return false;
+                          if (coverage.covers_entire_state) return true;
+                          if (!post.county_id) return true;
+                          if (coverage.county_id === post.county_id) return true;
+                          return false;
+                        });
+
+                        const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
+                          ? post.pay_max 
+                          : post.pay_min;
+
+                        return (
+                          <div className="p-2 bg-primary/5 rounded border border-primary/20">
+                            <p className="text-xs text-muted-foreground mb-0.5">Offered Rate:</p>
+                            <p className="text-sm font-semibold text-primary">
+                              {post.pay_type === "fixed" 
+                                ? `$${post.pay_min.toFixed(2)} / order`
+                                : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
+                              }
+                            </p>
+                            {matchingCoverage?.base_price && (
+                              <p className="text-xs text-green-600 mt-1">
+                                ✓ Meets your minimum for this county (${matchingCoverage.base_price.toFixed(2)})
+                              </p>
+                            )}
+                            {post.pay_notes && (
+                              <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{post.pay_notes}</p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Date Info */}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
