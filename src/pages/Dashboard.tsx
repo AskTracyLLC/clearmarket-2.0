@@ -339,6 +339,22 @@ const Dashboard = () => {
               </div>
             </Card>
 
+            {/* Messages Card - Available to all users */}
+            <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/messages")}>
+              <div className="flex items-start gap-4">
+                <MessageSquare className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Messages</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    View and respond to conversations with {isRep ? "vendors" : "field reps"}
+                  </p>
+                  <Button size="sm" variant="secondary">
+                    Open Inbox →
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
             {/* Coming Soon Cards - Role-specific */}
             {isRep && (
               <>
