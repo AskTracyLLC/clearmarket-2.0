@@ -605,23 +605,6 @@ export default function VendorInterestedReps() {
                 </div>
               </div>
 
-              {/* Availability & Preferences */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">Availability & Preferences</h3>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    Accepting New Vendors: <span className="font-medium">
-                      {selectedRep.rep_profile.is_accepting_new_vendors ? "Yes" : "No"}
-                    </span>
-                  </p>
-                  <p>
-                    Willing to Travel Out of State: <span className="font-medium">
-                      {selectedRep.rep_profile.willing_to_travel_out_of_state ? "Yes" : "No"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
               {/* Status */}
               {selectedRep.status === "connected" && (
                 <div className="p-3 bg-green-600/10 border border-green-600/20 rounded-lg">
