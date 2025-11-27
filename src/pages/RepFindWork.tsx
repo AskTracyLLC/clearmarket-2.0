@@ -200,8 +200,8 @@ export default function RepFindWork() {
         .select(`
           *,
           profiles!vendor_id(
-            anonymous_id,
-            vendor_profile(company_name, is_accepting_new_reps)
+            id,
+            vendor_profile(anonymous_id, company_name, is_accepting_new_reps)
           ),
           us_counties!county_id(county_name, state_code)
         `)
@@ -221,7 +221,7 @@ export default function RepFindWork() {
         .map((post: any) => ({
           ...post,
           vendor: {
-            anonymous_id: post.profiles?.anonymous_id || null,
+            anonymous_id: post.profiles?.vendor_profile?.anonymous_id || null,
             company_name: post.profiles?.vendor_profile?.company_name || "Unknown Vendor",
             is_accepting_new_reps: post.profiles?.vendor_profile?.is_accepting_new_reps ?? true,
           },
