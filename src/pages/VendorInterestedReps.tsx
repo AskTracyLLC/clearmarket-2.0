@@ -34,6 +34,7 @@ interface InterestedRep {
   all_state_coverage: {
     county_name: string | null;
     state_code: string;
+    state_name: string;
     base_price: number | null;
     rush_price: number | null;
   }[];
@@ -145,7 +146,7 @@ export default function VendorInterestedReps() {
           // Get ALL coverage areas for this state
           const { data: allStateCoverage } = await supabase
             .from("rep_coverage_areas")
-            .select("county_name, state_code, base_price, rush_price")
+            .select("county_name, state_code, state_name, base_price, rush_price")
             .eq("user_id", interest.rep_id)
             .eq("state_code", postData.state_code || "")
             .order("county_name");
@@ -554,36 +555,50 @@ export default function VendorInterestedReps() {
               {/* Coverage Snapshot */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-2">Coverage Snapshot</h3>
-                <p className="text-xs text-muted-foreground mb-3">
-                  All counties this rep covers in {post?.state_code}
-                </p>
                 {selectedRep.all_state_coverage.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {selectedRep.all_state_coverage.map((coverage, idx) => (
-                      <div key={idx} className="p-3 bg-muted/30 rounded-lg">
-                        <p className="text-sm font-medium mb-1">
-                          {coverage.county_name || "County name not set"}, {coverage.state_code}
-                        </p>
+                  <>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      This rep covers the following areas in {selectedRep.all_state_coverage[0].state_code} – {selectedRep.all_state_coverage[0].state_name}:
+                    </p>
+                    <div className="space-y-2">
+                      {/* Check if rep covers the exact county from this post */}
+                      {selectedRep.rep_coverage_areas.length > 0 && selectedRep.rep_coverage_areas[0].base_price !== null && (
                         <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">
-                            Base Rate: <span className="font-semibold text-foreground">
-                              ${coverage.base_price?.toFixed(2) || "Not set"}
-                            </span>
+                          <p className="text-sm">
+                            • {selectedRep.all_state_coverage.find(c => c.county_name)?.county_name || "This county"} <span className="text-primary font-medium">(matches this request)</span>
                           </p>
-                          {coverage.rush_price && (
-                            <p className="text-xs text-muted-foreground">
-                              Rush Rate: <span className="font-semibold text-foreground">
-                                ${coverage.rush_price.toFixed(2)}
-                              </span>
-                            </p>
-                          )}
+                          <p className="text-xs text-muted-foreground ml-4">
+                            Rep Base Rate in this county: <span className="font-semibold text-foreground">
+                              ${selectedRep.rep_coverage_areas[0].base_price.toFixed(2)}
+                            </span>
+                            {selectedRep.rep_coverage_areas[0].rush_price && (
+                              <> • Rush: ${selectedRep.rep_coverage_areas[0].rush_price.toFixed(2)}</>
+                            )}
+                          </p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
+                      
+                      {/* Show other counties if they exist */}
+                      {selectedRep.all_state_coverage.length > 1 && (
+                        <p className="text-sm">
+                          • Also covers: {selectedRep.all_state_coverage
+                            .filter((_, idx) => idx > 0 || selectedRep.rep_coverage_areas.length === 0)
+                            .map(c => c.county_name)
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      )}
+                      
+                      {selectedRep.all_state_coverage.length === 1 && selectedRep.rep_coverage_areas.length === 0 && (
+                        <p className="text-sm">
+                          • {selectedRep.all_state_coverage[0].county_name}
+                        </p>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">
-                    This rep has not added coverage areas for {post?.state_code} yet.
+                    This rep has not configured coverage in {post?.state_code} yet.
                   </p>
                 )}
               </div>
