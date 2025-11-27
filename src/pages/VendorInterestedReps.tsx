@@ -239,8 +239,24 @@ export default function VendorInterestedReps() {
     setIsProfileModalOpen(true);
   };
 
-  const handleMessageRep = () => {
-    toast.info("Messaging is coming soon. For now, you can track interest and mark reps as Connected.");
+  const handleMessageRep = async (repUserId: string) => {
+    if (!user) return;
+
+    try {
+      const { getOrCreateConversation } = await import("@/lib/conversations");
+      const result = await getOrCreateConversation(user.id, repUserId);
+      
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      // Navigate to the conversation
+      navigate(`/messages/${result.id}`);
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      toast.error("Failed to start conversation");
+    }
   };
 
   if (authLoading || loading) {
@@ -441,7 +457,7 @@ export default function VendorInterestedReps() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleMessageRep}
+                      onClick={() => handleMessageRep(interest.rep_profile.user_id)}
                     >
                       <MessageSquare className="h-4 w-4 mr-2" />
                       Message Rep
@@ -663,7 +679,7 @@ export default function VendorInterestedReps() {
               <div className="pt-4 border-t border-border">
                 <Button
                   className="w-full"
-                  onClick={handleMessageRep}
+                  onClick={() => handleMessageRep(selectedRep.rep_profile.user_id)}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   Start Conversation
