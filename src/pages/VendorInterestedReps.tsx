@@ -1,0 +1,401 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ArrowLeft, MapPin, CheckCircle2, XCircle, Star } from "lucide-react";
+
+interface InterestedRep {
+  id: string; // rep_interest.id
+  rep_id: string;
+  status: string;
+  created_at: string;
+  rep_profile: {
+    anonymous_id: string | null;
+    city: string | null;
+    state: string | null;
+    systems_used: string[] | null;
+    inspection_types: string[] | null;
+  };
+  rep_coverage_areas: {
+    base_price: number | null;
+  }[];
+}
+
+interface SeekingCoveragePost {
+  id: string;
+  title: string;
+  state_code: string | null;
+  county_id: string | null;
+  pay_type: string;
+  pay_min: number | null;
+  pay_max: number | null;
+  pay_notes: string | null;
+  vendor_id: string;
+}
+
+export default function VendorInterestedReps() {
+  const navigate = useNavigate();
+  const { postId } = useParams<{ postId: string }>();
+  const { user, loading: authLoading } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [post, setPost] = useState<SeekingCoveragePost | null>(null);
+  const [interestedReps, setInterestedReps] = useState<InterestedRep[]>([]);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/signin");
+      return;
+    }
+
+    if (user && postId) {
+      loadData();
+    }
+  }, [user, authLoading, postId, navigate]);
+
+  const loadData = async () => {
+    if (!user || !postId) return;
+
+    try {
+      // Load the seeking coverage post
+      const { data: postData, error: postError } = await supabase
+        .from("seeking_coverage_posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
+
+      if (postError) throw postError;
+
+      // Verify vendor owns this post
+      if (postData.vendor_id !== user.id) {
+        toast.error("You don't have permission to view this post");
+        navigate("/vendor/seeking-coverage");
+        return;
+      }
+
+      setPost(postData);
+
+      // Load interested reps with their profiles and coverage for this county
+      const { data: interestData, error: interestError } = await supabase
+        .from("rep_interest")
+        .select(`
+          id,
+          rep_id,
+          status,
+          created_at,
+          rep_profile!inner (
+            anonymous_id,
+            city,
+            state,
+            systems_used,
+            inspection_types
+          )
+        `)
+        .eq("post_id", postId)
+        .order("created_at", { ascending: false });
+
+      if (interestError) throw interestError;
+
+      // For each interested rep, get their coverage area pricing for this county
+      const repsWithCoverage = await Promise.all(
+        (interestData || []).map(async (interest: any) => {
+          const { data: coverageData } = await supabase
+            .from("rep_coverage_areas")
+            .select("base_price")
+            .eq("user_id", interest.rep_profile.user_id)
+            .eq("county_id", postData.county_id || null);
+
+          return {
+            ...interest,
+            rep_coverage_areas: coverageData || [],
+          };
+        })
+      );
+
+      setInterestedReps(repsWithCoverage as InterestedRep[]);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast.error("Failed to load interested reps");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (interestId: string, newStatus: string) => {
+    setUpdatingStatus(interestId);
+
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: newStatus })
+        .eq("id", interestId);
+
+      if (error) throw error;
+
+      toast.success("Rep status updated");
+      loadData(); // Reload to reflect changes
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast.error("Failed to update status");
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "interested":
+        return <Badge variant="secondary">Interested</Badge>;
+      case "shortlisted":
+        return <Badge className="bg-primary/20 text-primary border-primary/30">Shortlisted</Badge>;
+      case "declined":
+        return <Badge variant="outline" className="text-muted-foreground">Declined</Badge>;
+      case "connected":
+        return <Badge className="bg-green-600/20 text-green-600 border-green-600/30">Connected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return null;
+  }
+
+  const vendorPay = post.pay_max !== null && post.pay_max !== undefined 
+    ? post.pay_max 
+    : post.pay_min;
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-8">
+              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
+                ClearMarket
+              </Link>
+            </div>
+            <Link to="/vendor/seeking-coverage">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Seeking Coverage
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-12 max-w-6xl">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Interested Field Reps</h1>
+          <p className="text-muted-foreground mb-4">
+            For: <span className="font-semibold">{post.title}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            These reps expressed interest in this request. You can shortlist or decline them. 
+            Contact and connection workflows will be added in a later phase.
+          </p>
+        </div>
+
+        {/* Post Info Card */}
+        <Card className="mb-8 bg-card-elevated">
+          <CardHeader>
+            <CardTitle className="text-lg">Your Offer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Pricing:</p>
+                <p className="text-lg font-semibold text-primary">
+                  {post.pay_type === "fixed" 
+                    ? `$${post.pay_min?.toFixed(2)} / order`
+                    : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
+                  }
+                </p>
+                {post.pay_notes && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">{post.pay_notes}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Location:</p>
+                <p className="text-sm">{post.state_code}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Interested Reps List */}
+        {interestedReps.length === 0 ? (
+          <Card className="p-12 text-center border-2 border-dashed">
+            <div className="max-w-md mx-auto">
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                No interested reps yet
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Reps who express interest in this post will appear here.
+              </p>
+              <Button variant="outline" onClick={() => navigate("/vendor/seeking-coverage")}>
+                Back to Seeking Coverage
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {interestedReps.map((interest) => {
+              const repCoverage = interest.rep_coverage_areas[0];
+              const repMinimum = repCoverage?.base_price;
+
+              return (
+                <Card key={interest.id} className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-semibold text-foreground">
+                          {interest.rep_profile.anonymous_id || "FieldRep"}
+                        </h3>
+                        {getStatusBadge(interest.status)}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        {interest.rep_profile.city}, {interest.rep_profile.state}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Expressed interest on {new Date(interest.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Systems */}
+                  {interest.rep_profile.systems_used && interest.rep_profile.systems_used.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Systems Used:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {interest.rep_profile.systems_used.slice(0, 5).map((system, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {system}
+                          </Badge>
+                        ))}
+                        {interest.rep_profile.systems_used.length > 5 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{interest.rep_profile.systems_used.length - 5} more
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inspection Types */}
+                  {interest.rep_profile.inspection_types && interest.rep_profile.inspection_types.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-xs text-muted-foreground mb-2">Inspection Types:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {interest.rep_profile.inspection_types.map((type, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {type}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pricing Alignment */}
+                  {vendorPay && repMinimum && (
+                    <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Pricing:</p>
+                      <p className="text-sm">
+                        Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
+                      </p>
+                      <p className="text-sm">
+                        Rep minimum for this county: <span className="font-semibold">${repMinimum.toFixed(2)}</span>
+                      </p>
+                      {vendorPay >= repMinimum && (
+                        <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-4 border-t border-border">
+                    {interest.status === "interested" && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleStatusUpdate(interest.id, "shortlisted")}
+                          disabled={updatingStatus === interest.id}
+                        >
+                          <Star className="h-4 w-4 mr-2" />
+                          Shortlist
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStatusUpdate(interest.id, "declined")}
+                          disabled={updatingStatus === interest.id}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Decline
+                        </Button>
+                      </>
+                    )}
+                    {interest.status === "shortlisted" && (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleStatusUpdate(interest.id, "connected")}
+                          disabled={updatingStatus === interest.id}
+                        >
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          Mark Connected
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStatusUpdate(interest.id, "declined")}
+                          disabled={updatingStatus === interest.id}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Decline
+                        </Button>
+                      </>
+                    )}
+                    {interest.status === "declined" && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleStatusUpdate(interest.id, "interested")}
+                        disabled={updatingStatus === interest.id}
+                      >
+                        Restore to Interested
+                      </Button>
+                    )}
+                    {interest.status === "connected" && (
+                      <Badge variant="outline" className="text-xs px-3 py-1">
+                        Connected - Contact workflow coming soon
+                      </Badge>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
