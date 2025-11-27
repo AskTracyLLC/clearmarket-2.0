@@ -85,7 +85,7 @@ export function PublicProfileDialog({
             .from("rep_profile")
             .select("*")
             .eq("user_id", targetUserId)
-            .single();
+            .maybeSingle();
 
           if (repProfile) {
             // Load coverage areas
@@ -133,7 +133,7 @@ export function PublicProfileDialog({
             .from("vendor_profile")
             .select("*")
             .eq("user_id", targetUserId)
-            .single();
+            .maybeSingle();
 
           if (vendorProfile) {
             setProfileData({
