@@ -145,18 +145,38 @@ export default function VendorInterestedReps() {
             .eq("user_id", interest.rep_profile.user_id)
             .eq("county_id", postData.county_id || null);
 
-          // Get ALL coverage areas for this state
-          const { data: allStateCoverage } = await supabase
+          // Get ALL coverage areas for this state (join with us_counties for reliable state filtering)
+          const { data: allStateCoverageRaw, error: allStateError } = await supabase
             .from("rep_coverage_areas")
-            .select("county_name, state_code, state_name, base_price, rush_price")
+            .select(`
+              base_price,
+              rush_price,
+              us_counties:county_id (
+                county_name,
+                state_code,
+                state_name
+              )
+            `)
             .eq("user_id", interest.rep_profile.user_id)
-            .eq("state_code", postData.state_code || "")
-            .order("county_name");
+            .eq("us_counties.state_code", postData.state_code || "");
+
+          if (allStateError) {
+            console.error("Error fetching all state coverage:", allStateError);
+          }
+
+          // Normalize the result to match expected shape
+          const normalizedAllStateCoverage = (allStateCoverageRaw || []).map(row => ({
+            county_name: row.us_counties?.county_name ?? null,
+            state_code: row.us_counties?.state_code ?? "",
+            state_name: row.us_counties?.state_name ?? "",
+            base_price: row.base_price ?? null,
+            rush_price: row.rush_price ?? null,
+          }));
 
           return {
             ...interest,
             rep_coverage_areas: coverageData || [],
-            all_state_coverage: allStateCoverage || [],
+            all_state_coverage: normalizedAllStateCoverage,
           };
         })
       );
