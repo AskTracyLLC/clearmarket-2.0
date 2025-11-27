@@ -442,9 +442,14 @@ export default function VendorInterestedReps() {
                       </Button>
                     )}
                     {interest.status === "connected" && (
-                      <Badge variant="outline" className="text-xs px-3 py-1">
-                        Connected - Contact workflow coming soon
-                      </Badge>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleStatusUpdate(interest.id, "interested")}
+                        disabled={updatingStatus === interest.id}
+                      >
+                        Reset to Interested
+                      </Button>
                     )}
                   </div>
                 </Card>
