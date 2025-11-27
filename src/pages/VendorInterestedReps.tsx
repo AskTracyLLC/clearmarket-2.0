@@ -23,8 +23,17 @@ interface InterestedRep {
     inspection_types: string[] | null;
     is_accepting_new_vendors: boolean | null;
     willing_to_travel_out_of_state: boolean | null;
+    profiles: {
+      full_name: string | null;
+    } | null;
   };
   rep_coverage_areas: {
+    base_price: number | null;
+    rush_price: number | null;
+  }[];
+  all_state_coverage: {
+    county_name: string | null;
+    state_code: string;
     base_price: number | null;
     rush_price: number | null;
   }[];
@@ -64,6 +73,16 @@ export default function VendorInterestedReps() {
     }
   }, [user, authLoading, postId, navigate]);
 
+  const getFirstNameLastInitial = (fullName: string | null): string => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(" ");
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0];
+    const firstName = parts[0];
+    const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+    return `${firstName} ${lastInitial}.`;
+  };
+
   const loadData = async () => {
     if (!user || !postId) return;
 
@@ -102,7 +121,10 @@ export default function VendorInterestedReps() {
             systems_used,
             inspection_types,
             is_accepting_new_vendors,
-            willing_to_travel_out_of_state
+            willing_to_travel_out_of_state,
+            profiles:user_id (
+              full_name
+            )
           )
         `)
         .eq("post_id", postId)
@@ -110,18 +132,28 @@ export default function VendorInterestedReps() {
 
       if (interestError) throw interestError;
 
-      // For each interested rep, get their coverage area pricing for this county
+      // For each interested rep, get their coverage area pricing for this county AND all counties in this state
       const repsWithCoverage = await Promise.all(
         (interestData || []).map(async (interest: any) => {
+          // Get coverage for the specific county of this post
           const { data: coverageData } = await supabase
             .from("rep_coverage_areas")
             .select("base_price, rush_price")
             .eq("user_id", interest.rep_id)
             .eq("county_id", postData.county_id || null);
 
+          // Get ALL coverage areas for this state
+          const { data: allStateCoverage } = await supabase
+            .from("rep_coverage_areas")
+            .select("county_name, state_code, base_price, rush_price")
+            .eq("user_id", interest.rep_id)
+            .eq("state_code", postData.state_code || "")
+            .order("county_name");
+
           return {
             ...interest,
             rep_coverage_areas: coverageData || [],
+            all_state_coverage: allStateCoverage || [],
           };
         })
       );
@@ -177,7 +209,7 @@ export default function VendorInterestedReps() {
   };
 
   const handleMessageRep = () => {
-    toast.info("Direct messaging is coming soon. For now, mark reps as Connected and manage them from your network.");
+    toast.info("Messaging is coming soon. For now, you can track interest and mark reps as Connected.");
   };
 
   if (authLoading || loading) {
@@ -463,8 +495,15 @@ export default function VendorInterestedReps() {
       <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {selectedRep?.rep_profile.anonymous_id || "Field Rep Profile"}
+            <DialogTitle className="space-y-1">
+              <div className="text-2xl font-bold">
+                {selectedRep?.rep_profile.anonymous_id || "Field Rep Profile"}
+              </div>
+              {selectedRep?.rep_profile.profiles?.full_name && (
+                <div className="text-base font-normal text-muted-foreground">
+                  {getFirstNameLastInitial(selectedRep.rep_profile.profiles.full_name)}
+                </div>
+              )}
             </DialogTitle>
           </DialogHeader>
 
@@ -512,34 +551,58 @@ export default function VendorInterestedReps() {
                 )}
               </div>
 
-              {/* Coverage in This Area */}
+              {/* Coverage Snapshot */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">Coverage in This Area</h3>
-                {selectedRep.rep_coverage_areas.length > 0 ? (
-                  <div className="p-3 bg-muted/30 rounded-lg space-y-2">
-                    {post && (
-                      <p className="text-sm font-medium">
-                        {post.state_code} - County (for this post)
-                      </p>
-                    )}
-                    <div className="space-y-1">
-                      <p className="text-sm">
-                        Base Rate: <span className="font-semibold">
-                          ${selectedRep.rep_coverage_areas[0].base_price?.toFixed(2) || "Not set"}
-                        </span>
-                      </p>
-                      {selectedRep.rep_coverage_areas[0].rush_price && (
-                        <p className="text-sm">
-                          Rush Rate: <span className="font-semibold">
-                            ${selectedRep.rep_coverage_areas[0].rush_price.toFixed(2)}
-                          </span>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Coverage Snapshot</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  All counties this rep covers in {post?.state_code}
+                </p>
+                {selectedRep.all_state_coverage.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {selectedRep.all_state_coverage.map((coverage, idx) => (
+                      <div key={idx} className="p-3 bg-muted/30 rounded-lg">
+                        <p className="text-sm font-medium mb-1">
+                          {coverage.county_name || "County name not set"}, {coverage.state_code}
                         </p>
-                      )}
-                    </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">
+                            Base Rate: <span className="font-semibold text-foreground">
+                              ${coverage.base_price?.toFixed(2) || "Not set"}
+                            </span>
+                          </p>
+                          {coverage.rush_price && (
+                            <p className="text-xs text-muted-foreground">
+                              Rush Rate: <span className="font-semibold text-foreground">
+                                ${coverage.rush_price.toFixed(2)}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">Base Rate: Not set</p>
+                  <p className="text-sm text-muted-foreground italic">
+                    This rep has not added coverage areas for {post?.state_code} yet.
+                  </p>
                 )}
+              </div>
+
+              {/* Availability & Preferences */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Availability & Preferences</h3>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    Accepting New Vendors: <span className="font-medium">
+                      {selectedRep.rep_profile.is_accepting_new_vendors ? "Yes" : "No"}
+                    </span>
+                  </p>
+                  <p>
+                    Willing to Travel Out of State: <span className="font-medium">
+                      {selectedRep.rep_profile.willing_to_travel_out_of_state ? "Yes" : "No"}
+                    </span>
+                  </p>
+                </div>
               </div>
 
               {/* Availability & Preferences */}
@@ -567,6 +630,17 @@ export default function VendorInterestedReps() {
                   </p>
                 </div>
               )}
+
+              {/* Start Conversation Button */}
+              <div className="pt-4 border-t border-border">
+                <Button
+                  className="w-full"
+                  onClick={handleMessageRep}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Start Conversation
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
