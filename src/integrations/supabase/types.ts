@@ -81,6 +81,7 @@ export type Database = {
           origin_type: string | null
           participant_one: string
           participant_two: string
+          rep_interest_id: string | null
           updated_at: string
         }
         Insert: {
@@ -94,6 +95,7 @@ export type Database = {
           origin_type?: string | null
           participant_one: string
           participant_two: string
+          rep_interest_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -107,6 +109,7 @@ export type Database = {
           origin_type?: string | null
           participant_one?: string
           participant_two?: string
+          rep_interest_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -129,6 +132,13 @@ export type Database = {
             columns: ["participant_two"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_rep_interest_id_fkey"
+            columns: ["rep_interest_id"]
+            isOneToOne: false
+            referencedRelation: "rep_interest"
             referencedColumns: ["id"]
           },
         ]
