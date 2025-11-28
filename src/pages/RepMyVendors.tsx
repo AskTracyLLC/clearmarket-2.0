@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { ExitReviewDialog } from "@/components/ExitReviewDialog";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -61,6 +62,12 @@ const RepMyVendors = () => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
+  const [pendingDisconnectData, setPendingDisconnectData] = useState<{
+    repInterestId: string;
+    subjectUserId: string;
+    postId?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -410,20 +417,30 @@ const RepMyVendors = () => {
 
       if (error) throw error;
 
+      // Find the vendor that's being disconnected to get subject_id and post_id
+      const disconnectedVendor = connectedVendors.find(vendor =>
+        vendor.connectedPosts.some(post => post.interestId === disconnectingInterestId)
+      );
+
       // Remove the vendor from the list
       setConnectedVendors(prev => {
-        // Find the vendor that has this interest ID
         return prev.filter(vendor => {
-          // Keep vendor only if none of their posts match this interest ID
           return !vendor.connectedPosts.some(post => post.interestId === disconnectingInterestId);
         });
       });
 
-      toast({
-        title: "Connection ended",
-        description: "This vendor has been removed from your network.",
-      });
       setShowDisconnectDialog(false);
+
+      // Trigger Exit Review flow
+      if (disconnectedVendor) {
+        setPendingDisconnectData({
+          repInterestId: disconnectingInterestId,
+          subjectUserId: disconnectedVendor.vendorUserId,
+          postId: disconnectedVendor.connectedPosts[0]?.id || null,
+        });
+        setShowExitReviewDialog(true);
+      }
+
       setDisconnectingInterestId(null);
     } catch (error: any) {
       console.error("Error disconnecting:", error);
@@ -436,6 +453,11 @@ const RepMyVendors = () => {
       setDisconnecting(false);
     }
   };
+
+  function handleExitReviewComplete() {
+    // Exit review completed or skipped
+    setPendingDisconnectData(null);
+  }
 
   if (loading || authLoading) {
     return (
@@ -729,6 +751,17 @@ const RepMyVendors = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {pendingDisconnectData && (
+        <ExitReviewDialog
+          open={showExitReviewDialog}
+          onOpenChange={setShowExitReviewDialog}
+          repInterestId={pendingDisconnectData.repInterestId}
+          subjectUserId={pendingDisconnectData.subjectUserId}
+          postId={pendingDisconnectData.postId}
+          onComplete={handleExitReviewComplete}
+        />
+      )}
     </div>
   );
 };

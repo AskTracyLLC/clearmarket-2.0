@@ -69,6 +69,80 @@ export type Database = {
           },
         ]
       }
+      connection_reviews: {
+        Row: {
+          communication_rating: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          on_time_rating: number | null
+          post_id: string | null
+          quality_rating: number | null
+          rep_interest_id: string
+          reviewer_id: string
+          source: string
+          subject_id: string
+          updated_at: string
+        }
+        Insert: {
+          communication_rating?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          on_time_rating?: number | null
+          post_id?: string | null
+          quality_rating?: number | null
+          rep_interest_id: string
+          reviewer_id: string
+          source?: string
+          subject_id: string
+          updated_at?: string
+        }
+        Update: {
+          communication_rating?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          on_time_rating?: number | null
+          post_id?: string | null
+          quality_rating?: number | null
+          rep_interest_id?: string
+          reviewer_id?: string
+          source?: string
+          subject_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_reviews_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_rep_interest_id_fkey"
+            columns: ["rep_interest_id"]
+            isOneToOne: false
+            referencedRelation: "rep_interest"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
