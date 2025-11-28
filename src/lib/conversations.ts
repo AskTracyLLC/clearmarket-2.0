@@ -1,12 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export type ConversationOrigin = {
+  type: "seeking_coverage";
+  postId: string;
+} | null;
+
 /**
  * Helper to get or create a conversation between two users.
  * Conversations are stored with participants in sorted order to ensure uniqueness.
  */
 export async function getOrCreateConversation(
   currentUserId: string,
-  otherUserId: string
+  otherUserId: string,
+  origin: ConversationOrigin = null
 ): Promise<{ id: string; error?: string }> {
   try {
     // Sort participant IDs to maintain consistency with unique constraint
@@ -15,7 +21,7 @@ export async function getOrCreateConversation(
     // Check if conversation already exists
     const { data: existing, error: fetchError } = await supabase
       .from("conversations")
-      .select("id")
+      .select("id, origin_type, origin_post_id")
       .eq("participant_one", p1)
       .eq("participant_two", p2)
       .maybeSingle();
@@ -25,18 +31,25 @@ export async function getOrCreateConversation(
       return { id: "", error: "Failed to fetch conversation" };
     }
 
-    // Return existing conversation if found
+    // Return existing conversation if found (do NOT overwrite origin fields)
     if (existing) {
       return { id: existing.id };
     }
 
-    // Create new conversation
+    // Create new conversation, attaching origin if provided
+    const payload: any = {
+      participant_one: p1,
+      participant_two: p2,
+    };
+
+    if (origin?.type === "seeking_coverage") {
+      payload.origin_type = "seeking_coverage";
+      payload.origin_post_id = origin.postId;
+    }
+
     const { data: newConversation, error: insertError } = await supabase
       .from("conversations")
-      .insert({
-        participant_one: p1,
-        participant_two: p2,
-      })
+      .insert(payload)
       .select("id")
       .single();
 

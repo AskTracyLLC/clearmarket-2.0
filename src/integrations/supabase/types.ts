@@ -77,6 +77,8 @@ export type Database = {
           is_pinned_for_two: boolean | null
           last_message_at: string | null
           last_message_preview: string | null
+          origin_post_id: string | null
+          origin_type: string | null
           participant_one: string
           participant_two: string
           updated_at: string
@@ -88,6 +90,8 @@ export type Database = {
           is_pinned_for_two?: boolean | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          origin_post_id?: string | null
+          origin_type?: string | null
           participant_one: string
           participant_two: string
           updated_at?: string
@@ -99,11 +103,20 @@ export type Database = {
           is_pinned_for_two?: boolean | null
           last_message_at?: string | null
           last_message_preview?: string | null
+          origin_post_id?: string | null
+          origin_type?: string | null
           participant_one?: string
           participant_two?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversations_origin_post_id_fkey"
+            columns: ["origin_post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversations_participant_one_fkey"
             columns: ["participant_one"]
