@@ -10,38 +10,41 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 import { SYSTEM_MESSAGE_TEMPLATES, MessageTemplate } from "@/lib/systemMessageTemplates";
+import { SYSTEM_MESSAGE_TEMPLATES_REP } from "@/lib/systemMessageTemplatesRep";
 import { toast } from "@/hooks/use-toast";
 import { renderTemplateBody, TemplateContext } from "@/lib/templatePlaceholders";
 
 interface TemplateSelectorProps {
-  vendorId: string;
+  userId: string;
+  userRole: "vendor" | "rep";
   onTemplateSelect: (body: string) => void;
   context?: TemplateContext;
 }
 
-interface VendorTemplate extends MessageTemplate {
+interface UserTemplate extends MessageTemplate {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-export function TemplateSelector({ vendorId, onTemplateSelect, context }: TemplateSelectorProps) {
+export function TemplateSelector({ userId, userRole, onTemplateSelect, context }: TemplateSelectorProps) {
   const [open, setOpen] = useState(false);
-  const [vendorTemplates, setVendorTemplates] = useState<VendorTemplate[]>([]);
+  const [userTemplates, setUserTemplates] = useState<UserTemplate[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && vendorTemplates.length === 0) {
-      loadVendorTemplates();
+    if (open && userTemplates.length === 0) {
+      loadUserTemplates();
     }
   }, [open]);
 
-  async function loadVendorTemplates() {
+  async function loadUserTemplates() {
     setLoading(true);
     const { data, error } = await supabase
       .from("vendor_message_templates")
       .select("*")
-      .eq("vendor_id", vendorId)
+      .eq("user_id", userId)
+      .eq("target_role", userRole)
       .eq("scope", "seeking_coverage")
       .order("created_at", { ascending: false });
 
@@ -53,7 +56,7 @@ export function TemplateSelector({ vendorId, onTemplateSelect, context }: Templa
         variant: "destructive",
       });
     } else {
-      setVendorTemplates(data || []);
+      setUserTemplates(data || []);
     }
     setLoading(false);
   }
@@ -72,6 +75,8 @@ export function TemplateSelector({ vendorId, onTemplateSelect, context }: Templa
     });
   }
 
+  const systemTemplates = userRole === "vendor" ? SYSTEM_MESSAGE_TEMPLATES : SYSTEM_MESSAGE_TEMPLATES_REP;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -83,17 +88,17 @@ export function TemplateSelector({ vendorId, onTemplateSelect, context }: Templa
       <PopoverContent className="w-[400px] p-0" align="start">
         <ScrollArea className="h-[400px]">
           <div className="p-4 space-y-4">
-            {/* Vendor's Custom Templates */}
-            {vendorTemplates.length > 0 && (
+            {/* User's Custom Templates */}
+            {userTemplates.length > 0 && (
               <div>
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                   Your Templates
                   <Badge variant="secondary" className="text-xs">
-                    {vendorTemplates.length}
+                    {userTemplates.length}
                   </Badge>
                 </h4>
                 <div className="space-y-2">
-                  {vendorTemplates.map((template) => (
+                  {userTemplates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => handleTemplateClick(template)}
@@ -110,7 +115,7 @@ export function TemplateSelector({ vendorId, onTemplateSelect, context }: Templa
             )}
 
             {/* Divider */}
-            {vendorTemplates.length > 0 && (
+            {userTemplates.length > 0 && (
               <div className="border-t border-border" />
             )}
 
@@ -123,7 +128,7 @@ export function TemplateSelector({ vendorId, onTemplateSelect, context }: Templa
                 </Badge>
               </h4>
               <div className="space-y-2">
-                {SYSTEM_MESSAGE_TEMPLATES.map((template, index) => (
+                {systemTemplates.map((template, index) => (
                   <button
                     key={index}
                     onClick={() => handleTemplateClick(template)}

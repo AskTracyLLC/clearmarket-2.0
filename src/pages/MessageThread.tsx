@@ -34,9 +34,11 @@ export default function MessageThread() {
   const [sending, setSending] = useState(false);
   const [conversationData, setConversationData] = useState<any>(null);
   const [otherPartyProfile, setOtherPartyProfile] = useState<any>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [isVendor, setIsVendor] = useState(false);
+  const [isRep, setIsRep] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -64,14 +66,34 @@ export default function MessageThread() {
 
     setLoading(true);
     try {
-      // Check if current user is a vendor
+      // Check if current user is a vendor or rep
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_vendor_admin")
+        .select("is_vendor_admin, is_fieldrep")
         .eq("id", user.id)
         .single();
       
       setIsVendor(profile?.is_vendor_admin || false);
+      setIsRep(profile?.is_fieldrep || false);
+
+      // Load current user's profile for templates
+      if (profile?.is_fieldrep) {
+        const { data: repProfile } = await supabase
+          .from("rep_profile")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        if (repProfile) {
+          setCurrentUserProfile({
+            type: "rep",
+            anonymous_id: repProfile.anonymous_id,
+            state: repProfile.state,
+            systems_used: repProfile.systems_used || [],
+            inspection_types: repProfile.inspection_types || []
+          });
+        }
+      }
 
       // Load conversation with Seeking Coverage origin data
       const { data: conversation, error: convError } = await supabase
@@ -566,30 +588,59 @@ export default function MessageThread() {
         {/* Compose Area */}
         <Card className="p-4">
           <div className="space-y-3">
-            {/* Template Selector - only show for vendors in Seeking Coverage conversations */}
-            {isVendor && conversationData?.origin_type === "seeking_coverage" && (
+            {/* Template Selector - show for both vendors and reps in Seeking Coverage conversations */}
+            {conversationData?.origin_type === "seeking_coverage" && (isVendor || isRep) && (
               <div className="flex items-center gap-2">
                 <TemplateSelector
-                  vendorId={user!.id}
+                  userId={user!.id}
+                  userRole={isVendor ? "vendor" : "rep"}
                   onTemplateSelect={handleTemplateInsert}
-                  context={{
-                    post: {
-                      title: conversationData?.seeking_post?.title,
-                      state_code: conversationData?.seeking_post?.state_code,
-                      county_name: conversationData?.seeking_post?.us_counties?.county_name,
-                      pay_type: conversationData?.seeking_post?.pay_type,
-                      pay_min: conversationData?.seeking_post?.pay_min,
-                      pay_max: conversationData?.seeking_post?.pay_max,
-                    },
-                    profile: otherPartyProfile?.type === "rep" ? {
-                      rep_anonymous_id: otherPartyProfile?.anonymous_id,
-                      rep_full_name: otherPartyProfile?.full_name,
-                      rep_city: otherPartyProfile?.city,
-                      rep_state: otherPartyProfile?.state,
-                      rep_systems: otherPartyProfile?.systems_used,
-                      rep_inspection_types: otherPartyProfile?.inspection_types,
-                    } : undefined,
-                  }}
+                  context={
+                    isVendor
+                      ? {
+                          post: {
+                            title: conversationData?.seeking_post?.title,
+                            state_code: conversationData?.seeking_post?.state_code,
+                            county_name: conversationData?.seeking_post?.us_counties?.county_name,
+                            pay_type: conversationData?.seeking_post?.pay_type,
+                            pay_min: conversationData?.seeking_post?.pay_min,
+                            pay_max: conversationData?.seeking_post?.pay_max,
+                          },
+                          profile: otherPartyProfile?.type === "rep" ? {
+                            rep_anonymous_id: otherPartyProfile?.anonymous_id,
+                            rep_full_name: otherPartyProfile?.full_name,
+                            rep_city: otherPartyProfile?.city,
+                            rep_state: otherPartyProfile?.state,
+                            rep_systems: otherPartyProfile?.systems_used,
+                            rep_inspection_types: otherPartyProfile?.inspection_types,
+                          } : undefined,
+                        }
+                      : {
+                          post: {
+                            title: conversationData?.seeking_post?.title,
+                            state_code: conversationData?.seeking_post?.state_code,
+                            county_name: conversationData?.seeking_post?.us_counties?.county_name,
+                            pay_type: conversationData?.seeking_post?.pay_type,
+                            pay_min: conversationData?.seeking_post?.pay_min,
+                            pay_max: conversationData?.seeking_post?.pay_max,
+                          },
+                          profile: {
+                            // Rep's own profile for rep templates
+                            rep_anonymous_id: currentUserProfile?.anonymous_id,
+                            rep_state: currentUserProfile?.state,
+                            rep_systems: currentUserProfile?.systems_used,
+                            rep_inspection_types: currentUserProfile?.inspection_types,
+                            // Vendor info (the other party)
+                            vendor_anonymous_id: otherPartyProfile?.anonymous_id,
+                            vendor_company_name: otherPartyProfile?.company_name,
+                            vendor_full_name: otherPartyProfile?.full_name,
+                            vendor_city: otherPartyProfile?.city,
+                            vendor_state: otherPartyProfile?.state,
+                            vendor_systems: otherPartyProfile?.systems_used,
+                            vendor_inspection_types: otherPartyProfile?.primary_inspection_types,
+                          },
+                        }
+                  }
                 />
                 <span className="text-xs text-muted-foreground">
                   Insert a template to speed up your response

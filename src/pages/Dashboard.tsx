@@ -376,13 +376,13 @@ const Dashboard = () => {
                     <Button size="sm" variant="secondary">
                       Open Inbox →
                     </Button>
-                    {isVendor && (
+                    {(isVendor || isRep) && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate("/vendor/message-templates");
+                          navigate(isVendor ? "/vendor/message-templates" : "/rep/message-templates");
                         }}
                       >
                         <FileText className="h-3 w-3 mr-1" />

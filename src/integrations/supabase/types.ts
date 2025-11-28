@@ -618,8 +618,9 @@ export type Database = {
           id: string
           name: string
           scope: string
+          target_role: string
           updated_at: string
-          vendor_id: string
+          user_id: string
         }
         Insert: {
           body: string
@@ -627,8 +628,9 @@ export type Database = {
           id?: string
           name: string
           scope?: string
+          target_role?: string
           updated_at?: string
-          vendor_id: string
+          user_id: string
         }
         Update: {
           body?: string
@@ -636,13 +638,14 @@ export type Database = {
           id?: string
           name?: string
           scope?: string
+          target_role?: string
           updated_at?: string
-          vendor_id?: string
+          user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "vendor_message_templates_vendor_id_fkey"
-            columns: ["vendor_id"]
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

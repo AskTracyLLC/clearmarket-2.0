@@ -21,6 +21,7 @@ interface ProfileContext {
   // Vendor-related
   vendor_anonymous_id?: string | null;
   vendor_company_name?: string | null;
+  vendor_full_name?: string | null;
   vendor_city?: string | null;
   vendor_state?: string | null;
   vendor_systems?: string[] | null;
@@ -62,6 +63,10 @@ export function renderTemplateBody(raw: string, ctx: TemplateContext): string {
     ? ctx.profile.rep_full_name.split(" ").slice(-1)[0]?.charAt(0) ?? ""
     : "";
 
+  const vendorContactFirstName = ctx.profile?.vendor_company_name
+    ? ctx.profile.vendor_company_name.split(" ")[0]
+    : ctx.profile?.vendor_full_name?.split(" ")[0] ?? "there";
+
   const replacements: Record<string, string> = {
     POST_TITLE: ctx.post?.title ?? "",
     POST_STATE_CODE: ctx.post?.state_code ?? "",
@@ -81,6 +86,7 @@ export function renderTemplateBody(raw: string, ctx: TemplateContext): string {
 
     VENDOR_ANON: ctx.profile?.vendor_anonymous_id ?? "",
     VENDOR_COMPANY: ctx.profile?.vendor_company_name ?? "",
+    VENDOR_CONTACT_FIRST_NAME: vendorContactFirstName,
     VENDOR_CITY: ctx.profile?.vendor_city ?? "",
     VENDOR_STATE: ctx.profile?.vendor_state ?? "",
     VENDOR_SYSTEMS: (ctx.profile?.vendor_systems ?? []).join(", "),
