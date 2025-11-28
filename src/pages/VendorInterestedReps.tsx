@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, CheckCircle2, XCircle, Star, User, MessageSquare } from "lucide-react";
+import { ArrowLeft, MapPin, XCircle, User, MessageSquare } from "lucide-react";
 
 interface InterestedRep {
   id: string; // rep_interest.id
@@ -307,8 +307,8 @@ export default function VendorInterestedReps() {
             For: <span className="font-semibold">{post.title}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            These reps expressed interest in this request. You can shortlist or decline them. 
-            Contact and connection workflows will be added in a later phase.
+            These reps expressed interest in this request. You can message them or decline if not a fit. 
+            To connect with a rep, start a conversation and use the "Connect on this post" button in the message thread.
           </p>
         </div>
 
@@ -470,48 +470,15 @@ export default function VendorInterestedReps() {
                   {/* Status Management Buttons */}
                   <div className="flex gap-2 pt-2">
                     {interest.status === "interested" && (
-                      <>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(interest.id, "shortlisted")}
-                          disabled={updatingStatus === interest.id}
-                        >
-                          <Star className="h-4 w-4 mr-2" />
-                          Shortlist
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(interest.id, "declined")}
-                          disabled={updatingStatus === interest.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Decline
-                        </Button>
-                      </>
-                    )}
-                    {interest.status === "shortlisted" && (
-                      <>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(interest.id, "connected")}
-                          disabled={updatingStatus === interest.id}
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Mark Connected
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleStatusUpdate(interest.id, "declined")}
-                          disabled={updatingStatus === interest.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Decline
-                        </Button>
-                      </>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleStatusUpdate(interest.id, "declined")}
+                        disabled={updatingStatus === interest.id}
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Decline
+                      </Button>
                     )}
                     {interest.status === "declined" && (
                       <Button
@@ -521,16 +488,6 @@ export default function VendorInterestedReps() {
                         disabled={updatingStatus === interest.id}
                       >
                         Restore to Interested
-                      </Button>
-                    )}
-                    {interest.status === "connected" && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleStatusUpdate(interest.id, "interested")}
-                        disabled={updatingStatus === interest.id}
-                      >
-                        Reset to Interested
                       </Button>
                     )}
                   </div>

@@ -21,7 +21,7 @@ export async function getOrCreateConversation(
     // Check if conversation already exists for this specific post (or no post if origin is null)
     let query = supabase
       .from("conversations")
-      .select("id, origin_type, origin_post_id")
+      .select("id, origin_type, origin_post_id, rep_interest_id")
       .eq("participant_one", p1)
       .eq("participant_two", p2);
 
@@ -41,7 +41,6 @@ export async function getOrCreateConversation(
     }
 
     // If conversation exists, return it
-    // No need to update origin since we're now filtering by origin_post_id
     if (existing) {
       return { id: existing.id };
     }
@@ -55,6 +54,28 @@ export async function getOrCreateConversation(
     if (origin?.type === "seeking_coverage") {
       payload.origin_type = "seeking_coverage";
       payload.origin_post_id = origin.postId;
+
+      // Find the rep_interest row for this conversation
+      // Determine which participant is the rep
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, is_fieldrep")
+        .in("id", [currentUserId, otherUserId]);
+
+      const repId = profiles?.find(p => p.is_fieldrep)?.id;
+
+      if (repId) {
+        const { data: interest } = await supabase
+          .from("rep_interest")
+          .select("id")
+          .eq("post_id", origin.postId)
+          .eq("rep_id", repId)
+          .maybeSingle();
+
+        if (interest) {
+          payload.rep_interest_id = interest.id;
+        }
+      }
     }
 
     const { data: newConversation, error: insertError } = await supabase

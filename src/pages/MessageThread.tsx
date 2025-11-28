@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, Eye } from "lucide-react";
+import { ArrowLeft, Send, Eye, CheckCircle2 } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
@@ -39,6 +39,8 @@ export default function MessageThread() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [isVendor, setIsVendor] = useState(false);
   const [isRep, setIsRep] = useState(false);
+  const [repInterest, setRepInterest] = useState<any>(null);
+  const [connectingStatus, setConnectingStatus] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -103,6 +105,7 @@ export default function MessageThread() {
           participant_two,
           origin_type,
           origin_post_id,
+          rep_interest_id,
           seeking_post:origin_post_id (
             id,
             title,
@@ -157,9 +160,10 @@ export default function MessageThread() {
       const name = await getUserDisplayName(otherId);
       setOtherParticipantName(name);
 
-      // If this is a Seeking Coverage conversation, load other party's public profile
+      // If this is a Seeking Coverage conversation, load other party's public profile and rep_interest
       if (conversation.origin_type === "seeking_coverage") {
         await loadOtherPartyProfile(otherId);
+        await loadRepInterest(conversation);
       }
 
       // Load messages
@@ -173,6 +177,27 @@ export default function MessageThread() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadRepInterest(conversation: any) {
+    if (!conversation.rep_interest_id) return;
+
+    try {
+      const { data: interest, error } = await supabase
+        .from("rep_interest")
+        .select("id, status, rep_id, post_id")
+        .eq("id", conversation.rep_interest_id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error loading rep_interest:", error);
+        return;
+      }
+
+      setRepInterest(interest);
+    } catch (error) {
+      console.error("Error loading rep interest:", error);
     }
   }
 
@@ -330,6 +355,36 @@ export default function MessageThread() {
     setMessageText(templateBody);
   }
 
+  async function handleConnect() {
+    if (!repInterest || !user) return;
+
+    setConnectingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "connected" })
+        .eq("id", repInterest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setRepInterest({ ...repInterest, status: "connected" });
+      toast({
+        title: "Success",
+        description: "Connected! This rep now appears in your network.",
+      });
+    } catch (error: any) {
+      console.error("Error connecting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update connection status",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingStatus(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
@@ -392,6 +447,31 @@ export default function MessageThread() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
+              {/* Connection Status & Connect Button */}
+              {repInterest && (
+                <div className="mb-4 pb-4 border-b border-border">
+                  {repInterest.status === "connected" ? (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="font-medium">✓ Status: Connected on this Seeking Coverage post</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status: Not connected yet</span>
+                      {isVendor && (
+                        <Button
+                          onClick={handleConnect}
+                          disabled={connectingStatus}
+                          size="sm"
+                        >
+                          {connectingStatus ? "Connecting..." : "Connect on this post"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Left: Post Context */}
                 <div className="space-y-3 text-sm">
