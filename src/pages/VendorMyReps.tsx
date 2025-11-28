@@ -27,6 +27,11 @@ interface ConnectedRep {
     stateCode: string | null;
   }>;
   conversationId?: string;
+  notes?: Array<{
+    id: string;
+    note: string;
+    created_at: string;
+  }>;
 }
 
 const VendorMyReps = () => {
@@ -37,6 +42,7 @@ const VendorMyReps = () => {
   const [connectedReps, setConnectedReps] = useState<ConnectedRep[]>([]);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -187,6 +193,30 @@ const VendorMyReps = () => {
         }
       }
 
+      // Fetch notes for all reps
+      const repUserIds = repsArray.map(r => r.repUserId);
+      if (repUserIds.length > 0) {
+        const { data: notesData, error: notesError } = await supabase
+          .from("connection_notes")
+          .select("id, vendor_id, rep_id, note, created_at")
+          .eq("vendor_id", user.id)
+          .eq("side", "vendor")
+          .in("rep_id", repUserIds)
+          .order("created_at", { ascending: false });
+
+        if (!notesError && notesData) {
+          const notesByRep: Record<string, any[]> = {};
+          for (const n of notesData) {
+            if (!notesByRep[n.rep_id]) notesByRep[n.rep_id] = [];
+            notesByRep[n.rep_id].push(n);
+          }
+
+          repsArray.forEach(rep => {
+            rep.notes = notesByRep[rep.repUserId] || [];
+          });
+        }
+      }
+
       setConnectedReps(repsArray);
     } catch (error) {
       console.error("Error in loadConnectedReps:", error);
@@ -218,6 +248,42 @@ const VendorMyReps = () => {
     }
 
     navigate(`/messages/${result.id}`);
+  };
+
+  const handleAddNote = async (repUserId: string) => {
+    const text = noteDrafts[repUserId]?.trim();
+    if (!text) return;
+
+    const { data, error } = await supabase
+      .from("connection_notes")
+      .insert([{
+        vendor_id: user!.id,
+        rep_id: repUserId,
+        author_id: user!.id,
+        side: "vendor",
+        note: text,
+      }])
+      .select("id, note, created_at")
+      .single();
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to save note.", variant: "destructive" });
+      return;
+    }
+
+    // Optimistically update local state
+    setConnectedReps(prev =>
+      prev.map(r =>
+        r.repUserId === repUserId
+          ? {
+              ...r,
+              notes: [{ id: data.id, note: data.note, created_at: data.created_at }, ...(r.notes || [])],
+            }
+          : r
+      )
+    );
+    setNoteDrafts(prev => ({ ...prev, [repUserId]: "" }));
+    toast({ title: "Note Added", description: "Your note has been saved." });
   };
 
   if (loading || authLoading) {
@@ -369,6 +435,46 @@ const VendorMyReps = () => {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
                     </Button>
+                  </div>
+
+                  {/* Notes Section */}
+                  <div className="pt-3 border-t border-border mt-2 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Notes (private to your account)</p>
+
+                    {rep.notes && rep.notes.length > 0 ? (
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {rep.notes.slice(0, 3).map((n) => (
+                          <p key={n.id} className="text-xs text-muted-foreground">
+                            <span className="font-medium">
+                              {new Date(n.created_at).toLocaleDateString()}
+                              {": "}
+                            </span>
+                            {n.note}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No notes yet for this rep.</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <textarea
+                        className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
+                        rows={2}
+                        placeholder="Add a quick note about this rep..."
+                        value={noteDrafts[rep.repUserId] || ""}
+                        onChange={(e) =>
+                          setNoteDrafts((prev) => ({ ...prev, [rep.repUserId]: e.target.value }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAddNote(rep.repUserId)}
+                      >
+                        Save
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
