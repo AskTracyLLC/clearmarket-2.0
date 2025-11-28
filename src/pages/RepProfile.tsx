@@ -242,7 +242,8 @@ const RepProfile = () => {
         title: "Profile Updated",
         description: "Your profile has been saved successfully.",
       });
-      navigate("/dashboard");
+      // Stay on profile page after save
+      await loadProfile();
     }
 
     setSaving(false);
@@ -742,7 +743,6 @@ const RepProfile = () => {
                   description: "Your coverage area has been updated successfully.",
                 });
                 await loadCoverageAreas();
-                navigate("/dashboard");
               }
             } else {
               // Insert new
@@ -762,7 +762,6 @@ const RepProfile = () => {
                   description: "Your coverage area has been added successfully.",
                 });
                 await loadCoverageAreas();
-                navigate("/dashboard");
               }
             }
           }}
