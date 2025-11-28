@@ -20,6 +20,7 @@ import VendorMyReps from "./pages/VendorMyReps";
 import RepMyVendors from "./pages/RepMyVendors";
 import MessagesList from "./pages/MessagesList";
 import MessageThread from "./pages/MessageThread";
+import VendorMessageTemplates from "./pages/VendorMessageTemplates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/rep/my-vendors" element={<RepMyVendors />} />
             <Route path="/messages" element={<MessagesList />} />
             <Route path="/messages/:conversationId" element={<MessageThread />} />
+            <Route path="/vendor/message-templates" element={<VendorMessageTemplates />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

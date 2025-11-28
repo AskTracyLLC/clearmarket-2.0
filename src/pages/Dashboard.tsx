@@ -372,9 +372,24 @@ const Dashboard = () => {
                       : `View and respond to conversations with ${isRep ? "vendors" : "field reps"}`
                     }
                   </p>
-                  <Button size="sm" variant="secondary">
-                    Open Inbox →
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button size="sm" variant="secondary">
+                      Open Inbox →
+                    </Button>
+                    {isVendor && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate("/vendor/message-templates");
+                        }}
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Templates
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>
