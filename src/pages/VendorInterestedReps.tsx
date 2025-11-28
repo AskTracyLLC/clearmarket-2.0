@@ -240,11 +240,14 @@ export default function VendorInterestedReps() {
   };
 
   const handleMessageRep = async (repUserId: string) => {
-    if (!user) return;
+    if (!user || !post) return;
 
     try {
       const { getOrCreateConversation } = await import("@/lib/conversations");
-      const result = await getOrCreateConversation(user.id, repUserId);
+      const result = await getOrCreateConversation(user.id, repUserId, {
+        type: "seeking_coverage",
+        postId: post.id,
+      });
       
       if (result.error) {
         toast.error(result.error);

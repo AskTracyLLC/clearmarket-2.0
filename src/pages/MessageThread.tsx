@@ -4,7 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Send, Eye } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
@@ -30,6 +31,7 @@ export default function MessageThread() {
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [conversationData, setConversationData] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
@@ -59,10 +61,30 @@ export default function MessageThread() {
 
     setLoading(true);
     try {
-      // Load conversation to verify access and get other participant
+      // Load conversation with Seeking Coverage origin data
       const { data: conversation, error: convError } = await supabase
         .from("conversations")
-        .select("participant_one, participant_two")
+        .select(`
+          participant_one,
+          participant_two,
+          origin_type,
+          origin_post_id,
+          seeking_post:origin_post_id (
+            id,
+            title,
+            state_code,
+            county_id,
+            pay_type,
+            pay_min,
+            pay_max,
+            pay_notes,
+            us_counties:county_id (
+              county_name,
+              state_code,
+              state_name
+            )
+          )
+        `)
         .eq("id", conversationId)
         .maybeSingle();
 
@@ -86,6 +108,9 @@ export default function MessageThread() {
         navigate("/messages");
         return;
       }
+
+      // Store conversation data with origin info
+      setConversationData(conversation);
 
       // Determine other participant
       const otherId = conversation.participant_one === user.id 
@@ -222,6 +247,53 @@ export default function MessageThread() {
             </button>
           </div>
         </div>
+
+        {/* Pinned Seeking Coverage Header */}
+        {conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post && (
+          <Card className="bg-card border-primary/30">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between text-base">
+                <span>Connected via Seeking Coverage</span>
+                <Badge variant="outline" className="text-xs">Post Context</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm pb-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Post Title</p>
+                  <p className="font-semibold">{conversationData.seeking_post.title}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Location</p>
+                  <p>
+                    {conversationData.seeking_post.us_counties?.county_name && 
+                      `${conversationData.seeking_post.us_counties.county_name}, `}
+                    {conversationData.seeking_post.us_counties?.state_code || 
+                     conversationData.seeking_post.state_code}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Offered Pricing</p>
+                <p className="font-semibold text-primary">
+                  {conversationData.seeking_post.pay_type === "fixed"
+                    ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
+                    : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`}
+                </p>
+                {conversationData.seeking_post.pay_notes && (
+                  <p className="text-xs text-muted-foreground italic mt-1">
+                    {conversationData.seeking_post.pay_notes}
+                  </p>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                This conversation was started from this Seeking Coverage request so both sides know what this thread is about.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Messages Area */}
         <Card className="p-6 min-h-[500px] max-h-[600px] overflow-y-auto flex flex-col">

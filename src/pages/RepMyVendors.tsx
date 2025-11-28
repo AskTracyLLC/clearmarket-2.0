@@ -277,14 +277,18 @@ const RepMyVendors = () => {
     setProfileDialogOpen(true);
   };
 
-  const handleMessage = async (vendorUserId: string, conversationId?: string) => {
+  const handleMessage = async (vendorUserId: string, conversationId?: string, originPostId?: string) => {
     if (conversationId) {
       navigate(`/messages/${conversationId}`);
       return;
     }
 
-    // Create conversation
-    const result = await getOrCreateConversation(user!.id, vendorUserId);
+    // Create conversation with origin if available
+    const origin = originPostId
+      ? { type: "seeking_coverage" as const, postId: originPostId }
+      : null;
+
+    const result = await getOrCreateConversation(user!.id, vendorUserId, origin);
     if (result.error) {
       toast({
         title: "Error",
@@ -528,7 +532,13 @@ const RepMyVendors = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => handleMessage(vendor.vendorUserId, vendor.conversationId)}
+                      onClick={() => 
+                        handleMessage(
+                          vendor.vendorUserId, 
+                          vendor.conversationId,
+                          vendor.connectedPosts[0]?.id
+                        )
+                      }
                     >
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message Vendor
