@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 
 const Dashboard = () => {
@@ -19,6 +20,7 @@ const Dashboard = () => {
   const [repProfile, setRepProfile] = useState<any>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -85,6 +87,15 @@ const Dashboard = () => {
         
         setVendorProfile(vendorData);
       }
+
+      // Load unread message count
+      const { count } = await supabase
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("recipient_id", user.id)
+        .eq("read", false);
+      
+      setUnreadMessageCount(count || 0);
     }
 
     setLoading(false);
@@ -342,9 +353,19 @@ const Dashboard = () => {
               <div className="flex items-start gap-4">
                 <MessageSquare className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground mb-2">Messages</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-semibold text-foreground">Messages</h3>
+                    {unreadMessageCount > 0 && (
+                      <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">
+                        {unreadMessageCount}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground mb-4">
-                    View and respond to conversations with {isRep ? "vendors" : "field reps"}
+                    {unreadMessageCount > 0 
+                      ? `You have ${unreadMessageCount} unread message${unreadMessageCount === 1 ? '' : 's'}`
+                      : `View and respond to conversations with ${isRep ? "vendors" : "field reps"}`
+                    }
                   </p>
                   <Button size="sm" variant="secondary">
                     Open Inbox →

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, MessageSquare, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { getUserDisplayName } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -17,6 +18,7 @@ interface ConversationWithParticipant {
   participant_two: string;
   otherParticipantName: string;
   otherParticipantUserId: string;
+  unreadCount: number;
 }
 
 export default function MessagesList() {
@@ -55,7 +57,24 @@ export default function MessagesList() {
         return;
       }
 
-      // Get display names for other participants
+      // Fetch unread counts for all conversations
+      const { data: unreadMessages, error: unreadError } = await supabase
+        .from("messages")
+        .select("conversation_id")
+        .eq("recipient_id", user.id)
+        .eq("read", false);
+
+      if (unreadError) {
+        console.error("Error loading unread counts:", unreadError);
+      }
+
+      // Build unread counts map
+      const unreadCounts: Record<string, number> = {};
+      (unreadMessages || []).forEach((m) => {
+        unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
+      });
+
+      // Get display names for other participants and attach unread counts
       const conversationsWithNames = await Promise.all(
         (data || []).map(async (conv) => {
           const otherUserId = conv.participant_one === user.id 
@@ -68,6 +87,7 @@ export default function MessagesList() {
             ...conv,
             otherParticipantName,
             otherParticipantUserId: otherUserId,
+            unreadCount: unreadCounts[conv.id] || 0,
           };
         })
       );
@@ -139,6 +159,11 @@ export default function MessagesList() {
                         {conv.otherParticipantName}
                         <Eye className="h-3.5 w-3.5" />
                       </button>
+                      {conv.unreadCount > 0 && (
+                        <Badge variant="secondary" className="ml-2 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">
+                          {conv.unreadCount}
+                        </Badge>
+                      )}
                     </div>
                     {conv.last_message_preview && (
                       <p 
