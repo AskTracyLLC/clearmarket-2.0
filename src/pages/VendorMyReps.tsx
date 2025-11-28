@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +35,7 @@ interface ConnectedRep {
     id: string;
     title: string;
     stateCode: string | null;
+    interestId: string;
   }>;
   conversationId?: string;
   notes?: Array<{
@@ -46,6 +57,9 @@ const VendorMyReps = () => {
   const [hasNotesByRep, setHasNotesByRep] = useState<Record<string, boolean>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editedNoteText, setEditedNoteText] = useState<string>("");
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -175,6 +189,7 @@ const VendorMyReps = () => {
           id: post.id,
           title: post.title,
           stateCode: post.state_code,
+          interestId: interest.id,
         });
       }
 
@@ -335,6 +350,50 @@ const VendorMyReps = () => {
     toast({ title: "Note Updated", description: "Your note has been updated." });
   };
 
+  const handleDisconnectClick = (interestId: string) => {
+    setDisconnectingInterestId(interestId);
+    setShowDisconnectDialog(true);
+  };
+
+  const handleDisconnect = async () => {
+    if (!disconnectingInterestId) return;
+
+    setDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "disconnected" })
+        .eq("id", disconnectingInterestId);
+
+      if (error) throw error;
+
+      // Remove the rep from the list
+      setConnectedReps(prev => {
+        // Find the rep that has this interest ID
+        return prev.filter(rep => {
+          // Keep rep only if none of their posts match this interest ID
+          return !rep.connectedPosts.some(post => post.interestId === disconnectingInterestId);
+        });
+      });
+
+      toast({
+        title: "Connection ended",
+        description: "This rep has been removed from your network.",
+      });
+      setShowDisconnectDialog(false);
+      setDisconnectingInterestId(null);
+    } catch (error: any) {
+      console.error("Error disconnecting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to end connection",
+        variant: "destructive",
+      });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -493,6 +552,14 @@ const VendorMyReps = () => {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDisconnectClick(rep.connectedPosts[0].interestId)}
+                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      Disconnect
+                    </Button>
                   </div>
 
                   {/* Notes Section */}
@@ -591,6 +658,27 @@ const VendorMyReps = () => {
           targetUserId={selectedRepUserId}
         />
       )}
+
+      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>End Connection?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove this connection from your My Reps / My Vendors list, but your message history will remain. You can reconnect again later if you both agree.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disconnecting ? "Disconnecting..." : "Yes, disconnect"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
