@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ArrowLeft, Send, Eye, CheckCircle2 } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
@@ -41,6 +51,8 @@ export default function MessageThread() {
   const [isRep, setIsRep] = useState(false);
   const [repInterest, setRepInterest] = useState<any>(null);
   const [connectingStatus, setConnectingStatus] = useState(false);
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -385,6 +397,37 @@ export default function MessageThread() {
     }
   }
 
+  async function handleDisconnect() {
+    if (!repInterest || !user) return;
+
+    setDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "disconnected" })
+        .eq("id", repInterest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setRepInterest({ ...repInterest, status: "disconnected" });
+      toast({
+        title: "Connection ended",
+        description: "This connection has been removed from your network.",
+      });
+      setShowDisconnectDialog(false);
+    } catch (error: any) {
+      console.error("Error disconnecting:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update connection status",
+        variant: "destructive",
+      });
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
@@ -451,9 +494,23 @@ export default function MessageThread() {
               {repInterest && (
                 <div className="mb-4 pb-4 border-b border-border">
                   {repInterest.status === "connected" ? (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <span className="font-medium">✓ Status: Connected on this Seeking Coverage post</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-sm text-green-500">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>✓ Status: Connected on this Seeking Coverage post</span>
+                      </div>
+                      <Button
+                        onClick={() => setShowDisconnectDialog(true)}
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  ) : repInterest.status === "disconnected" ? (
+                    <div className="text-sm text-muted-foreground">
+                      Status: Disconnected on this Seeking Coverage post
                     </div>
                   ) : (
                     <div className="flex items-center justify-between">
@@ -761,6 +818,27 @@ export default function MessageThread() {
           onOpenChange={setProfileDialogOpen}
           targetUserId={otherParticipantId}
         />
+
+        <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>End Connection?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove this connection from your My Reps / My Vendors list, but your message history will remain. You can reconnect again later if you both agree.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {disconnecting ? "Disconnecting..." : "Yes, disconnect"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
