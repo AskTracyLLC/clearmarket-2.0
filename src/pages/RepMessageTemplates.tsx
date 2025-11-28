@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, Plus, Pencil, Trash2, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { SYSTEM_MESSAGE_TEMPLATES } from "@/lib/systemMessageTemplates";
+import { SYSTEM_MESSAGE_TEMPLATES_REP } from "@/lib/systemMessageTemplatesRep";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 
-interface VendorTemplate {
+interface RepTemplate {
   id: string;
   name: string;
   body: string;
@@ -41,15 +41,15 @@ interface VendorTemplate {
   updated_at: string;
 }
 
-export default function VendorMessageTemplates() {
+export default function RepMessageTemplates() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [templates, setTemplates] = useState<VendorTemplate[]>([]);
+  const [templates, setTemplates] = useState<RepTemplate[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<VendorTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<RepTemplate | null>(null);
   const [formData, setFormData] = useState({ name: "", body: "" });
   const [isCreating, setIsCreating] = useState(false);
 
@@ -61,22 +61,22 @@ export default function VendorMessageTemplates() {
       return;
     }
 
-    checkVendorAccess();
+    checkRepAccess();
   }, [user, authLoading, navigate]);
 
-  async function checkVendorAccess() {
+  async function checkRepAccess() {
     if (!user) return;
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin")
+      .select("is_fieldrep")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_vendor_admin) {
+    if (!profile?.is_fieldrep) {
       toast({
         title: "Access Denied",
-        description: "This page is only available to vendors",
+        description: "This page is only available to field reps",
         variant: "destructive",
       });
       navigate("/dashboard");
@@ -94,6 +94,7 @@ export default function VendorMessageTemplates() {
       .from("vendor_message_templates")
       .select("*")
       .eq("user_id", user.id)
+      .eq("target_role", "rep")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -116,7 +117,7 @@ export default function VendorMessageTemplates() {
     setEditDialogOpen(true);
   }
 
-  function openEditDialog(template: VendorTemplate) {
+  function openEditDialog(template: RepTemplate) {
     setIsCreating(false);
     setEditingTemplate(template);
     setFormData({ name: template.name, body: template.body });
@@ -142,7 +143,7 @@ export default function VendorMessageTemplates() {
           name: formData.name.trim(),
           body: formData.body.trim(),
           scope: "seeking_coverage",
-          target_role: "vendor",
+          target_role: "rep",
         });
 
       if (error) {
@@ -260,19 +261,23 @@ export default function VendorMessageTemplates() {
                 <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
                   <li><code className="bg-muted px-1 rounded">{"{{POST_TITLE}}"}</code></li>
                   <li><code className="bg-muted px-1 rounded">{"{{POST_STATE_CODE}}"}</code> (e.g., WI)</li>
-                  <li><code className="bg-muted px-1 rounded">{"{{POST_STATE_NAME}}"}</code> (e.g., Wisconsin)</li>
                   <li><code className="bg-muted px-1 rounded">{"{{POST_COUNTY}}"}</code></li>
                   <li><code className="bg-muted px-1 rounded">{"{{POST_RATE}}"}</code> (formatted pricing)</li>
-                  <li><code className="bg-muted px-1 rounded">{"{{POST_PAY_MIN}}"}</code>, <code className="bg-muted px-1 rounded">{"{{POST_PAY_MAX}}"}</code></li>
                 </ul>
               </div>
               <div>
-                <p className="font-semibold mb-1">Rep-related:</p>
+                <p className="font-semibold mb-1">Vendor-related:</p>
                 <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
-                  <li><code className="bg-muted px-1 rounded">{"{{REP_ANON}}"}</code> (e.g., FieldRep#1)</li>
-                  <li><code className="bg-muted px-1 rounded">{"{{REP_FIRST_NAME}}"}</code></li>
-                  <li><code className="bg-muted px-1 rounded">{"{{REP_LAST_INITIAL}}"}</code></li>
-                  <li><code className="bg-muted px-1 rounded">{"{{REP_CITY}}"}</code>, <code className="bg-muted px-1 rounded">{"{{REP_STATE}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{VENDOR_CONTACT_FIRST_NAME}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{VENDOR_ANON}}"}</code> (e.g., Vendor#1)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{VENDOR_COMPANY}}"}</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Your Rep Profile:</p>
+                <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_ANON}}"}</code> (your anonymous ID)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_STATE}}"}</code></li>
                   <li><code className="bg-muted px-1 rounded">{"{{REP_SYSTEMS}}"}</code></li>
                   <li><code className="bg-muted px-1 rounded">{"{{REP_INSPECTION_TYPES}}"}</code></li>
                 </ul>
@@ -362,7 +367,7 @@ export default function VendorMessageTemplates() {
           </div>
 
           <div className="grid gap-4">
-            {SYSTEM_MESSAGE_TEMPLATES.map((template, index) => (
+            {SYSTEM_MESSAGE_TEMPLATES_REP.map((template, index) => (
               <Card key={index} className="border-dashed">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
