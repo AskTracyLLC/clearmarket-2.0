@@ -11,6 +11,7 @@ import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { TemplateSelector } from "@/components/TemplateSelector";
 
 interface Message {
   id: string;
@@ -35,6 +36,7 @@ export default function MessageThread() {
   const [otherPartyProfile, setOtherPartyProfile] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [isVendor, setIsVendor] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -62,6 +64,15 @@ export default function MessageThread() {
 
     setLoading(true);
     try {
+      // Check if current user is a vendor
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_vendor_admin")
+        .eq("id", user.id)
+        .single();
+      
+      setIsVendor(profile?.is_vendor_admin || false);
+
       // Load conversation with Seeking Coverage origin data
       const { data: conversation, error: convError } = await supabase
         .from("conversations")
@@ -291,6 +302,10 @@ export default function MessageThread() {
     } finally {
       setSending(false);
     }
+  }
+
+  function handleTemplateInsert(templateBody: string) {
+    setMessageText(templateBody);
   }
 
   if (authLoading || loading) {
@@ -550,31 +565,46 @@ export default function MessageThread() {
 
         {/* Compose Area */}
         <Card className="p-4">
-          <div className="flex gap-2">
-            <Textarea
-              placeholder="Type your message..."
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              className="min-h-[80px] resize-none"
-              disabled={sending}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!messageText.trim() || sending}
-              size="lg"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+          <div className="space-y-3">
+            {/* Template Selector - only show for vendors in Seeking Coverage conversations */}
+            {isVendor && conversationData?.origin_type === "seeking_coverage" && (
+              <div className="flex items-center gap-2">
+                <TemplateSelector
+                  vendorId={user!.id}
+                  onTemplateSelect={handleTemplateInsert}
+                />
+                <span className="text-xs text-muted-foreground">
+                  Insert a template to speed up your response
+                </span>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Type your message..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                className="min-h-[80px] resize-none"
+                disabled={sending}
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!messageText.trim() || sending}
+                size="lg"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Press Enter to send, Shift+Enter for new line
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Press Enter to send, Shift+Enter for new line
-          </p>
         </Card>
 
         <PublicProfileDialog

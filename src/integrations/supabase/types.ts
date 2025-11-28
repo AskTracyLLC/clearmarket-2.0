@@ -611,6 +611,44 @@ export type Database = {
           },
         ]
       }
+      vendor_message_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          name: string
+          scope: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          scope?: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          scope?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_message_templates_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_profile: {
         Row: {
           anonymous_id: string | null
