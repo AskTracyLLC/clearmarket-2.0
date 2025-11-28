@@ -9,73 +9,116 @@ export interface MessageTemplate {
 
 export const SYSTEM_MESSAGE_TEMPLATES: MessageTemplate[] = [
   {
-    name: "Quick Intro / Confirm Interest",
+    name: "Intro – Standard",
     scope: "seeking_coverage",
-    body: `Hi there,
+    body: `Hi {{REP_FIRST_NAME}},
 
-I saw you expressed interest in this work. I wanted to reach out directly to confirm you're still available and interested.
+Thanks for showing interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
-Let me know if you have any questions about the job details or pricing.
+Our current offer on this work is {{POST_RATE}}. I'd like to confirm this lines up with what you typically accept in that area and get a sense of your availability.
 
-Looking forward to working with you.`
-  },
-  {
-    name: "Experience + Systems Check",
-    scope: "seeking_coverage",
-    body: `Hi,
-
-Thanks for your interest! Before we move forward, I'd like to confirm a few things:
-
-1. Do you have experience with this type of inspection?
-2. Are you familiar with the systems we use?
-3. What's your typical turnaround time?
-
-Please let me know when you're available to discuss further.`
-  },
-  {
-    name: "Rate Alignment Check",
-    scope: "seeking_coverage",
-    body: `Hi,
-
-I appreciate your interest in this opportunity. I wanted to reach out to ensure we're aligned on pricing.
-
-The rate for this work is as posted. Does this work for you? If you have any concerns or questions about the compensation, let's discuss.
+Do you currently cover {{POST_COUNTY}}, {{POST_STATE_CODE}} and are you open to taking on more volume there?
 
 Thanks!`
   },
   {
-    name: "Availability & Route Details",
+    name: "Intro – Rate Check",
     scope: "seeking_coverage",
-    body: `Hi,
+    body: `Hi {{REP_FIRST_NAME}},
 
-Thanks for expressing interest! I'd like to learn more about your availability and coverage:
+I saw your interest in {{POST_TITLE}} for {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
-- Are you available to start immediately or within the next week?
-- Do you typically work in this area, or would this be out of your normal route?
-- What's your capacity for taking on additional work right now?
+We're offering {{POST_RATE}} on these inspections. Before we move forward, can you confirm if this rate works for you in this county?
 
-Looking forward to hearing from you.`
+If your typical minimum is higher, please let me know what you'd normally require so I can see if there's any flexibility.
+
+Thanks!`
   },
   {
-    name: "Trial Batch Proposal",
+    name: "Intro – Coverage & Systems",
     scope: "seeking_coverage",
-    body: `Hi,
+    body: `Hi {{REP_FIRST_NAME}},
 
-I'd like to start with a small trial batch to ensure we're a good fit for each other.
+Thanks for responding to {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
-Would you be open to handling [X number] inspections first? If that goes well, we can discuss ongoing work.
+I want to make sure we're aligned on a few basics:
+- You cover {{POST_COUNTY}}, {{POST_STATE_CODE}} on a regular basis
+- You're comfortable working in the systems listed on your profile: {{REP_SYSTEMS}}
+- The inspection types listed on your profile ({{REP_INSPECTION_TYPES}}) line up with this request
 
-Let me know if this works for you.`
+If anything in your profile has changed, feel free to reply with your current coverage and systems.
+
+Thank you!`
   },
   {
-    name: "Not a Fit (Keep Door Open)",
+    name: "Intro – Availability & Turn Time",
     scope: "seeking_coverage",
-    body: `Hi,
+    body: `Hi {{REP_FIRST_NAME}},
 
-Thanks so much for your interest in this opportunity. After reviewing your profile and coverage, I don't think this particular job is the right fit right now.
+Thank you for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
-However, I'd love to keep in touch for future opportunities that might align better with your expertise and location.
+These inspections are typically expected to be completed within our standard turn times (no rush): we're aiming for on-time completions without last-minute scrambling.
 
-Best of luck, and I hope we can work together down the road!`
+Can you let me know:
+- What your usual turnaround time is in this area?
+- Which days you're normally in or near {{POST_COUNTY}}, {{POST_STATE_CODE}}?
+
+Once I know your schedule and typical turnaround, we can decide if this is a good ongoing fit.
+
+Thanks!`
+  },
+  {
+    name: "Intro – Extra Context",
+    scope: "seeking_coverage",
+    body: `Hi {{REP_FIRST_NAME}},
+
+I'm reaching out about {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
+
+This area can be a bit challenging (distance, routing, and client expectations), so I want to set expectations clearly. Our current offer is {{POST_RATE}} per completed inspection.
+
+Are you comfortable with:
+- The travel involved for {{POST_COUNTY}}, {{POST_STATE_CODE}}?
+- Handling occasional extra client questions or clarifications for this area?
+
+If so, please let me know how many orders per week you'd realistically like to take on here.
+
+Thanks!`
+  },
+  {
+    name: "Follow-Up – No Response",
+    scope: "seeking_coverage",
+    body: `Hi {{REP_FIRST_NAME}},
+
+Just following up on your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
+
+We're still looking to solidify coverage at {{POST_RATE}} and I wanted to check if you're still interested and available in this area.
+
+If you're no longer available or the rate doesn't work for you, a quick reply either way is appreciated so we can update our notes.
+
+Thank you!`
+  },
+  {
+    name: "Rate – Not a Match (Soft)",
+    scope: "seeking_coverage",
+    body: `Hi {{REP_FIRST_NAME}},
+
+Thank you for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
+
+Right now, our approved rate for this work is {{POST_RATE}}. I understand if this doesn't fully align with your usual minimum in this area.
+
+If you'd like, you can share what rate you typically need for {{POST_COUNTY}}, {{POST_STATE_CODE}} and I'll keep it noted in case future opportunities have more flexibility.
+
+Either way, I appreciate you taking the time to respond.`
+  },
+  {
+    name: "Not a Fit – Keep on File",
+    scope: "seeking_coverage",
+    body: `Hi {{REP_FIRST_NAME}},
+
+Thank you again for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
+
+Based on the rate and current client expectations, I don't think this specific opportunity is the best fit right now. However, I've noted your interest and coverage in {{REP_STATE}} and will keep you in mind for future work that better matches your minimums and preferences.
+
+I appreciate your time and hope we can work together on a better-aligned opportunity soon.`
   }
 ];
