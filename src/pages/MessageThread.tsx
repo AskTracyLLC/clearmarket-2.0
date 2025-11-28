@@ -235,16 +235,32 @@ export default function MessageThread() {
             Back to Messages
           </Button>
           <div>
-            <h1 className="text-lg text-muted-foreground mb-1">
-              Conversation with
-            </h1>
-            <button
-              onClick={() => setProfileDialogOpen(true)}
-              className="text-2xl font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
-            >
-              {otherParticipantName}
-              <Eye className="h-5 w-5" />
-            </button>
+            {(() => {
+              const isSeekingCoverage = conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post;
+              const headerTitle = isSeekingCoverage
+                ? (conversationData.seeking_post.title || "Seeking Coverage Conversation")
+                : `Conversation with ${otherParticipantName}`;
+              const headerSubtitle = isSeekingCoverage
+                ? `Conversation with ${otherParticipantName}`
+                : undefined;
+
+              return (
+                <>
+                  <button
+                    onClick={() => setProfileDialogOpen(true)}
+                    className="text-2xl font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
+                  >
+                    {headerTitle}
+                    <Eye className="h-5 w-5" />
+                  </button>
+                  {headerSubtitle && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {headerSubtitle}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -305,11 +321,16 @@ export default function MessageThread() {
             ) : (
               messages.map((message) => {
                 const isCurrentUser = message.sender_id === user?.id;
+                const senderLabel = isCurrentUser ? "You" : otherParticipantName;
+                
                 return (
                   <div
                     key={message.id}
-                    className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                    className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}
                   >
+                    <p className="text-[10px] text-muted-foreground mb-1 px-1">
+                      {senderLabel}
+                    </p>
                     <div
                       className={`max-w-[70%] rounded-lg p-3 ${
                         isCurrentUser
