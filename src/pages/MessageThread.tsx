@@ -113,7 +113,7 @@ export default function MessageThread() {
   }
 
   async function loadMessages() {
-    if (!conversationId) return;
+    if (!conversationId || !user) return;
 
     const { data, error } = await supabase
       .from("messages")
@@ -127,6 +127,14 @@ export default function MessageThread() {
     }
 
     setMessages(data || []);
+
+    // Mark all unread messages in this conversation as read
+    await supabase
+      .from("messages")
+      .update({ read: true })
+      .eq("conversation_id", conversationId)
+      .eq("recipient_id", user.id)
+      .eq("read", false);
   }
 
   async function handleSendMessage() {
