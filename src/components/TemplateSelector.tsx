@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { FileText } from "lucide-react";
 import { SYSTEM_MESSAGE_TEMPLATES, MessageTemplate } from "@/lib/systemMessageTemplates";
 import { toast } from "@/hooks/use-toast";
+import { renderTemplateBody, TemplateContext } from "@/lib/templatePlaceholders";
 
 interface TemplateSelectorProps {
   vendorId: string;
   onTemplateSelect: (body: string) => void;
+  context?: TemplateContext;
 }
 
 interface VendorTemplate extends MessageTemplate {
@@ -23,7 +25,7 @@ interface VendorTemplate extends MessageTemplate {
   updated_at: string;
 }
 
-export function TemplateSelector({ vendorId, onTemplateSelect }: TemplateSelectorProps) {
+export function TemplateSelector({ vendorId, onTemplateSelect, context }: TemplateSelectorProps) {
   const [open, setOpen] = useState(false);
   const [vendorTemplates, setVendorTemplates] = useState<VendorTemplate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,12 @@ export function TemplateSelector({ vendorId, onTemplateSelect }: TemplateSelecto
   }
 
   function handleTemplateClick(template: MessageTemplate) {
-    onTemplateSelect(template.body);
+    // Render template with context if available
+    const renderedBody = context 
+      ? renderTemplateBody(template.body, context)
+      : template.body;
+    
+    onTemplateSelect(renderedBody);
     setOpen(false);
     toast({
       title: "Template Inserted",

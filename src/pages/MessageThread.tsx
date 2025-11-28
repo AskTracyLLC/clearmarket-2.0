@@ -572,6 +572,24 @@ export default function MessageThread() {
                 <TemplateSelector
                   vendorId={user!.id}
                   onTemplateSelect={handleTemplateInsert}
+                  context={{
+                    post: {
+                      title: conversationData?.seeking_post?.title,
+                      state_code: conversationData?.seeking_post?.state_code,
+                      county_name: conversationData?.seeking_post?.us_counties?.county_name,
+                      pay_type: conversationData?.seeking_post?.pay_type,
+                      pay_min: conversationData?.seeking_post?.pay_min,
+                      pay_max: conversationData?.seeking_post?.pay_max,
+                    },
+                    profile: otherPartyProfile?.type === "rep" ? {
+                      rep_anonymous_id: otherPartyProfile?.anonymous_id,
+                      rep_full_name: otherPartyProfile?.full_name,
+                      rep_city: otherPartyProfile?.city,
+                      rep_state: otherPartyProfile?.state,
+                      rep_systems: otherPartyProfile?.systems_used,
+                      rep_inspection_types: otherPartyProfile?.inspection_types,
+                    } : undefined,
+                  }}
                 />
                 <span className="text-xs text-muted-foreground">
                   Insert a template to speed up your response
