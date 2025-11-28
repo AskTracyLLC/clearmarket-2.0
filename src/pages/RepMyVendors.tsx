@@ -94,7 +94,7 @@ const RepMyVendors = () => {
     if (!user) return;
 
     try {
-      // Get all connected rep_interest entries for this rep
+      // Step 1: Get all connected rep_interest entries with basic post info
       const { data: interests, error } = await supabase
         .from("rep_interest")
         .select(`
@@ -105,18 +105,7 @@ const RepMyVendors = () => {
             id,
             title,
             vendor_id,
-            state_code,
-            vendor_profile:vendor_id (
-              user_id,
-              anonymous_id,
-              company_name,
-              city,
-              state,
-              systems_used,
-              primary_inspection_types,
-              is_accepting_new_reps,
-              profiles:user_id ( full_name )
-            )
+            state_code
           )
         `)
         .eq("rep_id", repId)
@@ -133,34 +122,31 @@ const RepMyVendors = () => {
         return;
       }
 
-      // Deduplicate by vendor user_id and aggregate posts
+      // Step 2: Build map of connected vendors and collect vendor IDs
       const vendorsMap = new Map<string, ConnectedVendor>();
+      const vendorIds = new Set<string>();
 
       for (const interest of interests || []) {
         const post = interest.seeking_coverage_posts as any;
         
-        if (!post || !post.vendor_profile) continue;
+        if (!post || !post.vendor_id) continue;
 
-        const vendorProfile = post.vendor_profile;
-        const vendorUserId = vendorProfile.user_id;
+        const vendorUserId = post.vendor_id;
+        vendorIds.add(vendorUserId);
 
         if (!vendorsMap.has(vendorUserId)) {
-          const fullName = vendorProfile.profiles?.full_name || "";
-          const nameParts = fullName.split(" ");
-          const firstName = nameParts[0] || "";
-          const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
-
+          // Initialize vendor entry with placeholder data
           vendorsMap.set(vendorUserId, {
             vendorUserId,
-            anonymousId: vendorProfile.anonymous_id || `Vendor#${vendorUserId.substring(0, 6)}`,
-            companyName: vendorProfile.company_name || "Vendor",
-            firstName,
-            lastInitial,
-            city: vendorProfile.city,
-            state: vendorProfile.state,
-            systemsUsed: vendorProfile.systems_used || [],
-            inspectionTypes: vendorProfile.primary_inspection_types || [],
-            isAcceptingNewReps: vendorProfile.is_accepting_new_reps ?? true,
+            anonymousId: `Vendor#${vendorUserId.substring(0, 6)}`,
+            companyName: "Vendor",
+            firstName: "",
+            lastInitial: "",
+            city: null,
+            state: null,
+            systemsUsed: [],
+            inspectionTypes: [],
+            isAcceptingNewReps: true,
             connectedPosts: [],
           });
         }
@@ -174,7 +160,55 @@ const RepMyVendors = () => {
         });
       }
 
-      // Convert map to array and fetch conversation IDs
+      // Step 3: Fetch vendor_profile details for all connected vendors
+      if (vendorIds.size > 0) {
+        const { data: vendorProfiles, error: vendorError } = await supabase
+          .from("vendor_profile")
+          .select(`
+            user_id,
+            anonymous_id,
+            company_name,
+            city,
+            state,
+            systems_used,
+            primary_inspection_types,
+            is_accepting_new_reps,
+            profiles:user_id (
+              full_name
+            )
+          `)
+          .in("user_id", Array.from(vendorIds));
+
+        if (vendorError) {
+          console.error("Error loading vendor profiles:", vendorError);
+        }
+
+        // Step 4: Merge vendor profile data into the map
+        if (vendorProfiles) {
+          for (const vendorProfile of vendorProfiles) {
+            const vendor = vendorsMap.get(vendorProfile.user_id);
+            if (!vendor) continue;
+
+            const fullName = (vendorProfile.profiles as any)?.full_name || "";
+            const nameParts = fullName.split(" ");
+            const firstName = nameParts[0] || "";
+            const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
+
+            // Update vendor with profile data
+            vendor.anonymousId = vendorProfile.anonymous_id || `Vendor#${vendorProfile.user_id.substring(0, 6)}`;
+            vendor.companyName = vendorProfile.company_name || "Vendor";
+            vendor.firstName = firstName;
+            vendor.lastInitial = lastInitial;
+            vendor.city = vendorProfile.city;
+            vendor.state = vendorProfile.state;
+            vendor.systemsUsed = vendorProfile.systems_used || [];
+            vendor.inspectionTypes = vendorProfile.primary_inspection_types || [];
+            vendor.isAcceptingNewReps = vendorProfile.is_accepting_new_reps ?? true;
+          }
+        }
+      }
+
+      // Step 5: Convert map to array and fetch conversation IDs
       const vendorsArray = Array.from(vendorsMap.values());
 
       // For each vendor, check if conversation exists
