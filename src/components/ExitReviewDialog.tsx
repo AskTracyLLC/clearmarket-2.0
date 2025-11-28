@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,28 +14,66 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
 
-interface ExitReviewDialogProps {
+interface ConnectionReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repInterestId: string;
-  subjectUserId: string;
-  postId?: string | null;
+  repUserId: string;
+  vendorUserId: string;
+  reviewerRole: "vendor" | "rep";
+  source?: "disconnect" | "manual" | "post_connection";
   onComplete?: () => void;
 }
 
-export function ExitReviewDialog({
+export function ConnectionReviewDialog({
   open,
   onOpenChange,
   repInterestId,
-  subjectUserId,
-  postId,
+  repUserId,
+  vendorUserId,
+  reviewerRole,
+  source = "manual",
   onComplete,
-}: ExitReviewDialogProps) {
+}: ConnectionReviewDialogProps) {
   const [onTimeRating, setOnTimeRating] = useState<number>(0);
   const [qualityRating, setQualityRating] = useState<number>(0);
   const [communicationRating, setCommunicationRating] = useState<number>(0);
-  const [notes, setNotes] = useState("");
+  const [summaryComment, setSummaryComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
+
+  // Load existing review if any
+  useEffect(() => {
+    if (!open || !repInterestId) return;
+
+    async function loadExistingReview() {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+
+      const { data: existingReview } = await supabase
+        .from("connection_reviews")
+        .select("id, rating_on_time, rating_quality, rating_communication, summary_comment")
+        .eq("rep_interest_id", repInterestId)
+        .eq("reviewer_id", userData.user.id)
+        .maybeSingle();
+
+      if (existingReview) {
+        setExistingReviewId(existingReview.id);
+        setOnTimeRating(existingReview.rating_on_time || 0);
+        setQualityRating(existingReview.rating_quality || 0);
+        setCommunicationRating(existingReview.rating_communication || 0);
+        setSummaryComment(existingReview.summary_comment || "");
+      } else {
+        setExistingReviewId(null);
+        setOnTimeRating(0);
+        setQualityRating(0);
+        setCommunicationRating(0);
+        setSummaryComment("");
+      }
+    }
+
+    loadExistingReview();
+  }, [open, repInterestId]);
 
   const handleSubmit = async () => {
     // Validate at least one rating is provided
@@ -53,22 +91,39 @@ export function ExitReviewDialog({
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("connection_reviews").insert({
+      const reviewData: any = {
         rep_interest_id: repInterestId,
         reviewer_id: userData.user.id,
-        subject_id: subjectUserId,
-        post_id: postId,
-        on_time_rating: onTimeRating > 0 ? onTimeRating : null,
-        quality_rating: qualityRating > 0 ? qualityRating : null,
-        communication_rating: communicationRating > 0 ? communicationRating : null,
-        notes: notes.trim() || null,
-        source: "disconnect",
-      });
+        rep_user_id: repUserId,
+        vendor_user_id: vendorUserId,
+        reviewer_role: reviewerRole,
+        rating_on_time: onTimeRating > 0 ? onTimeRating : null,
+        rating_quality: qualityRating > 0 ? qualityRating : null,
+        rating_communication: communicationRating > 0 ? communicationRating : null,
+        summary_comment: summaryComment.trim() || null,
+        source,
+        is_public: true,
+      };
 
-      if (error) throw error;
+      if (existingReviewId) {
+        // Update existing review
+        const { error } = await supabase
+          .from("connection_reviews")
+          .update(reviewData)
+          .eq("id", existingReviewId);
+
+        if (error) throw error;
+      } else {
+        // Insert new review
+        const { error } = await supabase
+          .from("connection_reviews")
+          .insert(reviewData);
+
+        if (error) throw error;
+      }
 
       toast({
-        title: "Exit review saved",
+        title: existingReviewId ? "Review updated" : source === "disconnect" ? "Exit review saved" : "Review saved",
         description: "Thank you for your feedback.",
       });
 
@@ -79,7 +134,8 @@ export function ExitReviewDialog({
       setOnTimeRating(0);
       setQualityRating(0);
       setCommunicationRating(0);
-      setNotes("");
+      setSummaryComment("");
+      setExistingReviewId(null);
     } catch (error: any) {
       console.error("Error submitting review:", error);
       toast({
@@ -93,10 +149,12 @@ export function ExitReviewDialog({
   };
 
   const handleSkip = () => {
-    toast({
-      title: "Connection ended",
-      description: "You can always leave a review later.",
-    });
+    if (source === "disconnect") {
+      toast({
+        title: "Connection ended",
+        description: "You can always leave a review later.",
+      });
+    }
     onOpenChange(false);
     onComplete?.();
   };
@@ -135,10 +193,26 @@ export function ExitReviewDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>End Connection – Exit Review</DialogTitle>
+          <DialogTitle>
+            {source === "disconnect" 
+              ? reviewerRole === "vendor" 
+                ? "Exit Review for This Field Rep" 
+                : "Exit Review for This Vendor"
+              : existingReviewId
+                ? reviewerRole === "vendor"
+                  ? "Edit Review for This Field Rep"
+                  : "Edit Review for This Vendor"
+                : reviewerRole === "vendor"
+                  ? "Leave Review for This Field Rep"
+                  : "Leave Review for This Vendor"
+            }
+          </DialogTitle>
           <DialogDescription>
-            Help us improve the platform by sharing your experience with this connection.
-            All fields are optional.
+            {reviewerRole === "vendor"
+              ? "Help future-you remember how this rep performed. These ratings will also help build ClearMarket's trust metrics over time."
+              : "Share how it was working with this vendor. Your feedback helps you and others make better choices."
+            }
+            {source !== "disconnect" && " All fields are optional."}
           </DialogDescription>
         </DialogHeader>
 
@@ -153,9 +227,13 @@ export function ExitReviewDialog({
             </Label>
             <Textarea
               id="notes"
-              placeholder="Any additional feedback about this connection..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              placeholder={
+                reviewerRole === "vendor"
+                  ? "Anything you want to remember about working with this rep? (Optional, private between you and ClearMarket for now.)"
+                  : "Anything you want to remember about working with this vendor? (Optional, private between you and ClearMarket for now.)"
+              }
+              value={summaryComment}
+              onChange={(e) => setSummaryComment(e.target.value)}
               rows={4}
               className="resize-none"
             />
@@ -163,21 +241,29 @@ export function ExitReviewDialog({
         </div>
 
         <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSkip}
-            disabled={submitting}
-          >
-            Skip
-          </Button>
+          {source === "disconnect" && (
+            <Button
+              variant="outline"
+              onClick={handleSkip}
+              disabled={submitting}
+            >
+              Skip
+            </Button>
+          )}
           <Button
             onClick={handleSubmit}
             disabled={submitting}
           >
-            {submitting ? "Submitting..." : "Submit Review"}
+            {submitting 
+              ? existingReviewId ? "Updating..." : "Submitting..." 
+              : existingReviewId ? "Update Review" : "Submit Review"
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+// Backward compatibility export
+export { ConnectionReviewDialog as ExitReviewDialog };

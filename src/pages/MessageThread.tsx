@@ -57,7 +57,8 @@ export default function MessageThread() {
   const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
   const [pendingDisconnectData, setPendingDisconnectData] = useState<{
     repInterestId: string;
-    subjectUserId: string;
+    repUserId: string;
+    vendorUserId: string;
     postId?: string | null;
   } | null>(null);
 
@@ -420,10 +421,17 @@ export default function MessageThread() {
       setRepInterest({ ...repInterest, status: "disconnected" });
       setShowDisconnectDialog(false);
 
+      // Determine rep and vendor user IDs based on user roles
+      // isRep means current user is the rep, otherParticipantId is the vendor
+      // isVendor means current user is the vendor, otherParticipantId is the rep
+      const repUserId = isRep ? user.id : otherParticipantId;
+      const vendorUserId = isVendor ? user.id : otherParticipantId;
+
       // Trigger Exit Review flow
       setPendingDisconnectData({
         repInterestId: repInterest.id,
-        subjectUserId: otherParticipantId,
+        repUserId,
+        vendorUserId,
         postId: conversationData?.seeking_post?.id || null,
       });
       setShowExitReviewDialog(true);
@@ -861,8 +869,10 @@ export default function MessageThread() {
             open={showExitReviewDialog}
             onOpenChange={setShowExitReviewDialog}
             repInterestId={pendingDisconnectData.repInterestId}
-            subjectUserId={pendingDisconnectData.subjectUserId}
-            postId={pendingDisconnectData.postId}
+            repUserId={pendingDisconnectData.repUserId}
+            vendorUserId={pendingDisconnectData.vendorUserId}
+            reviewerRole={isVendor ? "vendor" : "rep"}
+            source="disconnect"
             onComplete={handleExitReviewComplete}
           />
         )}

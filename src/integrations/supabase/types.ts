@@ -74,43 +74,70 @@ export type Database = {
           communication_rating: number | null
           created_at: string
           id: string
+          is_flagged: boolean
+          is_public: boolean
           notes: string | null
           on_time_rating: number | null
           post_id: string | null
           quality_rating: number | null
+          rating_communication: number | null
+          rating_on_time: number | null
+          rating_quality: number | null
           rep_interest_id: string
+          rep_user_id: string
           reviewer_id: string
+          reviewer_role: string
           source: string
           subject_id: string
+          summary_comment: string | null
           updated_at: string
+          vendor_user_id: string
         }
         Insert: {
           communication_rating?: number | null
           created_at?: string
           id?: string
+          is_flagged?: boolean
+          is_public?: boolean
           notes?: string | null
           on_time_rating?: number | null
           post_id?: string | null
           quality_rating?: number | null
+          rating_communication?: number | null
+          rating_on_time?: number | null
+          rating_quality?: number | null
           rep_interest_id: string
+          rep_user_id: string
           reviewer_id: string
+          reviewer_role: string
           source?: string
           subject_id: string
+          summary_comment?: string | null
           updated_at?: string
+          vendor_user_id: string
         }
         Update: {
           communication_rating?: number | null
           created_at?: string
           id?: string
+          is_flagged?: boolean
+          is_public?: boolean
           notes?: string | null
           on_time_rating?: number | null
           post_id?: string | null
           quality_rating?: number | null
+          rating_communication?: number | null
+          rating_on_time?: number | null
+          rating_quality?: number | null
           rep_interest_id?: string
+          rep_user_id?: string
           reviewer_id?: string
+          reviewer_role?: string
           source?: string
           subject_id?: string
+          summary_comment?: string | null
           updated_at?: string
+          vendor_user_id?: string
         }
         Relationships: [
           {
@@ -128,6 +155,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "connection_reviews_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "connection_reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
@@ -137,6 +171,13 @@ export type Database = {
           {
             foreignKeyName: "connection_reviews_subject_id_fkey"
             columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
