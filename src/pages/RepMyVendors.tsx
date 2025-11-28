@@ -115,7 +115,7 @@ const RepMyVendors = () => {
               systems_used,
               primary_inspection_types,
               is_accepting_new_reps,
-              profiles:profiles!vendor_profile_user_id_fkey ( full_name )
+              profiles:user_id ( full_name )
             )
           )
         `)
