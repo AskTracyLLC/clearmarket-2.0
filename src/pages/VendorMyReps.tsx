@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, MessageSquare, Users } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
@@ -43,6 +43,9 @@ const VendorMyReps = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  const [hasNotesByRep, setHasNotesByRep] = useState<Record<string, boolean>>({});
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editedNoteText, setEditedNoteText] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -206,14 +209,19 @@ const VendorMyReps = () => {
 
         if (!notesError && notesData) {
           const notesByRep: Record<string, any[]> = {};
+          const hasNotesMap: Record<string, boolean> = {};
+          
           for (const n of notesData) {
             if (!notesByRep[n.rep_id]) notesByRep[n.rep_id] = [];
             notesByRep[n.rep_id].push(n);
+            hasNotesMap[n.rep_id] = true;
           }
 
           repsArray.forEach(rep => {
             rep.notes = notesByRep[rep.repUserId] || [];
           });
+          
+          setHasNotesByRep(hasNotesMap);
         }
       }
 
@@ -283,7 +291,48 @@ const VendorMyReps = () => {
       )
     );
     setNoteDrafts(prev => ({ ...prev, [repUserId]: "" }));
+    setHasNotesByRep(prev => ({ ...prev, [repUserId]: true }));
     toast({ title: "Note Added", description: "Your note has been saved." });
+  };
+
+  const handleEditNote = (noteId: string, currentText: string) => {
+    setEditingNoteId(noteId);
+    setEditedNoteText(currentText);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingNoteId(null);
+    setEditedNoteText("");
+  };
+
+  const handleSaveEditedNote = async (noteId: string, repUserId: string) => {
+    const text = editedNoteText.trim();
+    if (!text) return;
+
+    const { error } = await supabase
+      .from("connection_notes")
+      .update({ note: text })
+      .eq("id", noteId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update note.", variant: "destructive" });
+      return;
+    }
+
+    // Update local state
+    setConnectedReps(prev =>
+      prev.map(r =>
+        r.repUserId === repUserId
+          ? {
+              ...r,
+              notes: r.notes?.map(n => n.id === noteId ? { ...n, note: text } : n),
+            }
+          : r
+      )
+    );
+    setEditingNoteId(null);
+    setEditedNoteText("");
+    toast({ title: "Note Updated", description: "Your note has been updated." });
   };
 
   if (loading || authLoading) {
@@ -339,6 +388,15 @@ const VendorMyReps = () => {
                           {rep.anonymousId}
                           <Eye className="w-4 h-4" />
                         </button>
+                        {hasNotesByRep[rep.repUserId] && (
+                          <span 
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                            title="You have private notes on this connection"
+                          >
+                            <StickyNote className="w-3 h-3" />
+                            Notes
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {rep.firstName} {rep.lastInitial}.
@@ -442,15 +500,58 @@ const VendorMyReps = () => {
                     <p className="text-xs font-medium text-muted-foreground">Notes (private to your account)</p>
 
                     {rep.notes && rep.notes.length > 0 ? (
-                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
                         {rep.notes.slice(0, 3).map((n) => (
-                          <p key={n.id} className="text-xs text-muted-foreground">
-                            <span className="font-medium">
-                              {new Date(n.created_at).toLocaleDateString()}
-                              {": "}
-                            </span>
-                            {n.note}
-                          </p>
+                          <div key={n.id} className="space-y-1">
+                            {editingNoteId === n.id ? (
+                              <div className="space-y-1">
+                                <textarea
+                                  className="w-full text-xs rounded-md border bg-background px-2 py-1"
+                                  rows={2}
+                                  value={editedNoteText}
+                                  onChange={(e) => setEditedNoteText(e.target.value)}
+                                  autoFocus
+                                />
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="h-6 text-xs"
+                                    onClick={() => handleSaveEditedNote(n.id, rep.repUserId)}
+                                  >
+                                    <Check className="w-3 h-3 mr-1" />
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 text-xs"
+                                    onClick={handleCancelEdit}
+                                  >
+                                    <X className="w-3 h-3 mr-1" />
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-xs text-muted-foreground flex-1">
+                                  <span className="font-medium">
+                                    {new Date(n.created_at).toLocaleDateString()}
+                                    {": "}
+                                  </span>
+                                  {n.note}
+                                </p>
+                                <button
+                                  onClick={() => handleEditNote(n.id, n.note)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Edit note"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     ) : (
