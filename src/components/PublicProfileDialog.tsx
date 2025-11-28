@@ -57,22 +57,15 @@ export function PublicProfileDialog({
     async function loadPublicProfile() {
       setLoading(true);
       try {
-        // Load base profile
-        const { data: profile, error: profileError } = await supabase
+        // Load base profile (for display name)
+        const { data: profile } = await supabase
           .from("profiles")
           .select("full_name, is_fieldrep, is_vendor_admin")
           .eq("id", targetUserId)
-          .single();
-
-        if (profileError || !profile) {
-          console.error("Error loading profile:", profileError);
-          setProfileData(null);
-          setLoading(false);
-          return;
-        }
+          .maybeSingle();
 
         // Determine display name (first name + last initial)
-        const fullName = profile.full_name || "";
+        const fullName = profile?.full_name || "";
         const nameParts = fullName.trim().split(" ");
         const displayName =
           nameParts.length > 1
