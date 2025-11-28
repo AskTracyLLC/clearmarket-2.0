@@ -244,6 +244,11 @@ const Dashboard = () => {
                 <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <MessageSquare className="w-4 h-4" />
                   Messages
+                  {unreadMessageCount > 0 && (
+                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 ml-1">
+                      {unreadMessageCount}
+                    </Badge>
+                  )}
                 </NavLink>
               </nav>
             </div>
