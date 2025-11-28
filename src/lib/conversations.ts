@@ -56,24 +56,33 @@ export async function getOrCreateConversation(
       payload.origin_post_id = origin.postId;
 
       // Find the rep_interest row for this conversation
-      // Determine which participant is the rep
+      // Determine which participant is the rep by getting their rep_profile.id
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, is_fieldrep")
         .in("id", [currentUserId, otherUserId]);
 
-      const repId = profiles?.find(p => p.is_fieldrep)?.id;
+      const repUserId = profiles?.find(p => p.is_fieldrep)?.id;
 
-      if (repId) {
-        const { data: interest } = await supabase
-          .from("rep_interest")
+      if (repUserId) {
+        // Get the rep_profile.id for this user
+        const { data: repProfile } = await supabase
+          .from("rep_profile")
           .select("id")
-          .eq("post_id", origin.postId)
-          .eq("rep_id", repId)
+          .eq("user_id", repUserId)
           .maybeSingle();
 
-        if (interest) {
-          payload.rep_interest_id = interest.id;
+        if (repProfile) {
+          const { data: interest } = await supabase
+            .from("rep_interest")
+            .select("id")
+            .eq("post_id", origin.postId)
+            .eq("rep_id", repProfile.id)
+            .maybeSingle();
+
+          if (interest) {
+            payload.rep_interest_id = interest.id;
+          }
         }
       }
     }
