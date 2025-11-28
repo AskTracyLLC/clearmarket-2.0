@@ -223,8 +223,8 @@ export default function VendorInterestedReps() {
     switch (status) {
       case "interested":
         return <Badge variant="secondary">Interested</Badge>;
-      case "shortlisted":
-        return <Badge className="bg-primary/20 text-primary border-primary/30">Shortlisted</Badge>;
+      case "pending_rep_confirm":
+        return <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">Pending Rep Confirmation</Badge>;
       case "declined":
         return <Badge variant="outline" className="text-muted-foreground">Declined</Badge>;
       case "connected":
@@ -468,19 +468,8 @@ export default function VendorInterestedReps() {
                   </div>
 
                   {/* Status Management Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    {interest.status === "interested" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleStatusUpdate(interest.id, "declined")}
-                        disabled={updatingStatus === interest.id}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Decline
-                      </Button>
-                    )}
-                    {interest.status === "declined" && (
+                  {interest.status === "declined" && (
+                    <div className="flex gap-2 pt-2">
                       <Button
                         variant="secondary"
                         size="sm"
@@ -489,8 +478,8 @@ export default function VendorInterestedReps() {
                       >
                         Restore to Interested
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </Card>
               );
             })}

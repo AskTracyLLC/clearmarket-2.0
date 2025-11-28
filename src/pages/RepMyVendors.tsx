@@ -46,15 +46,32 @@ interface ConnectedVendor {
   }>;
 }
 
+interface PendingRequest {
+  interestId: string;
+  vendorUserId: string;
+  anonymousId: string;
+  companyName: string;
+  firstName: string;
+  lastInitial: string;
+  city: string | null;
+  state: string | null;
+  postTitle: string;
+  postStateCode: string | null;
+  postId: string;
+}
+
 const RepMyVendors = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [connectedVendors, setConnectedVendors] = useState<ConnectedVendor[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedVendorUserId, setSelectedVendorUserId] = useState<string | null>(null);
   const [repProfileId, setRepProfileId] = useState<string | null>(null);
+  const [acceptingRequest, setAcceptingRequest] = useState<string | null>(null);
+  const [decliningRequest, setDecliningRequest] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [hasNotesByVendor, setHasNotesByVendor] = useState<Record<string, boolean>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -118,7 +135,98 @@ const RepMyVendors = () => {
     }
 
     setRepProfileId(repProfile.id);
+    loadPendingRequests(repProfile.id);
     loadConnectedVendors(repProfile.id);
+  };
+
+  const loadPendingRequests = async (repId: string) => {
+    if (!user) return;
+
+    try {
+      const { data: interests, error } = await supabase
+        .from("rep_interest")
+        .select(`
+          id,
+          seeking_coverage_posts:post_id (
+            id,
+            title,
+            vendor_id,
+            state_code
+          )
+        `)
+        .eq("rep_id", repId)
+        .eq("status", "pending_rep_confirm");
+
+      if (error) {
+        console.error("Error loading pending requests:", error);
+        return;
+      }
+
+      const requests: PendingRequest[] = [];
+      const vendorIds = new Set<string>();
+
+      for (const interest of interests || []) {
+        const post = interest.seeking_coverage_posts as any;
+        if (!post || !post.vendor_id) continue;
+
+        vendorIds.add(post.vendor_id);
+        requests.push({
+          interestId: interest.id,
+          vendorUserId: post.vendor_id,
+          anonymousId: `Vendor#${post.vendor_id.substring(0, 6)}`,
+          companyName: "Vendor",
+          firstName: "",
+          lastInitial: "",
+          city: null,
+          state: null,
+          postTitle: post.title,
+          postStateCode: post.state_code,
+          postId: post.id,
+        });
+      }
+
+      // Fetch vendor profiles
+      if (vendorIds.size > 0) {
+        const { data: vendorProfiles, error: vendorError } = await supabase
+          .from("vendor_profile")
+          .select(`
+            user_id,
+            anonymous_id,
+            company_name,
+            city,
+            state,
+            profiles:user_id (
+              full_name
+            )
+          `)
+          .in("user_id", Array.from(vendorIds));
+
+        if (!vendorError && vendorProfiles) {
+          for (const vendorProfile of vendorProfiles) {
+            const fullName = (vendorProfile.profiles as any)?.full_name || "";
+            const nameParts = fullName.split(" ");
+            const firstName = nameParts[0] || "";
+            const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
+
+            // Update all requests for this vendor
+            requests.forEach(req => {
+              if (req.vendorUserId === vendorProfile.user_id) {
+                req.anonymousId = vendorProfile.anonymous_id || req.anonymousId;
+                req.companyName = vendorProfile.company_name || req.companyName;
+                req.firstName = firstName;
+                req.lastInitial = lastInitial;
+                req.city = vendorProfile.city;
+                req.state = vendorProfile.state;
+              }
+            });
+          }
+        }
+      }
+
+      setPendingRequests(requests);
+    } catch (error) {
+      console.error("Error in loadPendingRequests:", error);
+    }
   };
 
   const loadConnectedVendors = async (repId: string) => {
@@ -461,6 +569,69 @@ const RepMyVendors = () => {
     setPendingDisconnectData(null);
   }
 
+  const handleAcceptRequest = async (interestId: string) => {
+    setAcceptingRequest(interestId);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "connected" })
+        .eq("id", interestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Connection Accepted",
+        description: "This vendor is now in your My Vendors list.",
+      });
+
+      // Reload both lists
+      if (repProfileId) {
+        loadPendingRequests(repProfileId);
+        loadConnectedVendors(repProfileId);
+      }
+    } catch (error: any) {
+      console.error("Error accepting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept connection",
+        variant: "destructive",
+      });
+    } finally {
+      setAcceptingRequest(null);
+    }
+  };
+
+  const handleDeclineRequest = async (interestId: string) => {
+    setDecliningRequest(interestId);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "declined" })
+        .eq("id", interestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Connection Declined",
+        description: "Connection request has been declined.",
+      });
+
+      // Reload pending requests
+      if (repProfileId) {
+        loadPendingRequests(repProfileId);
+      }
+    } catch (error: any) {
+      console.error("Error declining request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline connection",
+        variant: "destructive",
+      });
+    } finally {
+      setDecliningRequest(null);
+    }
+  };
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -486,21 +657,81 @@ const RepMyVendors = () => {
           </div>
         </div>
 
-        {connectedVendors.length === 0 ? (
+        {/* Connection Requests Section */}
+        {pendingRequests.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-foreground mb-4">Connection Requests</h2>
+            <div className="space-y-3">
+              {pendingRequests.map((request) => (
+                <Card key={request.interestId} className="bg-amber-500/5 border-amber-500/30">
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <button
+                            onClick={() => handleViewProfile(request.vendorUserId)}
+                            className="text-primary hover:underline font-semibold flex items-center gap-2"
+                          >
+                            {request.anonymousId}
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {request.companyName}
+                        </p>
+                        {(request.city || request.state) && (
+                          <p className="text-sm text-muted-foreground">
+                            {request.city && request.state ? `${request.city}, ${request.state}` : request.city || request.state}
+                          </p>
+                        )}
+                        <p className="text-xs text-amber-600 mt-2 font-medium">
+                          Wants to connect via: {request.postTitle} ({request.postStateCode})
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleAcceptRequest(request.interestId)}
+                          disabled={acceptingRequest === request.interestId}
+                          size="sm"
+                          variant="default"
+                        >
+                          {acceptingRequest === request.interestId ? "Accepting..." : "Accept"}
+                        </Button>
+                        <Button
+                          onClick={() => handleDeclineRequest(request.interestId)}
+                          disabled={decliningRequest === request.interestId}
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          {decliningRequest === request.interestId ? "Declining..." : "Decline"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {connectedVendors.length === 0 && pendingRequests.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
               <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
               <p className="text-muted-foreground mb-4">
-                When you express interest and vendors mark you as Connected, they'll appear here.
+                When you express interest and accept vendor connection requests, they'll appear here.
               </p>
               <Button onClick={() => navigate("/rep/find-work")}>
                 Find Work
               </Button>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-4">
+        ) : connectedVendors.length > 0 ? (
+          <>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Connected Vendors</h2>
+            <div className="space-y-4">
             {connectedVendors.map((vendor) => (
               <Card key={vendor.vendorUserId}>
                 <CardHeader>
@@ -721,8 +952,9 @@ const RepMyVendors = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
+            </div>
+          </>
+        ) : null}
       </div>
 
       {selectedVendorUserId && (

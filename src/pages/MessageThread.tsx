@@ -382,6 +382,36 @@ export default function MessageThread() {
     try {
       const { error } = await supabase
         .from("rep_interest")
+        .update({ status: "pending_rep_confirm" })
+        .eq("id", repInterest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setRepInterest({ ...repInterest, status: "pending_rep_confirm" });
+      toast({
+        title: "Connection Request Sent",
+        description: "The rep will need to confirm before they appear in your My Reps list.",
+      });
+    } catch (error: any) {
+      console.error("Error requesting connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingStatus(false);
+    }
+  }
+
+  async function handleAcceptConnection() {
+    if (!repInterest || !user) return;
+
+    setConnectingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
         .update({ status: "connected" })
         .eq("id", repInterest.id);
 
@@ -390,14 +420,44 @@ export default function MessageThread() {
       // Update local state
       setRepInterest({ ...repInterest, status: "connected" });
       toast({
-        title: "Success",
-        description: "Connected! This rep now appears in your network.",
+        title: "Connection Accepted",
+        description: "This vendor is now in your My Vendors list.",
       });
     } catch (error: any) {
-      console.error("Error connecting:", error);
+      console.error("Error accepting connection:", error);
       toast({
         title: "Error",
-        description: "Failed to update connection status",
+        description: "Failed to accept connection",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingStatus(false);
+    }
+  }
+
+  async function handleDeclineConnection() {
+    if (!repInterest || !user) return;
+
+    setConnectingStatus(true);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "declined" })
+        .eq("id", repInterest.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setRepInterest({ ...repInterest, status: "declined" });
+      toast({
+        title: "Connection Declined",
+        description: "Connection request has been declined.",
+      });
+    } catch (error: any) {
+      console.error("Error declining connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline connection",
         variant: "destructive",
       });
     } finally {
@@ -536,6 +596,40 @@ export default function MessageThread() {
                     <div className="text-sm text-muted-foreground">
                       Status: Disconnected on this Seeking Coverage post
                     </div>
+                  ) : repInterest.status === "pending_rep_confirm" ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-amber-500">
+                        Status: Pending rep confirmation
+                      </div>
+                      {isRep && (
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleAcceptConnection}
+                            disabled={connectingStatus}
+                            size="sm"
+                            variant="default"
+                          >
+                            {connectingStatus ? "Accepting..." : "Accept Connection"}
+                          </Button>
+                          <Button
+                            onClick={handleDeclineConnection}
+                            disabled={connectingStatus}
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            {connectingStatus ? "Declining..." : "Decline"}
+                          </Button>
+                        </div>
+                      )}
+                      {isVendor && (
+                        <p className="text-xs text-muted-foreground">Waiting for rep to confirm...</p>
+                      )}
+                    </div>
+                  ) : repInterest.status === "declined" ? (
+                    <div className="text-sm text-muted-foreground">
+                      Status: Declined
+                    </div>
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Status: Not connected yet</span>
@@ -545,7 +639,7 @@ export default function MessageThread() {
                           disabled={connectingStatus}
                           size="sm"
                         >
-                          {connectingStatus ? "Connecting..." : "Connect on this post"}
+                          {connectingStatus ? "Requesting..." : "Request Connection"}
                         </Button>
                       )}
                     </div>
