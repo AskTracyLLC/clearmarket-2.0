@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Send, Eye } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
 interface Message {
@@ -342,7 +342,15 @@ export default function MessageThread() {
                         {message.body}
                       </p>
                       <span className="text-xs opacity-70 mt-1 block">
-                        {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                        {new Date(message.created_at).toLocaleString('en-US', {
+                          timeZone: 'America/Chicago',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })} CST
                       </span>
                     </div>
                   </div>
