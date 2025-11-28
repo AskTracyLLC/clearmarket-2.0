@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Plus, Pencil, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Plus, Pencil, Trash2, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { SYSTEM_MESSAGE_TEMPLATES } from "@/lib/systemMessageTemplates";
 import {
@@ -245,6 +246,45 @@ export default function VendorMessageTemplates() {
             New Template
           </Button>
         </div>
+
+        {/* Smart Placeholders Info */}
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Smart Placeholders</AlertTitle>
+          <AlertDescription className="space-y-2 mt-2">
+            <p>Use placeholders in your templates that will be automatically replaced when inserted:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-sm">
+              <div>
+                <p className="font-semibold mb-1">Post-related:</p>
+                <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_TITLE}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_STATE_CODE}}"}</code> (e.g., WI)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_STATE_NAME}}"}</code> (e.g., Wisconsin)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_COUNTY}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_RATE}}"}</code> (formatted pricing)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{POST_PAY_MIN}}"}</code>, <code className="bg-muted px-1 rounded">{"{{POST_PAY_MAX}}"}</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Rep-related:</p>
+                <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_ANON}}"}</code> (e.g., FieldRep#1)</li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_FIRST_NAME}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_LAST_INITIAL}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_CITY}}"}</code>, <code className="bg-muted px-1 rounded">{"{{REP_STATE}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_SYSTEMS}}"}</code></li>
+                  <li><code className="bg-muted px-1 rounded">{"{{REP_INSPECTION_TYPES}}"}</code></li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Generic:</p>
+                <ul className="space-y-0.5 text-muted-foreground font-mono text-xs">
+                  <li><code className="bg-muted px-1 rounded">{"{{TODAY_DATE}}"}</code></li>
+                </ul>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
 
         {/* Your Templates */}
         <div className="space-y-4">
