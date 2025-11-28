@@ -22,6 +22,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { TemplateSelector } from "@/components/TemplateSelector";
+import { ExitReviewDialog } from "@/components/ExitReviewDialog";
 
 interface Message {
   id: string;
@@ -53,6 +54,12 @@ export default function MessageThread() {
   const [connectingStatus, setConnectingStatus] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
+  const [pendingDisconnectData, setPendingDisconnectData] = useState<{
+    repInterestId: string;
+    subjectUserId: string;
+    postId?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -411,11 +418,15 @@ export default function MessageThread() {
 
       // Update local state
       setRepInterest({ ...repInterest, status: "disconnected" });
-      toast({
-        title: "Connection ended",
-        description: "This connection has been removed from your network.",
-      });
       setShowDisconnectDialog(false);
+
+      // Trigger Exit Review flow
+      setPendingDisconnectData({
+        repInterestId: repInterest.id,
+        subjectUserId: otherParticipantId,
+        postId: conversationData?.seeking_post?.id || null,
+      });
+      setShowExitReviewDialog(true);
     } catch (error: any) {
       console.error("Error disconnecting:", error);
       toast({
@@ -426,6 +437,11 @@ export default function MessageThread() {
     } finally {
       setDisconnecting(false);
     }
+  }
+
+  function handleExitReviewComplete() {
+    // Exit review completed or skipped
+    setPendingDisconnectData(null);
   }
 
   if (authLoading || loading) {
@@ -839,6 +855,17 @@ export default function MessageThread() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {pendingDisconnectData && (
+          <ExitReviewDialog
+            open={showExitReviewDialog}
+            onOpenChange={setShowExitReviewDialog}
+            repInterestId={pendingDisconnectData.repInterestId}
+            subjectUserId={pendingDisconnectData.subjectUserId}
+            postId={pendingDisconnectData.postId}
+            onComplete={handleExitReviewComplete}
+          />
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { ExitReviewDialog } from "@/components/ExitReviewDialog";
 
 interface ConnectedRep {
   repUserId: string;
@@ -60,6 +61,12 @@ const VendorMyReps = () => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
+  const [pendingDisconnectData, setPendingDisconnectData] = useState<{
+    repInterestId: string;
+    subjectUserId: string;
+    postId?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -367,20 +374,30 @@ const VendorMyReps = () => {
 
       if (error) throw error;
 
+      // Find the rep that's being disconnected to get subject_id and post_id
+      const disconnectedRep = connectedReps.find(rep =>
+        rep.connectedPosts.some(post => post.interestId === disconnectingInterestId)
+      );
+
       // Remove the rep from the list
       setConnectedReps(prev => {
-        // Find the rep that has this interest ID
         return prev.filter(rep => {
-          // Keep rep only if none of their posts match this interest ID
           return !rep.connectedPosts.some(post => post.interestId === disconnectingInterestId);
         });
       });
 
-      toast({
-        title: "Connection ended",
-        description: "This rep has been removed from your network.",
-      });
       setShowDisconnectDialog(false);
+
+      // Trigger Exit Review flow
+      if (disconnectedRep) {
+        setPendingDisconnectData({
+          repInterestId: disconnectingInterestId,
+          subjectUserId: disconnectedRep.repUserId,
+          postId: disconnectedRep.connectedPosts[0]?.id || null,
+        });
+        setShowExitReviewDialog(true);
+      }
+
       setDisconnectingInterestId(null);
     } catch (error: any) {
       console.error("Error disconnecting:", error);
@@ -393,6 +410,11 @@ const VendorMyReps = () => {
       setDisconnecting(false);
     }
   };
+
+  function handleExitReviewComplete() {
+    // Exit review completed or skipped
+    setPendingDisconnectData(null);
+  }
 
   if (loading || authLoading) {
     return (
@@ -679,6 +701,17 @@ const VendorMyReps = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {pendingDisconnectData && (
+        <ExitReviewDialog
+          open={showExitReviewDialog}
+          onOpenChange={setShowExitReviewDialog}
+          repInterestId={pendingDisconnectData.repInterestId}
+          subjectUserId={pendingDisconnectData.subjectUserId}
+          postId={pendingDisconnectData.postId}
+          onComplete={handleExitReviewComplete}
+        />
+      )}
     </div>
   );
 };
