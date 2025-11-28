@@ -31,8 +31,18 @@ export async function getOrCreateConversation(
       return { id: "", error: "Failed to fetch conversation" };
     }
 
-    // Return existing conversation if found (do NOT overwrite origin fields)
+    // If conversation exists, check if we should set origin on legacy conversation
     if (existing) {
+      // If conversation has no origin yet and we're providing one, update it
+      if (!existing.origin_type && origin?.type === "seeking_coverage") {
+        await supabase
+          .from("conversations")
+          .update({
+            origin_type: "seeking_coverage",
+            origin_post_id: origin.postId,
+          })
+          .eq("id", existing.id);
+      }
       return { id: existing.id };
     }
 
