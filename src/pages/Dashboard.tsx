@@ -250,6 +250,8 @@ const Dashboard = () => {
           </h1>
           <p className="text-muted-foreground">
             Welcome back, {profile?.full_name || user?.email}
+            {isRep && repProfile?.anonymous_id && ` (${repProfile.anonymous_id})`}
+            {isVendor && vendorProfile?.anonymous_id && ` (${vendorProfile.anonymous_id})`}
           </p>
         </div>
 
