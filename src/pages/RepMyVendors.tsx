@@ -27,6 +27,11 @@ interface ConnectedVendor {
     stateCode: string | null;
   }>;
   conversationId?: string;
+  notes?: Array<{
+    id: string;
+    note: string;
+    created_at: string;
+  }>;
 }
 
 const RepMyVendors = () => {
@@ -38,6 +43,7 @@ const RepMyVendors = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedVendorUserId, setSelectedVendorUserId] = useState<string | null>(null);
   const [repProfileId, setRepProfileId] = useState<string | null>(null);
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -226,6 +232,30 @@ const RepMyVendors = () => {
         }
       }
 
+      // Step 6: Fetch notes for all vendors
+      const vendorUserIds = vendorsArray.map(v => v.vendorUserId);
+      if (vendorUserIds.length > 0) {
+        const { data: notesData, error: notesError } = await supabase
+          .from("connection_notes")
+          .select("id, vendor_id, rep_id, note, created_at")
+          .eq("rep_id", user.id)
+          .eq("side", "rep")
+          .in("vendor_id", vendorUserIds)
+          .order("created_at", { ascending: false });
+
+        if (!notesError && notesData) {
+          const notesByVendor: Record<string, any[]> = {};
+          for (const n of notesData) {
+            if (!notesByVendor[n.vendor_id]) notesByVendor[n.vendor_id] = [];
+            notesByVendor[n.vendor_id].push(n);
+          }
+
+          vendorsArray.forEach(vendor => {
+            vendor.notes = notesByVendor[vendor.vendorUserId] || [];
+          });
+        }
+      }
+
       setConnectedVendors(vendorsArray);
     } catch (error) {
       console.error("Error in loadConnectedVendors:", error);
@@ -257,6 +287,42 @@ const RepMyVendors = () => {
     }
 
     navigate(`/messages/${result.id}`);
+  };
+
+  const handleAddNote = async (vendorUserId: string) => {
+    const text = noteDrafts[vendorUserId]?.trim();
+    if (!text) return;
+
+    const { data, error } = await supabase
+      .from("connection_notes")
+      .insert([{
+        vendor_id: vendorUserId,
+        rep_id: user!.id,
+        author_id: user!.id,
+        side: "rep",
+        note: text,
+      }])
+      .select("id, note, created_at")
+      .single();
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to save note.", variant: "destructive" });
+      return;
+    }
+
+    // Optimistically update local state
+    setConnectedVendors(prev =>
+      prev.map(v =>
+        v.vendorUserId === vendorUserId
+          ? {
+              ...v,
+              notes: [{ id: data.id, note: data.note, created_at: data.created_at }, ...(v.notes || [])],
+            }
+          : v
+      )
+    );
+    setNoteDrafts(prev => ({ ...prev, [vendorUserId]: "" }));
+    toast({ title: "Note Added", description: "Your note has been saved." });
   };
 
   if (loading || authLoading) {
@@ -409,6 +475,46 @@ const RepMyVendors = () => {
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message Vendor
                     </Button>
+                  </div>
+
+                  {/* Notes Section */}
+                  <div className="pt-3 border-t border-border mt-2 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Notes (private to you)</p>
+
+                    {vendor.notes && vendor.notes.length > 0 ? (
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {vendor.notes.slice(0, 3).map((n) => (
+                          <p key={n.id} className="text-xs text-muted-foreground">
+                            <span className="font-medium">
+                              {new Date(n.created_at).toLocaleDateString()}
+                              {": "}
+                            </span>
+                            {n.note}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">No notes yet for this vendor.</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <textarea
+                        className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
+                        rows={2}
+                        placeholder="Add a quick note about this vendor..."
+                        value={noteDrafts[vendor.vendorUserId] || ""}
+                        onChange={(e) =>
+                          setNoteDrafts((prev) => ({ ...prev, [vendor.vendorUserId]: e.target.value }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAddNote(vendor.vendorUserId)}
+                      >
+                        Save
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
