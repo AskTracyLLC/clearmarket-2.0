@@ -114,9 +114,9 @@ const RepMyVendors = () => {
               state,
               systems_used,
               primary_inspection_types,
-              is_accepting_new_reps
-            ),
-            profiles:vendor_id ( full_name )
+              is_accepting_new_reps,
+              profiles:user_id ( full_name )
+            )
           )
         `)
         .eq("rep_id", repId)
@@ -145,7 +145,7 @@ const RepMyVendors = () => {
         const vendorUserId = vendorProfile.user_id;
 
         if (!vendorsMap.has(vendorUserId)) {
-          const fullName = post.profiles?.full_name || "";
+          const fullName = vendorProfile.profiles?.full_name || "";
           const nameParts = fullName.split(" ");
           const firstName = nameParts[0] || "";
           const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
