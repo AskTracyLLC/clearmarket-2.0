@@ -65,7 +65,8 @@ const RepMyVendors = () => {
   const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
   const [pendingDisconnectData, setPendingDisconnectData] = useState<{
     repInterestId: string;
-    subjectUserId: string;
+    repUserId: string;
+    vendorUserId: string;
     postId?: string | null;
   } | null>(null);
 
@@ -432,10 +433,11 @@ const RepMyVendors = () => {
       setShowDisconnectDialog(false);
 
       // Trigger Exit Review flow
-      if (disconnectedVendor) {
+      if (disconnectedVendor && user) {
         setPendingDisconnectData({
           repInterestId: disconnectingInterestId,
-          subjectUserId: disconnectedVendor.vendorUserId,
+          repUserId: user.id,
+          vendorUserId: disconnectedVendor.vendorUserId,
           postId: disconnectedVendor.connectedPosts[0]?.id || null,
         });
         setShowExitReviewDialog(true);
@@ -757,8 +759,10 @@ const RepMyVendors = () => {
           open={showExitReviewDialog}
           onOpenChange={setShowExitReviewDialog}
           repInterestId={pendingDisconnectData.repInterestId}
-          subjectUserId={pendingDisconnectData.subjectUserId}
-          postId={pendingDisconnectData.postId}
+          repUserId={pendingDisconnectData.repUserId}
+          vendorUserId={pendingDisconnectData.vendorUserId}
+          reviewerRole="rep"
+          source="disconnect"
           onComplete={handleExitReviewComplete}
         />
       )}
