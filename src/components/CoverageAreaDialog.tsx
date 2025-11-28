@@ -151,6 +151,10 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       finalCoversEntireCounty = false;
     }
 
+    // Convert pricing values to strings, handling numeric inputs
+    const basePriceStr = basePrice ? String(basePrice).trim() : "";
+    const rushPriceStr = rushPrice ? String(rushPrice).trim() : "";
+
     const data: CoverageArea = {
       id: editData?.id,
       state_code: stateCode,
@@ -159,8 +163,8 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       county_id: countyId,
       covers_entire_state: finalCoversEntireState,
       covers_entire_county: finalCoversEntireCounty,
-      base_price: basePrice.trim(),
-      rush_price: rushPrice.trim(),
+      base_price: basePriceStr,
+      rush_price: rushPriceStr,
       region_note: regionNote.trim(),
       inspection_types: finalInspectionTypes.length > 0 ? finalInspectionTypes : [],
     };
