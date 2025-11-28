@@ -32,6 +32,7 @@ export default function MessageThread() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [conversationData, setConversationData] = useState<any>(null);
+  const [otherPartyProfile, setOtherPartyProfile] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
@@ -123,6 +124,11 @@ export default function MessageThread() {
       const name = await getUserDisplayName(otherId);
       setOtherParticipantName(name);
 
+      // If this is a Seeking Coverage conversation, load other party's public profile
+      if (conversation.origin_type === "seeking_coverage") {
+        await loadOtherPartyProfile(otherId);
+      }
+
       // Load messages
       await loadMessages();
     } catch (error) {
@@ -134,6 +140,81 @@ export default function MessageThread() {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadOtherPartyProfile(userId: string) {
+    try {
+      // Check if they're a rep or vendor
+      const { data: repProfile } = await supabase
+        .from("rep_profile")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const { data: vendorProfile } = await supabase
+        .from("vendor_profile")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      // Load basic profile info
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (repProfile) {
+        // Load coverage for this rep's state if available
+        let coverageData = null;
+        if (conversationData?.seeking_post?.state_code) {
+          const { data: coverage } = await supabase
+            .from("rep_coverage_areas")
+            .select(`
+              county_name,
+              base_price,
+              rush_price,
+              us_counties:county_id (
+                county_name,
+                state_code,
+                state_name
+              )
+            `)
+            .eq("user_id", userId);
+          
+          // Filter by state in JS since state_code is unreliable
+          coverageData = coverage?.filter(c => 
+            c.us_counties?.state_code === conversationData.seeking_post.state_code
+          );
+        }
+
+        setOtherPartyProfile({
+          type: "rep",
+          anonymous_id: repProfile.anonymous_id,
+          full_name: profile?.full_name,
+          city: repProfile.city,
+          state: repProfile.state,
+          systems_used: repProfile.systems_used || [],
+          inspection_types: repProfile.inspection_types || [],
+          is_accepting_new_vendors: repProfile.is_accepting_new_vendors,
+          coverage: coverageData || []
+        });
+      } else if (vendorProfile) {
+        setOtherPartyProfile({
+          type: "vendor",
+          anonymous_id: vendorProfile.anonymous_id,
+          company_name: vendorProfile.company_name,
+          full_name: profile?.full_name,
+          city: vendorProfile.city,
+          state: vendorProfile.state,
+          systems_used: vendorProfile.systems_used || [],
+          primary_inspection_types: vendorProfile.primary_inspection_types || [],
+          is_accepting_new_reps: vendorProfile.is_accepting_new_reps
+        });
+      }
+    } catch (error) {
+      console.error("Error loading other party profile:", error);
     }
   }
 
@@ -264,7 +345,7 @@ export default function MessageThread() {
           </div>
         </div>
 
-        {/* Pinned Seeking Coverage Header */}
+        {/* Pinned Seeking Coverage Header with Other Party Snapshot */}
         {conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post && (
           <Card className="bg-card border-primary/30">
             <CardHeader className="pb-3">
@@ -273,40 +354,146 @@ export default function MessageThread() {
                 <Badge variant="outline" className="text-xs">Post Context</Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Post Title</p>
-                  <p className="font-semibold">{conversationData.seeking_post.title}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Location</p>
-                  <p>
-                    {conversationData.seeking_post.us_counties?.county_name && 
-                      `${conversationData.seeking_post.us_counties.county_name}, `}
-                    {conversationData.seeking_post.us_counties?.state_code || 
-                     conversationData.seeking_post.state_code}
+            <CardContent className="pb-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Left: Post Context */}
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Post Title</p>
+                    <p className="font-semibold">{conversationData.seeking_post.title}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Location</p>
+                    <p>
+                      {conversationData.seeking_post.us_counties?.county_name && 
+                        `${conversationData.seeking_post.us_counties.county_name}, `}
+                      {conversationData.seeking_post.us_counties?.state_code || 
+                       conversationData.seeking_post.state_code}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Offered Pricing</p>
+                    <p className="font-semibold text-primary">
+                      {conversationData.seeking_post.pay_type === "fixed"
+                        ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
+                        : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`}
+                    </p>
+                    {conversationData.seeking_post.pay_notes && (
+                      <p className="text-xs text-muted-foreground italic mt-1">
+                        {conversationData.seeking_post.pay_notes}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
+                    This conversation was started from this Seeking Coverage request.
                   </p>
                 </div>
-              </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Offered Pricing</p>
-                <p className="font-semibold text-primary">
-                  {conversationData.seeking_post.pay_type === "fixed"
-                    ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
-                    : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`}
-                </p>
-                {conversationData.seeking_post.pay_notes && (
-                  <p className="text-xs text-muted-foreground italic mt-1">
-                    {conversationData.seeking_post.pay_notes}
-                  </p>
-                )}
-              </div>
+                {/* Right: Other Party Snapshot */}
+                <div className="space-y-3 text-sm border-l border-border pl-6">
+                  {otherPartyProfile ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => setProfileDialogOpen(true)}
+                          className="text-base font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
+                        >
+                          {otherPartyProfile.anonymous_id}
+                          <Eye className="h-4 w-4" />
+                        </button>
+                      </div>
 
-              <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                This conversation was started from this Seeking Coverage request so both sides know what this thread is about.
-              </p>
+                      {otherPartyProfile.type === "rep" ? (
+                        <>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Field Rep</p>
+                            <p className="font-medium">
+                              {otherPartyProfile.full_name?.split(' ')[0]} {otherPartyProfile.full_name?.split(' ')[1]?.[0]}.
+                            </p>
+                            <p className="text-muted-foreground">
+                              {otherPartyProfile.city}, {otherPartyProfile.state}
+                            </p>
+                          </div>
+                          
+                          {otherPartyProfile.systems_used?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Systems</p>
+                              <div className="flex flex-wrap gap-1">
+                                {otherPartyProfile.systems_used.slice(0, 3).map((system: string) => (
+                                  <Badge key={system} variant="secondary" className="text-xs">
+                                    {system}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {otherPartyProfile.inspection_types?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Types</p>
+                              <div className="flex flex-wrap gap-1">
+                                {otherPartyProfile.inspection_types.slice(0, 3).map((type: string) => (
+                                  <Badge key={type} variant="outline" className="text-xs">
+                                    {type}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-muted-foreground">
+                            Accepting new vendors: {otherPartyProfile.is_accepting_new_vendors ? "Yes" : "No"}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Vendor</p>
+                            <p className="font-medium">{otherPartyProfile.company_name}</p>
+                            <p className="text-muted-foreground">
+                              {otherPartyProfile.city}, {otherPartyProfile.state}
+                            </p>
+                          </div>
+
+                          {otherPartyProfile.systems_used?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Systems</p>
+                              <div className="flex flex-wrap gap-1">
+                                {otherPartyProfile.systems_used.slice(0, 3).map((system: string) => (
+                                  <Badge key={system} variant="secondary" className="text-xs">
+                                    {system}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {otherPartyProfile.primary_inspection_types?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Types</p>
+                              <div className="flex flex-wrap gap-1">
+                                {otherPartyProfile.primary_inspection_types.slice(0, 3).map((type: string) => (
+                                  <Badge key={type} variant="outline" className="text-xs">
+                                    {type}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-muted-foreground">
+                            Accepting new reps: {otherPartyProfile.is_accepting_new_reps ? "Yes" : "No"}
+                          </p>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Public profile not completed yet
+                    </p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
