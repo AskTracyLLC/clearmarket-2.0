@@ -11,7 +11,7 @@ export const SYSTEM_MESSAGE_TEMPLATES: MessageTemplate[] = [
   {
     name: "Intro – Standard",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Thanks for showing interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -24,7 +24,7 @@ Thanks!`
   {
     name: "Intro – Rate Check",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 I saw your interest in {{POST_TITLE}} for {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -37,7 +37,7 @@ Thanks!`
   {
     name: "Intro – Coverage & Systems",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Thanks for responding to {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -53,7 +53,7 @@ Thank you!`
   {
     name: "Intro – Availability & Turn Time",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Thank you for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -70,7 +70,7 @@ Thanks!`
   {
     name: "Intro – Extra Context",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 I'm reaching out about {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -87,7 +87,7 @@ Thanks!`
   {
     name: "Follow-Up – No Response",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Just following up on your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -100,7 +100,7 @@ Thank you!`
   {
     name: "Rate – Not a Match (Soft)",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Thank you for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
@@ -113,7 +113,7 @@ Either way, I appreciate you taking the time to respond.`
   {
     name: "Not a Fit – Keep on File",
     scope: "seeking_coverage",
-    body: `Hi {{REP_FIRST_NAME}},
+    body: `Hi {{REP_ANON}},
 
 Thank you again for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_STATE_CODE}}.
 
