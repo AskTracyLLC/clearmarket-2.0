@@ -18,31 +18,31 @@ export async function getOrCreateConversation(
     // Sort participant IDs to maintain consistency with unique constraint
     const [p1, p2] = [currentUserId, otherUserId].sort();
 
-    // Check if conversation already exists
-    const { data: existing, error: fetchError } = await supabase
+    // Check if conversation already exists for this specific post (or no post if origin is null)
+    let query = supabase
       .from("conversations")
       .select("id, origin_type, origin_post_id")
       .eq("participant_one", p1)
-      .eq("participant_two", p2)
-      .maybeSingle();
+      .eq("participant_two", p2);
+
+    // If we have an origin post, look for conversation with that specific post
+    if (origin?.type === "seeking_coverage") {
+      query = query.eq("origin_post_id", origin.postId);
+    } else {
+      // If no origin, look for conversations without an origin_post_id
+      query = query.is("origin_post_id", null);
+    }
+
+    const { data: existing, error: fetchError } = await query.maybeSingle();
 
     if (fetchError) {
       console.error("Error fetching conversation:", fetchError);
       return { id: "", error: "Failed to fetch conversation" };
     }
 
-    // If conversation exists, check if we should set origin on legacy conversation
+    // If conversation exists, return it
+    // No need to update origin since we're now filtering by origin_post_id
     if (existing) {
-      // If conversation has no origin yet and we're providing one, update it
-      if (!existing.origin_type && origin?.type === "seeking_coverage") {
-        await supabase
-          .from("conversations")
-          .update({
-            origin_type: "seeking_coverage",
-            origin_post_id: origin.postId,
-          })
-          .eq("id", existing.id);
-      }
       return { id: existing.id };
     }
 
