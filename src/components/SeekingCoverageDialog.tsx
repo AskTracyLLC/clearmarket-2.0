@@ -47,6 +47,7 @@ const seekingCoverageSchema = z.object({
   pay_notes: z.string().optional(),
   requires_background_check: z.boolean(),
   requires_aspen_grove: z.boolean(),
+  allow_willing_to_obtain_background_check: z.boolean().optional(),
 }).refine(
   (data) => {
     const min = parseFloat(data.pay_min);
@@ -632,15 +633,31 @@ export const SeekingCoverageDialog = ({
             </div>
 
             {requiresBackgroundCheck && (
-              <div className="ml-6 flex items-center gap-3">
-                <Checkbox
-                  id="requires_aspen_grove"
-                  checked={watch("requires_aspen_grove")}
-                  onCheckedChange={(checked) => setValue("requires_aspen_grove", checked as boolean)}
-                />
-                <Label htmlFor="requires_aspen_grove" className="cursor-pointer font-normal">
-                  Require AspenGrove / Shield ID specifically
-                </Label>
+              <div className="ml-6 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="requires_aspen_grove"
+                    checked={watch("requires_aspen_grove")}
+                    onCheckedChange={(checked) => setValue("requires_aspen_grove", checked as boolean)}
+                  />
+                  <Label htmlFor="requires_aspen_grove" className="cursor-pointer font-normal">
+                    Require AspenGrove / Shield ID specifically
+                  </Label>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="allow_willing_to_obtain"
+                    checked={watch("allow_willing_to_obtain_background_check") ?? true}
+                    onCheckedChange={(checked) => setValue("allow_willing_to_obtain_background_check", checked as boolean)}
+                  />
+                  <Label htmlFor="allow_willing_to_obtain" className="cursor-pointer font-normal">
+                    Allow reps who don't have one yet but are willing to obtain a background check
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">
+                  If checked, you may see reps who don't have a current background check yet but have indicated they're willing to obtain one. You should confirm they complete this before assigning live work.
+                </p>
               </div>
             )}
 

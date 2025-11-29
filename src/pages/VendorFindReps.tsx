@@ -41,6 +41,7 @@ interface SeekingCoveragePost {
   pay_max: number | null;
   requires_background_check: boolean;
   requires_aspen_grove: boolean;
+  allow_willing_to_obtain_background_check?: boolean | null;
 }
 
 interface RepCoverageArea {
@@ -62,6 +63,10 @@ interface RepResult {
   inspection_types: string[];
   is_accepting_new_vendors: boolean;
   coverageAreas: RepCoverageArea[];
+  background_check_is_active?: boolean | null;
+  background_check_expires_on?: string | null;
+  background_check_provider?: string | null;
+  willing_to_obtain_background_check?: boolean | null;
 }
 
 export default function VendorFindReps() {
@@ -146,7 +151,7 @@ export default function VendorFindReps() {
 
       let query = supabase
         .from("rep_profile")
-        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on");
+        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on, willing_to_obtain_background_check");
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -226,16 +231,22 @@ export default function VendorFindReps() {
         filtered = filtered.filter((rep) => {
           // Background check requirement check
           if (post.requires_background_check) {
-            if (!isBackgroundCheckActive({
+            const hasValidCheck = isBackgroundCheckActive({
               background_check_is_active: rep.background_check_is_active,
               background_check_expires_on: rep.background_check_expires_on,
-            })) {
-              return false; // Rep doesn't have an active background check
+            });
+
+            const isWillingToObtain = rep.willing_to_obtain_background_check ?? false;
+            const allowWilling = post.allow_willing_to_obtain_background_check ?? true;
+
+            // Rep must have valid check OR be willing to obtain (if vendor allows)
+            if (!hasValidCheck && !(allowWilling && isWillingToObtain)) {
+              return false;
             }
 
-            // AspenGrove-specific requirement
-            if (post.requires_aspen_grove && rep.background_check_provider !== "aspen_grove") {
-              return false; // Rep doesn't have AspenGrove background check
+            // AspenGrove-specific requirement (only check if rep has a valid check)
+            if (hasValidCheck && post.requires_aspen_grove && rep.background_check_provider !== "aspen_grove") {
+              return false;
             }
           }
 
