@@ -398,6 +398,13 @@ const RepMyVendors = () => {
         }
       }
 
+      // Sort by connectedAt (newest first)
+      vendorsArray.sort((a, b) => {
+        const aDate = a.connectedAt ?? a.connectedPosts[0]?.id ?? '';
+        const bDate = b.connectedAt ?? b.connectedPosts[0]?.id ?? '';
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
       setConnectedVendors(vendorsArray);
     } catch (error) {
       console.error("Error in loadConnectedVendors:", error);
@@ -743,232 +750,192 @@ const RepMyVendors = () => {
         ) : connectedVendors.length > 0 ? (
           <>
             <h2 className="text-xl font-semibold text-foreground mb-4">Connected Vendors</h2>
-            <div className="space-y-4">
-            {connectedVendors.map((vendor) => (
-              <Card key={vendor.vendorUserId}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <button
-                          onClick={() => handleViewProfile(vendor.vendorUserId)}
-                          className="text-primary hover:underline font-semibold text-lg flex items-center gap-2"
-                        >
-                          {vendor.anonymousId}
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {hasNotesByVendor[vendor.vendorUserId] && (
-                          <span 
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-                            title="You have private notes on this connection"
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Vendor</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {connectedVendors.map((vendor) => (
+                    <tr key={vendor.vendorUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
+                      <td className="py-4 px-4">
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => handleViewProfile(vendor.vendorUserId)}
+                            className="text-primary hover:underline font-semibold flex items-center gap-2 w-fit"
                           >
-                            <StickyNote className="w-3 h-3" />
-                            Notes
-                          </span>
+                            {vendor.anonymousId}
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <p className="text-sm font-medium">{vendor.companyName}</p>
+                          {(vendor.firstName || vendor.lastInitial) && (
+                            <p className="text-xs text-muted-foreground">
+                              {vendor.firstName} {vendor.lastInitial}.
+                            </p>
+                          )}
+                          {hasNotesByVendor[vendor.vendorUserId] && (
+                            <span 
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"
+                              title="You have private notes on this connection"
+                            >
+                              <StickyNote className="w-3 h-3" />
+                              Notes
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-muted-foreground">
+                        <span title="Trust Score feature coming soon">Coming soon</span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-muted-foreground">
+                        {vendor.connectedAt && new Date(vendor.connectedAt).toLocaleDateString()}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewProfile(vendor.vendorUserId)}
+                          >
+                            View Profile
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => 
+                              handleMessage(
+                                vendor.vendorUserId, 
+                                vendor.conversationId,
+                                vendor.connectedPosts[0]?.id
+                              )
+                            }
+                          >
+                            Message Vendor
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Notes Section - Below Table */}
+              <div className="mt-8 space-y-6">
+                <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
+                {connectedVendors.map((vendor) => (
+                  <Card key={`notes-${vendor.vendorUserId}`}>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {vendor.anonymousId} - {vendor.companyName}
+                        {hasNotesByVendor[vendor.vendorUserId] && (
+                          <Badge variant="secondary" className="text-xs">
+                            <StickyNote className="w-3 h-3 mr-1" />
+                            Has Notes
+                          </Badge>
                         )}
-                      </div>
-                      <p className="text-sm font-medium">{vendor.companyName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {vendor.firstName} {vendor.lastInitial}.
-                      </p>
-                      {(vendor.city || vendor.state) && (
-                        <p className="text-sm text-muted-foreground">
-                          {vendor.city && vendor.state ? `${vendor.city}, ${vendor.state}` : vendor.city || vendor.state}
-                        </p>
-                      )}
-                      {vendor.connectedAt && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Connected since {new Date(vendor.connectedAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Systems and Inspection Types */}
-                  <div className="space-y-2">
-                    {vendor.systemsUsed.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Systems Used:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {vendor.systemsUsed.slice(0, 4).map((system, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {system}
-                            </Badge>
-                          ))}
-                          {vendor.systemsUsed.length > 4 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{vendor.systemsUsed.length - 4} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {vendor.inspectionTypes.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Inspection Types:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {vendor.inspectionTypes.slice(0, 4).map((type, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {type}
-                            </Badge>
-                          ))}
-                          {vendor.inspectionTypes.length > 4 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{vendor.inspectionTypes.length - 4} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Availability */}
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Accepting new reps: </span>
-                    <span className={vendor.isAcceptingNewReps ? "text-green-500" : "text-muted-foreground"}>
-                      {vendor.isAcceptingNewReps ? "Yes" : "No"}
-                    </span>
-                  </div>
-
-                  {/* Connected Posts */}
-                  <div>
-                    <p className="text-sm font-medium mb-2">
-                      Connected on {vendor.connectedPosts.length} post{vendor.connectedPosts.length !== 1 ? "s" : ""}
-                    </p>
-                    <div className="space-y-1">
-                      {vendor.connectedPosts.slice(0, 2).map((post) => (
-                        <p key={post.id} className="text-xs text-muted-foreground">
-                          {post.stateCode ? `${post.stateCode} – ` : ""}{post.title}
-                        </p>
-                      ))}
-                      {vendor.connectedPosts.length > 2 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{vendor.connectedPosts.length - 2} more
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewProfile(vendor.vendorUserId)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Profile
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => 
-                        handleMessage(
-                          vendor.vendorUserId, 
-                          vendor.conversationId,
-                          vendor.connectedPosts[0]?.id
-                        )
-                      }
-                    >
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Message Vendor
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnectClick(vendor.connectedPosts[0].interestId)}
-                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    >
-                      Disconnect
-                    </Button>
-                  </div>
-
-                  {/* Notes Section */}
-                  <div className="pt-3 border-t border-border mt-2 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Notes (private to you)</p>
-
-                    {vendor.notes && vendor.notes.length > 0 ? (
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {vendor.notes.slice(0, 3).map((n) => (
-                          <div key={n.id} className="space-y-1">
-                            {editingNoteId === n.id ? (
-                              <div className="space-y-1">
-                                <textarea
-                                  className="w-full text-xs rounded-md border bg-background px-2 py-1"
-                                  rows={2}
-                                  value={editedNoteText}
-                                  onChange={(e) => setEditedNoteText(e.target.value)}
-                                  autoFocus
-                                />
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="h-6 text-xs"
-                                    onClick={() => handleSaveEditedNote(n.id, vendor.vendorUserId)}
-                                  >
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Save
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 text-xs"
-                                    onClick={handleCancelEdit}
-                                  >
-                                    <X className="w-3 h-3 mr-1" />
-                                    Cancel
-                                  </Button>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Existing Notes */}
+                      {vendor.notes && vendor.notes.length > 0 ? (
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {vendor.notes.slice(0, 3).map((n) => (
+                            <div key={n.id} className="space-y-1">
+                              {editingNoteId === n.id ? (
+                                <div className="space-y-1">
+                                  <textarea
+                                    className="w-full text-xs rounded-md border bg-background px-2 py-1"
+                                    rows={2}
+                                    value={editedNoteText}
+                                    onChange={(e) => setEditedNoteText(e.target.value)}
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      className="h-6 text-xs"
+                                      onClick={() => handleSaveEditedNote(n.id, vendor.vendorUserId)}
+                                    >
+                                      <Check className="w-3 h-3 mr-1" />
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 text-xs"
+                                      onClick={handleCancelEdit}
+                                    >
+                                      <X className="w-3 h-3 mr-1" />
+                                      Cancel
+                                    </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs text-muted-foreground flex-1">
-                                  <span className="font-medium">
-                                    {new Date(n.created_at).toLocaleDateString()}
-                                    {": "}
-                                  </span>
-                                  {n.note}
-                                </p>
-                                <button
-                                  onClick={() => handleEditNote(n.id, n.note)}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Edit note"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">No notes yet for this vendor.</p>
-                    )}
+                              ) : (
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-xs text-muted-foreground flex-1">
+                                    <span className="font-medium">
+                                      {new Date(n.created_at).toLocaleDateString()}
+                                      {": "}
+                                    </span>
+                                    {n.note}
+                                  </p>
+                                  <button
+                                    onClick={() => handleEditNote(n.id, n.note)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    title="Edit note"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No notes yet for this vendor.</p>
+                      )}
 
-                    <div className="flex gap-2">
-                      <textarea
-                        className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
-                        rows={2}
-                        placeholder="Add a quick note about this vendor..."
-                        value={noteDrafts[vendor.vendorUserId] || ""}
-                        onChange={(e) =>
-                          setNoteDrafts((prev) => ({ ...prev, [vendor.vendorUserId]: e.target.value }))
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAddNote(vendor.vendorUserId)}
-                      >
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      {/* Add New Note */}
+                      <div className="flex gap-2 pt-2 border-t border-border">
+                        <textarea
+                          className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
+                          rows={2}
+                          placeholder="Add a quick note about this vendor..."
+                          value={noteDrafts[vendor.vendorUserId] || ""}
+                          onChange={(e) =>
+                            setNoteDrafts((prev) => ({ ...prev, [vendor.vendorUserId]: e.target.value }))
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAddNote(vendor.vendorUserId)}
+                        >
+                          Save
+                        </Button>
+                      </div>
+
+                      {/* Disconnect Button */}
+                      <div className="pt-2 border-t border-border">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDisconnectClick(vendor.connectedPosts[0].interestId)}
+                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          Disconnect from {vendor.companyName}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           </>
         ) : null}
