@@ -13,7 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Plus, Minus, MapPin, Edit, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,6 +45,9 @@ const VendorProfile = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
+  const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
+  const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [expandedSections, setExpandedSections] = useState(() => {
     const saved = localStorage.getItem('vendorProfileExpandedSections');
     if (saved) {
@@ -55,6 +60,7 @@ const VendorProfile = () => {
       systems: true,
       inspectionTypes: true,
       availability: true,
+      coverage: true,
     };
   });
 
@@ -95,8 +101,27 @@ const VendorProfile = () => {
 
     if (user) {
       loadProfile();
+      loadCoverageAreas();
     }
   }, [user, authLoading, navigate]);
+
+  const loadCoverageAreas = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("vendor_coverage_areas")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("state_code", { ascending: true })
+        .order("county_name", { ascending: true });
+
+      if (error) throw error;
+      setCoverageAreas(data || []);
+    } catch (error: any) {
+      console.error("Error loading coverage areas:", error);
+    }
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -634,6 +659,150 @@ const VendorProfile = () => {
               )}
             </div>
 
+            {/* Section F: Coverage & Focus Areas */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <button
+                type="button"
+                onClick={() => toggleSection('coverage')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Coverage & Focus Areas
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-left">
+                    Add the states and counties where you actively place work. This helps reps understand your footprint and where future Seeking Coverage posts are likely to appear.
+                  </p>
+                </div>
+                {expandedSections.coverage ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+
+              {expandedSections.coverage && (
+                <>
+                  {coverageAreas.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
+                      <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        No coverage areas added yet. Reps won't see your footprint until you add at least one state.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setEditingCoverage(null);
+                          setCoverageDialogOpen(true);
+                        }}
+                      >
+                        Add Coverage Area
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {coverageAreas.map((coverage) => (
+                          <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-semibold text-foreground">
+                                    {coverage.state_code} - {coverage.state_name}
+                                  </h4>
+                                  {coverage.covers_entire_state && (
+                                    <Badge variant="secondary">Entire State</Badge>
+                                  )}
+                                </div>
+                                
+                                <p className="text-sm text-muted-foreground mb-2">
+                                  {coverage.covers_entire_state 
+                                    ? "All counties" 
+                                    : coverage.county_name || "No specific county"}
+                                  {!coverage.covers_entire_state && coverage.covers_entire_county && coverage.county_name && (
+                                    <Badge variant="secondary" className="ml-2">Entire County</Badge>
+                                  )}
+                                </p>
+
+                                {coverage.region_note && (
+                                  <p className="text-xs text-muted-foreground italic mb-2">
+                                    {coverage.region_note}
+                                  </p>
+                                )}
+
+                                {coverage.inspection_types && coverage.inspection_types.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {coverage.inspection_types.map((type: string, idx: number) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {type}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setEditingCoverage(coverage);
+                                    setCoverageDialogOpen(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={async () => {
+                                    const { error } = await supabase
+                                      .from("vendor_coverage_areas")
+                                      .delete()
+                                      .eq("id", coverage.id);
+
+                                    if (error) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Error",
+                                        description: "Failed to delete coverage area.",
+                                      });
+                                    } else {
+                                      toast({
+                                        title: "Coverage Area Deleted",
+                                        description: "Coverage area removed successfully.",
+                                      });
+                                      loadCoverageAreas();
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCoverage(null);
+                          setCoverageDialogOpen(true);
+                        }}
+                      >
+                        Add Another Coverage Area
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">
               <Button type="submit" disabled={saving}>
@@ -643,6 +812,67 @@ const VendorProfile = () => {
             </div>
           </Card>
         </form>
+
+        {/* Vendor Coverage Dialog */}
+        <VendorCoverageDialog
+          open={coverageDialogOpen}
+          onOpenChange={setCoverageDialogOpen}
+          editData={editingCoverage}
+          onSave={async (data) => {
+            const payload: any = {
+              user_id: user!.id,
+              state_code: data.state_code,
+              state_name: data.state_name,
+              county_name: data.county_name || null,
+              county_id: data.county_id || null,
+              covers_entire_state: data.covers_entire_state,
+              covers_entire_county: data.covers_entire_county,
+              region_note: data.region_note || null,
+              inspection_types: data.inspection_types.length > 0 ? data.inspection_types : null,
+            };
+
+            if (data.id) {
+              // Update existing
+              const { error } = await supabase
+                .from("vendor_coverage_areas")
+                .update(payload)
+                .eq("id", data.id);
+
+              if (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to update coverage area.",
+                });
+              } else {
+                toast({
+                  title: "Coverage Area Updated",
+                  description: "Your coverage area has been updated successfully.",
+                });
+                await loadCoverageAreas();
+              }
+            } else {
+              // Insert new
+              const { error } = await supabase
+                .from("vendor_coverage_areas")
+                .insert([payload]);
+
+              if (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to add coverage area.",
+                });
+              } else {
+                toast({
+                  title: "Coverage Area Added",
+                  description: "Your coverage area has been added successfully.",
+                });
+                await loadCoverageAreas();
+              }
+            }
+          }}
+        />
       </div>
     </div>
   );

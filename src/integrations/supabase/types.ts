@@ -787,6 +787,66 @@ export type Database = {
           },
         ]
       }
+      vendor_coverage_areas: {
+        Row: {
+          county_id: string | null
+          county_name: string | null
+          covers_entire_county: boolean
+          covers_entire_state: boolean
+          created_at: string
+          id: string
+          inspection_types: string[] | null
+          region_note: string | null
+          state_code: string
+          state_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          county_id?: string | null
+          county_name?: string | null
+          covers_entire_county?: boolean
+          covers_entire_state?: boolean
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          region_note?: string | null
+          state_code: string
+          state_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          county_id?: string | null
+          county_name?: string | null
+          covers_entire_county?: boolean
+          covers_entire_state?: boolean
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          region_note?: string | null
+          state_code?: string
+          state_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_coverage_areas_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_coverage_areas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_message_templates: {
         Row: {
           body: string

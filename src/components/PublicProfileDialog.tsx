@@ -41,8 +41,11 @@ interface ProfileData {
     stateName: string;
     countyName: string | null;
     coversEntireState: boolean;
+    coversEntireCounty?: boolean;
     basePrice: number | null;
     rushPrice: number | null;
+    regionNote?: string | null;
+    inspectionTypes?: string[] | null;
   }>;
   backgroundCheck?: {
     isActive: boolean;
@@ -173,6 +176,21 @@ export function PublicProfileDialog({
         } 
         // Otherwise use vendor profile
         else if (vendorProfile) {
+          // Load vendor coverage areas
+          const { data: vendorCoverageAreas } = await supabase
+            .from("vendor_coverage_areas")
+            .select(`
+              state_code,
+              state_name,
+              county_name,
+              covers_entire_state,
+              covers_entire_county,
+              region_note,
+              inspection_types
+            `)
+            .eq("user_id", targetUserId)
+            .order("state_code");
+
           setProfileData({
             role: "vendor",
             anonymousId: vendorProfile.anonymous_id || "Vendor#?",
@@ -185,6 +203,17 @@ export function PublicProfileDialog({
             systemsUsed: vendorProfile.systems_used || [],
             inspectionTypes: vendorProfile.primary_inspection_types || [],
             isAcceptingNewReps: vendorProfile.is_accepting_new_reps,
+            coverageAreas: (vendorCoverageAreas || []).map(area => ({
+              stateCode: area.state_code,
+              stateName: area.state_name,
+              countyName: area.county_name,
+              coversEntireState: area.covers_entire_state,
+              coversEntireCounty: area.covers_entire_county,
+              regionNote: area.region_note,
+              inspectionTypes: area.inspection_types,
+              basePrice: null,
+              rushPrice: null,
+            })),
           });
         } 
         // No rep or vendor profile found
@@ -531,6 +560,52 @@ export function PublicProfileDialog({
                   </span>
                 </div>
               </Card>
+
+              {/* Coverage Areas */}
+              {profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
+                <Card className="p-4 bg-card-elevated">
+                  <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Coverage Areas
+                  </h3>
+                  <div className="space-y-3">
+                    {profileData.coverageAreas.map((coverage, idx) => (
+                      <div key={idx} className="border-l-2 border-primary/30 pl-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-sm font-semibold text-foreground">
+                            {coverage.stateCode} - {coverage.stateName}
+                          </h4>
+                          {coverage.coversEntireState && (
+                            <Badge variant="secondary" className="text-xs">Entire State</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {coverage.coversEntireState 
+                            ? "All counties" 
+                            : coverage.countyName || "No specific county"}
+                          {!coverage.coversEntireState && coverage.coversEntireCounty && coverage.countyName && (
+                            <Badge variant="secondary" className="ml-2 text-xs">Entire County</Badge>
+                          )}
+                        </p>
+                        {coverage.regionNote && (
+                          <p className="text-xs text-muted-foreground italic mb-1">
+                            {coverage.regionNote}
+                          </p>
+                        )}
+                        {coverage.inspectionTypes && coverage.inspectionTypes.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {coverage.inspectionTypes.map((type, typeIdx) => (
+                              <Badge key={typeIdx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                {type}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
             </>
           )}
         </div>
