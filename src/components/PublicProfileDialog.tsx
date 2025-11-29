@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
@@ -585,53 +586,100 @@ export function PublicProfileDialog({
                 </div>
               </Card>
 
-              {/* Coverage Areas */}
+              {/* Coverage & Focus Areas */}
               {profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
-                  <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Coverage Areas
-                  </h3>
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2 mb-1">
+                      <MapPin className="h-4 w-4" />
+                      Coverage & Focus Areas
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      States and regions where this vendor actively places work.
+                    </p>
+                  </div>
                   <div className="space-y-3">
-                    {profileData.coverageAreas.map((coverage, idx) => (
-                      <div key={idx} className="border-l-2 border-primary/30 pl-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-semibold text-foreground">
-                            {coverage.stateCode} - {coverage.stateName}
-                          </h4>
-                          {coverage.coverageMode === "entire_state" && (
-                            <Badge variant="secondary" className="text-xs">Entire State</Badge>
+                    {profileData.coverageAreas.map((coverage, idx) => {
+                      const maxCountiesInline = 4;
+                      
+                      // Helper to render county list with tooltip for long lists
+                      const renderCountyList = (counties: string[], prefix: string) => {
+                        if (!counties || counties.length === 0) return null;
+                        
+                        if (counties.length <= maxCountiesInline) {
+                          return `${prefix}${counties.join(", ")} Counties`;
+                        }
+                        
+                        const visible = counties.slice(0, maxCountiesInline);
+                        const remaining = counties.slice(maxCountiesInline);
+                        
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  {prefix}{visible.join(", ")}{" "}
+                                  <span className="text-primary cursor-help underline decoration-dotted">
+                                    +{remaining.length} more
+                                  </span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs">All counties: {counties.join(", ")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      };
+                      
+                      return (
+                        <div key={idx} className="border-l-2 border-primary/30 pl-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-sm font-semibold text-foreground">
+                              {coverage.stateCode} - {coverage.stateName}
+                            </h4>
+                            {coverage.coverageMode === "entire_state" && (
+                              <Badge variant="secondary" className="text-xs">Entire State</Badge>
+                            )}
+                            {coverage.coverageMode === "entire_state_except" && (
+                              <Badge variant="secondary" className="text-xs">Entire State (except...)</Badge>
+                            )}
+                            {coverage.coverageMode === "selected_counties" && (
+                              <Badge variant="secondary" className="text-xs">Selected Counties</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {coverage.coverageMode === "entire_state" && "All counties"}
+                            {coverage.coverageMode === "entire_state_except" && 
+                              (coverage.excludedCountyNames && coverage.excludedCountyNames.length > 0
+                                ? renderCountyList(coverage.excludedCountyNames, "All counties except: ")
+                                : "All counties"
+                              )
+                            }
+                            {coverage.coverageMode === "selected_counties" && 
+                              (coverage.includedCountyNames && coverage.includedCountyNames.length > 0
+                                ? renderCountyList(coverage.includedCountyNames, "Selected counties: ")
+                                : "No counties selected"
+                              )
+                            }
+                          </p>
+                          {coverage.regionNote && (
+                            <p className="text-xs text-muted-foreground italic mb-1">
+                              Notes: {coverage.regionNote}
+                            </p>
+                          )}
+                          {coverage.inspectionTypes && coverage.inspectionTypes.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {coverage.inspectionTypes.map((type, typeIdx) => (
+                                <Badge key={typeIdx} variant="outline" className="text-[10px] px-1.5 py-0">
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          {coverage.coverageMode === "entire_state" && "All counties"}
-                          {coverage.coverageMode === "entire_state_except" && (
-                            coverage.excludedCountyNames && coverage.excludedCountyNames.length > 0
-                              ? `All counties except: ${coverage.excludedCountyNames.join(", ")}`
-                              : "All counties"
-                          )}
-                          {coverage.coverageMode === "selected_counties" && (
-                            coverage.includedCountyNames && coverage.includedCountyNames.length > 0
-                              ? `Counties: ${coverage.includedCountyNames.join(", ")}`
-                              : "No counties selected"
-                          )}
-                        </p>
-                        {coverage.regionNote && (
-                          <p className="text-xs text-muted-foreground italic mb-1">
-                            {coverage.regionNote}
-                          </p>
-                        )}
-                        {coverage.inspectionTypes && coverage.inspectionTypes.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {coverage.inspectionTypes.map((type, typeIdx) => (
-                              <Badge key={typeIdx} variant="outline" className="text-[10px] px-1.5 py-0">
-                                {type}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Card>
               )}
