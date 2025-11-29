@@ -43,14 +43,25 @@ const VendorProfile = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [expandedSections, setExpandedSections] = useState({
-    account: true,
-    company: true,
-    location: true,
-    systems: true,
-    inspectionTypes: true,
-    availability: true,
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const saved = localStorage.getItem('vendorProfileExpandedSections');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      account: true,
+      company: true,
+      location: true,
+      systems: true,
+      inspectionTypes: true,
+      availability: true,
+    };
   });
+
+  // Save expanded sections to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('vendorProfileExpandedSections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));

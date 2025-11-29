@@ -97,17 +97,28 @@ const RepProfile = () => {
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   
-  // Section collapse states
-  const [expandedSections, setExpandedSections] = useState({
-    account: true,
-    basic: true,
-    systems: true,
-    inspectionTypes: true,
-    availability: true,
-    backgroundCheck: true,
-    accessEquipment: true,
-    coverage: true,
+  // Section collapse states - load from localStorage
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const saved = localStorage.getItem('repProfileExpandedSections');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      account: true,
+      basic: true,
+      systems: true,
+      inspectionTypes: true,
+      availability: true,
+      backgroundCheck: true,
+      accessEquipment: true,
+      coverage: true,
+    };
   });
+
+  // Save expanded sections to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('repProfileExpandedSections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
