@@ -543,6 +543,9 @@ export type Database = {
           city: string | null
           coverage_areas: string[] | null
           created_at: string
+          equipment_notes: string | null
+          has_hud_keys: boolean | null
+          hud_keys_details: string | null
           id: string
           inspection_types: string[] | null
           is_accepting_new_vendors: boolean | null
@@ -567,6 +570,9 @@ export type Database = {
           city?: string | null
           coverage_areas?: string[] | null
           created_at?: string
+          equipment_notes?: string | null
+          has_hud_keys?: boolean | null
+          hud_keys_details?: string | null
           id?: string
           inspection_types?: string[] | null
           is_accepting_new_vendors?: boolean | null
@@ -591,6 +597,9 @@ export type Database = {
           city?: string | null
           coverage_areas?: string[] | null
           created_at?: string
+          equipment_notes?: string | null
+          has_hud_keys?: boolean | null
+          hud_keys_details?: string | null
           id?: string
           inspection_types?: string[] | null
           is_accepting_new_vendors?: boolean | null

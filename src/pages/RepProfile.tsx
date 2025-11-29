@@ -40,6 +40,19 @@ const repProfileSchema = z.object({
   background_check_id: z.string().trim().max(100).optional().nullable(),
   background_check_expires_on: z.string().optional().nullable(),
   background_check_screenshot_url: z.string().optional().nullable(),
+  // Access & Equipment fields
+  has_hud_keys: z.boolean().optional().nullable(),
+  hud_keys_details: z.string().trim().max(200).optional().nullable(),
+  equipment_notes: z.string().trim().max(500).optional().nullable(),
+}).refine((data) => {
+  // HUD keys validation: if has_hud_keys is true, require details
+  if (data.has_hud_keys && !data.hud_keys_details?.trim()) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please specify which HUD keys you have",
+  path: ["hud_keys_details"],
 }).refine((data) => {
   if (!data.background_check_is_active) return true;
   
@@ -101,6 +114,9 @@ const RepProfile = () => {
       background_check_id: null,
       background_check_expires_on: null,
       background_check_screenshot_url: null,
+      has_hud_keys: null,
+      hud_keys_details: null,
+      equipment_notes: null,
     },
   });
 
@@ -111,6 +127,8 @@ const RepProfile = () => {
   const backgroundCheckActive = watch("background_check_is_active");
   const backgroundCheckProvider = watch("background_check_provider");
   const backgroundCheckScreenshot = watch("background_check_screenshot_url");
+  const hasHudKeys = watch("has_hud_keys");
+  const equipmentNotes = watch("equipment_notes") || "";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -207,6 +225,11 @@ const RepProfile = () => {
         setValue("background_check_id", repData.background_check_id || null);
         setValue("background_check_expires_on", repData.background_check_expires_on || null);
         setValue("background_check_screenshot_url", repData.background_check_screenshot_url || null);
+        
+        // Access & Equipment fields
+        setValue("has_hud_keys", repData.has_hud_keys ?? null);
+        setValue("hud_keys_details", repData.hud_keys_details || null);
+        setValue("equipment_notes", repData.equipment_notes || null);
       } else {
         // Create new rep profile
         const { data: newRepProfile, error: createError } = await supabase
@@ -279,6 +302,9 @@ const RepProfile = () => {
       background_check_id: data.background_check_is_active ? (data.background_check_id || null) : null,
       background_check_expires_on: data.background_check_is_active ? (data.background_check_expires_on || null) : null,
       background_check_screenshot_url: data.background_check_is_active ? (data.background_check_screenshot_url || null) : null,
+      has_hud_keys: data.has_hud_keys ?? null,
+      hud_keys_details: data.has_hud_keys ? (data.hud_keys_details || null) : null,
+      equipment_notes: data.equipment_notes || null,
     };
 
     const { error } = await supabase
@@ -832,6 +858,75 @@ const RepProfile = () => {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Section D2: Access & Equipment (Optional) */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-1">Access & Equipment</h3>
+                <p className="text-sm text-muted-foreground">
+                  Share what kind of property access you have and any tools or equipment you want vendors to know about.
+                </p>
+              </div>
+
+              {/* HUD Keys Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="has_hud_keys" className="text-foreground font-normal">
+                    Do you have HUD keys?
+                  </Label>
+                </div>
+                <Switch
+                  id="has_hud_keys"
+                  checked={hasHudKeys ?? false}
+                  onCheckedChange={(checked) => {
+                    setValue("has_hud_keys", checked);
+                    if (!checked) {
+                      setValue("hud_keys_details", null);
+                    }
+                  }}
+                />
+              </div>
+
+              {/* HUD Keys Details (conditional) */}
+              {hasHudKeys && (
+                <div>
+                  <Label htmlFor="hud_keys_details">
+                    Which HUD keys do you have? <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="hud_keys_details"
+                    {...register("hud_keys_details")}
+                    placeholder="e.g., HUD key, REO keys, combo boxes"
+                    className={`mt-2 ${errors.hud_keys_details ? "border-destructive" : ""}`}
+                    maxLength={200}
+                  />
+                  {errors.hud_keys_details && (
+                    <p className="text-sm text-destructive mt-1">{errors.hud_keys_details.message}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Other Equipment (optional) */}
+              <div>
+                <Label htmlFor="equipment_notes">
+                  Other tools / equipment <span className="text-muted-foreground text-sm">(optional)</span>
+                </Label>
+                <Textarea
+                  id="equipment_notes"
+                  {...register("equipment_notes")}
+                  placeholder="List any ladders, safety gear, seasonal tools, or other equipment you want vendors to know about..."
+                  className={errors.equipment_notes ? "border-destructive" : ""}
+                  rows={3}
+                  maxLength={500}
+                />
+                {errors.equipment_notes && (
+                  <p className="text-sm text-destructive mt-1">{errors.equipment_notes.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {equipmentNotes.length} / 500 characters
+                </p>
+              </div>
             </div>
 
             {/* Section E: Coverage & Pricing (MVP) */}
