@@ -251,6 +251,13 @@ const VendorMyReps = () => {
         }
       }
 
+      // Sort by connectedAt (newest first)
+      repsArray.sort((a, b) => {
+        const aDate = a.connectedAt ?? a.connectedPosts[0]?.id ?? '';
+        const bDate = b.connectedAt ?? b.connectedPosts[0]?.id ?? '';
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
       setConnectedReps(repsArray);
     } catch (error) {
       console.error("Error in loadConnectedReps:", error);
@@ -463,23 +470,37 @@ const VendorMyReps = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {connectedReps.map((rep) => (
-              <Card key={rep.repUserId}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Rep</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Location (State)</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {connectedReps.map((rep) => (
+                  <tr key={rep.repUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td className="py-4 px-4">
+                      <div className="flex flex-col gap-1">
                         <button
                           onClick={() => handleViewProfile(rep.repUserId)}
-                          className="text-primary hover:underline font-semibold text-lg flex items-center gap-2"
+                          className="text-primary hover:underline font-semibold flex items-center gap-2 w-fit"
                         >
                           {rep.anonymousId}
                           <Eye className="w-4 h-4" />
                         </button>
+                        {(rep.firstName || rep.lastInitial) && (
+                          <p className="text-xs text-muted-foreground">
+                            {rep.firstName} {rep.lastInitial}.
+                          </p>
+                        )}
                         {hasNotesByRep[rep.repUserId] && (
                           <span 
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"
                             title="You have private notes on this connection"
                           >
                             <StickyNote className="w-3 h-3" />
@@ -487,120 +508,57 @@ const VendorMyReps = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {rep.firstName} {rep.lastInitial}.
-                      </p>
-                      {(rep.city || rep.state) && (
-                        <p className="text-sm text-muted-foreground">
-                          {rep.city && rep.state ? `${rep.city}, ${rep.state}` : rep.city || rep.state}
-                        </p>
-                      )}
-                      {rep.connectedAt && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Connected since {new Date(rep.connectedAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Systems and Inspection Types */}
-                  <div className="space-y-2">
-                    {rep.systemsUsed.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Systems Used:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {rep.systemsUsed.slice(0, 4).map((system, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {system}
-                            </Badge>
-                          ))}
-                          {rep.systemsUsed.length > 4 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{rep.systemsUsed.length - 4} more
-                            </Badge>
-                          )}
-                        </div>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-muted-foreground">
+                      {rep.state || '—'}
+                    </td>
+                    <td className="py-4 px-4 text-sm text-muted-foreground">
+                      <span title="Trust Score feature coming soon">Coming soon</span>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-muted-foreground">
+                      {rep.connectedAt && new Date(rep.connectedAt).toLocaleDateString()}
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewProfile(rep.repUserId)}
+                        >
+                          View Profile
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleMessage(rep.repUserId, rep.conversationId)}
+                        >
+                          Message
+                        </Button>
                       </div>
-                    )}
-                    {rep.inspectionTypes.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Inspection Types:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {rep.inspectionTypes.slice(0, 4).map((type, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {type}
-                            </Badge>
-                          ))}
-                          {rep.inspectionTypes.length > 4 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{rep.inspectionTypes.length - 4} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-                  {/* Availability */}
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Accepting new vendors: </span>
-                    <span className={rep.isAcceptingNewVendors ? "text-green-500" : "text-muted-foreground"}>
-                      {rep.isAcceptingNewVendors ? "Yes" : "No"}
-                    </span>
-                  </div>
-
-                  {/* Connected Posts */}
-                  <div>
-                    <p className="text-sm font-medium mb-2">
-                      Connected on {rep.connectedPosts.length} post{rep.connectedPosts.length !== 1 ? "s" : ""}
-                    </p>
-                    <div className="space-y-1">
-                      {rep.connectedPosts.slice(0, 2).map((post) => (
-                        <p key={post.id} className="text-xs text-muted-foreground">
-                          {post.stateCode ? `${post.stateCode} – ` : ""}{post.title}
-                        </p>
-                      ))}
-                      {rep.connectedPosts.length > 2 && (
-                        <p className="text-xs text-muted-foreground">
-                          +{rep.connectedPosts.length - 2} more
-                        </p>
+            {/* Notes Section - Below Table */}
+            <div className="mt-8 space-y-6">
+              <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
+              {connectedReps.map((rep) => (
+                <Card key={`notes-${rep.repUserId}`}>
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      {rep.anonymousId}
+                      {hasNotesByRep[rep.repUserId] && (
+                        <Badge variant="secondary" className="text-xs">
+                          <StickyNote className="w-3 h-3 mr-1" />
+                          Has Notes
+                        </Badge>
                       )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewProfile(rep.repUserId)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Profile
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleMessage(rep.repUserId, rep.conversationId)}
-                    >
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Message
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDisconnectClick(rep.connectedPosts[0].interestId)}
-                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    >
-                      Disconnect
-                    </Button>
-                  </div>
-
-                  {/* Notes Section */}
-                  <div className="pt-3 border-t border-border mt-2 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Notes (private to your account)</p>
-
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Existing Notes */}
                     {rep.notes && rep.notes.length > 0 ? (
                       <div className="space-y-2 max-h-32 overflow-y-auto">
                         {rep.notes.slice(0, 3).map((n) => (
@@ -660,7 +618,8 @@ const VendorMyReps = () => {
                       <p className="text-xs text-muted-foreground italic">No notes yet for this rep.</p>
                     )}
 
-                    <div className="flex gap-2">
+                    {/* Add New Note */}
+                    <div className="flex gap-2 pt-2 border-t border-border">
                       <textarea
                         className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
                         rows={2}
@@ -678,10 +637,22 @@ const VendorMyReps = () => {
                         Save
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* Disconnect Button */}
+                    <div className="pt-2 border-t border-border">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnectClick(rep.connectedPosts[0].interestId)}
+                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      >
+                        Disconnect from {rep.anonymousId}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
       </div>
