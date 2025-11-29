@@ -623,6 +623,82 @@ export type Database = {
           },
         ]
       }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          direction: string
+          id: string
+          is_exit_review: boolean
+          is_verified: boolean
+          rating_communication: number | null
+          rating_on_time: number | null
+          rating_quality: number | null
+          rep_interest_id: string | null
+          reviewee_id: string
+          reviewer_id: string
+          status: string
+          updated_at: string
+          would_work_again: boolean | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          direction: string
+          id?: string
+          is_exit_review?: boolean
+          is_verified?: boolean
+          rating_communication?: number | null
+          rating_on_time?: number | null
+          rating_quality?: number | null
+          rep_interest_id?: string | null
+          reviewee_id: string
+          reviewer_id: string
+          status?: string
+          updated_at?: string
+          would_work_again?: boolean | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          is_exit_review?: boolean
+          is_verified?: boolean
+          rating_communication?: number | null
+          rating_on_time?: number | null
+          rating_quality?: number | null
+          rep_interest_id?: string | null
+          reviewee_id?: string
+          reviewer_id?: string
+          status?: string
+          updated_at?: string
+          would_work_again?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_rep_interest_id_fkey"
+            columns: ["rep_interest_id"]
+            isOneToOne: false
+            referencedRelation: "rep_interest"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewee_id_fkey"
+            columns: ["reviewee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeking_coverage_posts: {
         Row: {
           allow_willing_to_obtain_background_check: boolean | null
