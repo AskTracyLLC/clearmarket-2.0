@@ -476,6 +476,7 @@ export type Database = {
       }
       rep_interest: {
         Row: {
+          connected_at: string | null
           created_at: string
           id: string
           post_id: string
@@ -484,6 +485,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          connected_at?: string | null
           created_at?: string
           id?: string
           post_id: string
@@ -492,6 +494,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          connected_at?: string | null
           created_at?: string
           id?: string
           post_id?: string

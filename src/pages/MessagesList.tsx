@@ -162,7 +162,10 @@ export default function MessagesList() {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "connected" })
+        .update({ 
+          status: "connected",
+          connected_at: new Date().toISOString()
+        })
         .eq("id", requestId);
 
       if (error) throw error;
@@ -191,7 +194,10 @@ export default function MessagesList() {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "declined" })
+        .update({ 
+          status: "declined",
+          connected_at: null
+        })
         .eq("id", requestId);
 
       if (error) throw error;
