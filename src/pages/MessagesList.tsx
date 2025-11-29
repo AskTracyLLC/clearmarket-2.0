@@ -512,10 +512,10 @@ export default function MessagesList() {
                         </span>
                       )}
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={(e) => handleArchive(conv.id, e)}
-                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        className="h-8 px-3 text-xs shrink-0"
                         title="Archive conversation"
                       >
                         Archive
