@@ -89,6 +89,9 @@ export default function VendorFindReps() {
   const [otherSystemText, setOtherSystemText] = useState<string>("");
   const [otherInspectionTypeText, setOtherInspectionTypeText] = useState<string>("");
 
+  // Background check filter mode
+  const [bgCheckFilterMode, setBgCheckFilterMode] = useState<"include-willing" | "active-only">("include-willing");
+
   // Results state
   const [results, setResults] = useState<RepResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -468,6 +471,38 @@ export default function VendorFindReps() {
               </Label>
             </div>
 
+            {/* Background Check Filter - only show if a post is selected and requires background check */}
+            {selectedPost && vendorPosts.find(p => p.id === selectedPost)?.requires_background_check && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Background Check Filter</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={bgCheckFilterMode === "include-willing" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBgCheckFilterMode("include-willing")}
+                    className="flex-1"
+                  >
+                    Include willing-to-obtain
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={bgCheckFilterMode === "active-only" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBgCheckFilterMode("active-only")}
+                    className="flex-1"
+                  >
+                    Active check only
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {bgCheckFilterMode === "include-willing"
+                    ? "Showing reps with active background checks and those who are willing to obtain one."
+                    : "Showing only reps with a current background check on file."}
+                </p>
+              </div>
+            )}
+
             {/* Search Button */}
             <Button
               onClick={handleSearch}
@@ -480,24 +515,62 @@ export default function VendorFindReps() {
         </Card>
 
         {/* Results Section */}
-        {hasSearched && (
-          <div>
-            <h2 className="text-2xl font-semibold text-foreground mb-4">
-              {results.length} {results.length === 1 ? "Rep" : "Reps"} Found
-            </h2>
+        {hasSearched && (() => {
+          // Get the selected post
+          const post = selectedPost ? vendorPosts.find(p => p.id === selectedPost) : null;
+          
+          // Compute flags and apply background check filter
+          const processedResults = results.map((rep) => {
+            // Compute hasValidBackgroundCheck
+            const hasValidBackgroundCheck = isBackgroundCheckActive({
+              background_check_is_active: rep.background_check_is_active,
+              background_check_expires_on: rep.background_check_expires_on,
+            });
 
-            {results.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">
-                    No reps match these filters yet. Try adjusting your criteria or check
-                    back later as more reps join ClearMarket.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {results.map((rep) => (
+            // Compute isWillingToObtain (only true if they DON'T have valid check AND are willing)
+            const isWillingToObtain = !hasValidBackgroundCheck && (rep.willing_to_obtain_background_check ?? false);
+
+            return {
+              ...rep,
+              hasValidBackgroundCheck,
+              isWillingToObtain,
+            };
+          });
+
+          // Apply background check filter if post requires it
+          const filteredResults = processedResults.filter((rep) => {
+            // If no post selected or post doesn't require background check, show all
+            if (!post || !post.requires_background_check) {
+              return true;
+            }
+
+            // If "active-only" mode, only show reps with valid background check
+            if (bgCheckFilterMode === "active-only") {
+              return rep.hasValidBackgroundCheck;
+            }
+
+            // "include-willing" mode: show all (already passed backend matching)
+            return true;
+          });
+
+          return (
+            <div>
+              <h2 className="text-2xl font-semibold text-foreground mb-4">
+                {filteredResults.length} {filteredResults.length === 1 ? "Rep" : "Reps"} Found
+              </h2>
+
+              {filteredResults.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <p className="text-muted-foreground">
+                      No reps match these filters yet. Try adjusting your criteria or check
+                      back later as more reps join ClearMarket.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredResults.map((rep) => (
                   <Card key={rep.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">
@@ -600,7 +673,8 @@ export default function VendorFindReps() {
               </div>
             )}
           </div>
-        )}
+        );
+      })()}
       </div>
     </div>
   );
