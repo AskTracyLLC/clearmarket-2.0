@@ -55,7 +55,8 @@ export default function MessagesList() {
   const [pendingRequests, setPendingRequests] = useState<PendingConnectionRequest[]>([]);
   const [isRep, setIsRep] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
-  const [postFilter, setPostFilter] = useState<"all" | "open">("all");
+  const [filterMode, setFilterMode] = useState<"all" | "seeking" | "direct">("all");
+  const [openPostsOnly, setOpenPostsOnly] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -359,7 +360,7 @@ export default function MessagesList() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="space-y-4">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -370,21 +371,45 @@ export default function MessagesList() {
             </Button>
             <h1 className="text-3xl font-bold text-foreground">Messages</h1>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant={postFilter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPostFilter("all")}
-            >
-              All
-            </Button>
-            <Button
-              variant={postFilter === "open" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setPostFilter("open")}
-            >
-              Open Posts Only
-            </Button>
+          
+          {/* Primary Filter */}
+          <div className="flex items-center gap-3">
+            <div className="flex gap-2">
+              <Button
+                variant={filterMode === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterMode("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={filterMode === "seeking" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterMode("seeking")}
+              >
+                Seeking Coverage
+              </Button>
+              <Button
+                variant={filterMode === "direct" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterMode("direct")}
+              >
+                Direct
+              </Button>
+            </div>
+            
+            {/* Secondary Filter - Open Posts Only */}
+            {filterMode === "seeking" && (
+              <div className="flex items-center gap-2 pl-3 border-l border-border">
+                <Button
+                  variant={openPostsOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setOpenPostsOnly(!openPostsOnly)}
+                >
+                  Open Posts Only
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -425,34 +450,56 @@ export default function MessagesList() {
 
         {/* Conversations List */}
         {(() => {
-          // Apply filter
-          const filteredConversations = conversations.filter((conv) => {
-            if (postFilter === "all") return true;
-            // "open" filter: only show conversations tied to open posts
-            if (postFilter === "open") {
-              // If not a seeking coverage conversation, hide it
-              if (conv.origin_type !== "seeking_coverage") return false;
-              // If no seeking_post data, hide it
+          // Apply filters in order: primary filter, then secondary filter
+          let filteredConversations = conversations;
+
+          // 1. Apply primary filter (All / Seeking Coverage / Direct)
+          if (filterMode === "seeking") {
+            // Only Seeking Coverage conversations
+            filteredConversations = filteredConversations.filter((conv) => 
+              conv.origin_type === "seeking_coverage" && conv.origin_post_id
+            );
+          } else if (filterMode === "direct") {
+            // Only Direct conversations (not tied to Seeking Coverage)
+            filteredConversations = filteredConversations.filter((conv) => 
+              conv.origin_type !== "seeking_coverage" || !conv.origin_post_id
+            );
+          }
+          // filterMode === "all" → no additional filtering
+
+          // 2. Apply secondary filter (Open Posts Only) - only affects Seeking Coverage
+          if (filterMode === "seeking" && openPostsOnly) {
+            filteredConversations = filteredConversations.filter((conv) => {
+              // Only show conversations whose posts are still open/active
               if (!conv.seeking_post) return false;
-              // Only show if post status is "active"
               return conv.seeking_post.status === "active";
-            }
-            return true;
-          });
+            });
+          }
 
           if (filteredConversations.length === 0) {
+            let emptyTitle = "No conversations yet";
+            let emptyMessage = "Your messages will appear here once you start a conversation.";
+
+            if (filterMode === "seeking") {
+              emptyTitle = openPostsOnly 
+                ? "No conversations with open posts" 
+                : "No Seeking Coverage conversations";
+              emptyMessage = openPostsOnly
+                ? "Turn off 'Open Posts Only' to see conversations for closed posts."
+                : "Conversations about Seeking Coverage work will appear here.";
+            } else if (filterMode === "direct") {
+              emptyTitle = "No direct conversations";
+              emptyMessage = "Direct conversations not tied to Seeking Coverage posts will appear here.";
+            }
+
             return (
               <Card className="p-12 text-center">
                 <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h2 className="text-xl font-semibold text-foreground mb-2">
-                  {postFilter === "open" 
-                    ? "No conversations with open posts" 
-                    : "No conversations yet"}
+                  {emptyTitle}
                 </h2>
                 <p className="text-muted-foreground">
-                  {postFilter === "open"
-                    ? "Switch to 'All' to see conversations for closed posts."
-                    : "Your messages will appear here once you start a conversation."}
+                  {emptyMessage}
                 </p>
               </Card>
             );
