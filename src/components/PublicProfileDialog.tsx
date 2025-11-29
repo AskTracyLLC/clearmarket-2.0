@@ -51,6 +51,11 @@ interface ProfileData {
     expiresOn: string | null;
     screenshotUrl: string | null;
   };
+  accessEquipment?: {
+    hasHudKeys: boolean | null;
+    hudKeysDetails: string | null;
+    equipmentNotes: string | null;
+  };
 }
 
 export function PublicProfileDialog({
@@ -139,6 +144,11 @@ export function PublicProfileDialog({
               id: repProfile.background_check_id,
               expiresOn: repProfile.background_check_expires_on,
               screenshotUrl: repProfile.background_check_screenshot_url,
+            },
+            accessEquipment: {
+              hasHudKeys: repProfile.has_hud_keys,
+              hudKeysDetails: repProfile.hud_keys_details,
+              equipmentNotes: repProfile.equipment_notes,
             },
           });
         } 
@@ -399,6 +409,34 @@ export function PublicProfileDialog({
                         <p className="text-sm text-muted-foreground">Not provided</p>
                       )}
                     </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Access & Equipment */}
+              {profileData.accessEquipment && 
+               (profileData.accessEquipment.hasHudKeys || profileData.accessEquipment.equipmentNotes) && (
+                <Card className="p-4 bg-card-elevated">
+                  <h3 className="font-semibold text-foreground mb-3">Access & Equipment</h3>
+                  <div className="space-y-2 text-sm">
+                    {profileData.accessEquipment.hasHudKeys && (
+                      <div>
+                        <p className="text-foreground font-medium">HUD Keys: Yes</p>
+                        {profileData.accessEquipment.hudKeysDetails && (
+                          <p className="text-muted-foreground">
+                            Details: {profileData.accessEquipment.hudKeysDetails}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {profileData.accessEquipment.equipmentNotes && (
+                      <div>
+                        <p className="text-foreground font-medium mb-1">Equipment</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap">
+                          {profileData.accessEquipment.equipmentNotes}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </Card>
               )}
