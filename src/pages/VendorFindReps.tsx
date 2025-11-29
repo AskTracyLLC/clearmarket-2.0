@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, MapPin, CheckCircle2, XCircle } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
+import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -38,6 +39,8 @@ interface SeekingCoveragePost {
   pay_type: string;
   pay_min: number | null;
   pay_max: number | null;
+  requires_background_check: boolean;
+  requires_aspen_grove: boolean;
 }
 
 interface RepCoverageArea {
@@ -107,7 +110,7 @@ export default function VendorFindReps() {
         // Load vendor's seeking coverage posts for pricing context
         const { data: posts } = await supabase
           .from("seeking_coverage_posts")
-          .select("id, title, state_code, county_id, covers_entire_state, pay_type, pay_min, pay_max")
+          .select("id, title, state_code, county_id, covers_entire_state, pay_type, pay_min, pay_max, requires_background_check, requires_aspen_grove")
           .eq("vendor_id", user.id)
           .eq("status", "active")
           .is("deleted_at", null)
@@ -143,7 +146,7 @@ export default function VendorFindReps() {
 
       let query = supabase
         .from("rep_profile")
-        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors");
+        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on");
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -159,7 +162,7 @@ export default function VendorFindReps() {
 
       if (error) throw error;
 
-      // For each rep, load their coverage areas with pricing
+      // For each rep, load their coverage areas with pricing and background check info
       const repsWithCoverage = await Promise.all(
         (data || []).map(async (rep) => {
           const { data: coverageData } = await supabase
@@ -221,6 +224,21 @@ export default function VendorFindReps() {
           : post.pay_min;
 
         filtered = filtered.filter((rep) => {
+          // Background check requirement check
+          if (post.requires_background_check) {
+            if (!isBackgroundCheckActive({
+              background_check_is_active: rep.background_check_is_active,
+              background_check_expires_on: rep.background_check_expires_on,
+            })) {
+              return false; // Rep doesn't have an active background check
+            }
+
+            // AspenGrove-specific requirement
+            if (post.requires_aspen_grove && rep.background_check_provider !== "aspen_grove") {
+              return false; // Rep doesn't have AspenGrove background check
+            }
+          }
+
           // Rep must have at least one coverage area matching the post's location with valid base_price
           return rep.coverageAreas.some((coverage: RepCoverageArea) => {
             // Check if coverage area matches post location

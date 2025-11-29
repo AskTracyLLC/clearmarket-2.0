@@ -531,6 +531,12 @@ export type Database = {
       rep_profile: {
         Row: {
           anonymous_id: string | null
+          background_check_expires_on: string | null
+          background_check_id: string | null
+          background_check_is_active: boolean | null
+          background_check_provider: string | null
+          background_check_provider_other_name: string | null
+          background_check_screenshot_url: string | null
           bio: string | null
           business_name: string | null
           certifications: string[] | null
@@ -549,6 +555,12 @@ export type Database = {
         }
         Insert: {
           anonymous_id?: string | null
+          background_check_expires_on?: string | null
+          background_check_id?: string | null
+          background_check_is_active?: boolean | null
+          background_check_provider?: string | null
+          background_check_provider_other_name?: string | null
+          background_check_screenshot_url?: string | null
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
@@ -567,6 +579,12 @@ export type Database = {
         }
         Update: {
           anonymous_id?: string | null
+          background_check_expires_on?: string | null
+          background_check_id?: string | null
+          background_check_is_active?: boolean | null
+          background_check_provider?: string | null
+          background_check_provider_other_name?: string | null
+          background_check_screenshot_url?: string | null
           bio?: string | null
           business_name?: string | null
           certifications?: string[] | null
@@ -612,6 +630,8 @@ export type Database = {
           pay_min: number | null
           pay_notes: string | null
           pay_type: string | null
+          requires_aspen_grove: boolean | null
+          requires_background_check: boolean | null
           state_code: string | null
           status: string
           systems_required: string[] | null
@@ -638,6 +658,8 @@ export type Database = {
           pay_min?: number | null
           pay_notes?: string | null
           pay_type?: string | null
+          requires_aspen_grove?: boolean | null
+          requires_background_check?: boolean | null
           state_code?: string | null
           status?: string
           systems_required?: string[] | null
@@ -664,6 +686,8 @@ export type Database = {
           pay_min?: number | null
           pay_notes?: string | null
           pay_type?: string | null
+          requires_aspen_grove?: boolean | null
+          requires_background_check?: boolean | null
           state_code?: string | null
           status?: string
           systems_required?: string[] | null

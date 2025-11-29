@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2, Upload, ExternalLink, ShieldCheck } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,6 +33,38 @@ const repProfileSchema = z.object({
   inspection_types_other: z.string().trim().max(100).optional().nullable(),
   is_accepting_new_vendors: z.boolean(),
   willing_to_travel_out_of_state: z.boolean(),
+  // Background Check fields
+  background_check_is_active: z.boolean(),
+  background_check_provider: z.enum(["aspen_grove", "other"]).nullable(),
+  background_check_provider_other_name: z.string().trim().max(100).optional().nullable(),
+  background_check_id: z.string().trim().max(100).optional().nullable(),
+  background_check_expires_on: z.string().optional().nullable(),
+  background_check_screenshot_url: z.string().optional().nullable(),
+}).refine((data) => {
+  if (!data.background_check_is_active) return true;
+  
+  // If active, require provider
+  if (!data.background_check_provider) return false;
+  
+  // If active, require screenshot
+  if (!data.background_check_screenshot_url) return false;
+  
+  // Provider-specific validations
+  if (data.background_check_provider === "aspen_grove") {
+    // AspenGrove requires ID
+    if (!data.background_check_id) return false;
+  }
+  
+  if (data.background_check_provider === "other") {
+    // Other requires provider name and expiration
+    if (!data.background_check_provider_other_name) return false;
+    if (!data.background_check_expires_on) return false;
+  }
+  
+  return true;
+}, {
+  message: "Please complete all required background check fields",
+  path: ["background_check_is_active"],
 });
 
 type RepProfileForm = z.infer<typeof repProfileSchema>;
@@ -48,6 +80,7 @@ const RepProfile = () => {
   const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
 
   const {
     register,
@@ -62,6 +95,12 @@ const RepProfile = () => {
       inspection_types: [],
       is_accepting_new_vendors: true,
       willing_to_travel_out_of_state: false,
+      background_check_is_active: false,
+      background_check_provider: null,
+      background_check_provider_other_name: null,
+      background_check_id: null,
+      background_check_expires_on: null,
+      background_check_screenshot_url: null,
     },
   });
 
@@ -69,6 +108,9 @@ const RepProfile = () => {
   const systemsUsed = watch("systems_used") || [];
   const inspectionTypes = watch("inspection_types") || [];
   const bioText = watch("bio") || "";
+  const backgroundCheckActive = watch("background_check_is_active");
+  const backgroundCheckProvider = watch("background_check_provider");
+  const backgroundCheckScreenshot = watch("background_check_screenshot_url");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -157,6 +199,14 @@ const RepProfile = () => {
         setValue("inspection_types_other", inspectionTypesOtherText);
         setValue("is_accepting_new_vendors", repData.is_accepting_new_vendors ?? true);
         setValue("willing_to_travel_out_of_state", repData.willing_to_travel_out_of_state ?? false);
+        
+        // Background check fields
+        setValue("background_check_is_active", repData.background_check_is_active ?? false);
+        setValue("background_check_provider", (repData.background_check_provider as "aspen_grove" | "other") || null);
+        setValue("background_check_provider_other_name", repData.background_check_provider_other_name || null);
+        setValue("background_check_id", repData.background_check_id || null);
+        setValue("background_check_expires_on", repData.background_check_expires_on || null);
+        setValue("background_check_screenshot_url", repData.background_check_screenshot_url || null);
       } else {
         // Create new rep profile
         const { data: newRepProfile, error: createError } = await supabase
@@ -223,6 +273,12 @@ const RepProfile = () => {
       inspection_types: inspectionTypes,
       is_accepting_new_vendors: data.is_accepting_new_vendors,
       willing_to_travel_out_of_state: data.willing_to_travel_out_of_state,
+      background_check_is_active: data.background_check_is_active,
+      background_check_provider: data.background_check_is_active ? data.background_check_provider : null,
+      background_check_provider_other_name: data.background_check_is_active ? (data.background_check_provider_other_name || null) : null,
+      background_check_id: data.background_check_is_active ? (data.background_check_id || null) : null,
+      background_check_expires_on: data.background_check_is_active ? (data.background_check_expires_on || null) : null,
+      background_check_screenshot_url: data.background_check_is_active ? (data.background_check_screenshot_url || null) : null,
     };
 
     const { error } = await supabase
@@ -531,6 +587,251 @@ const RepProfile = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Section D2: Background Check (Optional) */}
+            <div className="space-y-4 pb-6 border-b border-border">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" />
+                  Background Check (Optional but Recommended)
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Some vendors require a background check to work with them. You can still use ClearMarket without one, 
+                  but you may be excluded from those opportunities.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="background_check_is_active" className="text-foreground font-normal">
+                    I have an active background check
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {!backgroundCheckActive 
+                      ? "Some Seeking Coverage posts may require a background check. Adding yours here can unlock more opportunities."
+                      : "Fill in the details below to complete your background check profile."
+                    }
+                  </p>
+                </div>
+                <Switch
+                  id="background_check_is_active"
+                  checked={backgroundCheckActive}
+                  onCheckedChange={(checked) => setValue("background_check_is_active", checked)}
+                />
+              </div>
+
+              {backgroundCheckActive && (
+                <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                  {/* Provider Selection */}
+                  <div>
+                    <Label htmlFor="background_check_provider">
+                      Background Check Provider <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={backgroundCheckProvider || ""}
+                      onValueChange={(value) => setValue("background_check_provider", value as "aspen_grove" | "other")}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        <SelectItem value="aspen_grove">AspenGrove (ABC# / Shield ID)</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.background_check_provider && (
+                      <p className="text-sm text-destructive mt-1">{errors.background_check_provider.message}</p>
+                    )}
+                  </div>
+
+                  {/* AspenGrove fields */}
+                  {backgroundCheckProvider === "aspen_grove" && (
+                    <>
+                      <div>
+                        <Label htmlFor="background_check_id">
+                          AspenGrove / Shield ID (ABC#) <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="background_check_id"
+                          {...register("background_check_id")}
+                          placeholder="e.g., ABC12345"
+                          className="mt-2"
+                        />
+                        {errors.background_check_id && (
+                          <p className="text-sm text-destructive mt-1">{errors.background_check_id.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="background_check_expires_on">
+                          Expiration Date <span className="text-muted-foreground">(optional)</span>
+                        </Label>
+                        <Input
+                          id="background_check_expires_on"
+                          type="date"
+                          {...register("background_check_expires_on")}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          If provided and in the past, your check will be marked as expired.
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Other provider fields */}
+                  {backgroundCheckProvider === "other" && (
+                    <>
+                      <div>
+                        <Label htmlFor="background_check_provider_other_name">
+                          Background Check Provider Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="background_check_provider_other_name"
+                          {...register("background_check_provider_other_name")}
+                          placeholder="e.g., Sterling, Checkr"
+                          className="mt-2"
+                        />
+                        {errors.background_check_provider_other_name && (
+                          <p className="text-sm text-destructive mt-1">{errors.background_check_provider_other_name.message}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="background_check_id">
+                          Background Check Reference / ID <span className="text-muted-foreground">(optional)</span>
+                        </Label>
+                        <Input
+                          id="background_check_id"
+                          {...register("background_check_id")}
+                          placeholder="e.g., REF-12345"
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="background_check_expires_on">
+                          Expiration Date <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="background_check_expires_on"
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          {...register("background_check_expires_on")}
+                          className="mt-2"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Must be today or a future date.
+                        </p>
+                        {errors.background_check_expires_on && (
+                          <p className="text-sm text-destructive mt-1">{errors.background_check_expires_on.message}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Screenshot Upload */}
+                  {backgroundCheckProvider && (
+                    <div>
+                      <Label>
+                        Upload Screenshot of Background Check <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1 mb-2">
+                        Upload a screenshot showing your valid, passed background check.
+                      </p>
+                      
+                      {backgroundCheckScreenshot ? (
+                        <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                          <ShieldCheck className="h-5 w-5 text-green-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">Screenshot uploaded</p>
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-primary"
+                              onClick={() => window.open(backgroundCheckScreenshot, '_blank')}
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              View Screenshot
+                            </Button>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setValue("background_check_screenshot_url", null)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ) : (
+                        <div>
+                          <Input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            disabled={uploadingScreenshot}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+
+                              // Validate file size (max 5MB)
+                              if (file.size > 5 * 1024 * 1024) {
+                                toast({
+                                  title: "File too large",
+                                  description: "Please upload an image smaller than 5MB.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
+                              setUploadingScreenshot(true);
+                              try {
+                                // Upload to Supabase Storage
+                                const fileExt = file.name.split('.').pop();
+                                const fileName = `${user!.id}/${Date.now()}.${fileExt}`;
+                                
+                                const { data, error } = await supabase.storage
+                                  .from('background-checks')
+                                  .upload(fileName, file);
+
+                                if (error) throw error;
+
+                                // Get public URL
+                                const { data: { publicUrl } } = supabase.storage
+                                  .from('background-checks')
+                                  .getPublicUrl(data.path);
+
+                                setValue("background_check_screenshot_url", publicUrl);
+                                toast({
+                                  title: "Screenshot Uploaded",
+                                  description: "Your background check screenshot has been uploaded successfully.",
+                                });
+                              } catch (error: any) {
+                                console.error("Upload error:", error);
+                                toast({
+                                  title: "Upload Failed",
+                                  description: "Failed to upload screenshot. Please try again.",
+                                  variant: "destructive",
+                                });
+                              } finally {
+                                setUploadingScreenshot(false);
+                              }
+                            }}
+                          />
+                          {uploadingScreenshot && (
+                            <p className="text-sm text-muted-foreground mt-2">Uploading...</p>
+                          )}
+                        </div>
+                      )}
+                      {errors.background_check_screenshot_url && (
+                        <p className="text-sm text-destructive mt-1">{errors.background_check_screenshot_url.message}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Section E: Coverage & Pricing (MVP) */}

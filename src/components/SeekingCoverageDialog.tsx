@@ -45,6 +45,8 @@ const seekingCoverageSchema = z.object({
   pay_min: z.string().min(1, "Minimum pay is required"),
   pay_max: z.string().optional(),
   pay_notes: z.string().optional(),
+  requires_background_check: z.boolean(),
+  requires_aspen_grove: z.boolean(),
 }).refine(
   (data) => {
     const min = parseFloat(data.pay_min);
@@ -121,6 +123,8 @@ export const SeekingCoverageDialog = ({
       pay_min: "",
       pay_max: "",
       pay_notes: "",
+      requires_background_check: false,
+      requires_aspen_grove: false,
     },
   });
 
@@ -129,6 +133,7 @@ export const SeekingCoverageDialog = ({
   const inspectionTypes = watch("inspection_types") || [];
   const systemsRequired = watch("systems_required_array") || [];
   const payType = watch("pay_type");
+  const requiresBackgroundCheck = watch("requires_background_check");
 
   // Load counties when state changes
   useEffect(() => {
@@ -185,6 +190,8 @@ export const SeekingCoverageDialog = ({
         pay_min: editingPost.pay_min ? String(editingPost.pay_min) : "",
         pay_max: editingPost.pay_max ? String(editingPost.pay_max) : "",
         pay_notes: editingPost.pay_notes || "",
+        requires_background_check: editingPost.requires_background_check || false,
+        requires_aspen_grove: editingPost.requires_aspen_grove || false,
       });
     } else if (!editingPost && open) {
       reset({
@@ -203,6 +210,8 @@ export const SeekingCoverageDialog = ({
         pay_min: "",
         pay_max: "",
         pay_notes: "",
+        requires_background_check: false,
+        requires_aspen_grove: false,
       });
     }
   }, [editingPost, open, reset]);
@@ -261,6 +270,8 @@ export const SeekingCoverageDialog = ({
       pay_min: parseFloat(data.pay_min),
       pay_max: data.pay_type === "range" && data.pay_max ? parseFloat(data.pay_max) : null,
       pay_notes: data.pay_notes || null,
+      requires_background_check: data.requires_background_check,
+      requires_aspen_grove: data.requires_background_check ? data.requires_aspen_grove : false,
     };
 
     if (editingPost) {
@@ -593,6 +604,51 @@ export const SeekingCoverageDialog = ({
                 className="mt-2"
               />
             </div>
+          </div>
+
+          {/* Background Check Requirements */}
+          <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+            <div>
+              <Label className="text-base font-semibold">Background Check Requirements (Optional)</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Only reps with a valid, active background check will see this post if you require it.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="requires_background_check"
+                checked={requiresBackgroundCheck}
+                onCheckedChange={(checked) => {
+                  setValue("requires_background_check", checked as boolean);
+                  if (!checked) {
+                    setValue("requires_aspen_grove", false);
+                  }
+                }}
+              />
+              <Label htmlFor="requires_background_check" className="cursor-pointer font-normal">
+                Require active background check for this coverage
+              </Label>
+            </div>
+
+            {requiresBackgroundCheck && (
+              <div className="ml-6 flex items-center gap-3">
+                <Checkbox
+                  id="requires_aspen_grove"
+                  checked={watch("requires_aspen_grove")}
+                  onCheckedChange={(checked) => setValue("requires_aspen_grove", checked as boolean)}
+                />
+                <Label htmlFor="requires_aspen_grove" className="cursor-pointer font-normal">
+                  Require AspenGrove / Shield ID specifically
+                </Label>
+              </div>
+            )}
+
+            {requiresBackgroundCheck && (
+              <p className="text-xs text-muted-foreground">
+                Only reps with an active background check that meets this requirement will be able to see or respond to this post.
+              </p>
+            )}
           </div>
 
           {/* Accepting Responses */}

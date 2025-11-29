@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "sonner";
 import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2 } from "lucide-react";
 import { US_STATES } from "@/lib/constants";
+import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -47,6 +48,8 @@ interface SeekingCoveragePost {
   pay_min: number | null;
   pay_max: number | null;
   pay_notes: string | null;
+  requires_background_check: boolean;
+  requires_aspen_grove: boolean;
 }
 
 interface VendorInfo {
@@ -274,6 +277,21 @@ export default function RepFindWork() {
           county: post.us_counties,
         }))
         .filter((post: MatchedPost) => {
+          // 0. Background check requirement check
+          if (post.requires_background_check) {
+            if (!isBackgroundCheckActive({
+              background_check_is_active: repProfile.background_check_is_active,
+              background_check_expires_on: repProfile.background_check_expires_on,
+            })) {
+              return false; // Rep doesn't have an active background check
+            }
+
+            // AspenGrove-specific requirement
+            if (post.requires_aspen_grove && repProfile.background_check_provider !== "aspen_grove") {
+              return false; // Rep doesn't have AspenGrove background check
+            }
+          }
+
           // 1. Coverage match with pricing check
           const matchingCoverage = coverageAreas.find((coverage) => {
             if (coverage.state_code !== post.state_code) return false;
