@@ -413,7 +413,10 @@ export default function MessageThread() {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "connected" })
+        .update({ 
+          status: "connected",
+          connected_at: new Date().toISOString()
+        })
         .eq("id", repInterest.id);
 
       if (error) throw error;
@@ -443,7 +446,10 @@ export default function MessageThread() {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "declined" })
+        .update({ 
+          status: "declined",
+          connected_at: null
+        })
         .eq("id", repInterest.id);
 
       if (error) throw error;
@@ -473,7 +479,10 @@ export default function MessageThread() {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "disconnected" })
+        .update({ 
+          status: "disconnected",
+          connected_at: null
+        })
         .eq("id", repInterest.id);
 
       if (error) throw error;

@@ -39,6 +39,7 @@ interface ConnectedRep {
     interestId: string;
   }>;
   conversationId?: string;
+  connectedAt?: string | null;
   notes?: Array<{
     id: string;
     note: string;
@@ -126,6 +127,7 @@ const VendorMyReps = () => {
           id,
           status,
           created_at,
+          connected_at,
           post_id,
           rep_profile:rep_id (
             id,
@@ -187,6 +189,7 @@ const VendorMyReps = () => {
             inspectionTypes: repProfile.inspection_types || [],
             isAcceptingNewVendors: repProfile.is_accepting_new_vendors ?? true,
             willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state ?? false,
+            connectedAt: interest.connected_at ?? interest.created_at,
             connectedPosts: [],
           });
         }
@@ -370,7 +373,10 @@ const VendorMyReps = () => {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "disconnected" })
+        .update({ 
+          status: "disconnected",
+          connected_at: null
+        })
         .eq("id", disconnectingInterestId);
 
       if (error) throw error;
@@ -487,6 +493,11 @@ const VendorMyReps = () => {
                       {(rep.city || rep.state) && (
                         <p className="text-sm text-muted-foreground">
                           {rep.city && rep.state ? `${rep.city}, ${rep.state}` : rep.city || rep.state}
+                        </p>
+                      )}
+                      {rep.connectedAt && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Connected since {new Date(rep.connectedAt).toLocaleDateString()}
                         </p>
                       )}
                     </div>

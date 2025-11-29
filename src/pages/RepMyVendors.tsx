@@ -39,6 +39,7 @@ interface ConnectedVendor {
     interestId: string;
   }>;
   conversationId?: string;
+  connectedAt?: string | null;
   notes?: Array<{
     id: string;
     note: string;
@@ -240,6 +241,7 @@ const RepMyVendors = () => {
           id,
           status,
           created_at,
+          connected_at,
           seeking_coverage_posts:post_id (
             id,
             title,
@@ -286,6 +288,7 @@ const RepMyVendors = () => {
             systemsUsed: [],
             inspectionTypes: [],
             isAcceptingNewReps: true,
+            connectedAt: interest.connected_at ?? interest.created_at,
             connectedPosts: [],
           });
         }
@@ -521,7 +524,10 @@ const RepMyVendors = () => {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "disconnected" })
+        .update({ 
+          status: "disconnected",
+          connected_at: null
+        })
         .eq("id", disconnectingInterestId);
 
       if (error) throw error;
@@ -574,7 +580,10 @@ const RepMyVendors = () => {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "connected" })
+        .update({ 
+          status: "connected",
+          connected_at: new Date().toISOString()
+        })
         .eq("id", interestId);
 
       if (error) throw error;
@@ -606,7 +615,10 @@ const RepMyVendors = () => {
     try {
       const { error } = await supabase
         .from("rep_interest")
-        .update({ status: "declined" })
+        .update({ 
+          status: "declined",
+          connected_at: null
+        })
         .eq("id", interestId);
 
       if (error) throw error;
@@ -762,6 +774,11 @@ const RepMyVendors = () => {
                       {(vendor.city || vendor.state) && (
                         <p className="text-sm text-muted-foreground">
                           {vendor.city && vendor.state ? `${vendor.city}, ${vendor.state}` : vendor.city || vendor.state}
+                        </p>
+                      )}
+                      {vendor.connectedAt && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Connected since {new Date(vendor.connectedAt).toLocaleDateString()}
                         </p>
                       )}
                     </div>
