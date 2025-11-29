@@ -263,7 +263,110 @@ const VendorSeekingCoverage = () => {
       description: "Your seeking coverage request has been closed.",
     });
 
+    // Send auto-messages to interested reps with conversations
+    await sendPostClosedMessages(postId);
+
     loadPosts();
+  };
+
+  const sendPostClosedMessages = async (postId: string) => {
+    if (!user) return;
+
+    try {
+      // Get the post details for template
+      const { data: post } = await supabase
+        .from("seeking_coverage_posts")
+        .select("title")
+        .eq("id", postId)
+        .maybeSingle();
+
+      if (!post) return;
+
+      // Find all interested reps for this post
+      const { data: interests } = await supabase
+        .from("rep_interest")
+        .select("rep_id")
+        .eq("post_id", postId)
+        .neq("status", "declined");
+
+      if (!interests || interests.length === 0) return;
+
+      // Get rep profile user IDs
+      const repProfileIds = interests.map(i => i.rep_id);
+      const { data: repProfiles } = await supabase
+        .from("rep_profile")
+        .select("user_id, anonymous_id")
+        .in("id", repProfileIds);
+
+      if (!repProfiles || repProfiles.length === 0) return;
+
+      // Find conversations with these reps for this specific post
+      const { data: conversations } = await supabase
+        .from("conversations")
+        .select("id, participant_one, participant_two")
+        .eq("origin_post_id", postId)
+        .or(
+          repProfiles.map(rp => 
+            `participant_one.eq.${rp.user_id},participant_two.eq.${rp.user_id}`
+          ).join(",")
+        );
+
+      if (!conversations || conversations.length === 0) return;
+
+      // Load vendor's custom template or use default
+      const { data: customTemplates } = await supabase
+        .from("vendor_message_templates")
+        .select("body")
+        .eq("user_id", user.id)
+        .eq("name", "Post Closed – Coverage Established")
+        .eq("scope", "seeking_coverage")
+        .maybeSingle();
+
+      const defaultTemplate = `Hi {{REP_ANON}},
+
+Coverage has now been established for {{POST_TITLE}}. We won't be assigning additional work from this request at this time, but please keep an eye on ClearMarket for future opportunities in your coverage areas.
+
+Thank you again for your interest!`;
+
+      const templateBody = customTemplates?.body || defaultTemplate;
+
+      // Build a map of rep user ID to anonymous ID
+      const repAnonMap = new Map(repProfiles.map(rp => [rp.user_id, rp.anonymous_id]));
+
+      // Send messages to each conversation
+      for (const conv of conversations) {
+        const repUserId = conv.participant_one === user.id ? conv.participant_two : conv.participant_one;
+        const repAnon = repAnonMap.get(repUserId);
+
+        // Render template with placeholders
+        const messageBody = templateBody
+          .replace(/{{REP_ANON}}/g, repAnon || "")
+          .replace(/{{POST_TITLE}}/g, post.title || "");
+
+        // Insert the message
+        await supabase
+          .from("messages")
+          .insert({
+            conversation_id: conv.id,
+            sender_id: user.id,
+            recipient_id: repUserId,
+            body: messageBody,
+            read: false,
+          });
+
+        // Update conversation metadata
+        await supabase
+          .from("conversations")
+          .update({
+            last_message_at: new Date().toISOString(),
+            last_message_preview: messageBody.substring(0, 100),
+          })
+          .eq("id", conv.id);
+      }
+    } catch (error) {
+      console.error("Error sending post closed messages:", error);
+      // Don't show error to user - this is a background operation
+    }
   };
 
   const handleReopen = async (postId: string) => {

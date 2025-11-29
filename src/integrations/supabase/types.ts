@@ -196,6 +196,7 @@ export type Database = {
           origin_type: string | null
           participant_one: string
           participant_two: string
+          post_title_snapshot: string | null
           rep_interest_id: string | null
           updated_at: string
         }
@@ -210,6 +211,7 @@ export type Database = {
           origin_type?: string | null
           participant_one: string
           participant_two: string
+          post_title_snapshot?: string | null
           rep_interest_id?: string | null
           updated_at?: string
         }
@@ -224,6 +226,7 @@ export type Database = {
           origin_type?: string | null
           participant_one?: string
           participant_two?: string
+          post_title_snapshot?: string | null
           rep_interest_id?: string | null
           updated_at?: string
         }

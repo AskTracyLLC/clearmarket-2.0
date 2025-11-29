@@ -55,6 +55,17 @@ export async function getOrCreateConversation(
       payload.origin_type = "seeking_coverage";
       payload.origin_post_id = origin.postId;
 
+      // Fetch the Seeking Coverage post to snapshot its title
+      const { data: post } = await supabase
+        .from("seeking_coverage_posts")
+        .select("title")
+        .eq("id", origin.postId)
+        .maybeSingle();
+
+      if (post?.title) {
+        payload.post_title_snapshot = post.title;
+      }
+
       // Find the rep_interest row for this conversation
       // Determine which participant is the rep by getting their rep_profile.id
       const { data: profiles } = await supabase

@@ -20,6 +20,7 @@ interface ConversationWithParticipant {
   participant_two: string;
   origin_type: string | null;
   origin_post_id: string | null;
+  post_title_snapshot: string | null;
   seeking_post?: {
     id: string;
     title: string;
@@ -237,6 +238,7 @@ export default function MessagesList() {
           last_message_preview,
           origin_type,
           origin_post_id,
+          post_title_snapshot,
           seeking_post:origin_post_id (
             id,
             title,
@@ -370,9 +372,9 @@ export default function MessagesList() {
         ) : (
           <div className="space-y-3">
             {conversations.map((conv) => {
-              const isSeekingCoverage = conv.origin_type === "seeking_coverage" && conv.seeking_post;
+              const isSeekingCoverage = conv.origin_type === "seeking_coverage";
               const mainTitle = isSeekingCoverage
-                ? (conv.seeking_post.title || "Seeking Coverage Conversation")
+                ? (conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation")
                 : conv.otherParticipantName;
               const subtitle = isSeekingCoverage ? `with ${conv.otherParticipantName}` : undefined;
 

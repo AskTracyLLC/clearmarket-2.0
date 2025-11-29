@@ -120,5 +120,14 @@ Thank you again for your interest in {{POST_TITLE}} in {{POST_COUNTY}}, {{POST_S
 Based on the rate and current client expectations, I don't think this specific opportunity is the best fit right now. However, I've noted your interest and coverage in {{REP_STATE}} and will keep you in mind for future work that better matches your minimums and preferences.
 
 I appreciate your time and hope we can work together on a better-aligned opportunity soon.`
+  },
+  {
+    name: "Post Closed – Coverage Established",
+    scope: "seeking_coverage",
+    body: `Hi {{REP_ANON}},
+
+Coverage has now been established for {{POST_TITLE}}. We won't be assigning additional work from this request at this time, but please keep an eye on ClearMarket for future opportunities in your coverage areas.
+
+Thank you again for your interest!`
   }
 ];

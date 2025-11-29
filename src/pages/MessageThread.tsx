@@ -127,6 +127,7 @@ export default function MessageThread() {
           origin_type,
           origin_post_id,
           rep_interest_id,
+          post_title_snapshot,
           seeking_post:origin_post_id (
             id,
             title,
@@ -546,9 +547,9 @@ export default function MessageThread() {
           </Button>
           <div>
             {(() => {
-              const isSeekingCoverage = conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post;
+              const isSeekingCoverage = conversationData?.origin_type === "seeking_coverage";
               const headerTitle = isSeekingCoverage
-                ? (conversationData.seeking_post.title || "Seeking Coverage Conversation")
+                ? (conversationData.post_title_snapshot || conversationData.seeking_post?.title || "Seeking Coverage Conversation")
                 : `Conversation with ${otherParticipantName}`;
               const headerSubtitle = isSeekingCoverage
                 ? `Conversation with ${otherParticipantName}`
