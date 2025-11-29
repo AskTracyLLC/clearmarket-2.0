@@ -7,13 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { US_STATES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VendorCoverageArea {
@@ -236,34 +236,42 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
+                    className="w-full justify-between bg-background"
                     disabled={!stateCode}
                   >
-                    {stateCode ? "Search counties..." : "Select a state first"}
+                    <span className="text-sm">
+                      {excludedCountyIds.length > 0 
+                        ? `${excludedCountyIds.length} counties excluded` 
+                        : stateCode ? "Select counties to exclude..." : "Select a state first"
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search county..." />
-                    <CommandEmpty>No county found.</CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
+                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
+                  <div className="p-2 border-b border-border bg-muted/50">
+                    <p className="text-xs font-medium text-muted-foreground px-2">
+                      Select counties to exclude ({counties.length} total)
+                    </p>
+                  </div>
+                  <ScrollArea className="h-64 bg-popover">
+                    <div className="p-2 space-y-1">
                       {counties.map((county) => (
-                        <CommandItem
+                        <div
                           key={county.id}
-                          onSelect={() => toggleCountySelection(county.id, "exclude")}
+                          className="flex items-center space-x-2 p-2 rounded-sm hover:bg-accent cursor-pointer"
+                          onClick={() => toggleCountySelection(county.id, "exclude")}
                         >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              excludedCountyIds.includes(county.id) ? "opacity-100" : "opacity-0"
-                            )}
+                          <Checkbox
+                            checked={excludedCountyIds.includes(county.id)}
+                            onCheckedChange={() => toggleCountySelection(county.id, "exclude")}
+                            onClick={(e) => e.stopPropagation()}
                           />
-                          {county.county_name}
-                        </CommandItem>
+                          <span className="text-sm">{county.county_name}</span>
+                        </div>
                       ))}
-                    </CommandGroup>
-                  </Command>
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
               {excludedCountyIds.length > 0 && (
@@ -296,34 +304,42 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
+                    className="w-full justify-between bg-background"
                     disabled={!stateCode}
                   >
-                    {stateCode ? "Search counties..." : "Select a state first"}
+                    <span className="text-sm">
+                      {includedCountyIds.length > 0 
+                        ? `${includedCountyIds.length} counties selected` 
+                        : stateCode ? "Select counties to include..." : "Select a state first"
+                      }
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search county..." />
-                    <CommandEmpty>No county found.</CommandEmpty>
-                    <CommandGroup className="max-h-64 overflow-auto">
+                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
+                  <div className="p-2 border-b border-border bg-muted/50">
+                    <p className="text-xs font-medium text-muted-foreground px-2">
+                      Select counties to include ({counties.length} total)
+                    </p>
+                  </div>
+                  <ScrollArea className="h-64 bg-popover">
+                    <div className="p-2 space-y-1">
                       {counties.map((county) => (
-                        <CommandItem
+                        <div
                           key={county.id}
-                          onSelect={() => toggleCountySelection(county.id, "include")}
+                          className="flex items-center space-x-2 p-2 rounded-sm hover:bg-accent cursor-pointer"
+                          onClick={() => toggleCountySelection(county.id, "include")}
                         >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              includedCountyIds.includes(county.id) ? "opacity-100" : "opacity-0"
-                            )}
+                          <Checkbox
+                            checked={includedCountyIds.includes(county.id)}
+                            onCheckedChange={() => toggleCountySelection(county.id, "include")}
+                            onClick={(e) => e.stopPropagation()}
                           />
-                          {county.county_name}
-                        </CommandItem>
+                          <span className="text-sm">{county.county_name}</span>
+                        </div>
                       ))}
-                    </CommandGroup>
-                  </Command>
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
               {includedCountyIds.length > 0 && (
