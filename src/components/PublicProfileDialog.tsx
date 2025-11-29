@@ -9,7 +9,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
+import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -41,6 +43,14 @@ interface ProfileData {
     basePrice: number | null;
     rushPrice: number | null;
   }>;
+  backgroundCheck?: {
+    isActive: boolean;
+    provider: string | null;
+    providerOtherName: string | null;
+    id: string | null;
+    expiresOn: string | null;
+    screenshotUrl: string | null;
+  };
 }
 
 export function PublicProfileDialog({
@@ -122,6 +132,14 @@ export function PublicProfileDialog({
               basePrice: area.base_price,
               rushPrice: area.rush_price,
             })),
+            backgroundCheck: {
+              isActive: repProfile.background_check_is_active || false,
+              provider: repProfile.background_check_provider,
+              providerOtherName: repProfile.background_check_provider_other_name,
+              id: repProfile.background_check_id,
+              expiresOn: repProfile.background_check_expires_on,
+              screenshotUrl: repProfile.background_check_screenshot_url,
+            },
           });
         } 
         // Otherwise use vendor profile
@@ -309,6 +327,78 @@ export function PublicProfileDialog({
                         )}
                       </div>
                     ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Background Check */}
+              {profileData.backgroundCheck && (
+                <Card className="p-4 bg-card-elevated">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground mb-2">Background Check</h3>
+                          
+                          {isBackgroundCheckActive({
+                            background_check_is_active: profileData.backgroundCheck.isActive,
+                            background_check_expires_on: profileData.backgroundCheck.expiresOn,
+                          }) ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <span className="text-sm font-medium text-foreground">Active</span>
+                          </div>
+                          
+                          <div className="text-sm text-muted-foreground">
+                            <p>
+                              <span className="font-medium">Provider:</span>{" "}
+                              {profileData.backgroundCheck.provider === "aspen_grove" 
+                                ? "AspenGrove / Shield ID" 
+                                : profileData.backgroundCheck.providerOtherName || "Other"}
+                            </p>
+                            
+                            {profileData.backgroundCheck.id && (
+                              <p>
+                                <span className="font-medium">ID:</span>{" "}
+                                {profileData.backgroundCheck.provider === "aspen_grove" 
+                                  ? `ABC# ending in ${profileData.backgroundCheck.id.slice(-4)}`
+                                  : maskBackgroundCheckId(profileData.backgroundCheck.id)}
+                              </p>
+                            )}
+                            
+                            {profileData.backgroundCheck.expiresOn && (
+                              <p>
+                                <span className="font-medium">Expires:</span>{" "}
+                                {new Date(profileData.backgroundCheck.expiresOn).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {profileData.backgroundCheck.screenshotUrl && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-primary"
+                              onClick={() => window.open(profileData.backgroundCheck!.screenshotUrl!, '_blank')}
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              View Screenshot
+                            </Button>
+                          )}
+                        </div>
+                      ) : profileData.backgroundCheck.isActive ? (
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm text-muted-foreground">
+                            Expired (Last provider: {profileData.backgroundCheck.provider === "aspen_grove" 
+                              ? "AspenGrove / Shield ID" 
+                              : profileData.backgroundCheck.providerOtherName || "Other"})
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Not provided</p>
+                      )}
+                    </div>
                   </div>
                 </Card>
               )}
