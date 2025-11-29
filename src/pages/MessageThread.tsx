@@ -55,6 +55,7 @@ export default function MessageThread() {
   const [connectingStatus, setConnectingStatus] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
   const [pendingDisconnectData, setPendingDisconnectData] = useState<{
     repInterestId: string;
@@ -324,11 +325,53 @@ export default function MessageThread() {
       .eq("read", false);
   }
 
+  async function handleArchiveConversation() {
+    if (!user || !conversationData) return;
+
+    const isParticipantOne = conversationData.participant_one === user.id;
+    
+    setArchiving(true);
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .update(
+          isParticipantOne ? { hidden_for_one: true } : { hidden_for_two: true }
+        )
+        .eq("id", conversationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Conversation archived",
+        description: "The conversation has been hidden from your inbox.",
+      });
+
+      navigate("/messages");
+    } catch (error) {
+      console.error("Error archiving conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive conversation.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
+    }
+  }
+
   async function handleSendMessage() {
     if (!messageText.trim() || !user || !conversationId || !otherParticipantId) return;
 
     setSending(true);
     try {
+      // First, unarchive conversation for both participants
+      await supabase
+        .from("conversations")
+        .update({
+          hidden_for_one: false,
+          hidden_for_two: false,
+        })
+        .eq("id", conversationId);
       // Insert message
       const { error: insertError } = await supabase
         .from("messages")
@@ -539,13 +582,22 @@ export default function MessageThread() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/messages")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Messages
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/messages")}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Messages
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleArchiveConversation}
+              disabled={archiving}
+            >
+              {archiving ? "Archiving..." : "Archive Conversation"}
+            </Button>
+          </div>
           <div>
             {(() => {
               const isSeekingCoverage = conversationData?.origin_type === "seeking_coverage";

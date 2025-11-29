@@ -187,6 +187,8 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string
+          hidden_for_one: boolean
+          hidden_for_two: boolean
           id: string
           is_pinned_for_one: boolean | null
           is_pinned_for_two: boolean | null
@@ -202,6 +204,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hidden_for_one?: boolean
+          hidden_for_two?: boolean
           id?: string
           is_pinned_for_one?: boolean | null
           is_pinned_for_two?: boolean | null
@@ -217,6 +221,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hidden_for_one?: boolean
+          hidden_for_two?: boolean
           id?: string
           is_pinned_for_one?: boolean | null
           is_pinned_for_two?: boolean | null
