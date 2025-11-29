@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Send, Eye, CheckCircle2 } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
@@ -788,6 +789,40 @@ export default function MessageThread() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Rep-side Pending Connection Request Banner */}
+        {isRep && 
+         conversationData?.origin_type === "seeking_coverage" && 
+         repInterest?.status === "pending_rep_confirm" && 
+         otherPartyProfile?.type === "vendor" && (
+          <Alert className="border-amber-500/40 bg-amber-500/10">
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-sm">
+                <span className="font-semibold">{otherPartyProfile.anonymous_id}</span> has requested to add you to their network
+                for <span className="font-medium">{conversationData.seeking_post?.title}</span>.
+                {" "}If you work well together, you can accept this connection so they appear in your "My Vendors" list.
+              </span>
+              <div className="flex gap-2 shrink-0">
+                <Button 
+                  size="sm" 
+                  onClick={handleAcceptConnection}
+                  disabled={connectingStatus}
+                >
+                  {connectingStatus ? "Accepting..." : "Accept"}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleDeclineConnection}
+                  disabled={connectingStatus}
+                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  {connectingStatus ? "Declining..." : "Decline"}
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Messages Area */}
