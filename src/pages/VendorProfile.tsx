@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Plus, Minus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,6 +43,18 @@ const VendorProfile = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    account: true,
+    company: true,
+    location: true,
+    systems: true,
+    inspectionTypes: true,
+    availability: true,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const {
     register,
@@ -279,8 +291,21 @@ const VendorProfile = () => {
           <Card className="p-6 bg-card-elevated border border-border space-y-8">
             {/* Section: Account Information (Read-only) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-xl font-semibold text-foreground">Account Information</h3>
+              <button
+                type="button"
+                onClick={() => toggleSection('account')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <h3 className="text-xl font-semibold text-foreground">Account Information</h3>
+                {expandedSections.account ? (
+                  <Minus className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
               
+              {expandedSections.account && (
+              <>
               <div>
                 <Label className="text-muted-foreground">Full Name</Label>
                 <Input
@@ -298,11 +323,27 @@ const VendorProfile = () => {
                   className="bg-muted/50 cursor-not-allowed"
                 />
               </div>
+              </>
+              )}
             </div>
 
             {/* Section A: Company Info */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-xl font-semibold text-foreground">Company Info</h3>
+              <button
+                type="button"
+                onClick={() => toggleSection('company')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <h3 className="text-xl font-semibold text-foreground">Company Info</h3>
+                {expandedSections.company ? (
+                  <Minus className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
+
+              {expandedSections.company && (
+              <>
 
               <div>
                 <Label htmlFor="company_name">
@@ -350,11 +391,27 @@ const VendorProfile = () => {
                   {descriptionText.length} / 1000 characters
                 </p>
               </div>
+              </>
+              )}
             </div>
 
             {/* Section B: Location */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-xl font-semibold text-foreground">Location</h3>
+              <button
+                type="button"
+                onClick={() => toggleSection('location')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <h3 className="text-xl font-semibold text-foreground">Location</h3>
+                {expandedSections.location ? (
+                  <Minus className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
+
+              {expandedSections.location && (
+              <>
 
               <div>
                 <Label htmlFor="city">
@@ -391,14 +448,30 @@ const VendorProfile = () => {
                   <p className="text-sm text-destructive mt-1">{errors.state.message}</p>
                 )}
               </div>
+              </>
+              )}
             </div>
 
             {/* Section C: Systems We Use (MVP) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Systems We Use</h3>
-                <p className="text-sm text-muted-foreground">Select the inspection systems your company uses</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('systems')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1">Systems We Use</h3>
+                  <p className="text-sm text-muted-foreground">Select the inspection systems your company uses</p>
+                </div>
+                {expandedSections.systems ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+              
+              {expandedSections.systems && (
+              <>
               
               <div className="space-y-3">
                 {SYSTEMS_LIST.map((system) => (
@@ -441,15 +514,30 @@ const VendorProfile = () => {
               {errors.systems_used && (
                 <p className="text-sm text-destructive">{errors.systems_used.message}</p>
               )}
+              </>
+              )}
             </div>
 
             {/* Section D: Inspection Types We Assign (MVP) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types We Assign</h3>
-                <p className="text-sm text-muted-foreground">Select the types of inspections you assign to field reps</p>
-              </div>
-
+              <button
+                type="button"
+                onClick={() => toggleSection('inspectionTypes')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types We Assign</h3>
+                  <p className="text-sm text-muted-foreground">Select the types of inspections you assign to field reps</p>
+                </div>
+                {expandedSections.inspectionTypes ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+              
+              {expandedSections.inspectionTypes && (
+              <>
               <div className="space-y-3">
                 {INSPECTION_TYPES_LIST.map((type) => (
                   <div key={type} className="flex items-center space-x-3">
@@ -491,14 +579,30 @@ const VendorProfile = () => {
               {errors.primary_inspection_types && (
                 <p className="text-sm text-destructive">{errors.primary_inspection_types.message}</p>
               )}
+              </>
+              )}
             </div>
 
             {/* Section E: Availability */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Availability</h3>
-                <p className="text-sm text-muted-foreground">Manage your rep recruitment status</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('availability')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1">Availability</h3>
+                  <p className="text-sm text-muted-foreground">Manage your rep recruitment status</p>
+                </div>
+                {expandedSections.availability ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
+
+              {expandedSections.availability && (
+              <>
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -509,12 +613,14 @@ const VendorProfile = () => {
                     Are you currently looking to add new field representatives?
                   </p>
                 </div>
-                <Switch
+                  <Switch
                   id="is_accepting_new_reps"
                   checked={watch("is_accepting_new_reps")}
                   onCheckedChange={(checked) => setValue("is_accepting_new_reps", checked)}
                 />
               </div>
+              </>
+              )}
             </div>
 
             {/* Save button */}
