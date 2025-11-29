@@ -283,13 +283,13 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
+                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50 pointer-events-auto" align="start">
                   <div className="p-2 border-b border-border bg-muted/50">
                     <p className="text-xs font-medium text-muted-foreground px-2">
                       Select counties to exclude ({counties.length} total)
                     </p>
                   </div>
-                  <ScrollArea className="h-64 bg-popover">
+                  <ScrollArea className="h-64 bg-popover pointer-events-auto">
                     <div className="p-2 space-y-1">
                       {counties.map((county) => (
                         <div
@@ -351,13 +351,13 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
+                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50 pointer-events-auto" align="start">
                   <div className="p-2 border-b border-border bg-muted/50">
                     <p className="text-xs font-medium text-muted-foreground px-2">
                       Select counties to include ({counties.length} total)
                     </p>
                   </div>
-                  <ScrollArea className="h-64 bg-popover">
+                  <ScrollArea className="h-64 bg-popover pointer-events-auto">
                     <div className="p-2 space-y-1">
                       {counties.map((county) => (
                         <div
