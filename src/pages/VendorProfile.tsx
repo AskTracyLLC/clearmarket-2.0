@@ -711,17 +711,22 @@ const VendorProfile = () => {
                                   <h4 className="font-semibold text-foreground">
                                     {coverage.state_code} - {coverage.state_name}
                                   </h4>
-                                  {coverage.covers_entire_state && (
+                                  {coverage.coverage_mode === "entire_state" && (
                                     <Badge variant="secondary">Entire State</Badge>
                                   )}
                                 </div>
                                 
                                 <p className="text-sm text-muted-foreground mb-2">
-                                  {coverage.covers_entire_state 
-                                    ? "All counties" 
-                                    : coverage.county_name || "No specific county"}
-                                  {!coverage.covers_entire_state && coverage.covers_entire_county && coverage.county_name && (
-                                    <Badge variant="secondary" className="ml-2">Entire County</Badge>
+                                  {coverage.coverage_mode === "entire_state" && "All counties"}
+                                  {coverage.coverage_mode === "entire_state_except" && (
+                                    coverage.excluded_county_ids && coverage.excluded_county_ids.length > 0
+                                      ? `All counties except: ${coverage.excluded_county_ids.length} excluded`
+                                      : "All counties (no exclusions)"
+                                  )}
+                                  {coverage.coverage_mode === "selected_counties" && (
+                                    coverage.included_county_ids && coverage.included_county_ids.length > 0
+                                      ? `${coverage.included_county_ids.length} selected counties`
+                                      : "No counties selected"
                                   )}
                                 </p>
 
@@ -823,12 +828,11 @@ const VendorProfile = () => {
               user_id: user!.id,
               state_code: data.state_code,
               state_name: data.state_name,
-              county_name: data.county_name || null,
-              county_id: data.county_id || null,
-              covers_entire_state: data.covers_entire_state,
-              covers_entire_county: data.covers_entire_county,
+              coverage_mode: data.coverage_mode,
+              excluded_county_ids: data.excluded_county_ids || null,
+              included_county_ids: data.included_county_ids || null,
               region_note: data.region_note || null,
-              inspection_types: data.inspection_types.length > 0 ? data.inspection_types : null,
+              inspection_types: data.inspection_types && data.inspection_types.length > 0 ? data.inspection_types : null,
             };
 
             if (data.id) {

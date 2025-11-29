@@ -39,11 +39,17 @@ interface ProfileData {
   coverageAreas?: Array<{
     stateCode: string;
     stateName: string;
-    countyName: string | null;
-    coversEntireState: boolean;
+    // For reps (old model)
+    countyName?: string | null;
+    coversEntireState?: boolean;
     coversEntireCounty?: boolean;
-    basePrice: number | null;
-    rushPrice: number | null;
+    basePrice?: number | null;
+    rushPrice?: number | null;
+    // For vendors (new model)
+    coverageMode?: "entire_state" | "entire_state_except" | "selected_counties";
+    excludedCountyNames?: string[];
+    includedCountyNames?: string[];
+    // Shared fields
     regionNote?: string | null;
     inspectionTypes?: string[] | null;
   }>;
@@ -180,16 +186,36 @@ export function PublicProfileDialog({
           const { data: vendorCoverageAreas } = await supabase
             .from("vendor_coverage_areas")
             .select(`
+              id,
               state_code,
               state_name,
-              county_name,
-              covers_entire_state,
-              covers_entire_county,
+              coverage_mode,
+              excluded_county_ids,
+              included_county_ids,
               region_note,
               inspection_types
             `)
             .eq("user_id", targetUserId)
             .order("state_code");
+
+          // Resolve county names for excluded/included IDs
+          const allCountyIds = new Set<string>();
+          vendorCoverageAreas?.forEach(area => {
+            area.excluded_county_ids?.forEach((id: string) => allCountyIds.add(id));
+            area.included_county_ids?.forEach((id: string) => allCountyIds.add(id));
+          });
+
+          const countyIdToNameMap: Record<string, string> = {};
+          if (allCountyIds.size > 0) {
+            const { data: counties } = await supabase
+              .from("us_counties")
+              .select("id, county_name")
+              .in("id", Array.from(allCountyIds));
+            
+            counties?.forEach(c => {
+              countyIdToNameMap[c.id] = c.county_name;
+            });
+          }
 
           setProfileData({
             role: "vendor",
@@ -206,13 +232,11 @@ export function PublicProfileDialog({
             coverageAreas: (vendorCoverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
-              countyName: area.county_name,
-              coversEntireState: area.covers_entire_state,
-              coversEntireCounty: area.covers_entire_county,
+              coverageMode: area.coverage_mode as "entire_state" | "entire_state_except" | "selected_counties",
+              excludedCountyNames: area.excluded_county_ids?.map((id: string) => countyIdToNameMap[id]).filter(Boolean) || [],
+              includedCountyNames: area.included_county_ids?.map((id: string) => countyIdToNameMap[id]).filter(Boolean) || [],
               regionNote: area.region_note,
               inspectionTypes: area.inspection_types,
-              basePrice: null,
-              rushPrice: null,
             })),
           });
         } 
@@ -575,16 +599,21 @@ export function PublicProfileDialog({
                           <h4 className="text-sm font-semibold text-foreground">
                             {coverage.stateCode} - {coverage.stateName}
                           </h4>
-                          {coverage.coversEntireState && (
+                          {coverage.coverageMode === "entire_state" && (
                             <Badge variant="secondary" className="text-xs">Entire State</Badge>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mb-1">
-                          {coverage.coversEntireState 
-                            ? "All counties" 
-                            : coverage.countyName || "No specific county"}
-                          {!coverage.coversEntireState && coverage.coversEntireCounty && coverage.countyName && (
-                            <Badge variant="secondary" className="ml-2 text-xs">Entire County</Badge>
+                          {coverage.coverageMode === "entire_state" && "All counties"}
+                          {coverage.coverageMode === "entire_state_except" && (
+                            coverage.excludedCountyNames && coverage.excludedCountyNames.length > 0
+                              ? `All counties except: ${coverage.excludedCountyNames.join(", ")}`
+                              : "All counties"
+                          )}
+                          {coverage.coverageMode === "selected_counties" && (
+                            coverage.includedCountyNames && coverage.includedCountyNames.length > 0
+                              ? `Counties: ${coverage.includedCountyNames.join(", ")}`
+                              : "No counties selected"
                           )}
                         </p>
                         {coverage.regionNote && (

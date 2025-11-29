@@ -4,22 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { US_STATES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface VendorCoverageArea {
   id?: string;
   state_code: string;
   state_name: string;
-  county_name: string;
-  county_id: string | null;
-  covers_entire_state: boolean;
-  covers_entire_county: boolean;
-  inspection_types: string[];
-  region_note: string;
+  coverage_mode: "entire_state" | "entire_state_except" | "selected_counties";
+  excluded_county_ids?: string[] | null;
+  included_county_ids?: string[] | null;
+  inspection_types?: string[] | null;
+  region_note?: string | null;
 }
 
 interface VendorCoverageDialogProps {
@@ -37,26 +42,25 @@ const INSPECTION_TYPES = [
 
 /**
  * Dialog for adding/editing vendor coverage areas.
- * No pricing - just state/county + optional inspection type override.
+ * Supports: entire state, entire state except counties, or selected counties only.
  */
 export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: VendorCoverageDialogProps) => {
   const [stateCode, setStateCode] = useState("");
-  const [countyId, setCountyId] = useState<string | null>(null);
-  const [countyName, setCountyName] = useState("");
-  const [coversEntireState, setCoversEntireState] = useState(false);
-  const [coversEntireCounty, setCoversEntireCounty] = useState(false);
+  const [coverageMode, setCoverageMode] = useState<"entire_state" | "entire_state_except" | "selected_counties">("entire_state");
+  const [excludedCountyIds, setExcludedCountyIds] = useState<string[]>([]);
+  const [includedCountyIds, setIncludedCountyIds] = useState<string[]>([]);
   const [regionNote, setRegionNote] = useState("");
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
   const [otherInspectionType, setOtherInspectionType] = useState("");
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
+  const [countySearchOpen, setCountySearchOpen] = useState(false);
 
   useEffect(() => {
     if (editData) {
       setStateCode(editData.state_code);
-      setCountyId(editData.county_id || null);
-      setCountyName(editData.county_name || "");
-      setCoversEntireState(editData.covers_entire_state);
-      setCoversEntireCounty(editData.covers_entire_county);
+      setCoverageMode(editData.coverage_mode || "entire_state");
+      setExcludedCountyIds(editData.excluded_county_ids || []);
+      setIncludedCountyIds(editData.included_county_ids || []);
       setRegionNote(editData.region_note || "");
       
       const types = editData.inspection_types || [];
@@ -100,10 +104,9 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
 
   const resetForm = () => {
     setStateCode("");
-    setCountyId(null);
-    setCountyName("");
-    setCoversEntireState(false);
-    setCoversEntireCounty(false);
+    setCoverageMode("entire_state");
+    setExcludedCountyIds([]);
+    setIncludedCountyIds([]);
     setRegionNote("");
     setInspectionTypes([]);
     setOtherInspectionType("");
@@ -115,9 +118,13 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
       return;
     }
 
-    // Validate county requirement when covers_entire_state is OFF
-    if (!coversEntireState && !countyId) {
-      toast.error("Please select a county or turn on 'Covers entire state'");
+    // Validate county selections based on mode
+    if (coverageMode === "entire_state_except" && excludedCountyIds.length === 0) {
+      toast.error("Please select at least one county to exclude");
+      return;
+    }
+    if (coverageMode === "selected_counties" && includedCountyIds.length === 0) {
+      toast.error("Please select at least one county to include");
       return;
     }
 
@@ -130,23 +137,15 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
       finalInspectionTypes.push(`Other: ${otherInspectionType.trim()}`);
     }
 
-    // Ensure entire_state wins if both are set
-    let finalCoversEntireState = coversEntireState;
-    let finalCoversEntireCounty = coversEntireCounty;
-    if (coversEntireState && coversEntireCounty) {
-      finalCoversEntireCounty = false;
-    }
-
     const data: VendorCoverageArea = {
       id: editData?.id,
       state_code: stateCode,
       state_name: selectedState.label,
-      county_name: countyName || "",
-      county_id: countyId,
-      covers_entire_state: finalCoversEntireState,
-      covers_entire_county: finalCoversEntireCounty,
-      region_note: regionNote.trim(),
-      inspection_types: finalInspectionTypes.length > 0 ? finalInspectionTypes : [],
+      coverage_mode: coverageMode,
+      excluded_county_ids: coverageMode === "entire_state_except" ? excludedCountyIds : null,
+      included_county_ids: coverageMode === "selected_counties" ? includedCountyIds : null,
+      region_note: regionNote.trim() || null,
+      inspection_types: finalInspectionTypes.length > 0 ? finalInspectionTypes : null,
     };
 
     onSave(data);
@@ -160,6 +159,22 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
     );
   };
 
+  const toggleCountySelection = (countyId: string, mode: "exclude" | "include") => {
+    if (mode === "exclude") {
+      setExcludedCountyIds(prev =>
+        prev.includes(countyId) ? prev.filter(id => id !== countyId) : [...prev, countyId]
+      );
+    } else {
+      setIncludedCountyIds(prev =>
+        prev.includes(countyId) ? prev.filter(id => id !== countyId) : [...prev, countyId]
+      );
+    }
+  };
+
+  const getSelectedCountyNames = (ids: string[]) => {
+    return counties.filter(c => ids.includes(c.id)).map(c => c.county_name);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -167,7 +182,7 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
           <DialogTitle>{editData ? "Edit Coverage Area" : "Add Coverage Area"}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
           {/* State (required) */}
           <div className="space-y-2">
             <Label htmlFor="state">State *</Label>
@@ -185,69 +200,160 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
             </Select>
           </div>
 
-          {/* Covers Entire State toggle */}
-          <div className="flex items-center justify-between py-2">
-            <Label htmlFor="covers-entire-state" className="cursor-pointer">
-              Covers entire state
-            </Label>
-            <Switch
-              id="covers-entire-state"
-              checked={coversEntireState}
-              onCheckedChange={setCoversEntireState}
-            />
+          {/* Coverage Mode (radio) */}
+          <div className="space-y-3">
+            <Label>Coverage Mode *</Label>
+            <RadioGroup value={coverageMode} onValueChange={(v: any) => setCoverageMode(v)}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="entire_state" id="mode-entire" />
+                <Label htmlFor="mode-entire" className="font-normal cursor-pointer">
+                  Entire state (all counties)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="entire_state_except" id="mode-except" />
+                <Label htmlFor="mode-except" className="font-normal cursor-pointer">
+                  Entire state except specific counties
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="selected_counties" id="mode-selected" />
+                <Label htmlFor="mode-selected" className="font-normal cursor-pointer">
+                  Only selected counties
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
-          {/* County dropdown - validated */}
-          {!coversEntireState && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="county">County *</Label>
-                <Select 
-                  value={countyId || ""} 
-                  onValueChange={(value) => {
-                    setCountyId(value);
-                    const selected = counties.find(c => c.id === value);
-                    setCountyName(selected?.county_name || "");
-                  }}
-                  disabled={!stateCode}
-                >
-                  <SelectTrigger id="county">
-                    <SelectValue placeholder={stateCode ? "Select county..." : "Select a state first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {counties.map(county => (
-                      <SelectItem key={county.id} value={county.id}>
-                        {county.county_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Covers Entire County toggle - only if county is selected */}
-              {countyId && (
-                <div className="flex items-center justify-between py-2">
-                  <Label htmlFor="covers-entire-county" className="cursor-pointer">
-                    Covers entire county
-                  </Label>
-                  <Switch
-                    id="covers-entire-county"
-                    checked={coversEntireCounty}
-                    onCheckedChange={setCoversEntireCounty}
-                  />
+          {/* County Selector - for exclusions */}
+          {coverageMode === "entire_state_except" && (
+            <div className="space-y-2">
+              <Label>Exclude Counties *</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select counties where you do NOT place work.
+              </p>
+              <Popover open={countySearchOpen} onOpenChange={setCountySearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                    disabled={!stateCode}
+                  >
+                    {stateCode ? "Search counties..." : "Select a state first"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search county..." />
+                    <CommandEmpty>No county found.</CommandEmpty>
+                    <CommandGroup className="max-h-64 overflow-auto">
+                      {counties.map((county) => (
+                        <CommandItem
+                          key={county.id}
+                          onSelect={() => toggleCountySelection(county.id, "exclude")}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              excludedCountyIds.includes(county.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {county.county_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {excludedCountyIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {getSelectedCountyNames(excludedCountyIds).map((name) => (
+                    <Badge key={name} variant="secondary" className="text-xs">
+                      {name}
+                      <X
+                        className="ml-1 h-3 w-3 cursor-pointer"
+                        onClick={() => {
+                          const county = counties.find(c => c.county_name === name);
+                          if (county) toggleCountySelection(county.id, "exclude");
+                        }}
+                      />
+                    </Badge>
+                  ))}
                 </div>
               )}
-            </>
+            </div>
+          )}
+
+          {/* County Selector - for inclusions */}
+          {coverageMode === "selected_counties" && (
+            <div className="space-y-2">
+              <Label>Include Counties *</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select only the counties where you place work.
+              </p>
+              <Popover open={countySearchOpen} onOpenChange={setCountySearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                    disabled={!stateCode}
+                  >
+                    {stateCode ? "Search counties..." : "Select a state first"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search county..." />
+                    <CommandEmpty>No county found.</CommandEmpty>
+                    <CommandGroup className="max-h-64 overflow-auto">
+                      {counties.map((county) => (
+                        <CommandItem
+                          key={county.id}
+                          onSelect={() => toggleCountySelection(county.id, "include")}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              includedCountyIds.includes(county.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {county.county_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {includedCountyIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {getSelectedCountyNames(includedCountyIds).map((name) => (
+                    <Badge key={name} variant="secondary" className="text-xs">
+                      {name}
+                      <X
+                        className="ml-1 h-3 w-3 cursor-pointer"
+                        onClick={() => {
+                          const county = counties.find(c => c.county_name === name);
+                          if (county) toggleCountySelection(county.id, "include");
+                        }}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Region Note */}
           <div className="space-y-2">
             <Label htmlFor="region-note">Region notes (optional)</Label>
-            <Input
+            <Textarea
               id="region-note"
               placeholder="e.g., Focus on SE Wisconsin / Milwaukee–Racine corridor"
               value={regionNote}
               onChange={(e) => setRegionNote(e.target.value)}
+              rows={2}
             />
             <p className="text-xs text-muted-foreground">
               Any special notes about this area that would help reps understand your footprint.
