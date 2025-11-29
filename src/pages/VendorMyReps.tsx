@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
-import { ExitReviewDialog } from "@/components/ExitReviewDialog";
+import { ReviewDialog, Review } from "@/components/ReviewDialog";
 
 interface ConnectedRep {
   repUserId: string;
@@ -45,6 +45,7 @@ interface ConnectedRep {
     note: string;
     created_at: string;
   }>;
+  review?: Review | null;
 }
 
 const VendorMyReps = () => {
@@ -62,12 +63,12 @@ const VendorMyReps = () => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
-  const [pendingDisconnectData, setPendingDisconnectData] = useState<{
-    repInterestId: string;
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [reviewDialogData, setReviewDialogData] = useState<{
     repUserId: string;
-    vendorUserId: string;
-    postId?: string | null;
+    repInterestId: string;
+    isExitReview: boolean;
+    existingReview?: Review | null;
   } | null>(null);
 
   useEffect(() => {
@@ -249,6 +250,29 @@ const VendorMyReps = () => {
           
           setHasNotesByRep(hasNotesMap);
         }
+
+        // Fetch reviews for all reps
+        const { data: reviewsData } = await supabase
+          .from("reviews")
+          .select("*")
+          .eq("reviewer_id", user.id)
+          .in("reviewee_id", repUserIds)
+          .eq("direction", "vendor_to_rep")
+          .order("created_at", { ascending: false });
+
+        if (reviewsData) {
+          const reviewsByRep: Record<string, Review> = {};
+          for (const review of reviewsData) {
+            // Keep only the most recent review per rep
+            if (!reviewsByRep[review.reviewee_id]) {
+              reviewsByRep[review.reviewee_id] = review as Review;
+            }
+          }
+
+          repsArray.forEach(rep => {
+            rep.review = reviewsByRep[rep.repUserId] || null;
+          });
+        }
       }
 
       // Sort by connectedAt (newest first)
@@ -404,13 +428,12 @@ const VendorMyReps = () => {
 
       // Trigger Exit Review flow
       if (disconnectedRep && user) {
-        setPendingDisconnectData({
-          repInterestId: disconnectingInterestId,
+        setReviewDialogData({
           repUserId: disconnectedRep.repUserId,
-          vendorUserId: user.id,
-          postId: disconnectedRep.connectedPosts[0]?.id || null,
+          repInterestId: disconnectingInterestId,
+          isExitReview: true,
         });
-        setShowExitReviewDialog(true);
+        setShowReviewDialog(true);
       }
 
       setDisconnectingInterestId(null);
@@ -426,9 +449,20 @@ const VendorMyReps = () => {
     }
   };
 
-  function handleExitReviewComplete() {
-    // Exit review completed or skipped
-    setPendingDisconnectData(null);
+  const handleReviewRep = (rep: ConnectedRep) => {
+    setReviewDialogData({
+      repUserId: rep.repUserId,
+      repInterestId: rep.connectedPosts[0]?.interestId || "",
+      isExitReview: false,
+      existingReview: rep.review || null,
+    });
+    setShowReviewDialog(true);
+  };
+
+  function handleReviewSaved() {
+    // Reload reps to get updated review
+    loadConnectedReps();
+    setReviewDialogData(null);
   }
 
   if (loading || authLoading) {
@@ -526,6 +560,13 @@ const VendorMyReps = () => {
                           onClick={() => handleViewProfile(rep.repUserId)}
                         >
                           View Profile
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReviewRep(rep)}
+                        >
+                          {rep.review ? "Edit Review" : "Leave Review"}
                         </Button>
                         <Button
                           variant="default"
@@ -686,16 +727,17 @@ const VendorMyReps = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {pendingDisconnectData && (
-        <ExitReviewDialog
-          open={showExitReviewDialog}
-          onOpenChange={setShowExitReviewDialog}
-          repInterestId={pendingDisconnectData.repInterestId}
-          repUserId={pendingDisconnectData.repUserId}
-          vendorUserId={pendingDisconnectData.vendorUserId}
-          reviewerRole="vendor"
-          source="disconnect"
-          onComplete={handleExitReviewComplete}
+      {reviewDialogData && user && (
+        <ReviewDialog
+          open={showReviewDialog}
+          onOpenChange={setShowReviewDialog}
+          reviewerId={user.id}
+          revieweeId={reviewDialogData.repUserId}
+          direction="vendor_to_rep"
+          repInterestId={reviewDialogData.repInterestId}
+          isExitReview={reviewDialogData.isExitReview}
+          existingReview={reviewDialogData.existingReview}
+          onSaved={handleReviewSaved}
         />
       )}
     </div>
