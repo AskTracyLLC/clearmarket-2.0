@@ -378,15 +378,18 @@ export default function MessagesList() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-foreground">
+                          {mainTitle}
+                        </span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedProfileUserId(conv.otherParticipantUserId);
                             setProfileDialogOpen(true);
                           }}
-                          className="font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                          className="text-muted-foreground hover:text-primary transition-colors"
+                          title="View profile"
                         >
-                          {mainTitle}
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                         {conv.unreadCount > 0 && (
