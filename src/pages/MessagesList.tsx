@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { getUserDisplayName } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "@/hooks/use-toast";
 
 interface ConversationWithParticipant {
   id: string;
@@ -28,6 +30,17 @@ interface ConversationWithParticipant {
   unreadCount: number;
 }
 
+interface PendingConnectionRequest {
+  id: string;
+  post_id: string;
+  rep_id: string;
+  vendor_id: string;
+  vendor_anonymous_id: string;
+  vendor_company_name: string;
+  post_title: string;
+  post_state_code: string | null;
+}
+
 export default function MessagesList() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +48,9 @@ export default function MessagesList() {
   const [loading, setLoading] = useState(true);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<PendingConnectionRequest[]>([]);
+  const [isRep, setIsRep] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -44,8 +60,144 @@ export default function MessagesList() {
       return;
     }
 
+    loadUserRole();
     loadConversations();
+    loadPendingRequests();
   }, [user, authLoading, navigate]);
+
+  async function loadUserRole() {
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_fieldrep")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    setIsRep(profile?.is_fieldrep || false);
+  }
+
+  async function loadPendingRequests() {
+    if (!user) return;
+
+    // Check if user is a rep
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_fieldrep")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile?.is_fieldrep) return;
+
+    // Get rep profile ID
+    const { data: repProfile } = await supabase
+      .from("rep_profile")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!repProfile) return;
+
+    // Fetch pending connection requests
+    const { data: interests, error } = await supabase
+      .from("rep_interest")
+      .select(`
+        id,
+        post_id,
+        rep_id,
+        seeking_coverage_posts!inner (
+          id,
+          title,
+          state_code,
+          vendor_id,
+          profiles!seeking_coverage_posts_vendor_id_fkey (
+            id
+          ),
+          vendor_profile!vendor_profile_user_id_fkey (
+            anonymous_id,
+            company_name
+          )
+        )
+      `)
+      .eq("rep_id", repProfile.id)
+      .eq("status", "pending_rep_confirm");
+
+    if (error) {
+      console.error("Error loading pending requests:", error);
+      return;
+    }
+
+    const requests: PendingConnectionRequest[] = (interests || []).map((interest: any) => ({
+      id: interest.id,
+      post_id: interest.post_id,
+      rep_id: interest.rep_id,
+      vendor_id: interest.seeking_coverage_posts.profiles.id,
+      vendor_anonymous_id: interest.seeking_coverage_posts.vendor_profile.anonymous_id,
+      vendor_company_name: interest.seeking_coverage_posts.vendor_profile.company_name,
+      post_title: interest.seeking_coverage_posts.title,
+      post_state_code: interest.seeking_coverage_posts.state_code,
+    }));
+
+    setPendingRequests(requests);
+  }
+
+  async function handleAcceptRequest(requestId: string) {
+    setProcessingRequestId(requestId);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "connected" })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Connection accepted",
+        description: "This vendor is now in your My Vendors list.",
+      });
+
+      // Remove from pending requests
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept connection request.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingRequestId(null);
+    }
+  }
+
+  async function handleDeclineRequest(requestId: string) {
+    setProcessingRequestId(requestId);
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .update({ status: "declined" })
+        .eq("id", requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Connection declined",
+        description: "This connection request has been declined.",
+      });
+
+      // Remove from pending requests
+      setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (error) {
+      console.error("Error declining request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline connection request.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingRequestId(null);
+    }
+  }
 
   async function loadConversations() {
     if (!user) return;
@@ -146,6 +298,41 @@ export default function MessagesList() {
             <h1 className="text-3xl font-bold text-foreground">Messages</h1>
           </div>
         </div>
+
+        {/* Pending Connection Requests */}
+        {isRep && pendingRequests.length > 0 && (
+          <div className="space-y-3">
+            {pendingRequests.map((request) => (
+              <Alert key={request.id} className="border-amber-500/40 bg-amber-500/10">
+                <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-sm">
+                    <span className="font-semibold">{request.vendor_anonymous_id}</span> has requested to add you to their network
+                    for <span className="font-medium">{request.post_title}</span>.
+                    {" "}If you work well together, you can accept this connection so they appear in your "My Vendors" list.
+                  </span>
+                  <div className="flex gap-2 shrink-0">
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleAcceptRequest(request.id)}
+                      disabled={processingRequestId === request.id}
+                    >
+                      {processingRequestId === request.id ? "Accepting..." : "Accept"}
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => handleDeclineRequest(request.id)}
+                      disabled={processingRequestId === request.id}
+                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      {processingRequestId === request.id ? "Declining..." : "Decline"}
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ))}
+          </div>
+        )}
 
         {/* Conversations List */}
         {conversations.length === 0 ? (
