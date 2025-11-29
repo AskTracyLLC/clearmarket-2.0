@@ -48,6 +48,7 @@ const VendorProfile = () => {
   const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
+  const [countyNameMap, setCountyNameMap] = useState<Map<string, string>>(new Map());
   const [expandedSections, setExpandedSections] = useState(() => {
     const saved = localStorage.getItem('vendorProfileExpandedSections');
     if (saved) {
@@ -118,6 +119,26 @@ const VendorProfile = () => {
 
       if (error) throw error;
       setCoverageAreas(data || []);
+
+      // Fetch county names for all county IDs in coverage areas
+      const allCountyIds = new Set<string>();
+      (data || []).forEach((coverage: any) => {
+        (coverage.excluded_county_ids || []).forEach((id: string) => allCountyIds.add(id));
+        (coverage.included_county_ids || []).forEach((id: string) => allCountyIds.add(id));
+      });
+
+      if (allCountyIds.size > 0) {
+        const { data: countyRows } = await supabase
+          .from("us_counties")
+          .select("id, county_name")
+          .in("id", Array.from(allCountyIds));
+
+        const map = new Map<string, string>();
+        (countyRows || []).forEach((row: any) => {
+          map.set(row.id, row.county_name);
+        });
+        setCountyNameMap(map);
+      }
     } catch (error: any) {
       console.error("Error loading coverage areas:", error);
     }
@@ -718,16 +739,22 @@ const VendorProfile = () => {
                                 
                                 <p className="text-sm text-muted-foreground mb-2">
                                   {coverage.coverage_mode === "entire_state" && "All counties"}
-                                  {coverage.coverage_mode === "entire_state_except" && (
-                                    coverage.excluded_county_ids && coverage.excluded_county_ids.length > 0
-                                      ? `All counties except: ${coverage.excluded_county_ids.length} excluded`
-                                      : "All counties (no exclusions)"
-                                  )}
-                                  {coverage.coverage_mode === "selected_counties" && (
-                                    coverage.included_county_ids && coverage.included_county_ids.length > 0
-                                      ? `${coverage.included_county_ids.length} selected counties`
-                                      : "No counties selected"
-                                  )}
+                                  {coverage.coverage_mode === "entire_state_except" && (() => {
+                                    const countyIds = coverage.excluded_county_ids || [];
+                                    const names = countyIds
+                                      .map((id: string) => countyNameMap.get(id))
+                                      .filter(Boolean);
+                                    const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
+                                    return countyIds.length > 0 ? `All counties except: ${countiesLabel}` : "All counties (no exclusions)";
+                                  })()}
+                                  {coverage.coverage_mode === "selected_counties" && (() => {
+                                    const countyIds = coverage.included_county_ids || [];
+                                    const names = countyIds
+                                      .map((id: string) => countyNameMap.get(id))
+                                      .filter(Boolean);
+                                    const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
+                                    return countyIds.length > 0 ? `Selected counties: ${countiesLabel}` : "No counties selected";
+                                  })()}
                                 </p>
 
                                 {coverage.region_note && (
