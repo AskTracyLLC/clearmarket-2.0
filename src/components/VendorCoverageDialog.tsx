@@ -85,25 +85,16 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
         return;
       }
 
-      console.log("[VendorCoverageDialog] Fetching counties for state_code:", stateCode);
-
       const { data, error } = await supabase
         .from("us_counties")
-        .select("id, county_name, state_code")
+        .select("id, county_name")
         .eq("state_code", stateCode)
         .order("county_name");
 
-      console.log("[VendorCoverageDialog] stateCode =", stateCode);
-
       if (error) {
-        console.error("[VendorCoverageDialog] Error fetching counties:", error);
+        console.error("Error fetching counties:", error);
         setCounties([]);
       } else {
-        console.log(
-          "[VendorCoverageDialog] Counties fetched:",
-          data?.length,
-          data
-        );
         setCounties(data || []);
       }
     };
