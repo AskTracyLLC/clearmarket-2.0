@@ -373,7 +373,8 @@ export default function MessagesList() {
               return (
                 <Card
                   key={conv.id}
-                  className="p-4 hover:bg-accent/50 transition-colors"
+                  className="p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/messages/${conv.id}`)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -402,10 +403,7 @@ export default function MessagesList() {
                         <p className="text-xs text-muted-foreground mb-1">{subtitle}</p>
                       )}
                       {conv.last_message_preview && (
-                        <p 
-                          className="text-sm text-muted-foreground line-clamp-2 cursor-pointer"
-                          onClick={() => navigate(`/messages/${conv.id}`)}
-                        >
+                        <p className="text-sm text-muted-foreground line-clamp-2">
                           {conv.last_message_preview}
                         </p>
                       )}
