@@ -25,6 +25,7 @@ interface ConversationWithParticipant {
     id: string;
     title: string;
     state_code: string | null;
+    status: string;
   } | null;
   otherParticipantName: string;
   otherParticipantUserId: string;
@@ -52,6 +53,7 @@ export default function MessagesList() {
   const [pendingRequests, setPendingRequests] = useState<PendingConnectionRequest[]>([]);
   const [isRep, setIsRep] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const [postFilter, setPostFilter] = useState<"all" | "open">("all");
 
   useEffect(() => {
     if (authLoading) return;
@@ -242,7 +244,8 @@ export default function MessagesList() {
           seeking_post:origin_post_id (
             id,
             title,
-            state_code
+            state_code,
+            status
           )
         `)
         .or(`participant_one.eq.${user.id},participant_two.eq.${user.id}`)
@@ -321,6 +324,22 @@ export default function MessagesList() {
             </Button>
             <h1 className="text-3xl font-bold text-foreground">Messages</h1>
           </div>
+          <div className="flex gap-2">
+            <Button
+              variant={postFilter === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPostFilter("all")}
+            >
+              All
+            </Button>
+            <Button
+              variant={postFilter === "open" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setPostFilter("open")}
+            >
+              Open Posts Only
+            </Button>
+          </div>
         </div>
 
         {/* Pending Connection Requests */}
@@ -359,19 +378,43 @@ export default function MessagesList() {
         )}
 
         {/* Conversations List */}
-        {conversations.length === 0 ? (
-          <Card className="p-12 text-center">
-            <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              No conversations yet
-            </h2>
-            <p className="text-muted-foreground">
-              Your messages will appear here once you start a conversation.
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {conversations.map((conv) => {
+        {(() => {
+          // Apply filter
+          const filteredConversations = conversations.filter((conv) => {
+            if (postFilter === "all") return true;
+            // "open" filter: only show conversations tied to open posts
+            if (postFilter === "open") {
+              // If not a seeking coverage conversation, hide it
+              if (conv.origin_type !== "seeking_coverage") return false;
+              // If no seeking_post data, hide it
+              if (!conv.seeking_post) return false;
+              // Only show if post status is "active"
+              return conv.seeking_post.status === "active";
+            }
+            return true;
+          });
+
+          if (filteredConversations.length === 0) {
+            return (
+              <Card className="p-12 text-center">
+                <MessageSquare className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h2 className="text-xl font-semibold text-foreground mb-2">
+                  {postFilter === "open" 
+                    ? "No conversations with open posts" 
+                    : "No conversations yet"}
+                </h2>
+                <p className="text-muted-foreground">
+                  {postFilter === "open"
+                    ? "Switch to 'All' to see conversations for closed posts."
+                    : "Your messages will appear here once you start a conversation."}
+                </p>
+              </Card>
+            );
+          }
+
+          return (
+            <div className="space-y-3">
+              {filteredConversations.map((conv) => {
               const isSeekingCoverage = conv.origin_type === "seeking_coverage";
               const mainTitle = isSeekingCoverage
                 ? (conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation")
@@ -426,7 +469,8 @@ export default function MessagesList() {
               );
             })}
           </div>
-        )}
+          );
+        })()}
         
         <PublicProfileDialog
           open={profileDialogOpen}

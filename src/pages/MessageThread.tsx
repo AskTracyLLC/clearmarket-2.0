@@ -132,6 +132,7 @@ export default function MessageThread() {
             id,
             title,
             state_code,
+            status,
             county_id,
             pay_type,
             pay_min,
@@ -663,7 +664,14 @@ export default function MessageThread() {
                 <div className="space-y-3 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Post Title</p>
-                    <p className="font-semibold">{conversationData.seeking_post.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold">{conversationData.seeking_post.title}</p>
+                      {conversationData.seeking_post.status !== "active" && (
+                        <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">
+                          Post closed
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Location</p>
