@@ -21,6 +21,8 @@ interface ConversationWithParticipant {
   origin_type: string | null;
   origin_post_id: string | null;
   post_title_snapshot: string | null;
+  hidden_for_one: boolean;
+  hidden_for_two: boolean;
   seeking_post?: {
     id: string;
     title: string;
@@ -224,6 +226,42 @@ export default function MessagesList() {
     }
   }
 
+  async function handleArchive(conversationId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!user) return;
+
+    const conv = conversations.find((c) => c.id === conversationId);
+    if (!conv) return;
+
+    const isParticipantOne = conv.participant_one === user.id;
+    
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .update(
+          isParticipantOne ? { hidden_for_one: true } : { hidden_for_two: true }
+        )
+        .eq("id", conversationId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+
+      toast({
+        title: "Conversation archived",
+        description: "The conversation has been hidden from your inbox.",
+      });
+    } catch (error) {
+      console.error("Error archiving conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to archive conversation.",
+        variant: "destructive",
+      });
+    }
+  }
+
   async function loadConversations() {
     if (!user) return;
 
@@ -241,6 +279,8 @@ export default function MessagesList() {
           origin_type,
           origin_post_id,
           post_title_snapshot,
+          hidden_for_one,
+          hidden_for_two,
           seeking_post:origin_post_id (
             id,
             title,
@@ -291,7 +331,13 @@ export default function MessagesList() {
         })
       );
 
-      setConversations(conversationsWithNames);
+      // Filter out archived conversations for current user
+      const filteredConversations = conversationsWithNames.filter((conv) => {
+        const isParticipantOne = conv.participant_one === user.id;
+        return isParticipantOne ? !conv.hidden_for_one : !conv.hidden_for_two;
+      });
+
+      setConversations(filteredConversations);
     } catch (error) {
       console.error("Unexpected error loading conversations:", error);
     } finally {
@@ -459,11 +505,22 @@ export default function MessagesList() {
                         </p>
                       )}
                     </div>
-                    {conv.last_message_at && (
-                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                        {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 ml-4">
+                      {conv.last_message_at && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleArchive(conv.id, e)}
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        title="Archive conversation"
+                      >
+                        Archive
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );
