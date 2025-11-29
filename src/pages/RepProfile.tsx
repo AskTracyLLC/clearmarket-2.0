@@ -897,7 +897,7 @@ const RepProfile = () => {
                   <Input
                     id="hud_keys_details"
                     {...register("hud_keys_details")}
-                    placeholder="e.g., HUD key, REO keys, combo boxes"
+                    placeholder="e.g. List number on the Key"
                     className={`mt-2 ${errors.hud_keys_details ? "border-destructive" : ""}`}
                     maxLength={200}
                   />
