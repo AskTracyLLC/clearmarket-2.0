@@ -19,6 +19,8 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { CoverageAreaDialog } from "@/components/CoverageAreaDialog";
+import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
+import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 
 // Validation schema for rep profile (MVP)
 const repProfileSchema = z.object({
@@ -779,18 +781,15 @@ const RepProfile = () => {
                             className="h-auto p-0 text-primary"
                             onClick={async () => {
                               try {
-                                const { data, error } = await supabase.storage
-                                  .from('background-checks')
-                                  .createSignedUrl(backgroundCheckScreenshot.split('/').pop()!, 60);
+                                const signedUrl = await getBackgroundCheckSignedUrl(backgroundCheckScreenshot, 60);
                                 
-                                if (error) throw error;
-                                if (data?.signedUrl) {
-                                  window.open(data.signedUrl, '_blank');
+                                if (signedUrl) {
+                                  window.open(signedUrl, '_blank');
                                 } else {
                                   toast({ title: "Error", description: "Could not generate preview link", variant: "destructive" });
                                 }
                               } catch (error) {
-                                console.error('Error generating signed URL:', error);
+                                console.error('Error viewing screenshot:', error);
                                 toast({ title: "Error", description: "Failed to open screenshot", variant: "destructive" });
                               }
                             }}

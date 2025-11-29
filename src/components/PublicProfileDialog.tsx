@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
+import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -65,6 +66,22 @@ export function PublicProfileDialog({
 }: PublicProfileDialogProps) {
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [backgroundCheckSignedUrl, setBackgroundCheckSignedUrl] = useState<string | null>(null);
+
+  // Generate signed URL for background check screenshot when available
+  useEffect(() => {
+    async function generateSignedUrl() {
+      if (!profileData?.backgroundCheck?.screenshotUrl) {
+        setBackgroundCheckSignedUrl(null);
+        return;
+      }
+
+      const url = await getBackgroundCheckSignedUrl(profileData.backgroundCheck.screenshotUrl, 300);
+      setBackgroundCheckSignedUrl(url);
+    }
+
+    generateSignedUrl();
+  }, [profileData?.backgroundCheck?.screenshotUrl]);
 
   useEffect(() => {
     if (!open || !targetUserId) return;
@@ -384,12 +401,12 @@ export function PublicProfileDialog({
                             )}
                           </div>
                           
-                          {profileData.backgroundCheck.screenshotUrl && (
+                          {backgroundCheckSignedUrl && (
                             <Button
                               variant="link"
                               size="sm"
                               className="h-auto p-0 text-primary"
-                              onClick={() => window.open(profileData.backgroundCheck!.screenshotUrl!, '_blank')}
+                              onClick={() => window.open(backgroundCheckSignedUrl, '_blank')}
                             >
                               <ExternalLink className="h-3 w-3 mr-1" />
                               View Screenshot
