@@ -791,10 +791,13 @@ export type Database = {
         Row: {
           county_id: string | null
           county_name: string | null
+          coverage_mode: string | null
           covers_entire_county: boolean
           covers_entire_state: boolean
           created_at: string
+          excluded_county_ids: string[] | null
           id: string
+          included_county_ids: string[] | null
           inspection_types: string[] | null
           region_note: string | null
           state_code: string
@@ -805,10 +808,13 @@ export type Database = {
         Insert: {
           county_id?: string | null
           county_name?: string | null
+          coverage_mode?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
+          excluded_county_ids?: string[] | null
           id?: string
+          included_county_ids?: string[] | null
           inspection_types?: string[] | null
           region_note?: string | null
           state_code: string
@@ -819,10 +825,13 @@ export type Database = {
         Update: {
           county_id?: string | null
           county_name?: string | null
+          coverage_mode?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
+          excluded_county_ids?: string[] | null
           id?: string
+          included_county_ids?: string[] | null
           inspection_types?: string[] | null
           region_note?: string | null
           state_code?: string
