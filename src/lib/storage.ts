@@ -14,12 +14,17 @@ export async function getBackgroundCheckSignedUrl(
 ): Promise<string | null> {
   if (!path) return null;
 
-  // Extract just the filename from the full URL if needed
-  const filename = path.includes('/') ? path.split('/').pop()! : path;
+  // Extract the path within the bucket from full URL if needed
+  // Full URL format: https://xxx.supabase.co/storage/v1/object/public/background-checks/user-id/file.png
+  // We need: user-id/file.png
+  let filePath = path;
+  if (path.includes('/background-checks/')) {
+    filePath = path.split('/background-checks/')[1];
+  }
 
   const { data, error } = await supabase.storage
     .from("background-checks")
-    .createSignedUrl(filename, expiresInSeconds);
+    .createSignedUrl(filePath, expiresInSeconds);
 
   if (error) {
     console.error("Error creating signed URL for background check:", error);
