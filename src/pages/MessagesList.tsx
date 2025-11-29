@@ -98,7 +98,7 @@ export default function MessagesList() {
 
     if (!repProfile) return;
 
-    // Fetch pending connection requests
+    // Fetch pending connection requests with post data
     const { data: interests, error } = await supabase
       .from("rep_interest")
       .select(`
@@ -109,14 +109,7 @@ export default function MessagesList() {
           id,
           title,
           state_code,
-          vendor_id,
-          profiles!seeking_coverage_posts_vendor_id_fkey (
-            id
-          ),
-          vendor_profile!vendor_profile_user_id_fkey (
-            anonymous_id,
-            company_name
-          )
+          vendor_id
         )
       `)
       .eq("rep_id", repProfile.id)
@@ -127,16 +120,39 @@ export default function MessagesList() {
       return;
     }
 
-    const requests: PendingConnectionRequest[] = (interests || []).map((interest: any) => ({
-      id: interest.id,
-      post_id: interest.post_id,
-      rep_id: interest.rep_id,
-      vendor_id: interest.seeking_coverage_posts.profiles.id,
-      vendor_anonymous_id: interest.seeking_coverage_posts.vendor_profile.anonymous_id,
-      vendor_company_name: interest.seeking_coverage_posts.vendor_profile.company_name,
-      post_title: interest.seeking_coverage_posts.title,
-      post_state_code: interest.seeking_coverage_posts.state_code,
-    }));
+    if (!interests || interests.length === 0) {
+      setPendingRequests([]);
+      return;
+    }
+
+    // Get unique vendor IDs
+    const vendorIds = [...new Set(interests.map((i: any) => i.seeking_coverage_posts.vendor_id))];
+
+    // Fetch vendor profiles for all vendors
+    const { data: vendorProfiles } = await supabase
+      .from("vendor_profile")
+      .select("user_id, anonymous_id, company_name")
+      .in("user_id", vendorIds);
+
+    // Build a map of vendor profiles
+    const vendorProfileMap = new Map(
+      (vendorProfiles || []).map((vp) => [vp.user_id, vp])
+    );
+
+    // Combine the data
+    const requests: PendingConnectionRequest[] = interests.map((interest: any) => {
+      const vendorProfile = vendorProfileMap.get(interest.seeking_coverage_posts.vendor_id);
+      return {
+        id: interest.id,
+        post_id: interest.post_id,
+        rep_id: interest.rep_id,
+        vendor_id: interest.seeking_coverage_posts.vendor_id,
+        vendor_anonymous_id: vendorProfile?.anonymous_id || "Vendor",
+        vendor_company_name: vendorProfile?.company_name || "Unknown Vendor",
+        post_title: interest.seeking_coverage_posts.title,
+        post_state_code: interest.seeking_coverage_posts.state_code,
+      };
+    });
 
     setPendingRequests(requests);
   }
