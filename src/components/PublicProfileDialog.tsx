@@ -366,17 +366,16 @@ export function PublicProfileDialog({
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-foreground mb-2">Background Check</h3>
+                      <h3 className="font-semibold text-foreground mb-3">Background Check</h3>
                           
                       {isBackgroundCheckActive({
                         background_check_is_active: profileData.backgroundCheck.isActive,
                         background_check_expires_on: profileData.backgroundCheck.expiresOn,
                       }) ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-sm font-medium text-foreground">✅ Valid</span>
-                          </div>
+                        <div className="space-y-3">
+                          <Badge className="bg-green-600/10 text-green-600 border-green-600/20 text-[11px]">
+                            Background Check: Active
+                          </Badge>
                           
                           <div className="text-sm text-muted-foreground">
                             <p>
@@ -407,20 +406,18 @@ export function PublicProfileDialog({
                           )}
                         </div>
                       ) : profileData.backgroundCheck.willingToObtain ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-orange-500" />
-                            <span className="text-sm font-medium text-foreground">⚠️ Not on file yet</span>
-                          </div>
+                        <div className="space-y-2">
+                          <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[11px]">
+                            Background Check: Willing to Obtain
+                          </Badge>
                           <p className="text-sm text-muted-foreground">
                             This rep is willing to obtain one if required.
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <XCircle className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">❌ Not on file</span>
-                        </div>
+                        <Badge variant="outline" className="text-[11px]">
+                          Background Check: Not on File
+                        </Badge>
                       )}
                     </div>
                   </div>

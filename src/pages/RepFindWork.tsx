@@ -822,6 +822,36 @@ export default function RepFindWork() {
                         </div>
                       )}
 
+                      {/* Background Check Status Badge */}
+                      {post.requires_background_check && repProfile && (
+                        <div className="mt-2">
+                          {isBackgroundCheckActive({
+                            background_check_is_active: repProfile.background_check_is_active,
+                            background_check_expires_on: repProfile.background_check_expires_on,
+                          }) && (
+                            <span className="inline-flex items-center rounded-full bg-green-600/10 text-green-600 px-2 py-0.5 text-[11px] font-medium">
+                              You have an active background check on file.
+                            </span>
+                          )}
+                          {!isBackgroundCheckActive({
+                            background_check_is_active: repProfile.background_check_is_active,
+                            background_check_expires_on: repProfile.background_check_expires_on,
+                          }) && (repProfile.willing_to_obtain_background_check ?? false) && (
+                            <span className="inline-flex items-center rounded-full bg-amber-500/10 text-amber-500 px-2 py-0.5 text-[11px] font-medium">
+                              Vendor requires a background check. You've marked yourself willing to obtain one.
+                            </span>
+                          )}
+                          {!isBackgroundCheckActive({
+                            background_check_is_active: repProfile.background_check_is_active,
+                            background_check_expires_on: repProfile.background_check_expires_on,
+                          }) && !(repProfile.willing_to_obtain_background_check ?? false) && (
+                            <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[11px] font-medium">
+                              Vendor requires a background check. You do not have one on file yet.
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       {/* Pricing */}
                       {post.pay_min && (() => {
                         // Find the matching coverage to get base_price

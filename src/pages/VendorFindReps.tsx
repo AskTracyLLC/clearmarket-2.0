@@ -625,6 +625,32 @@ export default function VendorFindReps() {
                         )}
                       </div>
 
+                      {/* Background Check Status Badge */}
+                      {selectedPost && (() => {
+                        const post = vendorPosts.find(p => p.id === selectedPost);
+                        if (!post?.requires_background_check) return null;
+                        
+                        return (
+                          <div className="mt-2">
+                            {rep.hasValidBackgroundCheck && (
+                              <span className="inline-flex items-center rounded-full bg-green-600/10 text-green-600 px-2 py-0.5 text-[11px] font-medium">
+                                Background Check: Active
+                              </span>
+                            )}
+                            {!rep.hasValidBackgroundCheck && rep.isWillingToObtain && (
+                              <span className="inline-flex items-center rounded-full bg-amber-500/10 text-amber-500 px-2 py-0.5 text-[11px] font-medium">
+                                Background Check: Willing to Obtain
+                              </span>
+                            )}
+                            {!rep.hasValidBackgroundCheck && !rep.isWillingToObtain && (
+                              <span className="inline-flex items-center rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[11px] font-medium">
+                                Background Check: Not on File
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Pricing Alignment Indicator (if post selected) */}
                       {selectedPost && (() => {
                         const post = vendorPosts.find(p => p.id === selectedPost);
