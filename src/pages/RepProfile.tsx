@@ -13,7 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2, Upload, ExternalLink, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2, Upload, ExternalLink, ShieldCheck, Plus, Minus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -96,6 +96,22 @@ const RepProfile = () => {
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  
+  // Section collapse states
+  const [expandedSections, setExpandedSections] = useState({
+    account: true,
+    basic: true,
+    systems: true,
+    inspectionTypes: true,
+    availability: true,
+    backgroundCheck: true,
+    accessEquipment: true,
+    coverage: true,
+  });
+
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const {
     register,
@@ -379,10 +395,23 @@ const RepProfile = () => {
           <Card className="p-6 bg-card-elevated border border-border space-y-8">
             {/* Section: Account Information (Read-only) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-xl font-semibold text-foreground">Account Information</h3>
+              <button
+                type="button"
+                onClick={() => toggleSection('account')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <h3 className="text-xl font-semibold text-foreground">Account Information</h3>
+                {expandedSections.account ? (
+                  <Minus className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
               
-              <div>
-                <Label className="text-muted-foreground">Full Name</Label>
+              {expandedSections.account && (
+                <>
+                  <div>
+                    <Label className="text-muted-foreground">Full Name</Label>
                 <Input
                   value={profile?.full_name || ""}
                   disabled
@@ -390,24 +419,39 @@ const RepProfile = () => {
                 />
               </div>
 
-              <div>
-                <Label className="text-muted-foreground">Email</Label>
-                <Input
-                  value={profile?.email || ""}
-                  disabled
-                  className="bg-muted/50 cursor-not-allowed"
-                />
-              </div>
+                  <div>
+                    <Label className="text-muted-foreground">Email</Label>
+                    <Input
+                      value={profile?.email || ""}
+                      disabled
+                      className="bg-muted/50 cursor-not-allowed"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Section A: Basic Info */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <h3 className="text-xl font-semibold text-foreground">Basic Info</h3>
+              <button
+                type="button"
+                onClick={() => toggleSection('basic')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <h3 className="text-xl font-semibold text-foreground">Basic Info</h3>
+                {expandedSections.basic ? (
+                  <Minus className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                )}
+              </button>
 
-              <div>
-                <Label htmlFor="city">
-                  City <span className="text-destructive">*</span>
-                </Label>
+              {expandedSections.basic && (
+                <>
+                  <div>
+                    <Label htmlFor="city">
+                      City <span className="text-destructive">*</span>
+                    </Label>
                 <Input
                   id="city"
                   {...register("city")}
@@ -456,33 +500,48 @@ const RepProfile = () => {
                 )}
               </div>
 
-              <div>
-                <Label htmlFor="bio">Short Bio <span className="text-muted-foreground text-sm">(Optional)</span></Label>
-                <Textarea
-                  id="bio"
-                  {...register("bio")}
-                  placeholder="Tell vendors a bit about yourself and your experience..."
-                  className={errors.bio ? "border-destructive" : ""}
-                  rows={4}
-                  maxLength={500}
-                />
-                {errors.bio && (
-                  <p className="text-sm text-destructive mt-1">{errors.bio.message}</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  {bioText.length} / 500 characters
-                </p>
-              </div>
+                  <div>
+                    <Label htmlFor="bio">Short Bio <span className="text-muted-foreground text-sm">(Optional)</span></Label>
+                    <Textarea
+                      id="bio"
+                      {...register("bio")}
+                      placeholder="Tell vendors a bit about yourself and your experience..."
+                      className={errors.bio ? "border-destructive" : ""}
+                      rows={4}
+                      maxLength={500}
+                    />
+                    {errors.bio && (
+                      <p className="text-sm text-destructive mt-1">{errors.bio.message}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {bioText.length} / 500 characters
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Section B: Systems I Use (MVP) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Systems I Use</h3>
-                <p className="text-sm text-muted-foreground">Select the inspection systems you currently use</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('systems')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1">Systems I Use</h3>
+                  <p className="text-sm text-muted-foreground text-left">Select the inspection systems you currently use</p>
+                </div>
+                {expandedSections.systems ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
               
-              <div className="space-y-3">
+              {expandedSections.systems && (
+                <>
+                  <div className="space-y-3">
                 {SYSTEMS_LIST.map((system) => (
                   <div key={system} className="flex items-center space-x-3">
                     <Checkbox
@@ -520,19 +579,34 @@ const RepProfile = () => {
                 </div>
               )}
 
-              {errors.systems_used && (
-                <p className="text-sm text-destructive">{errors.systems_used.message}</p>
+                  {errors.systems_used && (
+                    <p className="text-sm text-destructive">{errors.systems_used.message}</p>
+                  )}
+                </>
               )}
             </div>
 
             {/* Section C: Inspection Types I Perform (MVP) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types I Perform</h3>
-                <p className="text-sm text-muted-foreground">Select the types of inspections you do</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('inspectionTypes')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types I Perform</h3>
+                  <p className="text-sm text-muted-foreground text-left">Select the types of inspections you do</p>
+                </div>
+                {expandedSections.inspectionTypes ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
 
-              <div className="space-y-3">
+              {expandedSections.inspectionTypes && (
+                <>
+                  <div className="space-y-3">
                 {INSPECTION_TYPES_LIST.map((type) => (
                   <div key={type} className="flex items-center space-x-3">
                     <Checkbox
@@ -573,63 +647,91 @@ const RepProfile = () => {
               {errors.inspection_types && (
                 <p className="text-sm text-destructive">{errors.inspection_types.message}</p>
               )}
+            </>
+          )}
+        </div>
+
+        {/* Section D: Availability & Preferences */}
+        <div className="space-y-4 pb-6 border-b border-border">
+          <button
+            type="button"
+            onClick={() => toggleSection('availability')}
+            className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+          >
+            <div>
+              <h3 className="text-xl font-semibold text-foreground mb-1">Availability & Preferences</h3>
+              <p className="text-sm text-muted-foreground text-left">Help vendors understand your availability</p>
             </div>
+            {expandedSections.availability ? (
+              <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            ) : (
+              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            )}
+          </button>
 
-            {/* Section D: Availability & Preferences */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Availability & Preferences</h3>
-                <p className="text-sm text-muted-foreground">Help vendors understand your availability</p>
+          {expandedSections.availability && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_accepting_new_vendors" className="text-foreground font-normal">
+                    Accepting New Vendors
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Are you currently open to new vendor relationships?
+                  </p>
+                </div>
+                <Switch
+                  id="is_accepting_new_vendors"
+                  checked={watch("is_accepting_new_vendors")}
+                  onCheckedChange={(checked) => setValue("is_accepting_new_vendors", checked)}
+                />
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="is_accepting_new_vendors" className="text-foreground font-normal">
-                      Accepting New Vendors
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Are you currently open to new vendor relationships?
-                    </p>
-                  </div>
-                  <Switch
-                    id="is_accepting_new_vendors"
-                    checked={watch("is_accepting_new_vendors")}
-                    onCheckedChange={(checked) => setValue("is_accepting_new_vendors", checked)}
-                  />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="willing_to_travel_out_of_state" className="text-foreground font-normal">
+                    Willing to Travel Out of State
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Are you willing to travel outside your home state for work?
+                  </p>
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="willing_to_travel_out_of_state" className="text-foreground font-normal">
-                      Willing to Travel Out of State
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Are you willing to travel outside your home state for work?
-                    </p>
-                  </div>
-                  <Switch
-                    id="willing_to_travel_out_of_state"
-                    checked={watch("willing_to_travel_out_of_state")}
-                    onCheckedChange={(checked) => setValue("willing_to_travel_out_of_state", checked)}
-                  />
-                </div>
+                <Switch
+                  id="willing_to_travel_out_of_state"
+                  checked={watch("willing_to_travel_out_of_state")}
+                  onCheckedChange={(checked) => setValue("willing_to_travel_out_of_state", checked)}
+                />
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Section D2: Background Check (Optional) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5" />
-                  Background Check (Optional but Recommended)
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Some vendors require a background check to work with them. You can still use ClearMarket without one, 
-                  but you may be excluded from those opportunities.
-                </p>
-              </div>
+        {/* Section D2: Background Check (Optional) */}
+        <div className="space-y-4 pb-6 border-b border-border">
+          <button
+            type="button"
+                onClick={() => toggleSection('backgroundCheck')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    Background Check (Optional but Recommended)
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-left">
+                    Some vendors require a background check to work with them. You can still use ClearMarket without one, 
+                    but you may be excluded from those opportunities.
+                  </p>
+                </div>
+                {expandedSections.backgroundCheck ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
 
+          {expandedSections.backgroundCheck && (
+            <>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="background_check_is_active" className="text-foreground font-normal">
@@ -873,17 +975,32 @@ const RepProfile = () => {
                   )}
                 </div>
               )}
+            </>
+          )}
+        </div>
+
+        {/* Section D2: Access & Equipment (Optional) */}
+        <div className="space-y-4 pb-6 border-b border-border">
+          <button
+            type="button"
+            onClick={() => toggleSection('accessEquipment')}
+            className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+          >
+            <div>
+              <h3 className="text-xl font-semibold text-foreground mb-1">Access & Equipment</h3>
+              <p className="text-sm text-muted-foreground text-left">
+                Share what kind of property access you have and any tools or equipment you want vendors to know about.
+              </p>
             </div>
+            {expandedSections.accessEquipment ? (
+              <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            ) : (
+              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+            )}
+          </button>
 
-            {/* Section D2: Access & Equipment (Optional) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">Access & Equipment</h3>
-                <p className="text-sm text-muted-foreground">
-                  Share what kind of property access you have and any tools or equipment you want vendors to know about.
-                </p>
-              </div>
-
+          {expandedSections.accessEquipment && (
+            <>
               {/* HUD Keys Toggle */}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -938,27 +1055,42 @@ const RepProfile = () => {
                 {errors.equipment_notes && (
                   <p className="text-sm text-destructive mt-1">{errors.equipment_notes.message}</p>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  {equipmentNotes.length} / 500 characters
-                </p>
-              </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {equipmentNotes.length} / 500 characters
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Section E: Coverage & Pricing (MVP) */}
             <div className="space-y-4 pb-6 border-b border-border">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Coverage & Pricing (MVP)
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Add the states and counties you're willing to cover, and your typical pricing. 
-                  This is MVP data that future matching and Seeking Coverage will use.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection('coverage')}
+                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Coverage & Pricing (MVP)
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-left">
+                    Add the states and counties you're willing to cover, and your typical pricing. 
+                    This is MVP data that future matching and Seeking Coverage will use.
+                  </p>
+                </div>
+                {expandedSections.coverage ? (
+                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                ) : (
+                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                )}
+              </button>
 
-              {/* Warning for incomplete pricing */}
-              {coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
+              {expandedSections.coverage && (
+                <>
+                  {/* Warning for incomplete pricing */}
+                  {coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
                 <Alert className="border-orange-500/50 bg-orange-500/10">
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                   <AlertDescription className="text-foreground">
@@ -1101,9 +1233,11 @@ const RepProfile = () => {
                   >
                     Add Another Coverage Area
                   </Button>
-                </>
-              )}
-            </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
 
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">
