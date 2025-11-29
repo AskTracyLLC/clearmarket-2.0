@@ -772,12 +772,28 @@ const RepProfile = () => {
                           <ShieldCheck className="h-5 w-5 text-green-500" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-foreground">Screenshot uploaded</p>
-                            <Button
-                              type="button"
-                              variant="link"
-                              size="sm"
-                              className="h-auto p-0 text-primary"
-                              onClick={() => window.open(backgroundCheckScreenshot, '_blank')}
+                          <Button
+                            type="button"
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 text-primary"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.storage
+                                  .from('background-checks')
+                                  .createSignedUrl(backgroundCheckScreenshot.split('/').pop()!, 60);
+                                
+                                if (error) throw error;
+                                if (data?.signedUrl) {
+                                  window.open(data.signedUrl, '_blank');
+                                } else {
+                                  toast({ title: "Error", description: "Could not generate preview link", variant: "destructive" });
+                                }
+                              } catch (error) {
+                                console.error('Error generating signed URL:', error);
+                                toast({ title: "Error", description: "Failed to open screenshot", variant: "destructive" });
+                              }
+                            }}
                             >
                               <ExternalLink className="h-3 w-3 mr-1" />
                               View Screenshot
