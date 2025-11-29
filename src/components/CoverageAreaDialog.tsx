@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface CoverageArea {
   id?: string;
@@ -53,6 +55,29 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
   const [otherInspectionType, setOtherInspectionType] = useState("");
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
+  const [availableStates, setAvailableStates] = useState<Array<{ state_code: string; state_name: string }>>([]);
+
+  // Fetch available states from us_counties on mount
+  useEffect(() => {
+    const fetchAvailableStates = async () => {
+      const { data, error } = await supabase
+        .from("us_counties")
+        .select("state_code, state_name")
+        .order("state_code");
+
+      if (error) {
+        console.error("Error fetching available states:", error);
+      } else {
+        // Deduplicate states
+        const uniqueStates = Array.from(
+          new Map(data?.map(item => [item.state_code, item]) || []).values()
+        );
+        setAvailableStates(uniqueStates);
+      }
+    };
+
+    fetchAvailableStates();
+  }, []);
 
   useEffect(() => {
     if (editData) {
@@ -196,11 +221,14 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
                 <SelectValue placeholder="Select state..." />
               </SelectTrigger>
               <SelectContent>
-                {US_STATES.map(state => (
-                  <SelectItem key={state.value} value={state.value}>
-                    {state.value} - {state.label}
-                  </SelectItem>
-                ))}
+                {availableStates.map(state => {
+                  const stateLabel = US_STATES.find(s => s.value === state.state_code)?.label || state.state_name;
+                  return (
+                    <SelectItem key={state.state_code} value={state.state_code}>
+                      {state.state_code} - {stateLabel}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -235,13 +263,28 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
                     <SelectValue placeholder={stateCode ? "Select county..." : "Select a state first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {counties.map(county => (
-                      <SelectItem key={county.id} value={county.id}>
-                        {county.county_name}
-                      </SelectItem>
-                    ))}
+                    {counties.length > 0 ? (
+                      counties.map(county => (
+                        <SelectItem key={county.id} value={county.id}>
+                          {county.county_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-3 text-sm text-muted-foreground">
+                        No counties available
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
+                
+                {stateCode && counties.length === 0 && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No counties are loaded for this state yet. Please choose another state or contact support.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 
                 {/* Legacy county warning */}
                 {editData && !countyId && countyName && (
