@@ -38,3 +38,24 @@ export function maskBackgroundCheckId(id: string | null | undefined): string {
   const masked = "*".repeat(id.length - 4);
   return `${masked}${last4}`;
 }
+
+/**
+ * Check if rep has a valid background check OR is willing to obtain one
+ */
+export function meetsBackgroundCheckRequirement(
+  rep: BackgroundCheckFields & { willing_to_obtain_background_check?: boolean | null },
+  allowWillingToObtain: boolean = true
+): boolean {
+  // If rep has a valid background check, they always qualify
+  if (isBackgroundCheckActive(rep)) {
+    return true;
+  }
+  
+  // If vendor allows willing-to-obtain and rep is willing, they qualify
+  if (allowWillingToObtain && rep.willing_to_obtain_background_check) {
+    return true;
+  }
+  
+  // Otherwise, they don't qualify
+  return false;
+}

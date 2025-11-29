@@ -50,6 +50,7 @@ interface SeekingCoveragePost {
   pay_notes: string | null;
   requires_background_check: boolean;
   requires_aspen_grove: boolean;
+  allow_willing_to_obtain_background_check?: boolean | null;
 }
 
 interface VendorInfo {
@@ -279,16 +280,22 @@ export default function RepFindWork() {
         .filter((post: MatchedPost) => {
           // 0. Background check requirement check
           if (post.requires_background_check) {
-            if (!isBackgroundCheckActive({
+            const hasValidCheck = isBackgroundCheckActive({
               background_check_is_active: repProfile.background_check_is_active,
               background_check_expires_on: repProfile.background_check_expires_on,
-            })) {
-              return false; // Rep doesn't have an active background check
+            });
+
+            const isWillingToObtain = repProfile.willing_to_obtain_background_check ?? false;
+            const allowWilling = post.allow_willing_to_obtain_background_check ?? true;
+
+            // Rep must have valid check OR be willing to obtain (if vendor allows)
+            if (!hasValidCheck && !(allowWilling && isWillingToObtain)) {
+              return false;
             }
 
-            // AspenGrove-specific requirement
-            if (post.requires_aspen_grove && repProfile.background_check_provider !== "aspen_grove") {
-              return false; // Rep doesn't have AspenGrove background check
+            // AspenGrove-specific requirement (only check if rep has a valid check)
+            if (hasValidCheck && post.requires_aspen_grove && repProfile.background_check_provider !== "aspen_grove") {
+              return false;
             }
           }
 

@@ -42,6 +42,7 @@ const repProfileSchema = z.object({
   background_check_id: z.string().trim().max(100).optional().nullable(),
   background_check_expires_on: z.string().optional().nullable(),
   background_check_screenshot_url: z.string().optional().nullable(),
+  willing_to_obtain_background_check: z.boolean().optional().nullable(),
   // Access & Equipment fields
   has_hud_keys: z.boolean().optional().nullable(),
   hud_keys_details: z.string().trim().max(200).optional().nullable(),
@@ -984,6 +985,25 @@ const RepProfile = () => {
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Willing to Obtain Background Check Toggle - shown when NO valid check */}
+              {!backgroundCheckActive && (
+                <div className="mt-4 p-4 bg-muted/20 border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="willing_to_obtain_background_check"
+                      checked={watch("willing_to_obtain_background_check") ?? false}
+                      onCheckedChange={(checked) => setValue("willing_to_obtain_background_check", checked as boolean)}
+                    />
+                    <Label htmlFor="willing_to_obtain_background_check" className="cursor-pointer font-normal text-foreground">
+                      I don't currently have a background check, but I am willing to obtain one if required
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 ml-7">
+                    Some vendors allow reps who are willing to obtain a background check. This increases your visibility for those opportunities.
+                  </p>
                 </div>
               )}
             </>

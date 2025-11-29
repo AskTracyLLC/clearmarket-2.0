@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 
@@ -51,6 +51,7 @@ interface ProfileData {
     id: string | null;
     expiresOn: string | null;
     screenshotUrl: string | null;
+    willingToObtain?: boolean | null;
   };
   accessEquipment?: {
     hasHudKeys: boolean | null;
@@ -161,6 +162,7 @@ export function PublicProfileDialog({
               id: repProfile.background_check_id,
               expiresOn: repProfile.background_check_expires_on,
               screenshotUrl: repProfile.background_check_screenshot_url,
+              willingToObtain: repProfile.willing_to_obtain_background_check || false,
             },
             accessEquipment: {
               hasHudKeys: repProfile.has_hud_keys,
@@ -366,14 +368,14 @@ export function PublicProfileDialog({
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground mb-2">Background Check</h3>
                           
-                          {isBackgroundCheckActive({
-                            background_check_is_active: profileData.backgroundCheck.isActive,
-                            background_check_expires_on: profileData.backgroundCheck.expiresOn,
-                          }) ? (
+                      {isBackgroundCheckActive({
+                        background_check_is_active: profileData.backgroundCheck.isActive,
+                        background_check_expires_on: profileData.backgroundCheck.expiresOn,
+                      }) ? (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span className="text-sm font-medium text-foreground">Active</span>
+                            <span className="text-sm font-medium text-foreground">✅ Valid</span>
                           </div>
                           
                           <div className="text-sm text-muted-foreground">
@@ -383,15 +385,6 @@ export function PublicProfileDialog({
                                 ? "AspenGrove / Shield ID" 
                                 : profileData.backgroundCheck.providerOtherName || "Other"}
                             </p>
-                            
-                            {profileData.backgroundCheck.id && (
-                              <p>
-                                <span className="font-medium">ID:</span>{" "}
-                                {profileData.backgroundCheck.provider === "aspen_grove" 
-                                  ? `ABC# ending in ${profileData.backgroundCheck.id.slice(-4)}`
-                                  : maskBackgroundCheckId(profileData.backgroundCheck.id)}
-                              </p>
-                            )}
                             
                             {profileData.backgroundCheck.expiresOn && (
                               <p>
@@ -413,17 +406,21 @@ export function PublicProfileDialog({
                             </Button>
                           )}
                         </div>
-                      ) : profileData.backgroundCheck.isActive ? (
-                        <div className="flex items-center gap-2">
-                          <XCircle className="h-4 w-4 text-orange-500" />
-                          <span className="text-sm text-muted-foreground">
-                            Expired (Last provider: {profileData.backgroundCheck.provider === "aspen_grove" 
-                              ? "AspenGrove / Shield ID" 
-                              : profileData.backgroundCheck.providerOtherName || "Other"})
-                          </span>
+                      ) : profileData.backgroundCheck.willingToObtain ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4 text-orange-500" />
+                            <span className="text-sm font-medium text-foreground">⚠️ Not on file yet</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            This rep is willing to obtain one if required.
+                          </p>
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">Not provided</p>
+                        <div className="flex items-center gap-2">
+                          <XCircle className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">❌ Not on file</span>
+                        </div>
                       )}
                     </div>
                   </div>

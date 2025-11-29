@@ -553,6 +553,7 @@ export type Database = {
           systems_used: string[] | null
           updated_at: string
           user_id: string
+          willing_to_obtain_background_check: boolean | null
           willing_to_travel_out_of_state: boolean | null
           zip_code: string | null
         }
@@ -580,6 +581,7 @@ export type Database = {
           systems_used?: string[] | null
           updated_at?: string
           user_id: string
+          willing_to_obtain_background_check?: boolean | null
           willing_to_travel_out_of_state?: boolean | null
           zip_code?: string | null
         }
@@ -607,6 +609,7 @@ export type Database = {
           systems_used?: string[] | null
           updated_at?: string
           user_id?: string
+          willing_to_obtain_background_check?: boolean | null
           willing_to_travel_out_of_state?: boolean | null
           zip_code?: string | null
         }
@@ -622,6 +625,7 @@ export type Database = {
       }
       seeking_coverage_posts: {
         Row: {
+          allow_willing_to_obtain_background_check: boolean | null
           auto_expires_at: string | null
           county_fips: string | null
           county_id: string | null
@@ -650,6 +654,7 @@ export type Database = {
           vendor_id: string
         }
         Insert: {
+          allow_willing_to_obtain_background_check?: boolean | null
           auto_expires_at?: string | null
           county_fips?: string | null
           county_id?: string | null
@@ -678,6 +683,7 @@ export type Database = {
           vendor_id: string
         }
         Update: {
+          allow_willing_to_obtain_background_check?: boolean | null
           auto_expires_at?: string | null
           county_fips?: string | null
           county_id?: string | null
