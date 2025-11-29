@@ -324,7 +324,7 @@ const VendorSeekingCoverage = () => {
 
       const defaultTemplate = `Hi {{REP_ANON}},
 
-Coverage has now been established for {{POST_TITLE}}. We won't be assigning additional work from this request at this time, but please keep an eye on ClearMarket for future opportunities in your coverage areas.
+Coverage has now been established for {{POST_TITLE}}. Please keep an eye on ClearMarket for future opportunities in your coverage areas.
 
 Thank you again for your interest!`;
 
