@@ -576,36 +576,30 @@ export default function MessageThread() {
     if (!user) return;
 
     try {
-      // Determine who is vendor and who is rep
-      const { data: userProfiles, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, is_vendor_admin, is_fieldrep")
-        .in("id", [user.id, otherId]);
-
-      if (profileError || !userProfiles) return;
-
-      const currentUserProfile = userProfiles.find(p => p.id === user.id);
-      const otherUserProfile = userProfiles.find(p => p.id === otherId);
-
-      if (!currentUserProfile || !otherUserProfile) return;
-
-      // Only load connection if one is vendor and other is rep
-      const isVendorRepPair = 
-        (currentUserProfile.is_vendor_admin && otherUserProfile.is_fieldrep) ||
-        (currentUserProfile.is_fieldrep && otherUserProfile.is_vendor_admin);
-
-      if (!isVendorRepPair) return;
-
-      const vendorId = currentUserProfile.is_vendor_admin ? user.id : otherId;
-      const fieldRepId = currentUserProfile.is_fieldrep ? user.id : otherId;
-
-      // Load existing vendor connection (regardless of status)
-      const { data: connection } = await supabase
-        .from("vendor_connections")
-        .select("*")
-        .eq("vendor_id", vendorId)
-        .eq("field_rep_id", fieldRepId)
-        .maybeSingle();
+      // Try loading vendor connection with current user as vendor
+      let connection = null;
+      
+      if (isVendor) {
+        // Current user is vendor, other is field rep
+        const { data } = await supabase
+          .from("vendor_connections")
+          .select("*")
+          .eq("vendor_id", user.id)
+          .eq("field_rep_id", otherId)
+          .maybeSingle();
+        
+        connection = data;
+      } else if (isRep) {
+        // Current user is field rep, other is vendor
+        const { data } = await supabase
+          .from("vendor_connections")
+          .select("*")
+          .eq("vendor_id", otherId)
+          .eq("field_rep_id", user.id)
+          .maybeSingle();
+        
+        connection = data;
+      }
 
       setVendorConnection(connection);
     } catch (error) {
