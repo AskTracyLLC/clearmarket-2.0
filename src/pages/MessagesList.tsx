@@ -36,13 +36,11 @@ interface ConversationWithParticipant {
 
 interface PendingConnectionRequest {
   id: string;
-  post_id: string;
-  rep_id: string;
   vendor_id: string;
-  vendor_anonymous_id: string;
-  vendor_company_name: string;
-  post_title: string;
-  post_state_code: string | null;
+  field_rep_id: string;
+  vendor_name: string;
+  requested_at: string;
+  conversation_id: string | null;
 }
 
 export default function MessagesList() {
@@ -95,68 +93,70 @@ export default function MessagesList() {
 
     if (!profile?.is_fieldrep) return;
 
-    // Get rep profile ID
-    const { data: repProfile } = await supabase
-      .from("rep_profile")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!repProfile) return;
-
-    // Fetch pending connection requests with post data
-    const { data: interests, error } = await supabase
-      .from("rep_interest")
+    // Fetch pending vendor connections for this field rep
+    const { data: connections, error } = await supabase
+      .from("vendor_connections")
       .select(`
         id,
-        post_id,
-        rep_id,
-        seeking_coverage_posts!inner (
-          id,
-          title,
-          state_code,
-          vendor_id
-        )
+        vendor_id,
+        field_rep_id,
+        requested_at,
+        conversation_id
       `)
-      .eq("rep_id", repProfile.id)
-      .eq("status", "pending_rep_confirm");
+      .eq("field_rep_id", user.id)
+      .eq("status", "pending")
+      .order("requested_at", { ascending: false });
 
     if (error) {
       console.error("Error loading pending requests:", error);
       return;
     }
 
-    if (!interests || interests.length === 0) {
+    if (!connections || connections.length === 0) {
       setPendingRequests([]);
       return;
     }
 
     // Get unique vendor IDs
-    const vendorIds = [...new Set(interests.map((i: any) => i.seeking_coverage_posts.vendor_id))];
+    const vendorIds = [...new Set(connections.map((c) => c.vendor_id))];
 
-    // Fetch vendor profiles for all vendors
+    // Fetch vendor profiles and base profiles
     const { data: vendorProfiles } = await supabase
       .from("vendor_profile")
       .select("user_id, anonymous_id, company_name")
       .in("user_id", vendorIds);
 
-    // Build a map of vendor profiles
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", vendorIds);
+
+    // Build maps
     const vendorProfileMap = new Map(
       (vendorProfiles || []).map((vp) => [vp.user_id, vp])
     );
+    const profileMap = new Map(
+      (profiles || []).map((p) => [p.id, p])
+    );
 
     // Combine the data
-    const requests: PendingConnectionRequest[] = interests.map((interest: any) => {
-      const vendorProfile = vendorProfileMap.get(interest.seeking_coverage_posts.vendor_id);
+    const requests: PendingConnectionRequest[] = connections.map((conn) => {
+      const vendorProfile = vendorProfileMap.get(conn.vendor_id);
+      const baseProfile = profileMap.get(conn.vendor_id);
+      
+      // Display name: prefer vendor company name, fallback to anonymous ID or full name
+      let displayName = vendorProfile?.company_name || vendorProfile?.anonymous_id || "Vendor";
+      if (!vendorProfile?.company_name && baseProfile?.full_name) {
+        displayName = baseProfile.full_name;
+      }
+
       return {
-        id: interest.id,
-        post_id: interest.post_id,
-        rep_id: interest.rep_id,
-        vendor_id: interest.seeking_coverage_posts.vendor_id,
-        vendor_anonymous_id: vendorProfile?.anonymous_id || "Vendor",
-        vendor_company_name: vendorProfile?.company_name || "Unknown Vendor",
-        post_title: interest.seeking_coverage_posts.title,
-        post_state_code: interest.seeking_coverage_posts.state_code,
+        id: conn.id,
+        vendor_id: conn.vendor_id,
+        field_rep_id: conn.field_rep_id,
+        vendor_name: displayName,
+        requested_at: conn.requested_at,
+        conversation_id: conn.conversation_id,
       };
     });
 
@@ -167,10 +167,10 @@ export default function MessagesList() {
     setProcessingRequestId(requestId);
     try {
       const { error } = await supabase
-        .from("rep_interest")
+        .from("vendor_connections")
         .update({ 
           status: "connected",
-          connected_at: new Date().toISOString()
+          responded_at: new Date().toISOString()
         })
         .eq("id", requestId);
 
@@ -178,7 +178,7 @@ export default function MessagesList() {
 
       toast({
         title: "Connection accepted",
-        description: "This vendor is now in your My Vendors list.",
+        description: "This vendor is now in your network.",
       });
 
       // Remove from pending requests
@@ -199,10 +199,10 @@ export default function MessagesList() {
     setProcessingRequestId(requestId);
     try {
       const { error } = await supabase
-        .from("rep_interest")
+        .from("vendor_connections")
         .update({ 
           status: "declined",
-          connected_at: null
+          responded_at: new Date().toISOString()
         })
         .eq("id", requestId);
 
@@ -416,14 +416,27 @@ export default function MessagesList() {
         {/* Pending Connection Requests */}
         {isRep && pendingRequests.length > 0 && (
           <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">
+              Connection Requests ({pendingRequests.length})
+            </h2>
             {pendingRequests.map((request) => (
               <Alert key={request.id} className="border-amber-500/40 bg-amber-500/10">
                 <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm">
-                    <span className="font-semibold">{request.vendor_anonymous_id}</span> has requested to add you to their network
-                    for <span className="font-medium">{request.post_title}</span>.
-                    {" "}If you work well together, you can accept this connection so they appear in your "My Vendors" list.
-                  </span>
+                  <div className="space-y-1">
+                    <div className="text-sm">
+                      <span className="font-semibold">{request.vendor_name}</span> has requested to connect with you.
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Request sent – {new Date(request.requested_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true
+                      })}
+                    </div>
+                  </div>
                   <div className="flex gap-2 shrink-0">
                     <Button 
                       size="sm" 
