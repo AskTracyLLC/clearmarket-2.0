@@ -863,6 +863,67 @@ export type Database = {
           },
         ]
       }
+      vendor_connections: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          field_rep_id: string
+          id: string
+          requested_at: string
+          requested_by: Database["public"]["Enums"]["vendor_connection_initiator"]
+          responded_at: string | null
+          status: Database["public"]["Enums"]["vendor_connection_status"]
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          field_rep_id: string
+          id?: string
+          requested_at?: string
+          requested_by: Database["public"]["Enums"]["vendor_connection_initiator"]
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["vendor_connection_status"]
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          field_rep_id?: string
+          id?: string
+          requested_at?: string
+          requested_by?: Database["public"]["Enums"]["vendor_connection_initiator"]
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["vendor_connection_status"]
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_connections_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_coverage_areas: {
         Row: {
           county_id: string | null
@@ -1040,7 +1101,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      vendor_connection_initiator: "vendor" | "field_rep"
+      vendor_connection_status: "pending" | "connected" | "declined" | "blocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1167,6 +1229,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      vendor_connection_initiator: ["vendor", "field_rep"],
+      vendor_connection_status: ["pending", "connected", "declined", "blocked"],
+    },
   },
 } as const
