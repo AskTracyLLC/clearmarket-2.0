@@ -599,7 +599,7 @@ export default function MessageThread() {
       const vendorId = currentUserProfile.is_vendor_admin ? user.id : otherId;
       const fieldRepId = currentUserProfile.is_fieldrep ? user.id : otherId;
 
-      // Load existing vendor connection
+      // Load existing vendor connection (regardless of status)
       const { data: connection } = await supabase
         .from("vendor_connections")
         .select("*")
@@ -1044,12 +1044,10 @@ export default function MessageThread() {
           </Card>
         )}
 
-        {/* Vendor Connect Request Button (for non-Seeking Coverage conversations) */}
+        {/* Vendor Connect Request Button (works for all vendor-rep conversations) */}
         {isVendor && 
-         isRep === false &&
          otherParticipantId && 
-         conversationData?.origin_type !== "seeking_coverage" &&
-         !vendorConnection && (
+         (!vendorConnection || vendorConnection.status === 'declined') && (
           <Card className="bg-card border-primary/30">
             <CardContent className="py-4 flex items-center justify-between">
               <div>
