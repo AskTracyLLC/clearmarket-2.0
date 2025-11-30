@@ -618,12 +618,49 @@ export default function MessageThread() {
 
     setLoadingVendorConnection(true);
     try {
+      // First, determine who is vendor and who is rep from profiles
+      const { data: userProfiles } = await supabase
+        .from("profiles")
+        .select("id, is_vendor_admin, is_fieldrep")
+        .in("id", [user.id, otherParticipantId]);
+
+      if (!userProfiles) throw new Error("Could not load user profiles");
+
+      const currentUserProfile = userProfiles.find(p => p.id === user.id);
+      const otherUserProfile = userProfiles.find(p => p.id === otherParticipantId);
+
+      if (!currentUserProfile?.is_vendor_admin || !otherUserProfile?.is_fieldrep) {
+        throw new Error("Invalid vendor-rep pair");
+      }
+
+      const vendorId = user.id;
+      const fieldRepId = otherParticipantId;
+
+      // Check if connection already exists
+      const { data: existingConnection } = await supabase
+        .from("vendor_connections")
+        .select("*")
+        .eq("vendor_id", vendorId)
+        .eq("field_rep_id", fieldRepId)
+        .maybeSingle();
+
+      if (existingConnection) {
+        // Connection already exists, update local state
+        setVendorConnection(existingConnection);
+        toast({
+          title: "Connection Already Exists",
+          description: `This connection is currently ${existingConnection.status}.`,
+        });
+        setLoadingVendorConnection(false);
+        return;
+      }
+
       // Insert vendor connection request
       const { data: newConnection, error } = await supabase
         .from("vendor_connections")
         .insert({
-          vendor_id: user.id,
-          field_rep_id: otherParticipantId,
+          vendor_id: vendorId,
+          field_rep_id: fieldRepId,
           status: "pending",
           requested_by: "vendor",
           conversation_id: conversationId
@@ -650,13 +687,24 @@ export default function MessageThread() {
         title: "Connection Request Sent",
         description: "The rep will be notified of your request.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating vendor connection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send connection request",
-        variant: "destructive",
-      });
+      
+      // Handle duplicate key error gracefully
+      if (error.code === '23505') {
+        // Reload the connection state
+        await loadVendorConnection(otherParticipantId);
+        toast({
+          title: "Connection Already Exists",
+          description: "A connection request was already sent to this rep.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to send connection request",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoadingVendorConnection(false);
     }
