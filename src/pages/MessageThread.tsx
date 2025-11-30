@@ -616,23 +616,18 @@ export default function MessageThread() {
   async function handleVendorConnectRequest() {
     if (!user || !otherParticipantId || !conversationId) return;
 
+    // Verify current user is vendor using already-loaded flags
+    if (!isVendor) {
+      toast({
+        title: "Error",
+        description: "Only vendors can send connection requests",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoadingVendorConnection(true);
     try {
-      // First, determine who is vendor and who is rep from profiles
-      const { data: userProfiles } = await supabase
-        .from("profiles")
-        .select("id, is_vendor_admin, is_fieldrep")
-        .in("id", [user.id, otherParticipantId]);
-
-      if (!userProfiles) throw new Error("Could not load user profiles");
-
-      const currentUserProfile = userProfiles.find(p => p.id === user.id);
-      const otherUserProfile = userProfiles.find(p => p.id === otherParticipantId);
-
-      if (!currentUserProfile?.is_vendor_admin || !otherUserProfile?.is_fieldrep) {
-        throw new Error("Invalid vendor-rep pair");
-      }
-
       const vendorId = user.id;
       const fieldRepId = otherParticipantId;
 
@@ -701,7 +696,7 @@ export default function MessageThread() {
       } else {
         toast({
           title: "Error",
-          description: "Failed to send connection request",
+          description: error.message || "Failed to send connection request",
           variant: "destructive",
         });
       }
