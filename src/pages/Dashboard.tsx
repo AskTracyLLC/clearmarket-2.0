@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [pendingConnectionCount, setPendingConnectionCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -96,6 +97,17 @@ const Dashboard = () => {
         .eq("read", false);
       
       setUnreadMessageCount(count || 0);
+
+      // Load pending connection count for field reps
+      if (data.is_fieldrep) {
+        const { count: pendingCount } = await supabase
+          .from("vendor_connections")
+          .select("*", { count: "exact", head: true })
+          .eq("field_rep_id", user.id)
+          .eq("status", "pending");
+        
+        setPendingConnectionCount(pendingCount || 0);
+      }
     }
 
     setLoading(false);
@@ -365,10 +377,17 @@ const Dashboard = () => {
                         {unreadMessageCount}
                       </Badge>
                     )}
+                    {isRep && pendingConnectionCount > 0 && (
+                      <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30">
+                        {pendingConnectionCount} pending
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
                     {unreadMessageCount > 0 
                       ? `You have ${unreadMessageCount} unread message${unreadMessageCount === 1 ? '' : 's'}`
+                      : pendingConnectionCount > 0 
+                      ? `${pendingConnectionCount} pending connection request${pendingConnectionCount === 1 ? '' : 's'}`
                       : `View and respond to conversations with ${isRep ? "vendors" : "field reps"}`
                     }
                   </p>
