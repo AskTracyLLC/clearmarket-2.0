@@ -63,6 +63,8 @@ export default function MessageThread() {
     vendorUserId: string;
     postId?: string | null;
   } | null>(null);
+  const [vendorConnection, setVendorConnection] = useState<any>(null);
+  const [loadingVendorConnection, setLoadingVendorConnection] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -189,6 +191,9 @@ export default function MessageThread() {
         await loadOtherPartyProfile(otherId);
         await loadRepInterest(conversation);
       }
+
+      // Load vendor connection for any vendor-rep conversation
+      await loadVendorConnection(otherId);
 
       // Load messages
       await loadMessages();
@@ -567,6 +572,184 @@ export default function MessageThread() {
     setPendingDisconnectData(null);
   }
 
+  async function loadVendorConnection(otherId: string) {
+    if (!user) return;
+
+    try {
+      // Determine who is vendor and who is rep
+      const { data: userProfiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, is_vendor_admin, is_fieldrep")
+        .in("id", [user.id, otherId]);
+
+      if (profileError || !userProfiles) return;
+
+      const currentUserProfile = userProfiles.find(p => p.id === user.id);
+      const otherUserProfile = userProfiles.find(p => p.id === otherId);
+
+      if (!currentUserProfile || !otherUserProfile) return;
+
+      // Only load connection if one is vendor and other is rep
+      const isVendorRepPair = 
+        (currentUserProfile.is_vendor_admin && otherUserProfile.is_fieldrep) ||
+        (currentUserProfile.is_fieldrep && otherUserProfile.is_vendor_admin);
+
+      if (!isVendorRepPair) return;
+
+      const vendorId = currentUserProfile.is_vendor_admin ? user.id : otherId;
+      const fieldRepId = currentUserProfile.is_fieldrep ? user.id : otherId;
+
+      // Load existing vendor connection
+      const { data: connection } = await supabase
+        .from("vendor_connections")
+        .select("*")
+        .eq("vendor_id", vendorId)
+        .eq("field_rep_id", fieldRepId)
+        .maybeSingle();
+
+      setVendorConnection(connection);
+    } catch (error) {
+      console.error("Error loading vendor connection:", error);
+    }
+  }
+
+  async function handleVendorConnectRequest() {
+    if (!user || !otherParticipantId || !conversationId) return;
+
+    setLoadingVendorConnection(true);
+    try {
+      // Insert vendor connection request
+      const { data: newConnection, error } = await supabase
+        .from("vendor_connections")
+        .insert({
+          vendor_id: user.id,
+          field_rep_id: otherParticipantId,
+          status: "pending",
+          requested_by: "vendor",
+          conversation_id: conversationId
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setVendorConnection(newConnection);
+
+      // Send system message
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        recipient_id: otherParticipantId,
+        body: `${otherParticipantName} has requested to connect with you. You can accept or decline this request.`,
+      });
+
+      // Reload messages
+      await loadMessages();
+
+      toast({
+        title: "Connection Request Sent",
+        description: "The rep will be notified of your request.",
+      });
+    } catch (error) {
+      console.error("Error creating vendor connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingVendorConnection(false);
+    }
+  }
+
+  async function handleAcceptVendorConnection() {
+    if (!vendorConnection || !user || !conversationId) return;
+
+    setLoadingVendorConnection(true);
+    try {
+      const { error } = await supabase
+        .from("vendor_connections")
+        .update({
+          status: "connected",
+          responded_at: new Date().toISOString()
+        })
+        .eq("id", vendorConnection.id);
+
+      if (error) throw error;
+
+      setVendorConnection({ ...vendorConnection, status: "connected" });
+
+      // Send system message
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        recipient_id: otherParticipantId,
+        body: `You are now connected with ${otherParticipantName}.`,
+      });
+
+      // Reload messages
+      await loadMessages();
+
+      toast({
+        title: "Connection Accepted",
+        description: "You are now connected with this vendor.",
+      });
+    } catch (error) {
+      console.error("Error accepting vendor connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept connection",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingVendorConnection(false);
+    }
+  }
+
+  async function handleDeclineVendorConnection() {
+    if (!vendorConnection || !user || !conversationId) return;
+
+    setLoadingVendorConnection(true);
+    try {
+      const { error } = await supabase
+        .from("vendor_connections")
+        .update({
+          status: "declined",
+          responded_at: new Date().toISOString()
+        })
+        .eq("id", vendorConnection.id);
+
+      if (error) throw error;
+
+      setVendorConnection({ ...vendorConnection, status: "declined" });
+
+      // Send system message
+      await supabase.from("messages").insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        recipient_id: otherParticipantId,
+        body: `You declined the connection request from ${otherParticipantName}.`,
+      });
+
+      // Reload messages
+      await loadMessages();
+
+      toast({
+        title: "Connection Declined",
+        description: "Connection request has been declined.",
+      });
+    } catch (error) {
+      console.error("Error declining vendor connection:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline connection",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingVendorConnection(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
@@ -861,7 +1044,62 @@ export default function MessageThread() {
           </Card>
         )}
 
-        {/* Rep-side Pending Connection Request Banner */}
+        {/* Vendor Connect Request Button (for non-Seeking Coverage conversations) */}
+        {isVendor && 
+         isRep === false &&
+         otherParticipantId && 
+         conversationData?.origin_type !== "seeking_coverage" &&
+         !vendorConnection && (
+          <Card className="bg-card border-primary/30">
+            <CardContent className="py-4 flex items-center justify-between">
+              <div>
+                <p className="font-semibold">Connect with this Field Rep</p>
+                <p className="text-sm text-muted-foreground">
+                  Send a connection request to add them to your network
+                </p>
+              </div>
+              <Button 
+                onClick={handleVendorConnectRequest}
+                disabled={loadingVendorConnection}
+              >
+                {loadingVendorConnection ? "Sending..." : "Send Connection Request"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Rep-side Pending Vendor Connection Request Banner */}
+        {isRep && 
+         vendorConnection?.status === "pending" && (
+          <Alert className="border-amber-500/40 bg-amber-500/10">
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-sm">
+                <span className="font-semibold">{otherParticipantName}</span> has requested to connect with you.
+                {" "}You can accept or decline this request.
+              </span>
+              <div className="flex gap-2 shrink-0">
+                <Button 
+                  size="sm" 
+                  onClick={handleAcceptVendorConnection}
+                  disabled={loadingVendorConnection}
+                >
+                  {loadingVendorConnection ? "Accepting..." : "Accept"}
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handleDeclineVendorConnection}
+                  disabled={loadingVendorConnection}
+                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  {loadingVendorConnection ? "Declining..." : "Decline"}
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Rep-side Pending Connection Request Banner (for Seeking Coverage) */}
         {isRep && 
          conversationData?.origin_type === "seeking_coverage" && 
          repInterest?.status === "pending_rep_confirm" && 
