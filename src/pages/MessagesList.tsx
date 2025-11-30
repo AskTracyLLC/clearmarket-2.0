@@ -32,6 +32,7 @@ interface ConversationWithParticipant {
   otherParticipantName: string;
   otherParticipantUserId: string;
   unreadCount: number;
+  hasPendingConnection?: boolean;
 }
 
 interface PendingConnectionRequest {
@@ -183,6 +184,9 @@ export default function MessagesList() {
 
       // Remove from pending requests
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+      
+      // Reload conversations to update pending indicators
+      await loadConversations();
     } catch (error) {
       console.error("Error accepting request:", error);
       toast({
@@ -215,6 +219,9 @@ export default function MessagesList() {
 
       // Remove from pending requests
       setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+      
+      // Reload conversations to update pending indicators
+      await loadConversations();
     } catch (error) {
       console.error("Error declining request:", error);
       toast({
@@ -315,7 +322,7 @@ export default function MessagesList() {
       });
 
       // Get display names for other participants and attach unread counts
-      const conversationsWithNames = await Promise.all(
+      const conversationsWithNames: ConversationWithParticipant[] = await Promise.all(
         (data || []).map(async (conv) => {
           const otherUserId = conv.participant_one === user.id 
             ? conv.participant_two 
@@ -328,6 +335,7 @@ export default function MessagesList() {
             otherParticipantName,
             otherParticipantUserId: otherUserId,
             unreadCount: unreadCounts[conv.id] || 0,
+            hasPendingConnection: false, // Will be updated below if applicable
           };
         })
       );
@@ -337,6 +345,38 @@ export default function MessagesList() {
         const isParticipantOne = conv.participant_one === user.id;
         return isParticipantOne ? !conv.hidden_for_one : !conv.hidden_for_two;
       });
+
+      // Load pending connection states for field reps
+      if (filteredConversations.length > 0) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_fieldrep")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.is_fieldrep) {
+          // Get all vendor user IDs from conversations
+          const vendorIds = filteredConversations.map(conv => conv.otherParticipantUserId);
+          
+          // Query vendor_connections for pending connections
+          const { data: pendingConnections } = await supabase
+            .from("vendor_connections")
+            .select("vendor_id")
+            .eq("field_rep_id", user.id)
+            .eq("status", "pending")
+            .in("vendor_id", vendorIds);
+
+          // Build a set of vendor IDs with pending connections
+          const pendingVendorIds = new Set(
+            (pendingConnections || []).map(c => c.vendor_id)
+          );
+
+          // Mark conversations with pending connections
+          filteredConversations.forEach(conv => {
+            conv.hasPendingConnection = pendingVendorIds.has(conv.otherParticipantUserId);
+          });
+        }
+      }
 
       setConversations(filteredConversations);
     } catch (error) {
@@ -553,6 +593,11 @@ export default function MessagesList() {
                         {conv.unreadCount > 0 && (
                           <Badge variant="secondary" className="ml-2 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">
                             {conv.unreadCount}
+                          </Badge>
+                        )}
+                        {conv.hasPendingConnection && (
+                          <Badge variant="outline" className="ml-2 bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs">
+                            Connection Request Pending
                           </Badge>
                         )}
                       </div>

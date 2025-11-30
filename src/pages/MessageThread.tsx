@@ -1089,60 +1089,54 @@ export default function MessageThread() {
           <>
             {/* Show button only when no connection or declined */}
             {(!vendorConnection || vendorConnection.status === 'declined') && (
-              <Card className="bg-card border-primary/30">
-                <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
+                <div>
+                  <p className="font-semibold">Connect with this Field Rep</p>
+                  <p className="text-sm text-muted-foreground">
+                    Send a connection request to add them to your network
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleVendorConnectRequest}
+                  disabled={loadingVendorConnection}
+                >
+                  {loadingVendorConnection ? "Sending..." : "Send Connection Request"}
+                </Button>
+              </div>
+            )}
+
+            {/* Show pending chip when request is pending */}
+            {vendorConnection?.status === 'pending' && (
+              <div className="flex items-center justify-between p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
+                <div className="flex items-center gap-3">
                   <div>
-                    <p className="font-semibold">Connect with this Field Rep</p>
+                    <p className="font-semibold text-amber-500">Pending Connection</p>
                     <p className="text-sm text-muted-foreground">
-                      Send a connection request to add them to your network
+                      Request sent – {format(new Date(vendorConnection.requested_at), 'MMM d, yyyy h:mm a')}
                     </p>
                   </div>
-                  <Button 
-                    onClick={handleVendorConnectRequest}
-                    disabled={loadingVendorConnection}
-                  >
-                    {loadingVendorConnection ? "Sending..." : "Send Connection Request"}
-                  </Button>
-                </CardContent>
-              </Card>
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
+                    Pending
+                  </Badge>
+                </div>
+              </div>
             )}
 
-            {/* Show pending state when request is pending */}
-            {vendorConnection?.status === 'pending' && (
-              <Card className="bg-card border-amber-500/30">
-                <CardContent className="py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <p className="font-semibold text-amber-500">Pending Connection</p>
-                      <p className="text-sm text-muted-foreground">
-                        Request sent – {format(new Date(vendorConnection.requested_at), 'MMM d, yyyy h:mm a')}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
-                      Pending
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Show connected state when connection is established */}
+            {/* Show connected chip when connection is established */}
             {vendorConnection?.status === 'connected' && (
-              <Card className="bg-card border-green-500/30">
-                <CardContent className="py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <p className="font-semibold text-green-500">✓ Connected</p>
-                      <p className="text-sm text-muted-foreground">
-                        You are connected with this Field Rep
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                      Connected
-                    </Badge>
+              <div className="flex items-center justify-between p-4 border border-green-500/30 rounded-lg bg-green-500/10">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="font-semibold text-green-500">✓ Connected</p>
+                    <p className="text-sm text-muted-foreground">
+                      You are connected with this Field Rep
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
+                    Connected
+                  </Badge>
+                </div>
+              </div>
             )}
           </>
         )}
