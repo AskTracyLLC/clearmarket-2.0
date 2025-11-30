@@ -192,8 +192,8 @@ export default function MessageThread() {
         await loadRepInterest(conversation);
       }
 
-      // Load vendor connection for any vendor-rep conversation
-      await loadVendorConnection(otherId);
+      // Load vendor connection for any vendor-rep conversation (pair-based, not thread-based)
+      await loadVendorConnection(otherId, profile?.is_vendor_admin || false, profile?.is_fieldrep || false);
 
       // Load messages
       await loadMessages();
@@ -572,14 +572,17 @@ export default function MessageThread() {
     setPendingDisconnectData(null);
   }
 
-  async function loadVendorConnection(otherId: string) {
+  async function loadVendorConnection(otherId: string, currentIsVendor?: boolean, currentIsRep?: boolean) {
     if (!user) return;
 
     try {
-      // Try loading vendor connection with current user as vendor
+      const effectiveIsVendor = currentIsVendor ?? isVendor;
+      const effectiveIsRep = currentIsRep ?? isRep;
+
+      // Try loading vendor connection based on roles, independent of conversation
       let connection = null;
       
-      if (isVendor) {
+      if (effectiveIsVendor) {
         // Current user is vendor, other is field rep
         const { data } = await supabase
           .from("vendor_connections")
@@ -589,7 +592,7 @@ export default function MessageThread() {
           .maybeSingle();
         
         connection = data;
-      } else if (isRep) {
+      } else if (effectiveIsRep) {
         // Current user is field rep, other is vendor
         const { data } = await supabase
           .from("vendor_connections")
@@ -681,8 +684,8 @@ export default function MessageThread() {
       
       // Handle duplicate key error gracefully
       if (error.code === '23505') {
-        // Reload the connection state
-        await loadVendorConnection(otherParticipantId);
+        // Reload the connection state for this vendor/rep pair
+        await loadVendorConnection(otherParticipantId, isVendor, isRep);
         toast({
           title: "Connection Already Exists",
           description: "A connection request was already sent to this rep.",
