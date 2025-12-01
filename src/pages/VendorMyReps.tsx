@@ -68,9 +68,9 @@ const VendorMyReps = () => {
   const [hasNotesByRep, setHasNotesByRep] = useState<Record<string, boolean>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editedNoteText, setEditedNoteText] = useState<string>("");
-  const [showEndRelationshipDialog, setShowEndRelationshipDialog] = useState(false);
-  const [endingRepUserId, setEndingRepUserId] = useState<string | null>(null);
-  const [ending, setEnding] = useState(false);
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [disconnectingRepUserId, setDisconnectingRepUserId] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
   const [exitReviewRepUserId, setExitReviewRepUserId] = useState<string | null>(null);
   const [showRepostDialog, setShowRepostDialog] = useState(false);
@@ -402,70 +402,70 @@ const VendorMyReps = () => {
     toast({ title: "Note Updated", description: "Your note has been updated." });
   };
 
-  const handleEndRelationshipClick = (repUserId: string) => {
-    setEndingRepUserId(repUserId);
-    setShowEndRelationshipDialog(true);
+  const handleDisconnectClick = (repUserId: string) => {
+    setDisconnectingRepUserId(repUserId);
+    setShowDisconnectDialog(true);
   };
 
-  const handleEndRelationship = async () => {
-    if (!endingRepUserId || !user) return;
+  const handleDisconnect = async () => {
+    if (!disconnectingRepUserId || !user) return;
 
-    setEnding(true);
+    setDisconnecting(true);
     try {
-      // Find the rep being ended
-      const endingRep = connectedReps.find(r => r.repUserId === endingRepUserId);
+      // Find the rep being disconnected
+      const disconnectingRep = connectedReps.find(r => r.repUserId === disconnectingRepUserId);
 
       // Update vendor_connections status to 'ended'
       const { error: connError } = await supabase
         .from("vendor_connections")
         .update({ status: "ended" })
         .eq("vendor_id", user.id)
-        .eq("field_rep_id", endingRepUserId);
+        .eq("field_rep_id", disconnectingRepUserId);
 
       if (connError) throw connError;
 
       // If agreement exists, update its status to 'ended'
-      if (endingRep?.agreementId) {
+      if (disconnectingRep?.agreementId) {
         const { error: agreementError } = await supabase
           .from("vendor_rep_agreements")
           .update({ status: "ended" })
-          .eq("id", endingRep.agreementId);
+          .eq("id", disconnectingRep.agreementId);
 
         if (agreementError) throw agreementError;
       }
 
       // Remove from list
-      setConnectedReps(prev => prev.filter(r => r.repUserId !== endingRepUserId));
+      setConnectedReps(prev => prev.filter(r => r.repUserId !== disconnectingRepUserId));
 
-      setShowEndRelationshipDialog(false);
+      setShowDisconnectDialog(false);
       
       toast({
-        title: "Relationship ended",
+        title: "Disconnected",
         description: "This Field Rep has been removed from your active list.",
       });
 
       // Show exit review dialog
-      setExitReviewRepUserId(endingRepUserId);
+      setExitReviewRepUserId(disconnectingRepUserId);
       setShowExitReviewDialog(true);
 
       // Store data for potential repost dialog
-      if (endingRep) {
+      if (disconnectingRep) {
         setRepostData({
-          coverageSummary: endingRep.coverageSummary,
-          pricingSummary: endingRep.pricingSummary,
+          coverageSummary: disconnectingRep.coverageSummary,
+          pricingSummary: disconnectingRep.pricingSummary,
         });
       }
 
-      setEndingRepUserId(null);
+      setDisconnectingRepUserId(null);
     } catch (error: any) {
-      console.error("Error ending relationship:", error);
+      console.error("Error disconnecting:", error);
       toast({
         title: "Error",
-        description: "Failed to end relationship",
+        description: "Failed to disconnect",
         variant: "destructive",
       });
     } finally {
-      setEnding(false);
+      setDisconnecting(false);
     }
   };
 
@@ -745,15 +745,15 @@ const VendorMyReps = () => {
                       </Button>
                     </div>
 
-                    {/* End Relationship Button */}
+                    {/* Disconnect Button */}
                     <div className="pt-2 border-t border-border">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEndRelationshipClick(rep.repUserId)}
+                        onClick={() => handleDisconnectClick(rep.repUserId)}
                         className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
                       >
-                        End Relationship with {rep.anonymousId}
+                        Disconnect from {rep.anonymousId}
                       </Button>
                     </div>
                   </CardContent>
@@ -776,7 +776,7 @@ const VendorMyReps = () => {
               onMessage: (repUserId: string, conversationId?: string) => handleMessage(repUserId, conversationId),
               onReview: (rep: ConnectedRep) => handleReviewRep(rep),
               onAgreement: (rep: ConnectedRep) => handleOpenAgreementDialog(rep),
-              onEndRelationship: (repUserId: string) => handleEndRelationshipClick(repUserId),
+              onDisconnect: (repUserId: string) => handleDisconnectClick(repUserId),
             }
           }}
         />
@@ -829,6 +829,27 @@ const VendorMyReps = () => {
           saving={savingAgreement}
         />
       )}
+
+      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect from this Field Rep?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll no longer see this Field Rep in your active list, and they'll no longer appear as covering work for you in this area. This won't delete past message history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {disconnecting ? "Disconnecting..." : "Disconnect"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

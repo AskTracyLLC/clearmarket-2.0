@@ -26,7 +26,7 @@ interface PublicProfileDialogProps {
       onMessage?: (repUserId: string, conversationId?: string) => void;
       onReview?: (rep: any) => void;
       onAgreement?: (rep: any) => void;
-      onEndRelationship?: (repUserId: string) => void;
+      onDisconnect?: (repUserId: string) => void;
     };
   };
 }
@@ -753,9 +753,9 @@ export function PublicProfileDialog({
                 <Button
                   className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
                   variant="outline"
-                  onClick={() => viewerContext.actions?.onEndRelationship?.(viewerContext.rep.repUserId)}
+                  onClick={() => viewerContext.actions?.onDisconnect?.(viewerContext.rep.repUserId)}
                 >
-                  End Relationship
+                  Disconnect
                 </Button>
               </div>
             </Card>
