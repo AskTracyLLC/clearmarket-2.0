@@ -22,6 +22,7 @@ import MessagesList from "./pages/MessagesList";
 import MessageThread from "./pages/MessageThread";
 import VendorMessageTemplates from "./pages/VendorMessageTemplates";
 import RepMessageTemplates from "./pages/RepMessageTemplates";
+import RepFindVendors from "./pages/RepFindVendors";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/rep/profile" element={<RepProfile />} />
             <Route path="/rep/find-work" element={<RepFindWork />} />
+            <Route path="/rep/find-vendors" element={<RepFindVendors />} />
             <Route path="/vendor/profile" element={<VendorProfile />} />
             <Route path="/vendor/find-reps" element={<VendorFindReps />} />
             <Route path="/vendor/seeking-coverage" element={<VendorSeekingCoverage />} />

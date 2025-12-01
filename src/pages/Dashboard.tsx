@@ -599,6 +599,27 @@ const Dashboard = () => {
                   </div>
                 </Card>
 
+                {/* NEW - Find Vendors */}
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/find-vendors")}>
+                  <div className="flex items-start gap-4">
+                    <Building2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Find Vendors</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          New
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Discover and connect with vendors in your coverage areas. View trust scores, reviews, and vendor expectations.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Browse Vendors →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
                 {/* TODO: COMING SOON - Looking for Work posts */}
                 <div onClick={() => handleComingSoonClick("Looking for Work")}>
                   <ComingSoonCard
