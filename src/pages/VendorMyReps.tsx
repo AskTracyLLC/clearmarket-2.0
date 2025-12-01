@@ -46,6 +46,11 @@ interface ConnectedRep {
     created_at: string;
   }>;
   review?: Review | null;
+  // Agreement data (optional overlay)
+  agreementId?: string | null;
+  coverageSummary?: string | null;
+  pricingSummary?: string | null;
+  baseRate?: number | null;
 }
 
 const VendorMyReps = () => {
@@ -108,23 +113,15 @@ const VendorMyReps = () => {
     if (!user) return;
 
     try {
-      // Query vendor_rep_agreements instead of rep_interest
-      const { data: agreements, error } = await supabase
-        .from("vendor_rep_agreements")
-        .select(`
-          id,
-          field_rep_id,
-          status,
-          coverage_summary,
-          pricing_summary,
-          base_rate,
-          created_at
-        `)
+      // Query vendor_connections as primary source
+      const { data: connections, error } = await supabase
+        .from("vendor_connections")
+        .select("id, vendor_id, field_rep_id, requested_at")
         .eq("vendor_id", user.id)
-        .eq("status", "active");
+        .eq("status", "connected");
 
       if (error) {
-        console.error("Error loading agreements:", error);
+        console.error("Error loading connections:", error);
         toast({
           title: "Error",
           description: "Failed to load your field reps.",
@@ -134,13 +131,27 @@ const VendorMyReps = () => {
         return;
       }
 
-      if (!agreements || agreements.length === 0) {
+      if (!connections || connections.length === 0) {
         setLoading(false);
         return;
       }
 
       // Get field rep IDs
-      const repUserIds = agreements.map(a => a.field_rep_id);
+      const repUserIds = connections.map(c => c.field_rep_id);
+
+      // LEFT JOIN vendor_rep_agreements
+      const { data: agreements } = await supabase
+        .from("vendor_rep_agreements")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, created_at")
+        .eq("vendor_id", user.id)
+        .eq("status", "active")
+        .in("field_rep_id", repUserIds);
+
+      // Build agreement map
+      const agreementMap = new Map();
+      (agreements || []).forEach(a => {
+        agreementMap.set(a.field_rep_id, a);
+      });
 
       // Fetch rep profiles
       const { data: repProfiles } = await supabase
@@ -162,8 +173,8 @@ const VendorMyReps = () => {
       // Build reps array
       const repsArray: ConnectedRep[] = [];
 
-      for (const agreement of agreements) {
-        const repProfile = repProfiles?.find(p => p.user_id === agreement.field_rep_id);
+      for (const connection of connections) {
+        const repProfile = repProfiles?.find(p => p.user_id === connection.field_rep_id);
         
         if (!repProfile) continue;
 
@@ -172,9 +183,11 @@ const VendorMyReps = () => {
         const firstName = nameParts[0] || "";
         const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
 
+        const agreement = agreementMap.get(connection.field_rep_id);
+
         repsArray.push({
-          repUserId: agreement.field_rep_id,
-          anonymousId: repProfile.anonymous_id || `FieldRep#${agreement.field_rep_id.substring(0, 6)}`,
+          repUserId: connection.field_rep_id,
+          anonymousId: repProfile.anonymous_id || `FieldRep#${connection.field_rep_id.substring(0, 6)}`,
           firstName,
           lastInitial,
           city: repProfile.city,
@@ -183,8 +196,13 @@ const VendorMyReps = () => {
           inspectionTypes: repProfile.inspection_types || [],
           isAcceptingNewVendors: repProfile.is_accepting_new_vendors ?? true,
           willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state ?? false,
-          connectedAt: agreement.created_at,
-          connectedPosts: [], // Agreements aren't tied to specific posts
+          connectedAt: agreement?.created_at || connection.requested_at,
+          connectedPosts: [],
+          // Agreement data (optional)
+          agreementId: agreement?.id || null,
+          coverageSummary: agreement?.coverage_summary || null,
+          pricingSummary: agreement?.pricing_summary || null,
+          baseRate: agreement?.base_rate || null,
         });
       }
 
@@ -256,8 +274,8 @@ const VendorMyReps = () => {
 
       // Sort by connectedAt (newest first)
       repsArray.sort((a, b) => {
-        const aDate = a.connectedAt ?? a.connectedPosts[0]?.id ?? '';
-        const bDate = b.connectedAt ?? b.connectedPosts[0]?.id ?? '';
+        const aDate = a.connectedAt ?? '';
+        const bDate = b.connectedAt ?? '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
 
@@ -524,14 +542,22 @@ const VendorMyReps = () => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1 text-sm">
-                        <p className="text-muted-foreground">
-                          Coverage: {rep.connectedPosts.length > 0 
-                            ? rep.connectedPosts.map(p => `${p.stateCode}`).join(" · ")
-                            : "Not specified"}
-                        </p>
-                        <p className="text-muted-foreground">
-                          Pricing: Contact for details
-                        </p>
+                        {rep.agreementId ? (
+                          <>
+                            <p className="text-muted-foreground">
+                              Coverage: {rep.coverageSummary || "Not specified"}
+                            </p>
+                            <p className="text-muted-foreground">
+                              Pricing: {rep.pricingSummary || "Not specified"}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-muted-foreground">Coverage: Not set yet</p>
+                            <p className="text-muted-foreground">Pricing: Not set yet</p>
+                            <Badge variant="secondary" className="w-fit mt-1">Agreement pending</Badge>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
@@ -567,9 +593,9 @@ const VendorMyReps = () => {
                           variant="outline"
                           size="sm"
                           disabled
-                          title="Edit Agreement feature coming soon"
+                          title={rep.agreementId ? "Edit Agreement feature coming soon" : "Create Agreement feature coming soon"}
                         >
-                          Edit Agreement
+                          {rep.agreementId ? "Edit Agreement" : "Create Agreement"}
                         </Button>
                       </div>
                     </td>
