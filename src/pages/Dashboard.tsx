@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 
@@ -22,6 +22,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingConnectionCount, setPendingConnectionCount] = useState(0);
+  const [reviewPrompts, setReviewPrompts] = useState<Array<{
+    userId: string;
+    anonymousId: string;
+    role: 'rep' | 'vendor';
+    connectedAt: string;
+  }>>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -108,9 +114,88 @@ const Dashboard = () => {
         
         setPendingConnectionCount(pendingCount || 0);
       }
+
+      // Check for 14-day review prompts
+      await checkReviewPrompts(user.id, data.is_fieldrep, data.is_vendor_admin);
     }
 
     setLoading(false);
+  };
+
+  const checkReviewPrompts = async (userId: string, isRep: boolean, isVendor: boolean) => {
+    try {
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      // Query connections that are ≥14 days old
+      let query = supabase
+        .from("vendor_connections")
+        .select("vendor_id, field_rep_id, requested_at")
+        .eq("status", "connected")
+        .lte("requested_at", fourteenDaysAgo.toISOString())
+        .limit(5);
+
+      // Filter by user role
+      if (isRep) {
+        query = query.eq("field_rep_id", userId);
+      } else if (isVendor) {
+        query = query.eq("vendor_id", userId);
+      }
+
+      const { data: connections } = await query;
+
+      if (!connections || connections.length === 0) return;
+
+      const prompts: Array<{ userId: string; anonymousId: string; role: 'rep' | 'vendor'; connectedAt: string }> = [];
+
+      for (const conn of connections) {
+        const otherUserId = isRep ? conn.vendor_id : conn.field_rep_id;
+        const reviewerRole = isRep ? 'rep' : 'vendor';
+        const direction = isRep ? 'rep_to_vendor' : 'vendor_to_rep';
+
+        // Check if user has already reviewed this person
+        const { data: existingReview } = await supabase
+          .from("reviews")
+          .select("id")
+          .eq("reviewer_id", userId)
+          .eq("reviewee_id", otherUserId)
+          .eq("direction", direction)
+          .maybeSingle();
+
+        if (existingReview) continue; // Already reviewed
+
+        // Check if there's at least one message exchanged
+        const { count: messageCount } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+          .or(`sender_id.eq.${otherUserId},recipient_id.eq.${otherUserId}`)
+          .limit(1);
+
+        if (!messageCount || messageCount === 0) continue; // No messages
+
+        // Fetch anonymous ID
+        const profileTable = isRep ? 'vendor_profile' : 'rep_profile';
+        const { data: profile } = await supabase
+          .from(profileTable)
+          .select("anonymous_id")
+          .eq("user_id", otherUserId)
+          .maybeSingle();
+
+        if (profile) {
+          prompts.push({
+            userId: otherUserId,
+            anonymousId: profile.anonymous_id || (isRep ? 'Vendor#???' : 'FieldRep#???'),
+            role: reviewerRole === 'rep' ? 'vendor' : 'rep',
+            connectedAt: conn.requested_at,
+          });
+        }
+      }
+
+      setReviewPrompts(prompts);
+    } catch (error) {
+      console.error("Error checking review prompts:", error);
+    }
   };
 
   const handleSignOut = async () => {
@@ -282,6 +367,38 @@ const Dashboard = () => {
             {isVendor && vendorProfile?.anonymous_id && ` (${vendorProfile.anonymous_id})`}
           </p>
         </div>
+
+        {/* Review Prompts */}
+        {reviewPrompts.length > 0 && (
+          <div className="mb-6 space-y-3 max-w-7xl">
+            {reviewPrompts.map((prompt) => (
+              <Card key={prompt.userId} className="bg-secondary/10 border-secondary/30">
+                <CardContent className="py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <Star className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          Leave a review for {prompt.anonymousId}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          You've been connected for over 2 weeks. Share your experience to help build trust in the network.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => navigate(isRep ? "/rep/my-vendors" : "/vendor/my-reps")}
+                    >
+                      Leave Review
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
           {/* Main Content Area */}
