@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +89,7 @@ const VendorMyReps = () => {
   const [showAgreementDialog, setShowAgreementDialog] = useState(false);
   const [editingAgreementRep, setEditingAgreementRep] = useState<ConnectedRep | null>(null);
   const [savingAgreement, setSavingAgreement] = useState(false);
+  const [stateFilter, setStateFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -500,6 +501,27 @@ const VendorMyReps = () => {
     setShowAgreementDialog(true);
   };
 
+  // Extract unique states from all agreements for filter
+  const availableStates = React.useMemo(() => {
+    const statesSet = new Set<string>();
+    connectedReps.forEach(rep => {
+      if (rep.statesCovered && rep.statesCovered.length > 0) {
+        rep.statesCovered.forEach(state => statesSet.add(state));
+      }
+    });
+    return Array.from(statesSet).sort();
+  }, [connectedReps]);
+
+  // Filter reps by selected state
+  const filteredReps = React.useMemo(() => {
+    if (stateFilter === "all") {
+      return connectedReps;
+    }
+    return connectedReps.filter(rep => 
+      rep.statesCovered && rep.statesCovered.includes(stateFilter)
+    );
+  }, [connectedReps, stateFilter]);
+
   const handleSaveAgreement = async (data: {
     coverageSummary: string;
     pricingSummary: string;
@@ -592,7 +614,30 @@ const VendorMyReps = () => {
           </div>
         </div>
 
-        {connectedReps.length === 0 ? (
+        {/* State Filter */}
+        {availableStates.length > 0 && (
+          <div className="mb-4">
+            <label className="text-sm font-medium mr-2">Filter by state:</label>
+            <select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value)}
+              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+            >
+              <option value="all">All States</option>
+              {availableStates.map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {filteredReps.length === 0 && stateFilter !== "all" ? (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground">
+              No field reps found covering {stateFilter}.
+            </p>
+          </Card>
+        ) : connectedReps.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
               <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -617,7 +662,7 @@ const VendorMyReps = () => {
                 </tr>
               </thead>
               <tbody>
-                {connectedReps.map((rep) => (
+                {filteredReps.map((rep) => (
                   <tr key={rep.repUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex flex-col gap-1">
@@ -678,7 +723,7 @@ const VendorMyReps = () => {
             {/* Notes Section - Below Table */}
             <div className="mt-8 space-y-6">
               <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
-              {connectedReps.map((rep) => (
+              {filteredReps.map((rep) => (
                 <Card key={`notes-${rep.repUserId}`}>
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
