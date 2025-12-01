@@ -624,6 +624,14 @@ const VendorMyReps = () => {
                         >
                           {rep.agreementId ? "Edit Agreement" : "Create Agreement"}
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEndRelationshipClick(rep.repUserId)}
+                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          End Relationship
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -728,15 +736,15 @@ const VendorMyReps = () => {
                       </Button>
                     </div>
 
-                    {/* Disconnect Button */}
+                    {/* End Relationship Button */}
                     <div className="pt-2 border-t border-border">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDisconnectClick(rep.connectedPosts[0].interestId)}
+                        onClick={() => handleEndRelationshipClick(rep.repUserId)}
                         className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
                       >
-                        Disconnect from {rep.anonymousId}
+                        End Relationship with {rep.anonymousId}
                       </Button>
                     </div>
                   </CardContent>
@@ -754,27 +762,6 @@ const VendorMyReps = () => {
           targetUserId={selectedRepUserId}
         />
       )}
-
-      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>End Connection?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove this connection from your My Reps / My Vendors list, but your message history will remain. You can reconnect again later if you both agree.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDisconnect}
-              disabled={disconnecting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {disconnecting ? "Disconnecting..." : "Yes, disconnect"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {reviewDialogData && user && (
         <ReviewDialog

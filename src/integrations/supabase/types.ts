@@ -1156,7 +1156,12 @@ export type Database = {
     }
     Enums: {
       vendor_connection_initiator: "vendor" | "field_rep"
-      vendor_connection_status: "pending" | "connected" | "declined" | "blocked"
+      vendor_connection_status:
+        | "pending"
+        | "connected"
+        | "declined"
+        | "blocked"
+        | "ended"
       vendor_rep_agreement_status: "active" | "paused" | "ended"
     }
     CompositeTypes: {
@@ -1286,7 +1291,13 @@ export const Constants = {
   public: {
     Enums: {
       vendor_connection_initiator: ["vendor", "field_rep"],
-      vendor_connection_status: ["pending", "connected", "declined", "blocked"],
+      vendor_connection_status: [
+        "pending",
+        "connected",
+        "declined",
+        "blocked",
+        "ended",
+      ],
       vendor_rep_agreement_status: ["active", "paused", "ended"],
     },
   },
