@@ -1022,7 +1022,7 @@ const RepMyVendors = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect from this Vendor?</AlertDialogTitle>
             <AlertDialogDescription>
-              You'll no longer see this Vendor in your active list, and they'll no longer see you in their connected reps. This won't delete past message history.
+              You'll no longer see this Vendor in your active list. This won't delete past message history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
