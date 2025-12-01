@@ -29,9 +29,9 @@ export function RepExitReviewDialog({
   repUserId,
   onComplete,
 }: RepExitReviewDialogProps) {
-  const [fairnessRating, setFairnessRating] = useState<number>(0);
-  const [clarityRating, setClarityRating] = useState<number>(0);
-  const [timelinessRating, setTimelinessRating] = useState<number>(0);
+  const [helpfulnessRating, setHelpfulnessRating] = useState<number>(0);
+  const [communicationRating, setCommunicationRating] = useState<number>(0);
+  const [payReliabilityRating, setPayReliabilityRating] = useState<number>(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -43,9 +43,9 @@ export function RepExitReviewDialog({
         reviewee_id: vendorUserId,
         direction: "rep_to_vendor",
         is_exit_review: true,
-        rating_on_time: timelinessRating > 0 ? timelinessRating : null,
-        rating_quality: clarityRating > 0 ? clarityRating : null,
-        rating_communication: fairnessRating > 0 ? fairnessRating : null,
+        rating_on_time: helpfulnessRating > 0 ? helpfulnessRating : null,
+        rating_quality: communicationRating > 0 ? communicationRating : null,
+        rating_communication: payReliabilityRating > 0 ? payReliabilityRating : null,
         comment: comment.trim() || null,
       };
 
@@ -64,9 +64,9 @@ export function RepExitReviewDialog({
       onComplete?.();
       
       // Reset form
-      setFairnessRating(0);
-      setClarityRating(0);
-      setTimelinessRating(0);
+      setHelpfulnessRating(0);
+      setCommunicationRating(0);
+      setPayReliabilityRating(0);
       setComment("");
     } catch (error: any) {
       console.error("Error submitting review:", error);
@@ -126,9 +126,20 @@ export function RepExitReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {renderStarRating(fairnessRating, setFairnessRating, "Fairness of pay")}
-          {renderStarRating(clarityRating, setClarityRating, "Clarity of expectations")}
-          {renderStarRating(timelinessRating, setTimelinessRating, "Timeliness of payment")}
+          <div className="space-y-2">
+            {renderStarRating(helpfulnessRating, setHelpfulnessRating, "Helpfulness & Support")}
+            <p className="text-xs text-muted-foreground">Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+            <p className="text-xs text-muted-foreground">Does this vendor respond to questions, give updates on changes, and set realistic expectations?</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(payReliabilityRating, setPayReliabilityRating, "Pay Reliability")}
+            <p className="text-xs text-muted-foreground">Do they pay on time and honor the rates and terms they agreed to?</p>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="comment" className="text-sm font-medium">

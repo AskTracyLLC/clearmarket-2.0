@@ -247,6 +247,25 @@ export function ReviewDialog({
   const titlePrefix = isExitReview ? "Exit Review" : reviewToEdit ? "Edit Review" : "Leave Review";
   const titleSuffix = isVendorReviewing ? "Field Rep" : "Vendor";
 
+  // Role-aware labels
+  const labels = isVendorReviewing
+    ? {
+        onTimeLabel: "On-Time Performance",
+        onTimeHelp: "Do they complete inspections by the agreed due dates without constant chasing?",
+        qualityLabel: "Quality of Inspection",
+        qualityHelp: "Are photos, forms, and documentation complete and correct the first time?",
+        commLabel: "Communication",
+        commHelp: "Do they respond to messages, provide updates (appointments, delays), and flag issues early?",
+      }
+    : {
+        onTimeLabel: "Helpfulness & Support",
+        onTimeHelp: "Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?",
+        qualityLabel: "Communication",
+        qualityHelp: "Does this vendor respond to questions, give updates on changes, and set realistic expectations?",
+        commLabel: "Pay Reliability",
+        commHelp: "Do they pay on time and honor the rates and terms they agreed to?",
+      };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -264,9 +283,20 @@ export function ReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {renderStarRating(onTimeRating, setOnTimeRating, "On-Time Performance")}
-          {renderStarRating(qualityRating, setQualityRating, "Quality of Work")}
-          {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+          <div className="space-y-2">
+            {renderStarRating(onTimeRating, setOnTimeRating, labels.onTimeLabel)}
+            <p className="text-xs text-muted-foreground">{labels.onTimeHelp}</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(qualityRating, setQualityRating, labels.qualityLabel)}
+            <p className="text-xs text-muted-foreground">{labels.qualityHelp}</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(communicationRating, setCommunicationRating, labels.commLabel)}
+            <p className="text-xs text-muted-foreground">{labels.commHelp}</p>
+          </div>
 
           <div className="space-y-2">
             <div className="flex items-center space-x-2">
