@@ -20,6 +20,8 @@ import { ArrowLeft, Eye, MessageSquare, Users, StickyNote, Edit2, X, Check } fro
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
+import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
+import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
 
 interface ConnectedRep {
   repUserId: string;
@@ -65,9 +67,16 @@ const VendorMyReps = () => {
   const [hasNotesByRep, setHasNotesByRep] = useState<Record<string, boolean>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editedNoteText, setEditedNoteText] = useState<string>("");
-  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
-  const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
-  const [disconnecting, setDisconnecting] = useState(false);
+  const [showEndRelationshipDialog, setShowEndRelationshipDialog] = useState(false);
+  const [endingRepUserId, setEndingRepUserId] = useState<string | null>(null);
+  const [ending, setEnding] = useState(false);
+  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
+  const [exitReviewRepUserId, setExitReviewRepUserId] = useState<string | null>(null);
+  const [showRepostDialog, setShowRepostDialog] = useState(false);
+  const [repostData, setRepostData] = useState<{
+    coverageSummary: string | null;
+    pricingSummary: string | null;
+  } | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewDialogData, setReviewDialogData] = useState<{
     repUserId: string;
@@ -389,60 +398,78 @@ const VendorMyReps = () => {
     toast({ title: "Note Updated", description: "Your note has been updated." });
   };
 
-  const handleDisconnectClick = (interestId: string) => {
-    setDisconnectingInterestId(interestId);
-    setShowDisconnectDialog(true);
+  const handleEndRelationshipClick = (repUserId: string) => {
+    setEndingRepUserId(repUserId);
+    setShowEndRelationshipDialog(true);
   };
 
-  const handleDisconnect = async () => {
-    if (!disconnectingInterestId) return;
+  const handleEndRelationship = async () => {
+    if (!endingRepUserId || !user) return;
 
-    setDisconnecting(true);
+    setEnding(true);
     try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ 
-          status: "disconnected",
-          connected_at: null
-        })
-        .eq("id", disconnectingInterestId);
+      // Find the rep being ended
+      const endingRep = connectedReps.find(r => r.repUserId === endingRepUserId);
 
-      if (error) throw error;
+      // Update vendor_connections status to 'ended'
+      const { error: connError } = await supabase
+        .from("vendor_connections")
+        .update({ status: "ended" })
+        .eq("vendor_id", user.id)
+        .eq("field_rep_id", endingRepUserId);
 
-      // Find the rep that's being disconnected to get subject_id and post_id
-      const disconnectedRep = connectedReps.find(rep =>
-        rep.connectedPosts.some(post => post.interestId === disconnectingInterestId)
-      );
+      if (connError) throw connError;
 
-      // Remove the rep from the list
-      setConnectedReps(prev => {
-        return prev.filter(rep => {
-          return !rep.connectedPosts.some(post => post.interestId === disconnectingInterestId);
-        });
-      });
+      // If agreement exists, update its status to 'ended'
+      if (endingRep?.agreementId) {
+        const { error: agreementError } = await supabase
+          .from("vendor_rep_agreements")
+          .update({ status: "ended" })
+          .eq("id", endingRep.agreementId);
 
-      setShowDisconnectDialog(false);
-
-      // Trigger Exit Review flow
-      if (disconnectedRep && user) {
-        setReviewDialogData({
-          repUserId: disconnectedRep.repUserId,
-          repInterestId: disconnectingInterestId,
-          isExitReview: true,
-        });
-        setShowReviewDialog(true);
+        if (agreementError) throw agreementError;
       }
 
-      setDisconnectingInterestId(null);
+      // Remove from list
+      setConnectedReps(prev => prev.filter(r => r.repUserId !== endingRepUserId));
+
+      setShowEndRelationshipDialog(false);
+      
+      toast({
+        title: "Relationship ended",
+        description: "This Field Rep has been removed from your active list.",
+      });
+
+      // Show exit review dialog
+      setExitReviewRepUserId(endingRepUserId);
+      setShowExitReviewDialog(true);
+
+      // Store data for potential repost dialog
+      if (endingRep) {
+        setRepostData({
+          coverageSummary: endingRep.coverageSummary,
+          pricingSummary: endingRep.pricingSummary,
+        });
+      }
+
+      setEndingRepUserId(null);
     } catch (error: any) {
-      console.error("Error disconnecting:", error);
+      console.error("Error ending relationship:", error);
       toast({
         title: "Error",
-        description: "Failed to end connection",
+        description: "Failed to end relationship",
         variant: "destructive",
       });
     } finally {
-      setDisconnecting(false);
+      setEnding(false);
+    }
+  };
+
+  const handleExitReviewComplete = () => {
+    // After exit review, show repost dialog
+    setShowExitReviewDialog(false);
+    if (repostData) {
+      setShowRepostDialog(true);
     }
   };
 
