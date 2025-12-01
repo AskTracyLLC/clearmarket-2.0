@@ -24,6 +24,7 @@ import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
 import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
 import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 
 interface ConnectedRep {
   repUserId: string;
@@ -94,6 +95,8 @@ const VendorMyReps = () => {
   const [editingAgreementRep, setEditingAgreementRep] = useState<ConnectedRep | null>(null);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [stateFilter, setStateFilter] = useState<string>("all");
+  const [showReviewsDialog, setShowReviewsDialog] = useState(false);
+  const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -718,15 +721,28 @@ const VendorMyReps = () => {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {rep.trustScore !== null && rep.trustScore !== undefined ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-foreground">{rep.trustScore.toFixed(1)}</span>
-                          {rep.trustScoreCount && rep.trustScoreCount > 0 && (
-                            <span className="text-xs">({rep.trustScoreCount} {rep.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
-                          )}
-                        </div>
+                      {rep.trustScoreCount && rep.trustScoreCount > 0 ? (
+                        <button
+                          onClick={() => {
+                            setReviewsDialogUserId(rep.repUserId);
+                            setShowReviewsDialog(true);
+                          }}
+                          className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
+                        >
+                          <span className="font-semibold text-foreground underline decoration-dotted">{rep.trustScore?.toFixed(1)}</span>
+                          <span className="text-xs">({rep.trustScoreCount} {rep.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
+                        </button>
                       ) : (
-                        <span>No reviews yet</span>
+                        <button
+                          onClick={() => {
+                            setReviewsDialogUserId(rep.repUserId);
+                            setShowReviewsDialog(true);
+                          }}
+                          className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
+                        >
+                          <span className="font-semibold text-muted-foreground">3.0</span>
+                          <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
+                        </button>
                       )}
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
@@ -924,6 +940,12 @@ const VendorMyReps = () => {
           saving={savingAgreement}
         />
       )}
+
+      <ReviewsDetailDialog
+        open={showReviewsDialog}
+        onOpenChange={setShowReviewsDialog}
+        targetUserId={reviewsDialogUserId}
+      />
 
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
         <AlertDialogContent>

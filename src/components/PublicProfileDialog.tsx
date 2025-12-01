@@ -15,6 +15,7 @@ import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, Ale
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -91,6 +92,7 @@ export function PublicProfileDialog({
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [backgroundCheckSignedUrl, setBackgroundCheckSignedUrl] = useState<string | null>(null);
   const [trustScore, setTrustScore] = useState<{ average: number; count: number } | null>(null);
+  const [showReviewsDialog, setShowReviewsDialog] = useState(false);
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -324,17 +326,28 @@ export function PublicProfileDialog({
 
         <div className="space-y-6">
           {/* Trust Score */}
-          {trustScore && trustScore.count > 0 && (
-            <Card className="p-4 bg-card-elevated">
-              <h3 className="font-semibold text-foreground mb-2">Trust Score</h3>
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-primary">{trustScore.average.toFixed(1)}</span>
+          <Card className="p-4 bg-card-elevated">
+            <h3 className="font-semibold text-foreground mb-2">Trust Score</h3>
+            {trustScore && trustScore.count > 0 ? (
+              <button
+                onClick={() => setShowReviewsDialog(true)}
+                className="flex items-baseline gap-2 hover:opacity-80 cursor-pointer"
+              >
+                <span className="text-3xl font-bold text-primary underline decoration-dotted">{trustScore.average.toFixed(1)}</span>
                 <span className="text-sm text-muted-foreground">
                   / 5.0 · {trustScore.count} {trustScore.count === 1 ? 'review' : 'reviews'}
                 </span>
-              </div>
-            </Card>
-          )}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowReviewsDialog(true)}
+                className="flex flex-col gap-2 hover:opacity-80 cursor-pointer text-left"
+              >
+                <span className="text-3xl font-bold text-muted-foreground">3.0</span>
+                <Badge variant="secondary" className="text-sm w-fit">New – not yet rated</Badge>
+              </button>
+            )}
+          </Card>
           {/* Location */}
           {(profileData.city || profileData.state) && (
             <Card className="p-4 bg-card-elevated">
@@ -789,6 +802,12 @@ export function PublicProfileDialog({
           )}
         </div>
       </DialogContent>
+
+      <ReviewsDetailDialog
+        open={showReviewsDialog}
+        onOpenChange={setShowReviewsDialog}
+        targetUserId={targetUserId}
+      />
     </Dialog>
   );
 }

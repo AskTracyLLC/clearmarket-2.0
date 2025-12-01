@@ -23,6 +23,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -103,6 +104,8 @@ const RepMyVendors = () => {
     existingReview?: Review | null;
   } | null>(null);
   const [stateFilter, setStateFilter] = useState<string>("all");
+  const [showReviewsDialog, setShowReviewsDialog] = useState(false);
+  const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -921,15 +924,28 @@ const RepMyVendors = () => {
                         </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
-                        {vendor.trustScore !== null && vendor.trustScore !== undefined ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-semibold text-foreground">{vendor.trustScore.toFixed(1)}</span>
-                            {vendor.trustScoreCount && vendor.trustScoreCount > 0 && (
-                              <span className="text-xs">({vendor.trustScoreCount} {vendor.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
-                            )}
-                          </div>
+                        {vendor.trustScoreCount && vendor.trustScoreCount > 0 ? (
+                          <button
+                            onClick={() => {
+                              setReviewsDialogUserId(vendor.vendorUserId);
+                              setShowReviewsDialog(true);
+                            }}
+                            className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
+                          >
+                            <span className="font-semibold text-foreground underline decoration-dotted">{vendor.trustScore?.toFixed(1)}</span>
+                            <span className="text-xs">({vendor.trustScoreCount} {vendor.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
+                          </button>
                         ) : (
-                          <span>No reviews yet</span>
+                          <button
+                            onClick={() => {
+                              setReviewsDialogUserId(vendor.vendorUserId);
+                              setShowReviewsDialog(true);
+                            }}
+                            className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
+                          >
+                            <span className="font-semibold text-muted-foreground">3.0</span>
+                            <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
+                          </button>
                         )}
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
@@ -1140,6 +1156,12 @@ const RepMyVendors = () => {
           repUserId={user!.id}
         />
       )}
+
+      <ReviewsDetailDialog
+        open={showReviewsDialog}
+        onOpenChange={setShowReviewsDialog}
+        targetUserId={reviewsDialogUserId}
+      />
 
       {reviewDialogData && user && (
         <ReviewDialog
