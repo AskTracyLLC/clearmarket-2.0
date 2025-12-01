@@ -1565,6 +1565,7 @@ export default function MessageThread() {
           <CreateAgreementDialog
             open={showAgreementDialog}
             onOpenChange={setShowAgreementDialog}
+            repUserId={otherParticipantId}
             repName={`${otherPartyProfile.full_name?.split(' ')[0]} ${otherPartyProfile.full_name?.split(' ')[1]?.[0]}.`}
             defaultCoverage={
               conversationData.seeking_post.us_counties?.county_name
