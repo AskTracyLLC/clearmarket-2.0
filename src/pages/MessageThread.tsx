@@ -65,6 +65,8 @@ export default function MessageThread() {
   } | null>(null);
   const [vendorConnection, setVendorConnection] = useState<any>(null);
   const [loadingVendorConnection, setLoadingVendorConnection] = useState(false);
+  const [agreement, setAgreement] = useState<any>(null);
+  const [creatingAgreement, setCreatingAgreement] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -81,6 +83,13 @@ export default function MessageThread() {
 
     loadConversationData();
   }, [user, authLoading, conversationId, navigate]);
+
+  useEffect(() => {
+    // Load agreement when we have user and other participant
+    if (user && otherParticipantId) {
+      loadAgreement();
+    }
+  }, [user, otherParticipantId]);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -328,6 +337,119 @@ export default function MessageThread() {
       .eq("conversation_id", conversationId)
       .eq("recipient_id", user.id)
       .eq("read", false);
+  }
+
+  async function loadAgreement() {
+    if (!user || !otherParticipantId) return;
+
+    try {
+      // Check if agreement exists between this vendor and rep
+      const { data, error } = await supabase
+        .from("vendor_rep_agreements")
+        .select("*")
+        .or(`and(vendor_id.eq.${user.id},field_rep_id.eq.${otherParticipantId}),and(vendor_id.eq.${otherParticipantId},field_rep_id.eq.${user.id})`)
+        .maybeSingle();
+
+      if (!error && data) {
+        setAgreement(data);
+      }
+    } catch (error) {
+      console.error("Error loading agreement:", error);
+    }
+  }
+
+  async function handleCreateAgreement() {
+    if (!user || !otherParticipantId || !conversationData?.seeking_post) return;
+
+    setCreatingAgreement(true);
+    try {
+      const post = conversationData.seeking_post;
+      
+      // Build coverage summary from post
+      const coverageSummary = `${post.us_counties?.county_name || ''}, ${post.us_counties?.state_code || post.state_code}`;
+      
+      // Build pricing summary from post
+      const pricingSummary = post.pay_type === "fixed"
+        ? `$${post.pay_min?.toFixed(2)} / order`
+        : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`;
+
+      // Ensure vendor_connections exists and is connected
+      const [p1, p2] = [user.id, otherParticipantId].sort();
+      const { data: existingConn } = await supabase
+        .from("vendor_connections")
+        .select("*")
+        .eq("vendor_id", isVendor ? user.id : otherParticipantId)
+        .eq("field_rep_id", isVendor ? otherParticipantId : user.id)
+        .maybeSingle();
+
+      if (!existingConn) {
+        // Create vendor_connections entry
+        await supabase
+          .from("vendor_connections")
+          .insert({
+            vendor_id: isVendor ? user.id : otherParticipantId,
+            field_rep_id: isVendor ? otherParticipantId : user.id,
+            status: "connected",
+            requested_by: "vendor",
+            responded_at: new Date().toISOString(),
+          });
+      } else if (existingConn.status === "pending") {
+        // Update to connected
+        await supabase
+          .from("vendor_connections")
+          .update({
+            status: "connected",
+            responded_at: new Date().toISOString(),
+          })
+          .eq("id", existingConn.id);
+      }
+
+      // Create agreement
+      const { data: newAgreement, error } = await supabase
+        .from("vendor_rep_agreements")
+        .insert({
+          vendor_id: isVendor ? user.id : otherParticipantId,
+          field_rep_id: isVendor ? otherParticipantId : user.id,
+          status: "active",
+          coverage_summary: coverageSummary,
+          pricing_summary: pricingSummary,
+          base_rate: post.pay_max || post.pay_min,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // Check for duplicate
+        if (error.code === "23505") {
+          toast({
+            title: "Agreement Already Exists",
+            description: "An agreement already exists with this field rep.",
+            variant: "default",
+          });
+          loadAgreement();
+          return;
+        }
+        throw error;
+      }
+
+      setAgreement(newAgreement);
+      toast({
+        title: "Agreement Created",
+        description: "Field rep has been added to your network.",
+      });
+
+      // Close the post if vendor wants
+      // (Optional: Could add a checkbox or separate action for this)
+    } catch (error: any) {
+      console.error("Error creating agreement:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create agreement.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingAgreement(false);
+    }
   }
 
   async function handleArchiveConversation() {
@@ -930,6 +1052,41 @@ export default function MessageThread() {
                         </Button>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* Create Agreement Button for Vendors (only when connected) */}
+              {isVendor && repInterest?.status === "connected" && !agreement && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Button
+                    onClick={handleCreateAgreement}
+                    disabled={creatingAgreement}
+                    className="w-full"
+                  >
+                    {creatingAgreement ? "Creating Agreement..." : "Add to My FieldReps"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    This will create a working agreement and add this rep to your network
+                  </p>
+                </div>
+              )}
+
+              {agreement && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Active agreement established</span>
+                  </div>
+                  {agreement.coverage_summary && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Coverage: {agreement.coverage_summary}
+                    </p>
+                  )}
+                  {agreement.pricing_summary && (
+                    <p className="text-xs text-muted-foreground">
+                      Pricing: {agreement.pricing_summary}
+                    </p>
                   )}
                 </div>
               )}

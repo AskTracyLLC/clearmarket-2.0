@@ -108,105 +108,85 @@ const VendorMyReps = () => {
     if (!user) return;
 
     try {
-      // First, get all posts belonging to this vendor
-      const { data: vendorPosts } = await supabase
-        .from("seeking_coverage_posts")
-        .select("id")
-        .eq("vendor_id", user.id);
-
-      if (!vendorPosts || vendorPosts.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const postIds = vendorPosts.map((p) => p.id);
-
-      // Get all connected rep_interest entries for these posts
-      const { data: interests, error } = await supabase
-        .from("rep_interest")
+      // Query vendor_rep_agreements instead of rep_interest
+      const { data: agreements, error } = await supabase
+        .from("vendor_rep_agreements")
         .select(`
           id,
+          field_rep_id,
           status,
-          created_at,
-          connected_at,
-          post_id,
-          rep_profile:rep_id (
-            id,
-            user_id,
-            anonymous_id,
-            city,
-            state,
-            systems_used,
-            inspection_types,
-            is_accepting_new_vendors,
-            willing_to_travel_out_of_state,
-            profiles:user_id ( full_name )
-          ),
-          seeking_coverage_posts:post_id (
-            id,
-            title,
-            state_code
-          )
+          coverage_summary,
+          pricing_summary,
+          base_rate,
+          created_at
         `)
-        .eq("status", "connected")
-        .in("post_id", postIds);
+        .eq("vendor_id", user.id)
+        .eq("status", "active");
 
       if (error) {
-        console.error("Error loading connected reps:", error);
+        console.error("Error loading agreements:", error);
         toast({
           title: "Error",
-          description: "Failed to load your connected reps.",
+          description: "Failed to load your field reps.",
           variant: "destructive",
         });
         setLoading(false);
         return;
       }
 
-      // Deduplicate by rep user_id and aggregate posts
-      const repsMap = new Map<string, ConnectedRep>();
-
-      for (const interest of interests || []) {
-        const repProfile = interest.rep_profile as any;
-        const post = interest.seeking_coverage_posts as any;
-        
-        if (!repProfile || !post) continue;
-
-        const repUserId = repProfile.user_id;
-
-        if (!repsMap.has(repUserId)) {
-          const fullName = repProfile.profiles?.full_name || "";
-          const nameParts = fullName.split(" ");
-          const firstName = nameParts[0] || "";
-          const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
-
-          repsMap.set(repUserId, {
-            repUserId,
-            anonymousId: repProfile.anonymous_id || `FieldRep#${repUserId.substring(0, 6)}`,
-            firstName,
-            lastInitial,
-            city: repProfile.city,
-            state: repProfile.state,
-            systemsUsed: repProfile.systems_used || [],
-            inspectionTypes: repProfile.inspection_types || [],
-            isAcceptingNewVendors: repProfile.is_accepting_new_vendors ?? true,
-            willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state ?? false,
-            connectedAt: interest.connected_at ?? interest.created_at,
-            connectedPosts: [],
-          });
-        }
-
-        // Add this post to the rep's connected posts
-        const rep = repsMap.get(repUserId)!;
-        rep.connectedPosts.push({
-          id: post.id,
-          title: post.title,
-          stateCode: post.state_code,
-          interestId: interest.id,
-        });
+      if (!agreements || agreements.length === 0) {
+        setLoading(false);
+        return;
       }
 
-      // Convert map to array and fetch conversation IDs
-      const repsArray = Array.from(repsMap.values());
+      // Get field rep IDs
+      const repUserIds = agreements.map(a => a.field_rep_id);
+
+      // Fetch rep profiles
+      const { data: repProfiles } = await supabase
+        .from("rep_profile")
+        .select(`
+          id,
+          user_id,
+          anonymous_id,
+          city,
+          state,
+          systems_used,
+          inspection_types,
+          is_accepting_new_vendors,
+          willing_to_travel_out_of_state,
+          profiles:user_id ( full_name )
+        `)
+        .in("user_id", repUserIds);
+
+      // Build reps array
+      const repsArray: ConnectedRep[] = [];
+
+      for (const agreement of agreements) {
+        const repProfile = repProfiles?.find(p => p.user_id === agreement.field_rep_id);
+        
+        if (!repProfile) continue;
+
+        const fullName = (repProfile.profiles as any)?.full_name || "";
+        const nameParts = fullName.split(" ");
+        const firstName = nameParts[0] || "";
+        const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
+
+        repsArray.push({
+          repUserId: agreement.field_rep_id,
+          anonymousId: repProfile.anonymous_id || `FieldRep#${agreement.field_rep_id.substring(0, 6)}`,
+          firstName,
+          lastInitial,
+          city: repProfile.city,
+          state: repProfile.state,
+          systemsUsed: repProfile.systems_used || [],
+          inspectionTypes: repProfile.inspection_types || [],
+          isAcceptingNewVendors: repProfile.is_accepting_new_vendors ?? true,
+          willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state ?? false,
+          connectedAt: agreement.created_at,
+          connectedPosts: [], // Agreements aren't tied to specific posts
+        });
+      }
 
       // For each rep, check if conversation exists
       for (const rep of repsArray) {
@@ -224,7 +204,6 @@ const VendorMyReps = () => {
       }
 
       // Fetch notes for all reps
-      const repUserIds = repsArray.map(r => r.repUserId);
       if (repUserIds.length > 0) {
         const { data: notesData, error: notesError } = await supabase
           .from("connection_notes")

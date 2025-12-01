@@ -235,26 +235,23 @@ const RepMyVendors = () => {
     if (!user) return;
 
     try {
-      // Step 1: Get all connected rep_interest entries with basic post info
-      const { data: interests, error } = await supabase
-        .from("rep_interest")
+      // Query vendor_rep_agreements instead of rep_interest
+      const { data: agreements, error } = await supabase
+        .from("vendor_rep_agreements")
         .select(`
           id,
+          vendor_id,
           status,
-          created_at,
-          connected_at,
-          seeking_coverage_posts:post_id (
-            id,
-            title,
-            vendor_id,
-            state_code
-          )
+          coverage_summary,
+          pricing_summary,
+          base_rate,
+          created_at
         `)
-        .eq("rep_id", repId)
-        .eq("status", "connected");
+        .eq("field_rep_id", user.id)
+        .eq("status", "active");
 
       if (error) {
-        console.error("Error loading connected vendors:", error);
+        console.error("Error loading agreements:", error);
         toast({
           title: "Error",
           description: "Failed to load your connected vendors.",
@@ -264,96 +261,60 @@ const RepMyVendors = () => {
         return;
       }
 
-      // Step 2: Build map of connected vendors and collect vendor IDs
-      const vendorsMap = new Map<string, ConnectedVendor>();
-      const vendorIds = new Set<string>();
+      if (!agreements || agreements.length === 0) {
+        setLoading(false);
+        return;
+      }
 
-      for (const interest of interests || []) {
-        const post = interest.seeking_coverage_posts as any;
+      // Get vendor IDs
+      const vendorUserIds = agreements.map(a => a.vendor_id);
+
+      // Fetch vendor profiles
+      const { data: vendorProfiles } = await supabase
+        .from("vendor_profile")
+        .select(`
+          user_id,
+          anonymous_id,
+          company_name,
+          city,
+          state,
+          systems_used,
+          primary_inspection_types,
+          is_accepting_new_reps,
+          profiles:user_id (
+            full_name
+          )
+        `)
+        .in("user_id", vendorUserIds);
+
+      // Build vendors array
+      const vendorsArray: ConnectedVendor[] = [];
+
+      for (const agreement of agreements) {
+        const vendorProfile = vendorProfiles?.find(p => p.user_id === agreement.vendor_id);
         
-        if (!post || !post.vendor_id) continue;
+        if (!vendorProfile) continue;
 
-        const vendorUserId = post.vendor_id;
-        vendorIds.add(vendorUserId);
+        const fullName = (vendorProfile.profiles as any)?.full_name || "";
+        const nameParts = fullName.split(" ");
+        const firstName = nameParts[0] || "";
+        const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
 
-        if (!vendorsMap.has(vendorUserId)) {
-          // Initialize vendor entry with placeholder data
-          vendorsMap.set(vendorUserId, {
-            vendorUserId,
-            anonymousId: `Vendor#${vendorUserId.substring(0, 6)}`,
-            companyName: "Vendor",
-            firstName: "",
-            lastInitial: "",
-            city: null,
-            state: null,
-            systemsUsed: [],
-            inspectionTypes: [],
-            isAcceptingNewReps: true,
-            connectedAt: interest.connected_at ?? interest.created_at,
-            connectedPosts: [],
-          });
-        }
-
-        // Add this post to the vendor's connected posts
-        const vendor = vendorsMap.get(vendorUserId)!;
-        vendor.connectedPosts.push({
-          id: post.id,
-          title: post.title,
-          stateCode: post.state_code,
-          interestId: interest.id,
+        vendorsArray.push({
+          vendorUserId: agreement.vendor_id,
+          anonymousId: vendorProfile.anonymous_id || `Vendor#${agreement.vendor_id.substring(0, 6)}`,
+          companyName: vendorProfile.company_name || "Vendor",
+          firstName,
+          lastInitial,
+          city: vendorProfile.city,
+          state: vendorProfile.state,
+          systemsUsed: vendorProfile.systems_used || [],
+          inspectionTypes: vendorProfile.primary_inspection_types || [],
+          isAcceptingNewReps: vendorProfile.is_accepting_new_reps ?? true,
+          connectedAt: agreement.created_at,
+          connectedPosts: [], // Agreements aren't tied to specific posts
         });
       }
-
-      // Step 3: Fetch vendor_profile details for all connected vendors
-      if (vendorIds.size > 0) {
-        const { data: vendorProfiles, error: vendorError } = await supabase
-          .from("vendor_profile")
-          .select(`
-            user_id,
-            anonymous_id,
-            company_name,
-            city,
-            state,
-            systems_used,
-            primary_inspection_types,
-            is_accepting_new_reps,
-            profiles:user_id (
-              full_name
-            )
-          `)
-          .in("user_id", Array.from(vendorIds));
-
-        if (vendorError) {
-          console.error("Error loading vendor profiles:", vendorError);
-        }
-
-        // Step 4: Merge vendor profile data into the map
-        if (vendorProfiles) {
-          for (const vendorProfile of vendorProfiles) {
-            const vendor = vendorsMap.get(vendorProfile.user_id);
-            if (!vendor) continue;
-
-            const fullName = (vendorProfile.profiles as any)?.full_name || "";
-            const nameParts = fullName.split(" ");
-            const firstName = nameParts[0] || "";
-            const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
-
-            // Update vendor with profile data
-            vendor.anonymousId = vendorProfile.anonymous_id || `Vendor#${vendorProfile.user_id.substring(0, 6)}`;
-            vendor.companyName = vendorProfile.company_name || "Vendor";
-            vendor.firstName = firstName;
-            vendor.lastInitial = lastInitial;
-            vendor.city = vendorProfile.city;
-            vendor.state = vendorProfile.state;
-            vendor.systemsUsed = vendorProfile.systems_used || [];
-            vendor.inspectionTypes = vendorProfile.primary_inspection_types || [];
-            vendor.isAcceptingNewReps = vendorProfile.is_accepting_new_reps ?? true;
-          }
-        }
-      }
-
-      // Step 5: Convert map to array and fetch conversation IDs
-      const vendorsArray = Array.from(vendorsMap.values());
 
       // For each vendor, check if conversation exists
       for (const vendor of vendorsArray) {
@@ -370,8 +331,7 @@ const RepMyVendors = () => {
         }
       }
 
-      // Step 6: Fetch notes for all vendors
-      const vendorUserIds = vendorsArray.map(v => v.vendorUserId);
+      // Fetch notes for all vendors
       if (vendorUserIds.length > 0) {
         const { data: notesData, error: notesError } = await supabase
           .from("connection_notes")

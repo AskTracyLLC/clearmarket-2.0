@@ -1093,6 +1093,60 @@ export type Database = {
           },
         ]
       }
+      vendor_rep_agreements: {
+        Row: {
+          base_rate: number | null
+          coverage_summary: string | null
+          created_at: string
+          currency: string | null
+          field_rep_id: string
+          id: string
+          pricing_summary: string | null
+          status: Database["public"]["Enums"]["vendor_rep_agreement_status"]
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          base_rate?: number | null
+          coverage_summary?: string | null
+          created_at?: string
+          currency?: string | null
+          field_rep_id: string
+          id?: string
+          pricing_summary?: string | null
+          status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          base_rate?: number | null
+          coverage_summary?: string | null
+          created_at?: string
+          currency?: string | null
+          field_rep_id?: string
+          id?: string
+          pricing_summary?: string | null
+          status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_rep_agreements_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_rep_agreements_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1103,6 +1157,7 @@ export type Database = {
     Enums: {
       vendor_connection_initiator: "vendor" | "field_rep"
       vendor_connection_status: "pending" | "connected" | "declined" | "blocked"
+      vendor_rep_agreement_status: "active" | "paused" | "ended"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1232,6 +1287,7 @@ export const Constants = {
     Enums: {
       vendor_connection_initiator: ["vendor", "field_rep"],
       vendor_connection_status: ["pending", "connected", "declined", "blocked"],
+      vendor_rep_agreement_status: ["active", "paused", "ended"],
     },
   },
 } as const
