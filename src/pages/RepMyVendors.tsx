@@ -53,6 +53,7 @@ interface ConnectedVendor {
   coverageSummary?: string | null;
   pricingSummary?: string | null;
   baseRate?: number | null;
+  statesCovered?: string[] | null;
 }
 
 interface PendingRequest {
@@ -273,7 +274,7 @@ const RepMyVendors = () => {
       // LEFT JOIN vendor_rep_agreements
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
-        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, created_at")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
         .eq("field_rep_id", user.id)
         .eq("status", "active")
         .in("vendor_id", vendorUserIds);
@@ -335,6 +336,7 @@ const RepMyVendors = () => {
           coverageSummary: agreement?.coverage_summary || null,
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
+          statesCovered: agreement?.states_covered || null,
         });
       }
 
@@ -789,6 +791,7 @@ const RepMyVendors = () => {
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Vendor</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Coverage & Pricing</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">States Covered</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
                   </tr>
@@ -859,6 +862,12 @@ const RepMyVendors = () => {
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
                         <span title="Trust Score feature coming soon">Coming soon</span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-muted-foreground">
+                        {vendor.statesCovered && vendor.statesCovered.length > 0
+                          ? vendor.statesCovered.join(", ")
+                          : <span className="text-muted-foreground/60">Not set in ClearMarket</span>
+                        }
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
                         {vendor.connectedAt && new Date(vendor.connectedAt).toLocaleDateString()}

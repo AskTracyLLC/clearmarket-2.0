@@ -54,6 +54,7 @@ interface ConnectedRep {
   coverageSummary?: string | null;
   pricingSummary?: string | null;
   baseRate?: number | null;
+  statesCovered?: string[] | null;
 }
 
 const VendorMyReps = () => {
@@ -155,7 +156,7 @@ const VendorMyReps = () => {
       // LEFT JOIN vendor_rep_agreements
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
-        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, created_at")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
         .eq("vendor_id", user.id)
         .eq("status", "active")
         .in("field_rep_id", repUserIds);
@@ -216,6 +217,7 @@ const VendorMyReps = () => {
           coverageSummary: agreement?.coverage_summary || null,
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
+          statesCovered: agreement?.states_covered || null,
         });
       }
 
@@ -503,6 +505,7 @@ const VendorMyReps = () => {
     pricingSummary: string;
     baseRate?: number;
     markPostFilled: boolean;
+    statesCovered: string[];
   }) => {
     if (!editingAgreementRep || !user) return;
 
@@ -516,6 +519,7 @@ const VendorMyReps = () => {
             coverage_summary: data.coverageSummary,
             pricing_summary: data.pricingSummary,
             base_rate: data.baseRate,
+            states_covered: data.statesCovered,
           })
           .eq("id", editingAgreementRep.agreementId);
 
@@ -535,6 +539,7 @@ const VendorMyReps = () => {
             coverage_summary: data.coverageSummary,
             pricing_summary: data.pricingSummary,
             base_rate: data.baseRate,
+            states_covered: data.statesCovered,
             status: "active",
           }]);
 
@@ -607,6 +612,7 @@ const VendorMyReps = () => {
                 <tr className="border-b border-border">
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Field Rep</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">States Covered</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
                 </tr>
               </thead>
@@ -654,6 +660,12 @@ const VendorMyReps = () => {
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       <span title="Trust Score feature coming soon">Coming soon</span>
+                    </td>
+                    <td className="py-4 px-4 text-sm text-muted-foreground">
+                      {rep.statesCovered && rep.statesCovered.length > 0
+                        ? rep.statesCovered.join(", ")
+                        : <span className="text-muted-foreground/60">Not set in ClearMarket</span>
+                      }
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       {rep.connectedAt && new Date(rep.connectedAt).toLocaleDateString()}
