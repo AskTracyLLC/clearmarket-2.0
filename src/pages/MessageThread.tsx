@@ -977,6 +977,21 @@ export default function MessageThread() {
                       {headerSubtitle}
                     </p>
                   )}
+                  {/* Connection Status Chip */}
+                  {vendorConnection && (
+                    <div className="mt-2">
+                      {vendorConnection.status === 'pending' && (
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs">
+                          Status: Pending connection
+                        </Badge>
+                      )}
+                      {vendorConnection.status === 'connected' && (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 text-xs">
+                          Status: Connected {agreement ? '· Agreement on file' : '· Agreement pending'}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </>
               );
             })()}
@@ -1278,37 +1293,12 @@ export default function MessageThread() {
               </div>
             )}
 
-            {/* Show pending chip when request is pending */}
+            {/* Show additional info when pending (header chip shows status) */}
             {vendorConnection?.status === 'pending' && (
-              <div className="flex items-center justify-between p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <p className="font-semibold text-amber-500">Pending Connection</p>
-                    <p className="text-sm text-muted-foreground">
-                      Request sent – {format(new Date(vendorConnection.requested_at), 'MMM d, yyyy h:mm a')}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
-                    Pending
-                  </Badge>
-                </div>
-              </div>
-            )}
-
-            {/* Show connected chip when connection is established */}
-            {vendorConnection?.status === 'connected' && (
-              <div className="flex items-center justify-between p-4 border border-green-500/30 rounded-lg bg-green-500/10">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <p className="font-semibold text-green-500">✓ Connected</p>
-                    <p className="text-sm text-muted-foreground">
-                      You are connected with this Field Rep
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                    Connected
-                  </Badge>
-                </div>
+              <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
+                <p className="text-sm text-muted-foreground">
+                  Waiting for Field Rep to respond · Request sent {format(new Date(vendorConnection.requested_at), 'MMM d, yyyy')}
+                </p>
               </div>
             )}
           </>
