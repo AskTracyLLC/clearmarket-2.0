@@ -591,11 +591,14 @@ const RepMyVendors = () => {
   const availableStates = React.useMemo(() => {
     const statesSet = new Set<string>();
     connectedVendors.forEach(vendor => {
+      console.log("Vendor states:", vendor.anonymousId, vendor.statesCovered);
       if (vendor.statesCovered && vendor.statesCovered.length > 0) {
         vendor.statesCovered.forEach(state => statesSet.add(state));
       }
     });
-    return Array.from(statesSet).sort();
+    const states = Array.from(statesSet).sort();
+    console.log("Available states for filter:", states);
+    return states;
   }, [connectedVendors]);
 
   // Filter vendors by selected state
