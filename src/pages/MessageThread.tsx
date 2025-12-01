@@ -24,6 +24,8 @@ import { formatDistanceToNow, format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { TemplateSelector } from "@/components/TemplateSelector";
 import { ExitReviewDialog } from "@/components/ExitReviewDialog";
+import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Message {
   id: string;
@@ -67,6 +69,7 @@ export default function MessageThread() {
   const [loadingVendorConnection, setLoadingVendorConnection] = useState(false);
   const [agreement, setAgreement] = useState<any>(null);
   const [creatingAgreement, setCreatingAgreement] = useState(false);
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -358,23 +361,17 @@ export default function MessageThread() {
     }
   }
 
-  async function handleCreateAgreement() {
-    if (!user || !otherParticipantId || !conversationData?.seeking_post) return;
+  async function handleCreateAgreement(data: {
+    coverageSummary: string;
+    pricingSummary: string;
+    baseRate?: number;
+    markPostFilled: boolean;
+  }) {
+    if (!user || !otherParticipantId) return;
 
     setCreatingAgreement(true);
     try {
-      const post = conversationData.seeking_post;
-      
-      // Build coverage summary from post
-      const coverageSummary = `${post.us_counties?.county_name || ''}, ${post.us_counties?.state_code || post.state_code}`;
-      
-      // Build pricing summary from post
-      const pricingSummary = post.pay_type === "fixed"
-        ? `$${post.pay_min?.toFixed(2)} / order`
-        : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`;
-
       // Ensure vendor_connections exists and is connected
-      const [p1, p2] = [user.id, otherParticipantId].sort();
       const { data: existingConn } = await supabase
         .from("vendor_connections")
         .select("*")
@@ -411,9 +408,9 @@ export default function MessageThread() {
           vendor_id: isVendor ? user.id : otherParticipantId,
           field_rep_id: isVendor ? otherParticipantId : user.id,
           status: "active",
-          coverage_summary: coverageSummary,
-          pricing_summary: pricingSummary,
-          base_rate: post.pay_max || post.pay_min,
+          coverage_summary: data.coverageSummary,
+          pricing_summary: data.pricingSummary,
+          base_rate: data.baseRate,
         })
         .select()
         .single();
@@ -427,19 +424,32 @@ export default function MessageThread() {
             variant: "default",
           });
           loadAgreement();
+          setShowAgreementDialog(false);
           return;
         }
         throw error;
       }
 
-      setAgreement(newAgreement);
-      toast({
-        title: "Agreement Created",
-        description: "Field rep has been added to your network.",
-      });
+      // Mark post as filled if requested
+      if (data.markPostFilled && conversationData?.seeking_post?.id) {
+        await supabase
+          .from("seeking_coverage_posts")
+          .update({ status: "closed" })
+          .eq("id", conversationData.seeking_post.id);
+      }
 
-      // Close the post if vendor wants
-      // (Optional: Could add a checkbox or separate action for this)
+      setAgreement(newAgreement);
+      setShowAgreementDialog(false);
+      
+      const toastTitle = data.markPostFilled ? "Agreement created & post filled" : "Agreement created";
+      const toastDescription = data.markPostFilled
+        ? "The Seeking Coverage post is now marked as filled, and this rep was added to your My Field Reps list."
+        : "This Field Rep has been added to your My Field Reps list with the selected coverage and pricing.";
+      
+      toast({
+        title: toastTitle,
+        description: toastDescription,
+      });
     } catch (error: any) {
       console.error("Error creating agreement:", error);
       toast({
@@ -1059,16 +1069,22 @@ export default function MessageThread() {
               {/* Create Agreement Button for Vendors (only when connected) */}
               {isVendor && repInterest?.status === "connected" && !agreement && (
                 <div className="mt-4 pt-4 border-t border-border">
-                  <Button
-                    onClick={handleCreateAgreement}
-                    disabled={creatingAgreement}
-                    className="w-full"
-                  >
-                    {creatingAgreement ? "Creating Agreement..." : "Add to My FieldReps"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    This will create a working agreement and add this rep to your network
-                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => setShowAgreementDialog(true)}
+                          disabled={creatingAgreement}
+                          className="w-full"
+                        >
+                          Add to My Field Reps
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Create an agreement with this Field Rep, including coverage and pricing.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
 
@@ -1541,6 +1557,28 @@ export default function MessageThread() {
             reviewerRole={isVendor ? "vendor" : "rep"}
             source="disconnect"
             onComplete={handleExitReviewComplete}
+          />
+        )}
+
+        {/* Create Agreement Dialog */}
+        {conversationData?.seeking_post && otherPartyProfile && (
+          <CreateAgreementDialog
+            open={showAgreementDialog}
+            onOpenChange={setShowAgreementDialog}
+            repName={`${otherPartyProfile.full_name?.split(' ')[0]} ${otherPartyProfile.full_name?.split(' ')[1]?.[0]}.`}
+            defaultCoverage={
+              conversationData.seeking_post.us_counties?.county_name
+                ? `${conversationData.seeking_post.us_counties.state_code} – ${conversationData.seeking_post.us_counties.county_name}`
+                : conversationData.seeking_post.state_code || ""
+            }
+            defaultPricing={
+              conversationData.seeking_post.pay_type === "fixed"
+                ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
+                : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`
+            }
+            defaultBaseRate={conversationData.seeking_post.pay_max || conversationData.seeking_post.pay_min}
+            onSave={handleCreateAgreement}
+            saving={creatingAgreement}
           />
         )}
       </div>

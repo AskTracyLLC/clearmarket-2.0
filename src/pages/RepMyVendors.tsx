@@ -16,7 +16,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
@@ -665,9 +666,21 @@ const RepMyVendors = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Vendors</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-bold text-foreground">My Vendors</h1>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Agreements are created by vendors when you've confirmed coverage and pricing. If something looks wrong, message the vendor directly to request an update.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <p className="text-muted-foreground mt-1">
-              Vendors you've connected with through Seeking Coverage.
+              These are the vendors you currently have active agreements with, including your coverage and pricing.
             </p>
           </div>
         </div>
@@ -745,12 +758,13 @@ const RepMyVendors = () => {
           </Card>
         ) : connectedVendors.length > 0 ? (
           <>
-            <h2 className="text-xl font-semibold text-foreground mb-4">Connected Vendors</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">Active Agreements</h2>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Vendor</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Coverage & Pricing</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
                     <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
@@ -783,6 +797,18 @@ const RepMyVendors = () => {
                               Notes
                             </span>
                           )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex flex-col gap-1 text-sm">
+                          <p className="text-muted-foreground">
+                            Coverage: {vendor.connectedPosts.length > 0 
+                              ? vendor.connectedPosts.map(p => `${p.stateCode}`).join(" · ")
+                              : "Not specified"}
+                          </p>
+                          <p className="text-muted-foreground">
+                            Pricing: Contact for details
+                          </p>
                         </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
@@ -818,7 +844,7 @@ const RepMyVendors = () => {
                               )
                             }
                           >
-                            Message Vendor
+                            View Messages
                           </Button>
                         </div>
                       </td>

@@ -487,8 +487,8 @@ const VendorMyReps = () => {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Rep</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Location (State)</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Field Rep</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Coverage & Pricing</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
                   <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
@@ -522,8 +522,17 @@ const VendorMyReps = () => {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {rep.state || '—'}
+                    <td className="py-4 px-4">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <p className="text-muted-foreground">
+                          Coverage: {rep.connectedPosts.length > 0 
+                            ? rep.connectedPosts.map(p => `${p.stateCode}`).join(" · ")
+                            : "Not specified"}
+                        </p>
+                        <p className="text-muted-foreground">
+                          Pricing: Contact for details
+                        </p>
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       <span title="Trust Score feature coming soon">Coming soon</span>
@@ -552,7 +561,15 @@ const VendorMyReps = () => {
                           size="sm"
                           onClick={() => handleMessage(rep.repUserId, rep.conversationId)}
                         >
-                          Message
+                          View Messages
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          title="Edit Agreement feature coming soon"
+                        >
+                          Edit Agreement
                         </Button>
                       </div>
                     </td>
