@@ -366,6 +366,7 @@ export default function MessageThread() {
     pricingSummary: string;
     baseRate?: number;
     markPostFilled: boolean;
+    statesCovered: string[];
   }) {
     if (!user || !otherParticipantId) return;
 
@@ -411,6 +412,7 @@ export default function MessageThread() {
           coverage_summary: data.coverageSummary,
           pricing_summary: data.pricingSummary,
           base_rate: data.baseRate,
+          states_covered: data.statesCovered,
         })
         .select()
         .single();

@@ -31,6 +31,7 @@ interface CreateAgreementDialogProps {
     pricingSummary: string;
     baseRate?: number;
     markPostFilled: boolean;
+    statesCovered: string[];
   }) => Promise<void>;
   saving: boolean;
 }
@@ -196,11 +197,17 @@ export function CreateAgreementDialog({
       ? baseRates.reduce((sum, rate) => sum + rate, 0) / baseRates.length
       : undefined;
 
+    // Extract unique state codes from selected coverage
+    const statesCovered = Array.from(
+      new Set(includedCoverages.map((item) => item.coverage.state_code))
+    );
+
     await onSave({
       coverageSummary,
       pricingSummary,
       baseRate: avgBaseRate,
       markPostFilled: false, // Not used in My Reps context
+      statesCovered,
     });
   };
 

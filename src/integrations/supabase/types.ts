@@ -1102,6 +1102,7 @@ export type Database = {
           field_rep_id: string
           id: string
           pricing_summary: string | null
+          states_covered: string[] | null
           status: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at: string
           vendor_id: string
@@ -1114,6 +1115,7 @@ export type Database = {
           field_rep_id: string
           id?: string
           pricing_summary?: string | null
+          states_covered?: string[] | null
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id: string
@@ -1126,6 +1128,7 @@ export type Database = {
           field_rep_id?: string
           id?: string
           pricing_summary?: string | null
+          states_covered?: string[] | null
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id?: string
