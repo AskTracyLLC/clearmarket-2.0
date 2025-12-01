@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 
@@ -19,6 +19,16 @@ interface PublicProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   targetUserId: string | null;
+  viewerContext?: {
+    type: "vendor_my_reps";
+    rep?: any;
+    actions?: {
+      onMessage?: (repUserId: string, conversationId?: string) => void;
+      onReview?: (rep: any) => void;
+      onAgreement?: (rep: any) => void;
+      onEndRelationship?: (repUserId: string) => void;
+    };
+  };
 }
 
 interface ProfileData {
@@ -74,6 +84,7 @@ export function PublicProfileDialog({
   open,
   onOpenChange,
   targetUserId,
+  viewerContext,
 }: PublicProfileDialogProps) {
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -684,6 +695,70 @@ export function PublicProfileDialog({
                 </Card>
               )}
             </>
+          )}
+
+          {/* Vendor Actions - shown when viewing from My Reps context */}
+          {viewerContext?.type === "vendor_my_reps" && viewerContext.rep && viewerContext.actions && (
+            <Card className="p-4 bg-card-elevated border-primary/20">
+              <h3 className="font-semibold text-foreground mb-4">Actions</h3>
+              <div className="space-y-3">
+                <Button
+                  className="w-full"
+                  variant="default"
+                  onClick={() => viewerContext.actions?.onMessage?.(
+                    viewerContext.rep.repUserId,
+                    viewerContext.rep.conversationId
+                  )}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  View Messages
+                </Button>
+
+                <div className="space-y-2">
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => viewerContext.actions?.onAgreement?.(viewerContext.rep)}
+                  >
+                    {viewerContext.rep.agreementId ? "Edit Agreement" : "Add Agreement Details"}
+                  </Button>
+                  {viewerContext.rep.agreementId ? (
+                    <div className="text-xs text-muted-foreground px-2">
+                      <p className="mb-1">
+                        <span className="font-medium">Coverage:</span>{" "}
+                        {viewerContext.rep.coverageSummary || "Not specified"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Pricing:</span>{" "}
+                        {viewerContext.rep.pricingSummary || "Not specified"}
+                      </p>
+                    </div>
+                  ) : (
+                    <Badge variant="secondary" className="w-full justify-center">
+                      Agreement pending
+                    </Badge>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => viewerContext.actions?.onReview?.(viewerContext.rep)}
+                >
+                  {viewerContext.rep.review ? "Edit Review" : "Leave Review"}
+                </Button>
+
+                <Separator />
+
+                <Button
+                  className="w-full text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  variant="outline"
+                  onClick={() => viewerContext.actions?.onEndRelationship?.(viewerContext.rep.repUserId)}
+                >
+                  End Relationship
+                </Button>
+              </div>
+            </Card>
           )}
         </div>
       </DialogContent>

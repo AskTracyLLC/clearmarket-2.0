@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
+import { ArrowLeft, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
@@ -606,10 +606,8 @@ const VendorMyReps = () => {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Field Rep</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Coverage & Pricing</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -622,7 +620,6 @@ const VendorMyReps = () => {
                           className="text-primary hover:underline font-semibold flex items-center gap-2 w-fit"
                         >
                           {rep.anonymousId}
-                          <Eye className="w-4 h-4" />
                         </button>
                         {(rep.firstName || rep.lastInitial) && (
                           <p className="text-xs text-muted-foreground">
@@ -640,71 +637,11 @@ const VendorMyReps = () => {
                         )}
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col gap-1 text-sm">
-                        {rep.agreementId ? (
-                          <>
-                            <p className="text-muted-foreground">
-                              Coverage: {rep.coverageSummary || "Not specified"}
-                            </p>
-                            <p className="text-muted-foreground">
-                              Pricing: {rep.pricingSummary || "Not specified"}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-muted-foreground">Coverage: Not set yet</p>
-                            <p className="text-muted-foreground">Pricing: Not set yet</p>
-                            <Badge variant="secondary" className="w-fit mt-1">Agreement pending</Badge>
-                          </>
-                        )}
-                      </div>
-                    </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       <span title="Trust Score feature coming soon">Coming soon</span>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       {rep.connectedAt && new Date(rep.connectedAt).toLocaleDateString()}
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewProfile(rep.repUserId)}
-                        >
-                          View Profile
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReviewRep(rep)}
-                        >
-                          {rep.review ? "Edit Review" : "Leave Review"}
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleMessage(rep.repUserId, rep.conversationId)}
-                        >
-                          View Messages
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenAgreementDialog(rep)}
-                        >
-                          {rep.agreementId ? "Edit Agreement" : "Add Agreement Details"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEndRelationshipClick(rep.repUserId)}
-                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          End Relationship
-                        </Button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -832,6 +769,16 @@ const VendorMyReps = () => {
           open={profileDialogOpen}
           onOpenChange={setProfileDialogOpen}
           targetUserId={selectedRepUserId}
+          viewerContext={{
+            type: "vendor_my_reps",
+            rep: connectedReps.find(r => r.repUserId === selectedRepUserId),
+            actions: {
+              onMessage: (repUserId: string, conversationId?: string) => handleMessage(repUserId, conversationId),
+              onReview: (rep: ConnectedRep) => handleReviewRep(rep),
+              onAgreement: (rep: ConnectedRep) => handleOpenAgreementDialog(rep),
+              onEndRelationship: (repUserId: string) => handleEndRelationshipClick(repUserId),
+            }
+          }}
         />
       )}
 
