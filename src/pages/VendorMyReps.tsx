@@ -23,6 +23,7 @@ import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
 import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
 import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
+import { fetchTrustScoresForUsers } from "@/lib/reviews";
 
 interface ConnectedRep {
   repUserId: string;
@@ -55,6 +56,9 @@ interface ConnectedRep {
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
+  // Trust Score
+  trustScore?: number | null;
+  trustScoreCount?: number;
 }
 
 const VendorMyReps = () => {
@@ -293,6 +297,16 @@ const VendorMyReps = () => {
         const aDate = a.connectedAt ?? '';
         const bDate = b.connectedAt ?? '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
+      // Fetch trust scores for all connected reps
+      const trustScores = await fetchTrustScoresForUsers(repUserIds);
+
+      // Assign trust scores to reps
+      repsArray.forEach(rep => {
+        const trust = trustScores[rep.repUserId];
+        rep.trustScore = trust ? trust.average : null;
+        rep.trustScoreCount = trust ? trust.count : 0;
       });
 
       setConnectedReps(repsArray);
@@ -704,7 +718,16 @@ const VendorMyReps = () => {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
-                      <span title="Trust Score feature coming soon">Coming soon</span>
+                      {rep.trustScore !== null && rep.trustScore !== undefined ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-semibold text-foreground">{rep.trustScore.toFixed(1)}</span>
+                          {rep.trustScoreCount && rep.trustScoreCount > 0 && (
+                            <span className="text-xs">({rep.trustScoreCount} {rep.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span>No reviews yet</span>
+                      )}
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       {rep.statesCovered && rep.statesCovered.length > 0

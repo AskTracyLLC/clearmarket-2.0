@@ -22,6 +22,7 @@ import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
+import { fetchTrustScoresForUsers } from "@/lib/reviews";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -54,6 +55,9 @@ interface ConnectedVendor {
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
+  // Trust Score
+  trustScore?: number | null;
+  trustScoreCount?: number;
 }
 
 interface PendingRequest {
@@ -412,6 +416,16 @@ const RepMyVendors = () => {
         const aDate = a.connectedAt ?? '';
         const bDate = b.connectedAt ?? '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
+      // Fetch trust scores for all connected vendors
+      const trustScores = await fetchTrustScoresForUsers(vendorUserIds);
+
+      // Assign trust scores to vendors
+      vendorsArray.forEach(vendor => {
+        const trust = trustScores[vendor.vendorUserId];
+        vendor.trustScore = trust ? trust.average : null;
+        vendor.trustScoreCount = trust ? trust.count : 0;
       });
 
       setConnectedVendors(vendorsArray);
@@ -907,7 +921,16 @@ const RepMyVendors = () => {
                         </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
-                        <span title="Trust Score feature coming soon">Coming soon</span>
+                        {vendor.trustScore !== null && vendor.trustScore !== undefined ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-foreground">{vendor.trustScore.toFixed(1)}</span>
+                            {vendor.trustScoreCount && vendor.trustScoreCount > 0 && (
+                              <span className="text-xs">({vendor.trustScoreCount} {vendor.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span>No reviews yet</span>
+                        )}
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
                         {vendor.statesCovered && vendor.statesCovered.length > 0
