@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RepostCoverageDialogProps {
   open: boolean;
@@ -30,17 +31,21 @@ export function RepostCoverageDialog({
   vendorUserId,
 }: RepostCoverageDialogProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [notes, setNotes] = useState("");
 
   const handleCreatePost = () => {
-    // Navigate to Seeking Coverage creation with pre-filled data in query params
-    const params = new URLSearchParams();
-    if (coverageSummary) params.set("coverage", coverageSummary);
-    if (pricingSummary) params.set("pricing", pricingSummary);
-    if (notes.trim()) params.set("notes", notes.trim());
-    
-    navigate(`/vendor/seeking-coverage/new?${params.toString()}`);
+    // Navigate to Seeking Coverage page where vendor can create a new post
+    navigate("/vendor/seeking-coverage");
     onOpenChange(false);
+    
+    // Show a toast to remind them about the coverage
+    toast({
+      title: "Create New Post",
+      description: coverageSummary 
+        ? `Remember to include coverage for: ${coverageSummary}`
+        : "You can now create a new Seeking Coverage post.",
+    });
   };
 
   const handleSkip = () => {
