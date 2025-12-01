@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,6 +98,7 @@ const RepMyVendors = () => {
     isExitReview: boolean;
     existingReview?: Review | null;
   } | null>(null);
+  const [stateFilter, setStateFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -586,6 +587,27 @@ const RepMyVendors = () => {
     }
   };
 
+  // Extract unique states from all agreements for filter
+  const availableStates = React.useMemo(() => {
+    const statesSet = new Set<string>();
+    connectedVendors.forEach(vendor => {
+      if (vendor.statesCovered && vendor.statesCovered.length > 0) {
+        vendor.statesCovered.forEach(state => statesSet.add(state));
+      }
+    });
+    return Array.from(statesSet).sort();
+  }, [connectedVendors]);
+
+  // Filter vendors by selected state
+  const filteredVendors = React.useMemo(() => {
+    if (stateFilter === "all") {
+      return connectedVendors;
+    }
+    return connectedVendors.filter(vendor => 
+      vendor.statesCovered && vendor.statesCovered.includes(stateFilter)
+    );
+  }, [connectedVendors, stateFilter]);
+
   const handleReviewVendor = (vendor: ConnectedVendor) => {
     setReviewDialogData({
       vendorUserId: vendor.vendorUserId,
@@ -783,8 +805,32 @@ const RepMyVendors = () => {
           </Card>
         ) : connectedVendors.length > 0 ? (
           <>
+            {/* State Filter */}
+            {availableStates.length > 0 && (
+              <div className="mb-4">
+                <label className="text-sm font-medium mr-2">Filter by state:</label>
+                <select
+                  value={stateFilter}
+                  onChange={(e) => setStateFilter(e.target.value)}
+                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                >
+                  <option value="all">All States</option>
+                  {availableStates.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <h2 className="text-xl font-semibold text-foreground mb-4">Active Agreements</h2>
-            <div className="overflow-x-auto">
+            {filteredVendors.length === 0 && stateFilter !== "all" ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  No vendors found covering {stateFilter}.
+                </p>
+              </Card>
+            ) : (
+              <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b border-border">
@@ -797,7 +843,7 @@ const RepMyVendors = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {connectedVendors.map((vendor) => (
+                  {filteredVendors.map((vendor) => (
                     <tr key={vendor.vendorUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
                       <td className="py-4 px-4">
                         <div className="flex flex-col gap-1">
@@ -919,7 +965,7 @@ const RepMyVendors = () => {
               {/* Notes Section - Below Table */}
               <div className="mt-8 space-y-6">
                 <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
-                {connectedVendors.map((vendor) => (
+                {filteredVendors.map((vendor) => (
                   <Card key={`notes-${vendor.vendorUserId}`}>
                     <CardHeader>
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1029,6 +1075,7 @@ const RepMyVendors = () => {
                 ))}
               </div>
             </div>
+            )}
           </>
         ) : null}
       </div>
