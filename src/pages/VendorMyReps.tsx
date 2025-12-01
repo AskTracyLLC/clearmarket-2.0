@@ -22,6 +22,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
 import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
+import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 
 interface ConnectedRep {
   repUserId: string;
@@ -84,6 +85,9 @@ const VendorMyReps = () => {
     isExitReview: boolean;
     existingReview?: Review | null;
   } | null>(null);
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [editingAgreementRep, setEditingAgreementRep] = useState<ConnectedRep | null>(null);
+  const [savingAgreement, setSavingAgreement] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -489,6 +493,75 @@ const VendorMyReps = () => {
     setReviewDialogData(null);
   }
 
+  const handleOpenAgreementDialog = (rep: ConnectedRep) => {
+    setEditingAgreementRep(rep);
+    setShowAgreementDialog(true);
+  };
+
+  const handleSaveAgreement = async (data: {
+    coverageSummary: string;
+    pricingSummary: string;
+    baseRate?: number;
+    markPostFilled: boolean;
+  }) => {
+    if (!editingAgreementRep || !user) return;
+
+    setSavingAgreement(true);
+    try {
+      if (editingAgreementRep.agreementId) {
+        // Update existing agreement
+        const { error } = await supabase
+          .from("vendor_rep_agreements")
+          .update({
+            coverage_summary: data.coverageSummary,
+            pricing_summary: data.pricingSummary,
+            base_rate: data.baseRate,
+          })
+          .eq("id", editingAgreementRep.agreementId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Agreement updated",
+          description: "Agreement details have been saved.",
+        });
+      } else {
+        // Create new agreement
+        const { error } = await supabase
+          .from("vendor_rep_agreements")
+          .insert([{
+            vendor_id: user.id,
+            field_rep_id: editingAgreementRep.repUserId,
+            coverage_summary: data.coverageSummary,
+            pricing_summary: data.pricingSummary,
+            base_rate: data.baseRate,
+            status: "active",
+          }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Agreement created",
+          description: "Agreement details have been saved.",
+        });
+      }
+
+      // Reload reps to show updated agreement
+      await loadConnectedReps();
+      setShowAgreementDialog(false);
+      setEditingAgreementRep(null);
+    } catch (error: any) {
+      console.error("Error saving agreement:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save agreement details.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingAgreement(false);
+    }
+  };
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -619,10 +692,9 @@ const VendorMyReps = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled
-                          title={rep.agreementId ? "Edit Agreement feature coming soon" : "Create Agreement feature coming soon"}
+                          onClick={() => handleOpenAgreementDialog(rep)}
                         >
-                          {rep.agreementId ? "Edit Agreement" : "Create Agreement"}
+                          {rep.agreementId ? "Edit Agreement" : "Add Agreement Details"}
                         </Button>
                         <Button
                           variant="outline"
@@ -774,6 +846,39 @@ const VendorMyReps = () => {
           isExitReview={reviewDialogData.isExitReview}
           existingReview={reviewDialogData.existingReview}
           onSaved={handleReviewSaved}
+        />
+      )}
+
+      {user && (
+        <>
+          <VendorExitReviewDialog
+            open={showExitReviewDialog}
+            onOpenChange={setShowExitReviewDialog}
+            repUserId={exitReviewRepUserId || ""}
+            vendorUserId={user.id}
+            onComplete={handleExitReviewComplete}
+          />
+
+          <RepostCoverageDialog
+            open={showRepostDialog}
+            onOpenChange={setShowRepostDialog}
+            coverageSummary={repostData?.coverageSummary || null}
+            pricingSummary={repostData?.pricingSummary || null}
+            vendorUserId={user.id}
+          />
+        </>
+      )}
+
+      {editingAgreementRep && (
+        <CreateAgreementDialog
+          open={showAgreementDialog}
+          onOpenChange={setShowAgreementDialog}
+          repName={editingAgreementRep.anonymousId}
+          defaultCoverage={editingAgreementRep.coverageSummary || ""}
+          defaultPricing={editingAgreementRep.pricingSummary || ""}
+          defaultBaseRate={editingAgreementRep.baseRate || undefined}
+          onSave={handleSaveAgreement}
+          saving={savingAgreement}
         />
       )}
     </div>
