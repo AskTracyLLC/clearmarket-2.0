@@ -1,0 +1,166 @@
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Star } from "lucide-react";
+
+interface VendorExitReviewDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  repUserId: string;
+  vendorUserId: string;
+  onComplete?: () => void;
+}
+
+export function VendorExitReviewDialog({
+  open,
+  onOpenChange,
+  repUserId,
+  vendorUserId,
+  onComplete,
+}: VendorExitReviewDialogProps) {
+  const [onTimeRating, setOnTimeRating] = useState<number>(0);
+  const [qualityRating, setQualityRating] = useState<number>(0);
+  const [communicationRating, setCommunicationRating] = useState<number>(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const reviewData: any = {
+        reviewer_id: vendorUserId,
+        reviewee_id: repUserId,
+        direction: "vendor_to_rep",
+        is_exit_review: true,
+        rating_on_time: onTimeRating > 0 ? onTimeRating : null,
+        rating_quality: qualityRating > 0 ? qualityRating : null,
+        rating_communication: communicationRating > 0 ? communicationRating : null,
+        comment: comment.trim() || null,
+      };
+
+      const { error } = await supabase
+        .from("reviews")
+        .insert(reviewData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Exit review saved",
+        description: "Thank you for your feedback.",
+      });
+
+      onOpenChange(false);
+      onComplete?.();
+      
+      // Reset form
+      setOnTimeRating(0);
+      setQualityRating(0);
+      setCommunicationRating(0);
+      setComment("");
+    } catch (error: any) {
+      console.error("Error submitting review:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save review",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSkip = () => {
+    onOpenChange(false);
+    onComplete?.();
+  };
+
+  const renderStarRating = (
+    rating: number,
+    setRating: (value: number) => void,
+    label: string
+  ) => {
+    return (
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">{label}</Label>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => setRating(star)}
+              className="focus:outline-none transition-colors"
+            >
+              <Star
+                className={`w-6 h-6 ${
+                  star <= rating
+                    ? "fill-primary text-primary"
+                    : "fill-none text-muted-foreground hover:text-primary"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Exit Review – Field Rep</DialogTitle>
+          <DialogDescription>
+            This feedback is used to help other vendors understand your experience. Your review will follow our verified-only rules.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {renderStarRating(onTimeRating, setOnTimeRating, "On-time performance")}
+          {renderStarRating(qualityRating, setQualityRating, "Quality of work")}
+          {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+
+          <div className="space-y-2">
+            <Label htmlFor="comment" className="text-sm font-medium">
+              Additional Notes (Optional)
+            </Label>
+            <Textarea
+              id="comment"
+              placeholder="Example: Completed work, but went quiet for long periods…"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSkip}
+            disabled={submitting}
+          >
+            Skip for now
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? "Submitting..." : "Submit Review"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
