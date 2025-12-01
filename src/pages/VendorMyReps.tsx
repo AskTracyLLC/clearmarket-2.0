@@ -626,6 +626,21 @@ const VendorMyReps = () => {
                             {rep.firstName} {rep.lastInitial}.
                           </p>
                         )}
+                        {/* Status line */}
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span>Status: Connected</span>
+                          <span>·</span>
+                          <span>
+                            {rep.agreementId ? "Agreement on file" : "Agreement pending"}
+                          </span>
+                          <span>·</span>
+                          <button
+                            onClick={() => handleDisconnectClick(rep.repUserId)}
+                            className="text-destructive hover:underline"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
                         {hasNotesByRep[rep.repUserId] && (
                           <span 
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"

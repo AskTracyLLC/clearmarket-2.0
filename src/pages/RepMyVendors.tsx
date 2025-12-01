@@ -811,6 +811,21 @@ const RepMyVendors = () => {
                               {vendor.firstName} {vendor.lastInitial}.
                             </p>
                           )}
+                          {/* Status line */}
+                          <div className="text-xs text-muted-foreground flex items-center gap-1">
+                            <span>Status: Connected</span>
+                            <span>·</span>
+                            <span>
+                              {vendor.agreementId ? "Agreement on file" : "Details not set in ClearMarket"}
+                            </span>
+                            <span>·</span>
+                            <button
+                              onClick={() => handleDisconnectClick(vendor.vendorUserId)}
+                              className="text-destructive hover:underline"
+                            >
+                              Disconnect
+                            </button>
+                          </div>
                           {hasNotesByVendor[vendor.vendorUserId] && (
                             <span 
                               className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"
