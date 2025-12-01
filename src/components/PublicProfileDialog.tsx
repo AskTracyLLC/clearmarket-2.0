@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
+import { fetchTrustScoresForUsers } from "@/lib/reviews";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -89,6 +90,7 @@ export function PublicProfileDialog({
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [backgroundCheckSignedUrl, setBackgroundCheckSignedUrl] = useState<string | null>(null);
+  const [trustScore, setTrustScore] = useState<{ average: number; count: number } | null>(null);
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -267,6 +269,19 @@ export function PublicProfileDialog({
     loadPublicProfile();
   }, [open, targetUserId]);
 
+  // Fetch trust score separately
+  useEffect(() => {
+    if (!open || !targetUserId) return;
+
+    async function loadTrustScore() {
+      const scores = await fetchTrustScoresForUsers([targetUserId]);
+      const score = scores[targetUserId];
+      setTrustScore(score || null);
+    }
+
+    loadTrustScore();
+  }, [open, targetUserId]);
+
   if (loading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -308,6 +323,18 @@ export function PublicProfileDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Trust Score */}
+          {trustScore && trustScore.count > 0 && (
+            <Card className="p-4 bg-card-elevated">
+              <h3 className="font-semibold text-foreground mb-2">Trust Score</h3>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-primary">{trustScore.average.toFixed(1)}</span>
+                <span className="text-sm text-muted-foreground">
+                  / 5.0 · {trustScore.count} {trustScore.count === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+            </Card>
+          )}
           {/* Location */}
           {(profileData.city || profileData.state) && (
             <Card className="p-4 bg-card-elevated">
