@@ -873,6 +873,7 @@ const VendorMyReps = () => {
         <CreateAgreementDialog
           open={showAgreementDialog}
           onOpenChange={setShowAgreementDialog}
+          repUserId={editingAgreementRep.repUserId}
           repName={editingAgreementRep.anonymousId}
           defaultCoverage={editingAgreementRep.coverageSummary || ""}
           defaultPricing={editingAgreementRep.pricingSummary || ""}
