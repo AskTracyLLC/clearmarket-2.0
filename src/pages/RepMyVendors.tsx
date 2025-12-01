@@ -21,6 +21,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
+import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -85,8 +86,10 @@ const RepMyVendors = () => {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editedNoteText, setEditedNoteText] = useState<string>("");
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
-  const [disconnectingInterestId, setDisconnectingInterestId] = useState<string | null>(null);
+  const [disconnectingVendorUserId, setDisconnectingVendorUserId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
+  const [exitReviewVendorUserId, setExitReviewVendorUserId] = useState<string | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewDialogData, setReviewDialogData] = useState<{
     vendorUserId: string;
@@ -522,51 +525,53 @@ const RepMyVendors = () => {
     toast({ title: "Note Updated", description: "Your note has been updated." });
   };
 
-  const handleDisconnectClick = (interestId: string) => {
-    setDisconnectingInterestId(interestId);
+  const handleDisconnectClick = (vendorUserId: string) => {
+    setDisconnectingVendorUserId(vendorUserId);
     setShowDisconnectDialog(true);
   };
 
   const handleDisconnect = async () => {
-    if (!disconnectingInterestId) return;
+    if (!disconnectingVendorUserId || !user) return;
 
     setDisconnecting(true);
     try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ 
-          status: "disconnected",
-          connected_at: null
-        })
-        .eq("id", disconnectingInterestId);
+      // Find the vendor being disconnected
+      const disconnectingVendor = connectedVendors.find(v => v.vendorUserId === disconnectingVendorUserId);
 
-      if (error) throw error;
+      // Update vendor_connections status to 'ended'
+      const { error: connError } = await supabase
+        .from("vendor_connections")
+        .update({ status: "ended" })
+        .eq("vendor_id", disconnectingVendorUserId)
+        .eq("field_rep_id", user.id);
 
-      // Find the vendor that's being disconnected to get subject_id and post_id
-      const disconnectedVendor = connectedVendors.find(vendor =>
-        vendor.connectedPosts.some(post => post.interestId === disconnectingInterestId)
-      );
+      if (connError) throw connError;
 
-      // Remove the vendor from the list
-      setConnectedVendors(prev => {
-        return prev.filter(vendor => {
-          return !vendor.connectedPosts.some(post => post.interestId === disconnectingInterestId);
-        });
-      });
+      // If agreement exists, update its status to 'ended'
+      if (disconnectingVendor?.agreementId) {
+        const { error: agreementError } = await supabase
+          .from("vendor_rep_agreements")
+          .update({ status: "ended" })
+          .eq("id", disconnectingVendor.agreementId);
 
-      setShowDisconnectDialog(false);
-
-      // Trigger Exit Review flow
-      if (disconnectedVendor && user && repProfileId) {
-        setReviewDialogData({
-          vendorUserId: disconnectedVendor.vendorUserId,
-          repInterestId: disconnectingInterestId,
-          isExitReview: true,
-        });
-        setShowReviewDialog(true);
+        if (agreementError) throw agreementError;
       }
 
-      setDisconnectingInterestId(null);
+      // Remove from list
+      setConnectedVendors(prev => prev.filter(v => v.vendorUserId !== disconnectingVendorUserId));
+
+      setShowDisconnectDialog(false);
+      
+      toast({
+        title: "Relationship ended",
+        description: "This Vendor has been removed from your active list.",
+      });
+
+      // Show exit review dialog
+      setExitReviewVendorUserId(disconnectingVendorUserId);
+      setShowExitReviewDialog(true);
+
+      setDisconnectingVendorUserId(null);
     } catch (error: any) {
       console.error("Error disconnecting:", error);
       toast({
@@ -872,6 +877,14 @@ const RepMyVendors = () => {
                           >
                             View Messages
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDisconnectClick(vendor.vendorUserId)}
+                            className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            Disconnect
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -981,7 +994,7 @@ const RepMyVendors = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDisconnectClick(vendor.connectedPosts[0].interestId)}
+                          onClick={() => handleDisconnectClick(vendor.vendorUserId)}
                           className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
                         >
                           Disconnect from {vendor.companyName}
@@ -1007,9 +1020,9 @@ const RepMyVendors = () => {
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>End Connection?</AlertDialogTitle>
+            <AlertDialogTitle>Disconnect from this Vendor?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove this connection from your My Reps / My Vendors list, but your message history will remain. You can reconnect again later if you both agree.
+              You'll no longer see this Vendor in your active list, and they'll no longer see you in their connected reps. This won't delete past message history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1019,11 +1032,20 @@ const RepMyVendors = () => {
               disabled={disconnecting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {disconnecting ? "Disconnecting..." : "Yes, disconnect"}
+              {disconnecting ? "Disconnecting..." : "Disconnect"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {exitReviewVendorUserId && (
+        <RepExitReviewDialog
+          open={showExitReviewDialog}
+          onOpenChange={setShowExitReviewDialog}
+          vendorUserId={exitReviewVendorUserId}
+          repUserId={user!.id}
+        />
+      )}
 
       {reviewDialogData && user && (
         <ReviewDialog
