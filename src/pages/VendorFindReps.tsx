@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, CheckCircle2, XCircle } from "lucide-react";
+import { Search, MapPin, CheckCircle2, XCircle, Shield, Key } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
+import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -67,6 +69,11 @@ interface RepResult {
   background_check_expires_on?: string | null;
   background_check_provider?: string | null;
   willing_to_obtain_background_check?: boolean | null;
+  has_hud_keys?: boolean | null;
+  equipment_notes?: string | null;
+  trustScore?: number | null;
+  trustScoreCount?: number;
+  connectedSince?: string | null;
 }
 
 export default function VendorFindReps() {
@@ -96,6 +103,10 @@ export default function VendorFindReps() {
   const [results, setResults] = useState<RepResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
+
+  // Reviews dialog
+  const [showReviewsDialog, setShowReviewsDialog] = useState(false);
+  const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
 
   // Check auth and vendor role
   useState(() => {
@@ -154,7 +165,7 @@ export default function VendorFindReps() {
 
       let query = supabase
         .from("rep_profile")
-        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on, willing_to_obtain_background_check");
+        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on, willing_to_obtain_background_check, has_hud_keys, equipment_notes");
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -277,8 +288,35 @@ export default function VendorFindReps() {
         });
       }
 
-      setResults(filtered as RepResult[]);
-      toast.success(`Found ${filtered.length} matching reps`);
+      // Fetch trust scores for all reps
+      const repUserIds = filtered.map(r => r.user_id);
+      const trustScores = await fetchTrustScoresForUsers(repUserIds);
+
+      // Fetch connection status (connected_at) for all reps
+      let connectionMap = new Map<string, string | null>();
+      if (user && repUserIds.length > 0) {
+        const { data: connections } = await supabase
+          .from("vendor_connections")
+          .select("field_rep_id, requested_at")
+          .eq("vendor_id", user.id)
+          .eq("status", "connected")
+          .in("field_rep_id", repUserIds);
+        
+        (connections || []).forEach(conn => {
+          connectionMap.set(conn.field_rep_id, conn.requested_at);
+        });
+      }
+
+      // Enhance results with trust scores and connection data
+      const enhancedResults = filtered.map(rep => ({
+        ...rep,
+        trustScore: trustScores[rep.user_id]?.average ?? null,
+        trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
+        connectedSince: connectionMap.get(rep.user_id) ?? null,
+      }));
+
+      setResults(enhancedResults as RepResult[]);
+      toast.success(`Found ${enhancedResults.length} matching reps`);
     } catch (error: any) {
       console.error("Search error:", error);
       toast.error("Failed to search reps");
@@ -578,10 +616,109 @@ export default function VendorFindReps() {
                       </CardTitle>
                       <div className="flex items-center gap-2 text-muted-foreground text-sm">
                         <MapPin className="h-4 w-4" />
-                        {rep.city}, {US_STATES.find(s => s.value === rep.state)?.label || rep.state}
+                        {rep.city ? `${rep.city}, ${rep.state}` : rep.state}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Trust Score */}
+                      <div className="pb-3 border-b border-border">
+                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Trust Score</p>
+                        <button
+                          onClick={() => {
+                            setReviewsDialogUserId(rep.user_id);
+                            setShowReviewsDialog(true);
+                          }}
+                          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-2 w-16 rounded-full ${
+                              rep.trustScoreCount === 0 
+                                ? 'bg-muted' 
+                                : 'bg-gradient-to-r from-amber-500/20 via-primary/30 to-green-500/40'
+                            }`}>
+                              <div 
+                                className={`h-full rounded-full ${
+                                  rep.trustScoreCount === 0 
+                                    ? 'bg-muted-foreground/30' 
+                                    : 'bg-gradient-to-r from-amber-500 via-primary to-green-500'
+                                }`}
+                                style={{ 
+                                  width: `${((rep.trustScore ?? 3.0) / 5) * 100}%` 
+                                }}
+                              />
+                            </div>
+                            <span className={`text-sm font-semibold ${
+                              rep.trustScoreCount === 0 ? 'text-muted-foreground' : 'text-foreground'
+                            }`}>
+                              {rep.trustScore?.toFixed(1) ?? '3.0'}
+                            </span>
+                          </div>
+                          {rep.trustScoreCount === 0 ? (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              New – not yet rated
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground underline">
+                              View {rep.trustScoreCount} review{rep.trustScoreCount !== 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Credentials Badges */}
+                      <div className="flex flex-wrap gap-2">
+                        {/* Background Check Badge */}
+                        {(() => {
+                          const hasValidCheck = isBackgroundCheckActive({
+                            background_check_is_active: rep.background_check_is_active,
+                            background_check_expires_on: rep.background_check_expires_on,
+                          });
+                          const isWilling = !hasValidCheck && (rep.willing_to_obtain_background_check ?? false);
+
+                          if (hasValidCheck) {
+                            return (
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <Shield className="h-3 w-3" />
+                                Active Background Check
+                              </Badge>
+                            );
+                          } else if (isWilling) {
+                            return (
+                              <Badge variant="outline" className="text-xs gap-1">
+                                <Shield className="h-3 w-3" />
+                                Willing to obtain
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* HUD Keys Badge */}
+                        {rep.has_hud_keys && (
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Key className="h-3 w-3" />
+                            HUD keys
+                          </Badge>
+                        )}
+
+                        {/* Additional Equipment Hint */}
+                        {rep.equipment_notes && (
+                          <span className="text-xs text-muted-foreground">
+                            + equipment
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Connected Since (if applicable) */}
+                      {rep.connectedSince && (
+                        <div className="text-xs text-muted-foreground">
+                          Connected since {new Date(rep.connectedSince).toLocaleDateString('en-US', { 
+                            month: 'numeric', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          })}
+                        </div>
+                      )}
                       {/* Systems Used */}
                       <div>
                         <p className="text-sm font-medium text-foreground mb-2">
@@ -701,6 +838,13 @@ export default function VendorFindReps() {
           </div>
         );
       })()}
+
+      {/* Reviews Detail Dialog */}
+      <ReviewsDetailDialog
+        open={showReviewsDialog}
+        onOpenChange={setShowReviewsDialog}
+        targetUserId={reviewsDialogUserId || ""}
+      />
       </div>
     </div>
   );
