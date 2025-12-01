@@ -162,7 +162,8 @@ export function ConnectionReviewDialog({
   const renderStarRating = (
     rating: number,
     setRating: (value: number) => void,
-    label: string
+    label: string,
+    helpText?: string
   ) => {
     return (
       <div className="space-y-2">
@@ -185,9 +186,29 @@ export function ConnectionReviewDialog({
             </button>
           ))}
         </div>
+        {helpText && <p className="text-xs text-muted-foreground">{helpText}</p>}
       </div>
     );
   };
+
+  const isVendorReviewing = reviewerRole === "vendor";
+  const labels = isVendorReviewing
+    ? {
+        onTimeLabel: "On-Time Performance",
+        onTimeHelp: "Do they complete inspections by the agreed due dates without constant chasing?",
+        qualityLabel: "Quality of Inspection",
+        qualityHelp: "Are photos, forms, and documentation complete and correct the first time?",
+        commLabel: "Communication",
+        commHelp: "Do they respond to messages, provide updates (appointments, delays), and flag issues early?",
+      }
+    : {
+        onTimeLabel: "Helpfulness & Support",
+        onTimeHelp: "Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?",
+        qualityLabel: "Communication",
+        qualityHelp: "Does this vendor respond to questions, give updates on changes, and set realistic expectations?",
+        commLabel: "Pay Reliability",
+        commHelp: "Do they pay on time and honor the rates and terms they agreed to?",
+      };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -217,9 +238,9 @@ export function ConnectionReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {renderStarRating(onTimeRating, setOnTimeRating, "On-Time Performance")}
-          {renderStarRating(qualityRating, setQualityRating, "Quality of Work")}
-          {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+          {renderStarRating(onTimeRating, setOnTimeRating, labels.onTimeLabel, labels.onTimeHelp)}
+          {renderStarRating(qualityRating, setQualityRating, labels.qualityLabel, labels.qualityHelp)}
+          {renderStarRating(communicationRating, setCommunicationRating, labels.commLabel, labels.commHelp)}
 
           <div className="space-y-2">
             <Label htmlFor="notes" className="text-sm font-medium">

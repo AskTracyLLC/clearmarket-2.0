@@ -126,9 +126,20 @@ export function VendorExitReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {renderStarRating(onTimeRating, setOnTimeRating, "On-time performance")}
-          {renderStarRating(qualityRating, setQualityRating, "Quality of work")}
-          {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+          <div className="space-y-2">
+            {renderStarRating(onTimeRating, setOnTimeRating, "On-Time Performance")}
+            <p className="text-xs text-muted-foreground">Do they complete inspections by the agreed due dates without constant chasing?</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(qualityRating, setQualityRating, "Quality of Inspection")}
+            <p className="text-xs text-muted-foreground">Are photos, forms, and documentation complete and correct the first time?</p>
+          </div>
+          
+          <div className="space-y-2">
+            {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+            <p className="text-xs text-muted-foreground">Do they respond to messages, provide updates (appointments, delays), and flag issues early?</p>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="comment" className="text-sm font-medium">
