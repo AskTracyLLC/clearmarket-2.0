@@ -16,9 +16,13 @@ export async function fetchTrustScoresForUsers(
       reviewee_id,
       rating_on_time,
       rating_quality,
-      rating_communication
+      rating_communication,
+      exclude_from_trust_score,
+      is_hidden
     `)
-    .in("reviewee_id", userIds);
+    .in("reviewee_id", userIds)
+    .eq("exclude_from_trust_score", false)
+    .eq("is_hidden", false);
 
   if (error) {
     console.error("Error fetching trust scores", error);

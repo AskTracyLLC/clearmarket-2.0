@@ -396,6 +396,12 @@ const Dashboard = () => {
                   <ShieldAlert className="w-4 h-4" />
                   Safety
                 </NavLink>
+                {profile?.is_admin && (
+                  <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                    <ShieldAlert className="w-4 h-4" />
+                    Admin
+                  </NavLink>
+                )}
                 {isVendor && vendorCredits !== null && (
                   <Link to="/vendor/credits" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
                     <Badge variant="secondary" className="bg-secondary/20 text-secondary hover:bg-secondary/30">
