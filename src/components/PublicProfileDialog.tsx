@@ -11,11 +11,14 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
+import { unlockRepContact, checkContactUnlocked } from "@/lib/credits";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -88,11 +91,16 @@ export function PublicProfileDialog({
   targetUserId,
   viewerContext,
 }: PublicProfileDialogProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [backgroundCheckSignedUrl, setBackgroundCheckSignedUrl] = useState<string | null>(null);
   const [trustScore, setTrustScore] = useState<{ average: number; count: number } | null>(null);
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
+  const [isContactUnlocked, setIsContactUnlocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [viewerIsVendor, setViewerIsVendor] = useState(false);
+  const [repEmail, setRepEmail] = useState<string | null>(null);
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -109,16 +117,41 @@ export function PublicProfileDialog({
     generateSignedUrl();
   }, [profileData?.backgroundCheck?.screenshotUrl]);
 
+  // Check if viewer is a vendor and if contact is unlocked
+  useEffect(() => {
+    if (!open || !targetUserId || !user) return;
+
+    async function checkViewerAndUnlock() {
+      // Check if current user is a vendor
+      const { data: viewerProfile } = await supabase
+        .from("profiles")
+        .select("is_vendor_admin, is_vendor_staff")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const isVendor = viewerProfile?.is_vendor_admin || viewerProfile?.is_vendor_staff || false;
+      setViewerIsVendor(isVendor);
+
+      // If vendor viewing a rep, check unlock status
+      if (isVendor) {
+        const unlocked = await checkContactUnlocked(user.id, targetUserId);
+        setIsContactUnlocked(unlocked);
+      }
+    }
+
+    checkViewerAndUnlock();
+  }, [open, targetUserId, user]);
+
   useEffect(() => {
     if (!open || !targetUserId) return;
 
     async function loadPublicProfile() {
       setLoading(true);
       try {
-        // Load base profile (for display name)
+        // Load base profile (for display name and email)
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, is_fieldrep, is_vendor_admin")
+          .select("full_name, email, is_fieldrep, is_vendor_admin")
           .eq("id", targetUserId)
           .maybeSingle();
 
@@ -146,6 +179,9 @@ export function PublicProfileDialog({
 
         // If rep profile exists, use it (priority if user has both roles)
         if (repProfile) {
+          // Store rep email for contact unlock feature
+          setRepEmail(profile?.email || null);
+
           // Load coverage areas
           const { data: coverageAreas } = await supabase
             .from("rep_coverage_areas")
@@ -195,7 +231,7 @@ export function PublicProfileDialog({
               equipmentNotes: repProfile.equipment_notes,
             },
           });
-        } 
+        }
         // Otherwise use vendor profile
         else if (vendorProfile) {
           // Load vendor coverage areas
@@ -283,6 +319,41 @@ export function PublicProfileDialog({
 
     loadTrustScore();
   }, [open, targetUserId]);
+
+  const handleUnlockContact = async () => {
+    if (!user || !targetUserId) return;
+
+    setUnlocking(true);
+    try {
+      const result = await unlockRepContact(user.id, targetUserId);
+
+      if (result.success) {
+        setIsContactUnlocked(true);
+        if (result.alreadyUnlocked) {
+          toast.success("Contact already unlocked");
+        } else {
+          toast.success("Contact unlocked! 1 credit deducted.");
+          // Trigger wallet refresh if you have a global refresh mechanism
+          window.dispatchEvent(new Event("walletUpdated"));
+        }
+      } else {
+        if (result.error === "Insufficient credits") {
+          toast.error("Not enough credits", {
+            description: "You don't have enough credits to unlock this rep's contact info. Please add credits in your Credits tab.",
+          });
+        } else {
+          toast.error("Failed to unlock contact", {
+            description: result.error || "An error occurred",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error unlocking contact:", error);
+      toast.error("Failed to unlock contact");
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -553,6 +624,63 @@ export function PublicProfileDialog({
                         </p>
                       </div>
                     )}
+                  </div>
+                </Card>
+              )}
+
+              {/* Contact Info (Vendor View Only) */}
+              {viewerIsVendor && (
+                <Card className="p-4 bg-card-elevated border-2 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    {isContactUnlocked ? (
+                      <Unlock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground mb-2">Contact Information</h3>
+                      
+                      {isContactUnlocked ? (
+                        <div className="space-y-2">
+                          <Badge variant="default" className="mb-2">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Contact unlocked
+                          </Badge>
+                          {repEmail && (
+                            <div className="text-sm">
+                              <span className="text-muted-foreground">Email: </span>
+                              <a
+                                href={`mailto:${repEmail}`}
+                                className="text-primary hover:underline font-medium"
+                              >
+                                {repEmail}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">
+                            Contact info is locked. Unlock this rep's email and phone for 1 credit.
+                          </p>
+                          <Button
+                            onClick={handleUnlockContact}
+                            disabled={unlocking}
+                            size="sm"
+                            className="w-full sm:w-auto"
+                          >
+                            {unlocking ? (
+                              "Unlocking..."
+                            ) : (
+                              <>
+                                <Unlock className="h-4 w-4 mr-2" />
+                                Unlock Contact (1 credit)
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </Card>
               )}

@@ -10,11 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, CheckCircle2, XCircle, Shield, Key } from "lucide-react";
+import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
+import { checkContactUnlockedBatch } from "@/lib/credits";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -74,6 +76,7 @@ interface RepResult {
   trustScore?: number | null;
   trustScoreCount?: number;
   connectedSince?: string | null;
+  isContactUnlocked?: boolean;
 }
 
 export default function VendorFindReps() {
@@ -107,6 +110,10 @@ export default function VendorFindReps() {
   // Reviews dialog
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
+
+  // Public profile dialog
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
 
   // Check auth and vendor role
   useState(() => {
@@ -307,12 +314,16 @@ export default function VendorFindReps() {
         });
       }
 
-      // Enhance results with trust scores and connection data
+      // Fetch unlock status for all reps
+      const unlockMap = user ? await checkContactUnlockedBatch(user.id, repUserIds) : {};
+
+      // Enhance results with trust scores, connection data, and unlock status
       const enhancedResults = filtered.map(rep => ({
         ...rep,
         trustScore: trustScores[rep.user_id]?.average ?? null,
         trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
         connectedSince: connectionMap.get(rep.user_id) ?? null,
+        isContactUnlocked: unlockMap[rep.user_id] ?? false,
       }));
 
       setResults(enhancedResults as RepResult[]);
@@ -667,6 +678,14 @@ export default function VendorFindReps() {
 
                       {/* Credentials Badges */}
                       <div className="flex flex-wrap gap-2">
+                        {/* Contact Unlocked Badge */}
+                        {rep.isContactUnlocked && (
+                          <Badge variant="default" className="text-xs gap-1">
+                            <Unlock className="h-3 w-3" />
+                            Contact unlocked
+                          </Badge>
+                        )}
+
                         {/* Background Check Badge */}
                         {(() => {
                           const hasValidCheck = isBackgroundCheckActive({
@@ -822,13 +841,16 @@ export default function VendorFindReps() {
                         );
                       })()}
 
-                      {/* Unlock Button (Disabled) */}
+                      {/* View Profile Button */}
                       <Button
-                        onClick={handleUnlockClick}
-                        disabled
+                        onClick={() => {
+                          setProfileDialogUserId(rep.user_id);
+                          setShowProfileDialog(true);
+                        }}
+                        variant="outline"
                         className="w-full"
                       >
-                        Unlock & Connect (Coming Soon)
+                        View Profile
                       </Button>
                     </CardContent>
                   </Card>
@@ -843,9 +865,15 @@ export default function VendorFindReps() {
       <ReviewsDetailDialog
         open={showReviewsDialog}
         onOpenChange={setShowReviewsDialog}
-        targetUserId={reviewsDialogUserId || ""}
+        targetUserId={reviewsDialogUserId}
       />
-      </div>
+
+      {/* Public Profile Dialog */}
+      <PublicProfileDialog
+        open={showProfileDialog}
+        onOpenChange={setShowProfileDialog}
+        targetUserId={profileDialogUserId}
+      />
     </div>
   );
 }
