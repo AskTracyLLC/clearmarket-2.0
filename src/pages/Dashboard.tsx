@@ -51,6 +51,7 @@ const Dashboard = () => {
     end_date: string;
     auto_reply_enabled: boolean;
   } | null>(null);
+  const [activeSavedSearchCount, setActiveSavedSearchCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -191,6 +192,24 @@ const Dashboard = () => {
           .maybeSingle();
         
         setUpcomingTimeOff(upcomingAvailability);
+      }
+
+      // Load active saved searches count
+      const roleContext = data.is_fieldrep 
+        ? (data.is_vendor_admin ? null : "rep_find_vendors") 
+        : data.is_vendor_admin 
+        ? "vendor_find_reps" 
+        : null;
+      
+      if (roleContext) {
+        const { count: searchCount } = await supabase
+          .from("saved_searches")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("role_context", roleContext)
+          .eq("is_active", true);
+        
+        setActiveSavedSearchCount(searchCount || 0);
       }
     }
 
@@ -898,6 +917,12 @@ const Dashboard = () => {
                       <p className="text-sm text-muted-foreground mb-4">
                         Browse Seeking Coverage posts from verified vendors in your area. Matched to your coverage, inspection types, and systems.
                       </p>
+                      {activeSavedSearchCount > 0 && (
+                        <p className="text-xs text-muted-foreground mb-4">
+                          <Bell className="h-3 w-3 inline mr-1" />
+                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new posts
+                        </p>
+                      )}
                       <Button size="sm" variant="secondary">
                         Browse Opportunities →
                       </Button>
@@ -919,6 +944,12 @@ const Dashboard = () => {
                       <p className="text-sm text-muted-foreground mb-4">
                         Discover and connect with vendors in your coverage areas. View trust scores, reviews, and vendor expectations.
                       </p>
+                      {activeSavedSearchCount > 0 && (
+                        <p className="text-xs text-muted-foreground mb-4">
+                          <Bell className="h-3 w-3 inline mr-1" />
+                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new vendors
+                        </p>
+                      )}
                       <Button size="sm" variant="secondary">
                         Browse Vendors →
                       </Button>
@@ -953,6 +984,12 @@ const Dashboard = () => {
                       <p className="text-sm text-muted-foreground mb-4">
                         Search and filter field representatives by location, systems used, and inspection types (unlock coming soon).
                       </p>
+                      {activeSavedSearchCount > 0 && (
+                        <p className="text-xs text-muted-foreground mb-4">
+                          <Bell className="h-3 w-3 inline mr-1" />
+                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new reps
+                        </p>
+                      )}
                       <Button size="sm" variant="secondary">
                         Browse Reps →
                       </Button>
