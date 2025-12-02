@@ -19,6 +19,9 @@ import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { unlockRepContact, checkContactUnlocked } from "@/lib/credits";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { ReportFlagButton } from "@/components/ReportFlagButton";
+import { ReportUserDialog } from "@/components/ReportUserDialog";
+import { checkAlreadyReported } from "@/lib/reports";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -101,6 +104,8 @@ export function PublicProfileDialog({
   const [unlocking, setUnlocking] = useState(false);
   const [viewerIsVendor, setViewerIsVendor] = useState(false);
   const [repEmail, setRepEmail] = useState<string | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [alreadyReported, setAlreadyReported] = useState(false);
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -137,6 +142,10 @@ export function PublicProfileDialog({
         const unlocked = await checkContactUnlocked(user.id, targetUserId);
         setIsContactUnlocked(unlocked);
       }
+
+      // Check if user has already reported this person
+      const reported = await checkAlreadyReported(user.id, targetUserId);
+      setAlreadyReported(reported);
     }
 
     checkViewerAndUnlock();
@@ -389,10 +398,20 @@ export function PublicProfileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-primary">
-            {profileData.anonymousId}
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-2xl font-bold text-primary">
+                {profileData.anonymousId}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+            </div>
+            {user && targetUserId && user.id !== targetUserId && (
+              <ReportFlagButton
+                onClick={() => setShowReportDialog(true)}
+                alreadyReported={alreadyReported}
+              />
+            )}
+          </div>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -936,6 +955,18 @@ export function PublicProfileDialog({
         onOpenChange={setShowReviewsDialog}
         targetUserId={targetUserId}
       />
+
+      {/* Report User Dialog */}
+      {user && targetUserId && (
+        <ReportUserDialog
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+          reporterUserId={user.id}
+          reportedUserId={targetUserId}
+          targetAnonId={profileData?.anonymousId || "this user"}
+          alreadyReported={alreadyReported}
+        />
+      )}
     </Dialog>
   );
 }
