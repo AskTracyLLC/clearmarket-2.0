@@ -535,6 +535,50 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_availability: {
+        Row: {
+          auto_reply_enabled: boolean
+          auto_reply_message: string | null
+          created_at: string
+          end_date: string
+          id: string
+          reason: string | null
+          rep_user_id: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          auto_reply_enabled?: boolean
+          auto_reply_message?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          reason?: string | null
+          rep_user_id: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          auto_reply_enabled?: boolean
+          auto_reply_message?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          reason?: string | null
+          rep_user_id?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_availability_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_contact_unlocks: {
         Row: {
           created_at: string
@@ -1149,6 +1193,47 @@ export type Database = {
             foreignKeyName: "user_wallet_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_alerts: {
+        Row: {
+          affected_end_date: string | null
+          affected_start_date: string | null
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          recipient_vendor_ids: string[]
+          rep_user_id: string
+        }
+        Insert: {
+          affected_end_date?: string | null
+          affected_start_date?: string | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          recipient_vendor_ids?: string[]
+          rep_user_id: string
+        }
+        Update: {
+          affected_end_date?: string | null
+          affected_start_date?: string | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          recipient_vendor_ids?: string[]
+          rep_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_alerts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

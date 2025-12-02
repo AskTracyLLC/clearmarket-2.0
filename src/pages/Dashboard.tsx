@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { Progress } from "@/components/ui/progress";
@@ -16,6 +16,7 @@ import { computeRepProfileCompleteness, computeVendorProfileCompleteness, getCom
 import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
+import { format, parseISO } from "date-fns";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -45,6 +46,11 @@ const Dashboard = () => {
     warningMessage: string;
     warningType: "reports" | "reviews" | null;
   }>({ showWarning: false, warningMessage: "", warningType: null });
+  const [upcomingTimeOff, setUpcomingTimeOff] = useState<{
+    start_date: string;
+    end_date: string;
+    auto_reply_enabled: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -170,6 +176,21 @@ const Dashboard = () => {
       if (role) {
         const warningData = await checkSoftWarnings(user.id, role);
         setSoftWarning(warningData);
+      }
+
+      // Check for upcoming time-off for field reps
+      if (data.is_fieldrep) {
+        const today = new Date().toISOString().split("T")[0];
+        const { data: upcomingAvailability } = await supabase
+          .from("rep_availability")
+          .select("start_date, end_date, auto_reply_enabled")
+          .eq("rep_user_id", user.id)
+          .gte("end_date", today)
+          .order("start_date", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        
+        setUpcomingTimeOff(upcomingAvailability);
       }
     }
 
@@ -480,6 +501,34 @@ const Dashboard = () => {
           </div>
         )}
 
+        {/* Time Off Banner for Reps */}
+        {isRep && upcomingTimeOff && (
+          <Card className="mb-6 bg-secondary/10 border-secondary/30 max-w-7xl">
+            <CardContent className="py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <Calendar className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">
+                      You have time off scheduled from {format(parseISO(upcomingTimeOff.start_date), "MM/dd/yyyy")} to {format(parseISO(upcomingTimeOff.end_date), "MM/dd/yyyy")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Auto-reply: {upcomingTimeOff.auto_reply_enabled ? "ON" : "OFF"}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => navigate("/rep/availability")}
+                >
+                  Manage Availability
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Soft Warning Banner */}
         {softWarning.showWarning && softWarning.warningType && (
           <SoftWarningBanner message={softWarning.warningMessage} type={softWarning.warningType} />
@@ -739,6 +788,26 @@ const Dashboard = () => {
                       </p>
                       <Button size="sm" variant="secondary">
                         View Reviews →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/availability")}>
+                  <div className="flex items-start gap-4">
+                    <Calendar className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Availability & Alerts</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          New
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Manage your time off, set auto-replies, and send availability updates to your vendor network.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Manage Availability →
                       </Button>
                     </div>
                   </div>
