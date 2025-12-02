@@ -465,134 +465,202 @@ export default function SafetyCenter() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="notifications" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Notification Settings
-                </CardTitle>
-                <CardDescription>
-                  Choose which in-app notifications you'd like to receive. Critical safety alerts may still be sent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {!preferences ? (
-                  <p className="text-sm text-muted-foreground">Loading preferences...</p>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_new_message" className="text-sm font-medium">
-                          New messages
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Show a notification when someone sends you a new message.
-                        </p>
+            <TabsContent value="notifications" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" />
+                    Notification Settings
+                  </CardTitle>
+                  <CardDescription>
+                    Choose how you'd like to receive notifications. You can enable or disable both in-app and email notifications for each category.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  {!preferences ? (
+                    <p className="text-sm text-muted-foreground">Loading preferences...</p>
+                  ) : (
+                    <>
+                      {/* Messages */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-base font-semibold mb-1">Messages</h3>
+                          <p className="text-xs text-muted-foreground">Get notified when you receive messages</p>
+                        </div>
+                        <div className="space-y-3 pl-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="notify_new_message" className="text-sm font-medium">
+                                In-app notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Show notifications in the app
+                              </p>
+                            </div>
+                            <Switch
+                              id="notify_new_message"
+                              checked={preferences.notify_new_message}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("notify_new_message", value)
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="email_messages" className="text-sm font-medium">
+                                Email notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Send email when you receive a new message or reply
+                              </p>
+                            </div>
+                            <Switch
+                              id="email_messages"
+                              checked={preferences.email_messages}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("email_messages", value)
+                              }
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        id="notify_new_message"
-                        checked={preferences.notify_new_message}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_new_message", value)
-                        }
-                      />
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_connection_request" className="text-sm font-medium">
-                          Connection requests
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Show a notification when someone wants to connect with you.
-                        </p>
+                      {/* Connections */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-base font-semibold mb-1">Connections</h3>
+                          <p className="text-xs text-muted-foreground">Get notified about connection requests and updates</p>
+                        </div>
+                        <div className="space-y-3 pl-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="notify_connection_request" className="text-sm font-medium">
+                                In-app notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Show notifications for connection requests
+                              </p>
+                            </div>
+                            <Switch
+                              id="notify_connection_request"
+                              checked={preferences.notify_connection_request}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("notify_connection_request", value)
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="email_connections" className="text-sm font-medium">
+                                Email notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Send email for connection requests and connection changes
+                              </p>
+                            </div>
+                            <Switch
+                              id="email_connections"
+                              checked={preferences.email_connections}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("email_connections", value)
+                              }
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        id="notify_connection_request"
-                        checked={preferences.notify_connection_request}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_connection_request", value)
-                        }
-                      />
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_connection_accepted" className="text-sm font-medium">
-                          Connection accepted
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Show a notification when your connection request is accepted.
-                        </p>
+                      {/* Reviews */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-base font-semibold mb-1">Reviews</h3>
+                          <p className="text-xs text-muted-foreground">Get notified when you receive reviews</p>
+                        </div>
+                        <div className="space-y-3 pl-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="notify_review_received" className="text-sm font-medium">
+                                In-app notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Show notifications when you receive a review
+                              </p>
+                            </div>
+                            <Switch
+                              id="notify_review_received"
+                              checked={preferences.notify_review_received}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("notify_review_received", value)
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="email_reviews" className="text-sm font-medium">
+                                Email notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Send email when you receive a new review
+                              </p>
+                            </div>
+                            <Switch
+                              id="email_reviews"
+                              checked={preferences.email_reviews}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("email_reviews", value)
+                              }
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        id="notify_connection_accepted"
-                        checked={preferences.notify_connection_accepted}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_connection_accepted", value)
-                        }
-                      />
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_review_received" className="text-sm font-medium">
-                          Reviews received
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Show a notification when you receive a new review.
-                        </p>
+                      {/* System & Safety */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-base font-semibold mb-1">System & Safety</h3>
+                          <p className="text-xs text-muted-foreground">Get notified about credits, safety alerts, and system updates</p>
+                        </div>
+                        <div className="space-y-3 pl-4">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="notify_credits_events" className="text-sm font-medium">
+                                In-app notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Credits, safety alerts, and system updates
+                              </p>
+                            </div>
+                            <Switch
+                              id="notify_credits_events"
+                              checked={preferences.notify_credits_events}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("notify_credits_events", value)
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <Label htmlFor="email_system" className="text-sm font-medium">
+                                Email notifications
+                              </Label>
+                              <p className="text-xs text-muted-foreground">
+                                Send email for important system notices (credits, safety, account)
+                              </p>
+                            </div>
+                            <Switch
+                              id="email_system"
+                              checked={preferences.email_system}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("email_system", value)
+                              }
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Switch
-                        id="notify_review_received"
-                        checked={preferences.notify_review_received}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_review_received", value)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_credits_events" className="text-sm font-medium">
-                          Credits & billing updates
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Notifications about credits, low balance, and purchases.
-                        </p>
-                      </div>
-                      <Switch
-                        id="notify_credits_events"
-                        checked={preferences.notify_credits_events}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_credits_events", value)
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="notify_system_updates" className="text-sm font-medium">
-                          System updates & announcements
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Important announcements and updates about ClearMarket.
-                        </p>
-                      </div>
-                      <Switch
-                        id="notify_system_updates"
-                        checked={preferences.notify_system_updates}
-                        onCheckedChange={(value) =>
-                          handleTogglePreference("notify_system_updates", value)
-                        }
-                      />
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
         </Tabs>
       </div>
 
