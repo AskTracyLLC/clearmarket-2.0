@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingConnectionCount, setPendingConnectionCount] = useState(0);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [vendorCredits, setVendorCredits] = useState<number | null>(null);
   const [reviewPrompts, setReviewPrompts] = useState<Array<{
     userId: string;
     anonymousId: string;
@@ -124,6 +125,17 @@ const Dashboard = () => {
         .eq("is_read", false);
       
       setUnreadNotificationCount(notificationCount || 0);
+
+      // Load vendor credits if vendor
+      if (data.is_vendor_admin) {
+        const { data: walletData } = await supabase
+          .from("user_wallet")
+          .select("credits")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        
+        setVendorCredits(walletData?.credits ?? 0);
+      }
 
       // Check for 14-day review prompts
       await checkReviewPrompts(user.id, data.is_fieldrep, data.is_vendor_admin);
@@ -366,6 +378,13 @@ const Dashboard = () => {
                     </Badge>
                   )}
                 </NavLink>
+                {isVendor && vendorCredits !== null && (
+                  <Link to="/vendor/credits" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-secondary/20 text-secondary hover:bg-secondary/30">
+                      Credits: {vendorCredits}
+                    </Badge>
+                  </Link>
+                )}
               </nav>
             </div>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -631,6 +650,28 @@ const Dashboard = () => {
                       </p>
                       <Button size="sm" variant="secondary">
                         View Reviews →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/credits")}>
+                  <div className="flex items-start gap-4">
+                    <div className="h-6 w-6 text-primary flex-shrink-0 mt-1">💳</div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Credits</h3>
+                        {vendorCredits !== null && (
+                          <Badge variant="secondary" className="bg-secondary/20 text-secondary">
+                            {vendorCredits}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Manage your credits for posting Seeking Coverage and other premium features.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        View Details →
                       </Button>
                     </div>
                   </div>
