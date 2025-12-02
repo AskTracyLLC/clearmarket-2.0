@@ -458,6 +458,42 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_contact_unlocks: {
+        Row: {
+          created_at: string
+          id: string
+          rep_user_id: string
+          vendor_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          rep_user_id: string
+          vendor_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          rep_user_id?: string
+          vendor_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_contact_unlocks_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_contact_unlocks_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_coverage_areas: {
         Row: {
           base_price: number | null
@@ -1231,7 +1267,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      unlock_rep_contact: {
+        Args: { p_rep_user_id: string; p_vendor_user_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       vendor_connection_initiator: "vendor" | "field_rep"
