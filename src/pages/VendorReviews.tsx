@@ -11,8 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
-import { VendorQualityRadar } from "@/components/VendorQualityRadar";
-import { fetchVendorQualityRadar, QualityRadarData } from "@/lib/qualityAnalytics";
+import { VendorReputationSnapshot } from "@/components/VendorReputationSnapshot";
 
 interface ReviewData {
   id: string;
@@ -54,8 +53,11 @@ export default function VendorReviews() {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
 
-  // Quality Radar
-  const [qualityRadarData, setQualityRadarData] = useState<QualityRadarData | null>(null);
+  // Recent reviews (90 days)
+  const [recentReviewCount, setRecentReviewCount] = useState(0);
+  const [recentAvgHelpfulness, setRecentAvgHelpfulness] = useState<number | null>(null);
+  const [recentAvgCommunication, setRecentAvgCommunication] = useState<number | null>(null);
+  const [recentAvgPay, setRecentAvgPay] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -119,7 +121,7 @@ export default function VendorReviews() {
       const enrichedGiven = await enrichReviews(given || [], "reviewee");
       setGivenReviews(enrichedGiven);
 
-      // Calculate category averages for received reviews
+      // Calculate category averages for received reviews (lifetime)
       if (received && received.length > 0) {
         const helpfulnessSum = received.reduce((sum, r) => sum + (r.rating_on_time || 0), 0);
         const communicationSum = received.reduce((sum, r) => sum + (r.rating_quality || 0), 0);
@@ -130,9 +132,29 @@ export default function VendorReviews() {
         setAvgPay(paySum / received.length);
       }
 
-      // Fetch quality radar data
-      const radarData = await fetchVendorQualityRadar(user.id);
-      setQualityRadarData(radarData);
+      // Calculate recent (90 days) averages
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const recentReviews = (received || []).filter(
+        r => new Date(r.created_at) >= ninetyDaysAgo
+      );
+
+      setRecentReviewCount(recentReviews.length);
+      
+      if (recentReviews.length > 0) {
+        const recentHelpSum = recentReviews.reduce((sum, r) => sum + (r.rating_on_time || 0), 0);
+        const recentCommSum = recentReviews.reduce((sum, r) => sum + (r.rating_quality || 0), 0);
+        const recentPaySum = recentReviews.reduce((sum, r) => sum + (r.rating_communication || 0), 0);
+        
+        setRecentAvgHelpfulness(recentHelpSum / recentReviews.length);
+        setRecentAvgCommunication(recentCommSum / recentReviews.length);
+        setRecentAvgPay(recentPaySum / recentReviews.length);
+      } else {
+        // No recent reviews, use lifetime averages as recent
+        setRecentAvgHelpfulness(avgHelpfulness);
+        setRecentAvgCommunication(avgCommunication);
+        setRecentAvgPay(avgPay);
+      }
     } catch (error) {
       console.error("Error loading reviews:", error);
       toast.error("Failed to load reviews");
@@ -309,8 +331,24 @@ export default function VendorReviews() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Quality Radar */}
-        {qualityRadarData && <VendorQualityRadar data={qualityRadarData} />}
+        {/* Reputation Snapshot */}
+        <VendorReputationSnapshot
+          trustScore={trustScore || 3.0}
+          reviewCount={reviewCount}
+          recentReviewCount={recentReviewCount}
+          helpfulness={{
+            lifetime: avgHelpfulness || 0,
+            recent: recentAvgHelpfulness || avgHelpfulness || 0,
+          }}
+          communication={{
+            lifetime: avgCommunication || 0,
+            recent: recentAvgCommunication || avgCommunication || 0,
+          }}
+          payConsistency={{
+            lifetime: avgPay || 0,
+            recent: recentAvgPay || avgPay || 0,
+          }}
+        />
 
         {/* Trust Score Summary */}
         <Card className="mb-6">

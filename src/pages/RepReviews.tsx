@@ -11,8 +11,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
-import { RepReputationSnapshot } from "@/components/RepReputationSnapshot";
-import { fetchRepReputationSnapshot, ReputationSnapshotData } from "@/lib/qualityAnalytics";
+import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
 
 interface ReviewData {
   id: string;
@@ -54,8 +53,11 @@ export default function RepReviews() {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
 
-  // Reputation Snapshot
-  const [reputationData, setReputationData] = useState<ReputationSnapshotData | null>(null);
+  // Recent reviews (90 days)
+  const [recentReviewCount, setRecentReviewCount] = useState(0);
+  const [recentAvgOnTime, setRecentAvgOnTime] = useState<number | null>(null);
+  const [recentAvgQuality, setRecentAvgQuality] = useState<number | null>(null);
+  const [recentAvgCommunication, setRecentAvgCommunication] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -119,7 +121,7 @@ export default function RepReviews() {
       const enrichedGiven = await enrichReviews(given || [], "reviewee");
       setGivenReviews(enrichedGiven);
 
-      // Calculate category averages for received reviews
+      // Calculate category averages for received reviews (lifetime)
       if (received && received.length > 0) {
         const onTimeSum = received.reduce((sum, r) => sum + (r.rating_on_time || 0), 0);
         const qualitySum = received.reduce((sum, r) => sum + (r.rating_quality || 0), 0);
@@ -130,9 +132,29 @@ export default function RepReviews() {
         setAvgCommunication(communicationSum / received.length);
       }
 
-      // Fetch reputation snapshot data
-      const snapshotData = await fetchRepReputationSnapshot(user.id);
-      setReputationData(snapshotData);
+      // Calculate recent (90 days) averages
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const recentReviews = (received || []).filter(
+        r => new Date(r.created_at) >= ninetyDaysAgo
+      );
+
+      setRecentReviewCount(recentReviews.length);
+      
+      if (recentReviews.length > 0) {
+        const recentOnTimeSum = recentReviews.reduce((sum, r) => sum + (r.rating_on_time || 0), 0);
+        const recentQualSum = recentReviews.reduce((sum, r) => sum + (r.rating_quality || 0), 0);
+        const recentCommSum = recentReviews.reduce((sum, r) => sum + (r.rating_communication || 0), 0);
+        
+        setRecentAvgOnTime(recentOnTimeSum / recentReviews.length);
+        setRecentAvgQuality(recentQualSum / recentReviews.length);
+        setRecentAvgCommunication(recentCommSum / recentReviews.length);
+      } else {
+        // No recent reviews, use lifetime averages as recent
+        setRecentAvgOnTime(avgOnTime);
+        setRecentAvgQuality(avgQuality);
+        setRecentAvgCommunication(avgCommunication);
+      }
     } catch (error) {
       console.error("Error loading reviews:", error);
       toast.error("Failed to load reviews");
@@ -312,7 +334,23 @@ export default function RepReviews() {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Reputation Snapshot */}
-        {reputationData && <RepReputationSnapshot data={reputationData} trustScore={trustScore || 3.0} />}
+        <RepReputationSnapshotNew
+          trustScore={trustScore || 3.0}
+          reviewCount={reviewCount}
+          recentReviewCount={recentReviewCount}
+          onTime={{
+            lifetime: avgOnTime || 0,
+            recent: recentAvgOnTime || avgOnTime || 0,
+          }}
+          quality={{
+            lifetime: avgQuality || 0,
+            recent: recentAvgQuality || avgQuality || 0,
+          }}
+          communication={{
+            lifetime: avgCommunication || 0,
+            recent: recentAvgCommunication || avgCommunication || 0,
+          }}
+        />
 
         {/* Trust Score Summary */}
         <Card className="mb-6">
