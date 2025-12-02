@@ -376,47 +376,34 @@ const Dashboard = () => {
     return missing;
   };
 
-  // Rep onboarding checklist items
-  const repChecklistItems = [
-    {
-      id: "profile",
-      label: "Confirm your basic profile info",
-      completed: true,
-    },
-    {
-      id: "coverage",
-      label: "Add your coverage areas and pricing",
-      completed: repProfile?.coverage_count > 0,
-      comingSoon: false,
-    },
-    {
-      id: "documents",
-      label: "Upload your documents",
-      completed: false,
-      comingSoon: true,
-    },
-  ];
+  // Use computed profile completeness for checklist items
+  const getChecklistData = () => {
+    if (isRep && repCompleteness) {
+      return {
+        title: "Rep Onboarding",
+        items: repCompleteness.checklist,
+        completedCount: repCompleteness.completedCount,
+        totalCount: repCompleteness.totalCount,
+      };
+    }
+    if (isVendor && vendorCompleteness) {
+      return {
+        title: "Vendor Onboarding",
+        items: vendorCompleteness.checklist,
+        completedCount: vendorCompleteness.completedCount,
+        totalCount: vendorCompleteness.totalCount,
+      };
+    }
+    // Fallback for loading state
+    return {
+      title: isRep ? "Rep Onboarding" : "Vendor Onboarding",
+      items: [],
+      completedCount: 0,
+      totalCount: 0,
+    };
+  };
 
-  // Vendor onboarding checklist items
-  const vendorChecklistItems = [
-    {
-      id: "profile",
-      label: "Confirm your company profile info",
-      completed: true,
-    },
-    {
-      id: "post",
-      label: "Create your first Seeking Coverage post",
-      completed: false,
-      comingSoon: true,
-    },
-    {
-      id: "review",
-      label: "Review interested reps",
-      completed: false,
-      comingSoon: true,
-    },
-  ];
+  const checklistData = getChecklistData();
 
   return (
     <div className="min-h-screen">
@@ -1027,11 +1014,13 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Sidebar - Getting Started Checklist */}
+          {/* Sidebar - Onboarding Checklist */}
           <div className="space-y-6">
             <OnboardingChecklist
-              title="Getting Started"
-              items={isRep ? repChecklistItems : vendorChecklistItems}
+              title={checklistData.title}
+              items={checklistData.items}
+              completedCount={checklistData.completedCount}
+              totalCount={checklistData.totalCount}
             />
 
             {/* Quick Stats Card */}
@@ -1039,22 +1028,25 @@ const Dashboard = () => {
               <h3 className="text-lg font-semibold mb-4 text-foreground">Quick Stats</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Profile Complete</span>
-                  <span className="font-medium text-foreground">33%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {isRep ? "Jobs Applied" : "Posts Created"}
+                  <span className="text-muted-foreground">Onboarding Complete</span>
+                  <span className="font-medium text-foreground">
+                    {isRep ? (repCompleteness?.percent ?? 0) : (vendorCompleteness?.percent ?? 0)}%
                   </span>
-                  <span className="font-medium text-muted-foreground">—</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Messages</span>
-                  <span className="font-medium text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">Unread Messages</span>
+                  <span className="font-medium text-foreground">{unreadMessageCount}</span>
                 </div>
-                <p className="text-xs text-secondary pt-2 border-t border-border">
-                  More features coming soon
-                </p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Notifications</span>
+                  <span className="font-medium text-foreground">{unreadNotificationCount}</span>
+                </div>
+                {isVendor && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Credits</span>
+                    <span className="font-medium text-foreground">{vendorCredits ?? 0}</span>
+                  </div>
+                )}
               </div>
             </Card>
           </div>
