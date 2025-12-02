@@ -1,0 +1,394 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import {
+  fetchCommunityPost,
+  fetchCommentsForPost,
+  fetchUserVotes,
+  createCommunityComment,
+  notifyPostAuthorOfComment,
+  getCategoryConfig,
+  getStatusConfig,
+  CommunityPost,
+  CommunityComment,
+} from "@/lib/community";
+import { CommunityPostDialog } from "@/components/CommunityPostDialog";
+import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
+import { ReportFlagButton } from "@/components/ReportFlagButton";
+import { ReportUserDialog } from "@/components/ReportUserDialog";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { NavLink } from "@/components/NavLink";
+import {
+  MessageSquare,
+  Bell,
+  ShieldAlert,
+  Briefcase,
+  ArrowLeft,
+  Eye,
+  Edit,
+  Users,
+  Lock,
+} from "lucide-react";
+import { format } from "date-fns";
+
+const CommunityPostDetail = () => {
+  const navigate = useNavigate();
+  const { postId } = useParams<{ postId: string }>();
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+
+  const [post, setPost] = useState<CommunityPost | null>(null);
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [postVote, setPostVote] = useState<string | undefined>();
+  const [commentVotes, setCommentVotes] = useState<Record<string, string>>({});
+  const [newComment, setNewComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ type: string; id: string; authorId: string; context: string } | null>(null);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [profileTargetUserId, setProfileTargetUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/signin");
+    }
+  }, [authLoading, user, navigate]);
+
+  useEffect(() => {
+    if (user && postId) {
+      loadPost();
+    }
+  }, [user, postId]);
+
+  const loadPost = async () => {
+    if (!user || !postId) return;
+    setLoading(true);
+
+    const postData = await fetchCommunityPost(postId);
+    if (!postData) {
+      toast({ title: "Post not found", variant: "destructive" });
+      navigate("/community");
+      return;
+    }
+    setPost(postData);
+
+    // Load votes for the post
+    const postVotes = await fetchUserVotes(user.id, "post", [postId]);
+    setPostVote(postVotes[postId]);
+
+    // Load comments
+    const commentsData = await fetchCommentsForPost(postId);
+    setComments(commentsData);
+
+    // Load comment votes
+    if (commentsData.length > 0) {
+      const cVotes = await fetchUserVotes(user.id, "comment", commentsData.map((c) => c.id));
+      setCommentVotes(cVotes);
+    }
+
+    setLoading(false);
+  };
+
+  const handleSubmitComment = async () => {
+    if (!user || !post || !newComment.trim()) return;
+    if (post.status === "locked") {
+      toast({ title: "Post is locked", description: "New comments are disabled.", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await createCommunityComment(post.id, user.id, newComment.trim());
+
+    if (result.success) {
+      toast({ title: "Comment posted" });
+      setNewComment("");
+      // Notify post author if not self
+      if (post.author_id !== user.id) {
+        await notifyPostAuthorOfComment(post.author_id, post.id, post.title);
+      }
+      loadPost();
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    setSubmitting(false);
+  };
+
+  const handleReportPost = () => {
+    if (!post) return;
+    setReportTarget({
+      type: "community_post",
+      id: post.id,
+      authorId: post.author_id,
+      context: `Post: ${post.title.substring(0, 50)}...`,
+    });
+    setReportDialogOpen(true);
+  };
+
+  const handleReportComment = (comment: CommunityComment) => {
+    setReportTarget({
+      type: "community_comment",
+      id: comment.id,
+      authorId: comment.author_id,
+      context: `Comment: ${comment.body.substring(0, 50)}...`,
+    });
+    setReportDialogOpen(true);
+  };
+
+  const handleViewProfile = (userId: string) => {
+    setProfileTargetUserId(userId);
+    setProfileDialogOpen(true);
+  };
+
+  if (authLoading || loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Post not found</p>
+      </div>
+    );
+  }
+
+  const categoryConfig = getCategoryConfig(post.category);
+  const statusConfig = getStatusConfig(post.status);
+  const isLocked = post.status === "locked";
+  const isAuthor = post.author_id === user.id;
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-8">
+              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
+                ClearMarket
+              </Link>
+              <nav className="hidden md:flex gap-6">
+                <NavLink to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Briefcase className="w-4 h-4" />
+                  Dashboard
+                </NavLink>
+                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Users className="w-4 h-4" />
+                  Community
+                </NavLink>
+                <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <MessageSquare className="w-4 h-4" />
+                  Messages
+                </NavLink>
+                <NavLink to="/notifications" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Bell className="w-4 h-4" />
+                  Notifications
+                </NavLink>
+                <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <ShieldAlert className="w-4 h-4" />
+                  Safety
+                </NavLink>
+              </nav>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/community")}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
+        {/* Post Header */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <Badge className={categoryConfig.color}>{categoryConfig.label}</Badge>
+              {post.status !== "active" && (
+                <Badge className={statusConfig.color}>
+                  {isLocked && <Lock className="w-3 h-3 mr-1" />}
+                  {statusConfig.label}
+                </Badge>
+              )}
+            </div>
+
+            <h1 className="text-2xl font-bold text-foreground mb-2">{post.title}</h1>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-4">
+              <button
+                onClick={() => handleViewProfile(post.author_id)}
+                className="hover:text-foreground flex items-center gap-1"
+              >
+                <Eye className="w-3 h-3" />
+                {post.author_anonymous_id || "User"}
+              </button>
+              <span>·</span>
+              <span>{post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : ""}</span>
+              <span>·</span>
+              <span>{format(new Date(post.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+            </div>
+
+            <div className="prose prose-invert max-w-none mb-4">
+              <p className="whitespace-pre-wrap text-foreground">{post.body}</p>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <CommunityVoteButtons
+                targetType="post"
+                targetId={post.id}
+                userId={user.id}
+                helpfulCount={post.helpful_count}
+                notHelpfulCount={post.not_helpful_count}
+                currentVote={postVote}
+                onVoteChange={loadPost}
+              />
+
+              <div className="flex items-center gap-2">
+                {isAuthor && (
+                  <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                {!isAuthor && (
+                  <ReportFlagButton onClick={handleReportPost} />
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Locked notice */}
+        {isLocked && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4 mb-6 flex items-center gap-2 text-destructive">
+            <Lock className="w-5 h-5" />
+            <span>This post has been locked by moderators. New comments are disabled.</span>
+          </div>
+        )}
+
+        {/* Comments Section */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">
+            {comments.length} {comments.length === 1 ? "Comment" : "Comments"}
+          </h2>
+
+          {/* Comment Composer */}
+          {!isLocked && (
+            <Card>
+              <CardContent className="p-4">
+                <Textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  rows={3}
+                  maxLength={2000}
+                />
+                <div className="flex justify-end mt-2">
+                  <Button onClick={handleSubmitComment} disabled={submitting || !newComment.trim()}>
+                    {submitting ? "Posting..." : "Post Comment"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments List */}
+          {comments.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No comments yet. Be the first to comment!</p>
+          ) : (
+            <div className="space-y-4">
+              {comments.map((comment) => (
+                <Card key={comment.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
+                          <button
+                            onClick={() => handleViewProfile(comment.author_id)}
+                            className="hover:text-foreground flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            {comment.author_anonymous_id || "User"}
+                          </button>
+                          <span>·</span>
+                          <span>
+                            {comment.author_role === "field_rep"
+                              ? "Field Rep"
+                              : comment.author_role === "vendor"
+                              ? "Vendor"
+                              : comment.author_role === "both"
+                              ? "Both"
+                              : ""}
+                          </span>
+                          <span>·</span>
+                          <span>{format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                        </div>
+                        <p className="text-foreground whitespace-pre-wrap">{comment.body}</p>
+                        <div className="mt-2">
+                          <CommunityVoteButtons
+                            targetType="comment"
+                            targetId={comment.id}
+                            userId={user.id}
+                            helpfulCount={comment.helpful_count}
+                            notHelpfulCount={comment.not_helpful_count}
+                            currentVote={commentVotes[comment.id]}
+                            onVoteChange={loadPost}
+                            size="sm"
+                          />
+                        </div>
+                      </div>
+                      {comment.author_id !== user.id && (
+                        <ReportFlagButton onClick={() => handleReportComment(comment)} />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Dialogs */}
+      <CommunityPostDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        userId={user.id}
+        existingPost={post}
+        onSuccess={loadPost}
+      />
+
+      {reportTarget && (
+        <ReportUserDialog
+          open={reportDialogOpen}
+          onOpenChange={setReportDialogOpen}
+          reportedUserId={reportTarget.authorId}
+          reporterUserId={user.id}
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          contextLabel={reportTarget.context}
+        />
+      )}
+
+      {profileTargetUserId && (
+        <PublicProfileDialog
+          open={profileDialogOpen}
+          onOpenChange={setProfileDialogOpen}
+          targetUserId={profileTargetUserId}
+        />
+      )}
+    </div>
+  );
+};
+
+export default CommunityPostDetail;

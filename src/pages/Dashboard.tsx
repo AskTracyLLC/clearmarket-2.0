@@ -454,6 +454,10 @@ const Dashboard = () => {
                   <ShieldAlert className="w-4 h-4" />
                   Safety
                 </NavLink>
+                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Users className="w-4 h-4" />
+                  Community
+                </NavLink>
                 {profile?.is_admin && (
                   <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                     <ShieldAlert className="w-4 h-4" />

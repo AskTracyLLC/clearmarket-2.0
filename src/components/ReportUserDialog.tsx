@@ -21,6 +21,9 @@ interface ReportUserDialogProps {
   conversationId?: string;
   targetAnonId?: string;
   alreadyReported?: boolean;
+  targetType?: string;
+  targetId?: string;
+  contextLabel?: string;
 }
 
 const REASON_CATEGORIES = [
@@ -39,6 +42,9 @@ export function ReportUserDialog({
   conversationId,
   targetAnonId = "this user",
   alreadyReported = false,
+  targetType,
+  targetId,
+  contextLabel,
 }: ReportUserDialogProps) {
   const [reasonCategory, setReasonCategory] = useState("");
   const [reasonDetails, setReasonDetails] = useState("");
@@ -58,6 +64,8 @@ export function ReportUserDialog({
         conversationId,
         reasonCategory,
         reasonDetails: reasonDetails.trim() || undefined,
+        targetType,
+        targetId,
       });
 
       if (result.success) {
@@ -84,9 +92,13 @@ export function ReportUserDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Report this user</DialogTitle>
-          <DialogDescription>
+        <DialogDescription>
             {alreadyReported ? (
-              <span>You've already submitted a report for this {conversationId ? "conversation" : "user"}.</span>
+              <span>You've already submitted a report for this {conversationId ? "conversation" : "content"}.</span>
+            ) : contextLabel ? (
+              <span>
+                You're reporting: <strong>{contextLabel}</strong>. This report will be reviewed by ClearMarket staff.
+              </span>
             ) : conversationId ? (
               <span>
                 You're reporting <strong>{targetAnonId}</strong> for issues in this conversation. This report will be reviewed by ClearMarket staff.
