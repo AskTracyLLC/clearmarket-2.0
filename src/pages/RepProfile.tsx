@@ -16,6 +16,7 @@ import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants"
 import { ArrowLeft, Save, AlertCircle, MapPin, DollarSign, Edit, Trash2, Upload, ExternalLink, ShieldCheck, Plus, Minus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { CoverageAreaDialog } from "@/components/CoverageAreaDialog";
@@ -35,6 +36,10 @@ const repProfileSchema = z.object({
   inspection_types_other: z.string().trim().max(100).optional().nullable(),
   is_accepting_new_vendors: z.boolean(),
   willing_to_travel_out_of_state: z.boolean(),
+  // Time Off / Availability fields
+  unavailable_from: z.string().optional().nullable(),
+  unavailable_to: z.string().optional().nullable(),
+  unavailable_note: z.string().trim().max(200).optional().nullable(),
   // Background Check fields
   background_check_is_active: z.boolean(),
   background_check_provider: z.enum(["aspen_grove", "other"]).nullable(),
@@ -81,6 +86,19 @@ const repProfileSchema = z.object({
 }, {
   message: "Please complete all required background check fields",
   path: ["background_check_is_active"],
+}).refine((data) => {
+  // Time-off date validation: if both dates set, to must be >= from
+  if (data.unavailable_from && data.unavailable_to) {
+    const from = new Date(data.unavailable_from);
+    const to = new Date(data.unavailable_to);
+    if (to < from) {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "End date can't be before start date",
+  path: ["unavailable_to"],
 });
 
 type RepProfileForm = z.infer<typeof repProfileSchema>;
@@ -138,6 +156,9 @@ const RepProfile = () => {
       inspection_types: [],
       is_accepting_new_vendors: true,
       willing_to_travel_out_of_state: false,
+      unavailable_from: null,
+      unavailable_to: null,
+      unavailable_note: null,
       background_check_is_active: false,
       background_check_provider: null,
       background_check_provider_other_name: null,
@@ -248,6 +269,11 @@ const RepProfile = () => {
         setValue("is_accepting_new_vendors", repData.is_accepting_new_vendors ?? true);
         setValue("willing_to_travel_out_of_state", repData.willing_to_travel_out_of_state ?? false);
         
+        // Time-off fields
+        setValue("unavailable_from", repData.unavailable_from || null);
+        setValue("unavailable_to", repData.unavailable_to || null);
+        setValue("unavailable_note", repData.unavailable_note || null);
+        
         // Background check fields
         setValue("background_check_is_active", repData.background_check_is_active ?? false);
         setValue("background_check_provider", (repData.background_check_provider as "aspen_grove" | "other") || null);
@@ -326,6 +352,9 @@ const RepProfile = () => {
       inspection_types: inspectionTypes,
       is_accepting_new_vendors: data.is_accepting_new_vendors,
       willing_to_travel_out_of_state: data.willing_to_travel_out_of_state,
+      unavailable_from: data.unavailable_from || null,
+      unavailable_to: data.unavailable_to || null,
+      unavailable_note: data.unavailable_note || null,
       background_check_is_active: data.background_check_is_active,
       background_check_provider: data.background_check_is_active ? data.background_check_provider : null,
       background_check_provider_other_name: data.background_check_is_active ? (data.background_check_provider_other_name || null) : null,
@@ -713,6 +742,57 @@ const RepProfile = () => {
                   checked={watch("willing_to_travel_out_of_state")}
                   onCheckedChange={(checked) => setValue("willing_to_travel_out_of_state", checked)}
                 />
+              </div>
+
+              {/* Time Off / Availability */}
+              <Separator />
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-foreground font-medium text-base">Planned Time Off (optional)</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Let vendors know when you're temporarily unavailable
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="unavailable_from">Unavailable From</Label>
+                    <Input
+                      id="unavailable_from"
+                      type="date"
+                      {...register("unavailable_from")}
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="unavailable_to">Unavailable To</Label>
+                    <Input
+                      id="unavailable_to"
+                      type="date"
+                      {...register("unavailable_to")}
+                      className="mt-2"
+                    />
+                    {errors.unavailable_to && (
+                      <p className="text-sm text-destructive mt-1">{errors.unavailable_to.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="unavailable_note">Note (optional)</Label>
+                  <Textarea
+                    id="unavailable_note"
+                    {...register("unavailable_note")}
+                    placeholder="e.g., On vacation, limited response"
+                    className="mt-2 resize-none"
+                    rows={2}
+                    maxLength={200}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {watch("unavailable_note")?.length || 0} / 200 characters
+                  </p>
+                </div>
               </div>
             </div>
           )}

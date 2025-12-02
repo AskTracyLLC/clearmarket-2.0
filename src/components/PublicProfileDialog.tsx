@@ -56,6 +56,9 @@ interface ProfileData {
   isAcceptingNewReps?: boolean;
   willingToTravelOutOfState?: boolean;
   lastSeenAt?: string | null;
+  unavailableFrom?: string | null;
+  unavailableTo?: string | null;
+  unavailableNote?: string | null;
   coverageAreas?: Array<{
     stateCode: string;
     stateName: string;
@@ -176,7 +179,7 @@ export function PublicProfileDialog({
         // Load rep profile
         const { data: repProfile } = await supabase
           .from("rep_profile")
-          .select("*")
+          .select("*, unavailable_from, unavailable_to, unavailable_note")
           .eq("user_id", targetUserId)
           .maybeSingle();
 
@@ -219,6 +222,9 @@ export function PublicProfileDialog({
             isAcceptingNewVendors: repProfile.is_accepting_new_vendors,
             willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state,
             lastSeenAt: profile?.last_seen_at || null,
+            unavailableFrom: repProfile.unavailable_from || null,
+            unavailableTo: repProfile.unavailable_to || null,
+            unavailableNote: repProfile.unavailable_note || null,
             coverageAreas: (coverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
@@ -542,6 +548,71 @@ export function PublicProfileDialog({
                     </span>
                   </div>
                 </div>
+
+                {/* Time Off Display */}
+                {(profileData.unavailableFrom || profileData.unavailableTo) && (
+                  <>
+                    <Separator className="my-3" />
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-foreground">Time Off</h4>
+                      {profileData.unavailableFrom && profileData.unavailableTo && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(profileData.unavailableFrom).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                            {' – '}
+                            {new Date(profileData.unavailableTo).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                          </p>
+                          {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const from = new Date(profileData.unavailableFrom);
+                            from.setHours(0, 0, 0, 0);
+                            const to = new Date(profileData.unavailableTo);
+                            to.setHours(0, 0, 0, 0);
+                            
+                            if (today >= from && today <= to) {
+                              return (
+                                <Badge variant="secondary" className="mt-1 bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                  ● Currently unavailable
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      )}
+                      {profileData.unavailableFrom && !profileData.unavailableTo && (
+                        <div>
+                          {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const from = new Date(profileData.unavailableFrom);
+                            from.setHours(0, 0, 0, 0);
+                            
+                            if (from > today) {
+                              return (
+                                <p className="text-sm text-muted-foreground">
+                                  Planned time off starting: {new Date(profileData.unavailableFrom).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              );
+                            } else {
+                              return (
+                                <p className="text-sm text-muted-foreground">
+                                  Time off: since {new Date(profileData.unavailableFrom).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              );
+                            }
+                          })()}
+                        </div>
+                      )}
+                      {profileData.unavailableNote && (
+                        <p className="text-xs text-muted-foreground italic">
+                          "{profileData.unavailableNote}"
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </Card>
 
               {/* Coverage Snapshot */}

@@ -705,6 +705,9 @@ export type Database = {
           is_accepting_new_vendors: boolean | null
           state: string | null
           systems_used: string[] | null
+          unavailable_from: string | null
+          unavailable_note: string | null
+          unavailable_to: string | null
           updated_at: string
           user_id: string
           willing_to_obtain_background_check: boolean | null
@@ -733,6 +736,9 @@ export type Database = {
           is_accepting_new_vendors?: boolean | null
           state?: string | null
           systems_used?: string[] | null
+          unavailable_from?: string | null
+          unavailable_note?: string | null
+          unavailable_to?: string | null
           updated_at?: string
           user_id: string
           willing_to_obtain_background_check?: boolean | null
@@ -761,6 +767,9 @@ export type Database = {
           is_accepting_new_vendors?: boolean | null
           state?: string | null
           systems_used?: string[] | null
+          unavailable_from?: string | null
+          unavailable_note?: string | null
+          unavailable_to?: string | null
           updated_at?: string
           user_id?: string
           willing_to_obtain_background_check?: boolean | null

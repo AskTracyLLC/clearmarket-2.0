@@ -82,6 +82,9 @@ interface RepResult {
   hasValidBackgroundCheck?: boolean;
   isWillingToObtain?: boolean;
   last_seen_at?: string | null;
+  unavailable_from?: string | null;
+  unavailable_to?: string | null;
+  unavailable_note?: string | null;
 }
 
 export default function VendorFindReps() {
@@ -109,6 +112,9 @@ export default function VendorFindReps() {
 
   // Activity filter
   const [activityFilter, setActivityFilter] = useState<"all" | "active-week">("all");
+
+  // Availability filter
+  const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "hide-unavailable">("all");
 
   // Results state
   const [results, setResults] = useState<RepResult[]>([]);
@@ -196,6 +202,9 @@ export default function VendorFindReps() {
           willing_to_obtain_background_check, 
           has_hud_keys, 
           equipment_notes,
+          unavailable_from,
+          unavailable_to,
+          unavailable_note,
           profiles!inner(last_seen_at)
         `);
 
@@ -224,6 +233,9 @@ export default function VendorFindReps() {
           return {
             ...rep,
             last_seen_at: (rep as any).profiles?.last_seen_at || null,
+            unavailable_from: (rep as any).unavailable_from || null,
+            unavailable_to: (rep as any).unavailable_to || null,
+            unavailable_note: (rep as any).unavailable_note || null,
             coverageAreas: coverageData || [],
           };
         })
@@ -364,6 +376,31 @@ export default function VendorFindReps() {
         enhancedResults = enhancedResults.filter(rep => {
           if (!rep.last_seen_at) return false;
           return new Date(rep.last_seen_at) >= sevenDaysAgo;
+        });
+      }
+
+      // Apply availability filter (client-side)
+      if (availabilityFilter === "hide-unavailable") {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        enhancedResults = enhancedResults.filter(rep => {
+          if (!rep.unavailable_from) return true; // No time-off set, include
+          
+          const from = new Date(rep.unavailable_from);
+          from.setHours(0, 0, 0, 0);
+          
+          // If only from is set (no end date)
+          if (!rep.unavailable_to) {
+            return from > today; // Only exclude if from date has passed (ongoing)
+          }
+          
+          // If both from and to are set
+          const to = new Date(rep.unavailable_to);
+          to.setHours(0, 0, 0, 0);
+          
+          // Include rep if today is NOT between from and to (inclusive)
+          return !(today >= from && today <= to);
         });
       }
 
@@ -683,6 +720,20 @@ export default function VendorFindReps() {
               </Select>
             </div>
 
+            {/* Availability Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Availability</Label>
+              <Select value={availabilityFilter} onValueChange={(val) => setAvailabilityFilter(val as "all" | "hide-unavailable")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  <SelectItem value="all">Include reps on time off</SelectItem>
+                  <SelectItem value="hide-unavailable">Hide reps currently on time off</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Search Button */}
             <Button
               onClick={handleSearch}
@@ -925,6 +976,54 @@ export default function VendorFindReps() {
                           );
                         })()}
                       </div>
+
+                      {/* Time-Off Badge */}
+                      {(rep.unavailable_from || rep.unavailable_to) && (
+                        <div className="pb-3 border-b border-border">
+                          {(() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            
+                            if (rep.unavailable_from && rep.unavailable_to) {
+                              const from = new Date(rep.unavailable_from);
+                              from.setHours(0, 0, 0, 0);
+                              const to = new Date(rep.unavailable_to);
+                              to.setHours(0, 0, 0, 0);
+                              
+                              if (today >= from && today <= to) {
+                                return (
+                                  <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/20">
+                                    ● Currently unavailable
+                                  </Badge>
+                                );
+                              }
+                            } else if (rep.unavailable_from) {
+                              const from = new Date(rep.unavailable_from);
+                              from.setHours(0, 0, 0, 0);
+                              
+                              if (from > today) {
+                                return (
+                                  <p className="text-xs text-muted-foreground">
+                                    Planned time off from {new Date(rep.unavailable_from).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                );
+                              } else {
+                                return (
+                                  <p className="text-xs text-muted-foreground">
+                                    Marked unavailable since {new Date(rep.unavailable_from).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
+                          {rep.unavailable_note && (
+                            <p className="text-xs text-muted-foreground italic mt-1">
+                              "{rep.unavailable_note}"
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {/* Connected Since (if applicable) */}
                       {rep.connectedSince && (
