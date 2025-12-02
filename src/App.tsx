@@ -25,6 +25,7 @@ import RepMessageTemplates from "./pages/RepMessageTemplates";
 import RepFindVendors from "./pages/RepFindVendors";
 import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
+import RepAvailability from "./pages/RepAvailability";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/vendor/seeking-coverage/:postId/interested" element={<VendorInterestedReps />} />
             <Route path="/vendor/my-reps" element={<VendorMyReps />} />
             <Route path="/rep/my-vendors" element={<RepMyVendors />} />
+            <Route path="/rep/availability" element={<RepAvailability />} />
             <Route path="/messages" element={<MessagesList />} />
             <Route path="/messages/:conversationId" element={<MessageThread />} />
             <Route path="/vendor/message-templates" element={<VendorMessageTemplates />} />

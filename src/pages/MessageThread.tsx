@@ -26,7 +26,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow, format, parseISO } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { TemplateSelector } from "@/components/TemplateSelector";
 import { ExitReviewDialog } from "@/components/ExitReviewDialog";
@@ -584,6 +584,45 @@ export default function MessageThread() {
           title: "New message",
           body: `You have a new message from ${otherParticipantName}`,
         });
+      }
+
+      // Check if recipient has active auto-reply
+      const today = new Date().toISOString().split("T")[0];
+      const { data: activeRanges } = await supabase
+        .from("rep_availability")
+        .select("*")
+        .eq("rep_user_id", otherParticipantId)
+        .eq("auto_reply_enabled", true)
+        .lte("start_date", today)
+        .gte("end_date", today)
+        .limit(1);
+
+      if (activeRanges && activeRanges.length > 0) {
+        const activeRange = activeRanges[0];
+        
+        // Check if we already sent an auto-reply recently (last 24 hours)
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentAutoReplies } = await supabase
+          .from("messages")
+          .select("id")
+          .eq("conversation_id", conversationId)
+          .eq("sender_id", otherParticipantId)
+          .gte("created_at", twentyFourHoursAgo)
+          .ilike("body", "[AUTO-REPLY]%")
+          .limit(1);
+
+        if (!recentAutoReplies || recentAutoReplies.length === 0) {
+          // Send auto-reply
+          const autoReplyText = `[AUTO-REPLY] ${activeRange.auto_reply_message || 
+            `I'm currently unavailable from ${format(parseISO(activeRange.start_date), "MM/dd/yyyy")} to ${format(parseISO(activeRange.end_date), "MM/dd/yyyy")}. I'll follow up when I'm back.`}`;
+          
+          await supabase.from("messages").insert({
+            conversation_id: conversationId,
+            sender_id: otherParticipantId,
+            recipient_id: user.id,
+            body: autoReplyText,
+          });
+        }
       }
 
       // Update conversation metadata
