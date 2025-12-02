@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, ShieldAlert, Bell } from "lucide-react";
+import { Eye, ShieldAlert, Bell, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
@@ -307,6 +307,15 @@ export default function SafetyCenter() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/dashboard")}
+            className="mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <ShieldAlert className="h-8 w-8" />
             Safety Center
