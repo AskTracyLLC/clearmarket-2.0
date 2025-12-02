@@ -7,6 +7,7 @@ export interface CommunityPost {
   author_id: string;
   author_anonymous_id: string | null;
   author_role: string | null;
+  author_community_score: number | null;
   category: string;
   title: string;
   body: string;
@@ -28,6 +29,7 @@ export interface CommunityComment {
   not_helpful_count: number;
   author_anonymous_id?: string;
   author_role?: string;
+  author_community_score?: number | null;
 }
 
 export interface CommunityVote {
@@ -159,7 +161,7 @@ export async function updateCommunityPost(
 export async function fetchCommunityPosts(options?: {
   category?: string;
   authorId?: string;
-  sortBy?: "newest" | "helpful" | "comments";
+  sortBy?: "newest" | "helpful" | "comments" | "author_score";
   limit?: number;
   offset?: number;
 }): Promise<CommunityPost[]> {
@@ -174,7 +176,7 @@ export async function fetchCommunityPosts(options?: {
       query = query.eq("author_id", options.authorId);
     }
 
-    // Sort
+    // Sort - author_score sorting handled client-side after fetching community scores
     if (options?.sortBy === "helpful") {
       query = query.order("helpful_count", { ascending: false });
     } else if (options?.sortBy === "comments") {
@@ -198,7 +200,36 @@ export async function fetchCommunityPosts(options?: {
       return [];
     }
 
-    return data || [];
+    if (!data || data.length === 0) return [];
+
+    // Fetch community scores for all authors
+    const authorIds = [...new Set(data.map(p => p.author_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, community_score")
+      .in("id", authorIds);
+
+    const scoreMap: Record<string, number | null> = {};
+    profiles?.forEach(p => {
+      scoreMap[p.id] = p.community_score;
+    });
+
+    let posts = data.map(p => ({
+      ...p,
+      author_community_score: scoreMap[p.author_id] ?? null,
+    }));
+
+    // Client-side sort for author_score
+    if (options?.sortBy === "author_score") {
+      posts = posts.sort((a, b) => {
+        const scoreA = a.author_community_score ?? -Infinity;
+        const scoreB = b.author_community_score ?? -Infinity;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+
+    return posts;
   } catch (error) {
     console.error("Error fetching posts:", error);
     return [];
@@ -218,7 +249,17 @@ export async function fetchCommunityPost(postId: string): Promise<CommunityPost 
       return null;
     }
 
-    return data;
+    // Fetch author's community score
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("community_score")
+      .eq("id", data.author_id)
+      .maybeSingle();
+
+    return {
+      ...data,
+      author_community_score: profile?.community_score ?? null,
+    };
   } catch (error) {
     console.error("Error fetching post:", error);
     return null;
@@ -283,7 +324,7 @@ export async function fetchCommentsForPost(postId: string): Promise<CommunityCom
 
     if (!comments || comments.length === 0) return [];
 
-    // Fetch author info for each comment
+    // Fetch author info and community scores for each comment
     const authorIds = [...new Set(comments.map(c => c.author_id))];
     const authorInfoMap: Record<string, { anonymousId: string; role: string }> = {};
 
@@ -291,10 +332,22 @@ export async function fetchCommentsForPost(postId: string): Promise<CommunityCom
       authorInfoMap[authorId] = await getAuthorInfo(authorId);
     }
 
+    // Fetch community scores
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, community_score")
+      .in("id", authorIds);
+
+    const scoreMap: Record<string, number | null> = {};
+    profiles?.forEach(p => {
+      scoreMap[p.id] = p.community_score;
+    });
+
     return comments.map(c => ({
       ...c,
       author_anonymous_id: authorInfoMap[c.author_id]?.anonymousId || "User",
       author_role: authorInfoMap[c.author_id]?.role || "unknown",
+      author_community_score: scoreMap[c.author_id] ?? null,
     }));
   } catch (error) {
     console.error("Error fetching comments:", error);

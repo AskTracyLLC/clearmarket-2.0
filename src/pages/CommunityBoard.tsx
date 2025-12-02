@@ -4,6 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,6 +20,7 @@ import {
   POST_CATEGORIES,
   CommunityPost,
 } from "@/lib/community";
+import { formatCommunityScore } from "@/lib/communityScore";
 import { CommunityPostDialog } from "@/components/CommunityPostDialog";
 import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
@@ -27,8 +34,12 @@ import {
   Plus,
   MessageCircle,
   Users,
+  Award,
+  HelpCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
 
 const CommunityBoard = () => {
   const navigate = useNavigate();
@@ -38,7 +49,7 @@ const CommunityBoard = () => {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"newest" | "helpful" | "comments">("newest");
+  const [sortBy, setSortBy] = useState<"newest" | "helpful" | "comments" | "author_score">("newest");
   const [myPostsOnly, setMyPostsOnly] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, string>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -164,13 +175,14 @@ const CommunityBoard = () => {
           </Select>
 
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest</SelectItem>
               <SelectItem value="helpful">Most Helpful</SelectItem>
               <SelectItem value="comments">Most Commented</SelectItem>
+              <SelectItem value="author_score">Author Community Score (High → Low)</SelectItem>
             </SelectContent>
           </Select>
 
@@ -222,6 +234,27 @@ const CommunityBoard = () => {
                           <span className="text-xs text-muted-foreground">
                             {post.author_anonymous_id || "User"} · {post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : ""}
                           </span>
+                          {post.author_community_score !== null && post.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
+                            <Badge variant="secondary" className="text-[11px] gap-1">
+                              <Award className="w-3 h-3" />
+                              Trusted Contributor
+                            </Badge>
+                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
+                                  <HelpCircle className="w-3 h-3" />
+                                  {post.author_community_score !== null
+                                    ? `Score: ${formatCommunityScore(post.author_community_score)}`
+                                    : "Score: N/A"}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[200px]">
+                                <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
 
                         <h3 className="font-semibold text-foreground line-clamp-1 mb-1">
