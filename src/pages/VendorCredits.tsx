@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Coins } from "lucide-react";
+import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles } from "lucide-react";
 import { getVendorCredits, getVendorTransactions } from "@/lib/credits";
+import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface Transaction {
   id: string;
@@ -18,11 +21,16 @@ interface Transaction {
 
 const VendorCredits = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
+
+  // Handle success/cancel status from Stripe redirect
+  const status = searchParams.get("status");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -34,6 +42,16 @@ const VendorCredits = () => {
       loadData();
     }
   }, [user, authLoading, navigate]);
+
+  // Clear status param after showing message
+  useEffect(() => {
+    if (status) {
+      const timer = setTimeout(() => {
+        setSearchParams({});
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [status, setSearchParams]);
 
   const loadData = async () => {
     if (!user) return;
@@ -63,18 +81,53 @@ const VendorCredits = () => {
     setLoading(false);
   };
 
+  const handleBuyCredits = async (pack: CreditPack) => {
+    if (!user) {
+      toast.error("Please sign in to purchase credits");
+      return;
+    }
+
+    setPurchaseLoading(pack.id);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("create-credit-checkout", {
+        body: { packId: pack.id },
+      });
+
+      if (error) {
+        console.error("Checkout error:", error);
+        toast.error(error.message || "Failed to create checkout session");
+        return;
+      }
+
+      if (data?.checkoutUrl) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.checkoutUrl;
+      } else {
+        toast.error("No checkout URL received");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      toast.error("An unexpected error occurred");
+    } finally {
+      setPurchaseLoading(null);
+    }
+  };
+
   const getActionLabel = (action: string) => {
     switch (action) {
       case "post_seeking_coverage":
         return "Posted Seeking Coverage";
+      case "credit_purchase":
+        return "Credits Purchased";
       case "purchase":
         return "Credits Added";
       case "unlock_contact":
-        return "Unlock Contact"; // TODO: future
+        return "Unlock Contact";
       case "boost_post":
-        return "Boost Post"; // TODO: future
+        return "Boost Post";
       case "hide_feedback":
-        return "Hide Feedback"; // TODO: future
+        return "Hide Feedback";
       default:
         return action;
     }
@@ -86,6 +139,12 @@ const VendorCredits = () => {
     if (tx.action === "post_seeking_coverage") {
       const { state_code, post_title } = tx.metadata;
       return `${state_code ? state_code + " – " : ""}${post_title || "Seeking Coverage post"}`;
+    }
+
+    if (tx.action === "credit_purchase") {
+      const { credit_pack_id } = tx.metadata;
+      const pack = CREDIT_PACKS.find((p) => p.id === credit_pack_id);
+      return pack ? pack.label : "Credit pack purchase";
     }
 
     return "";
@@ -121,11 +180,30 @@ const VendorCredits = () => {
       </header>
 
       <div className="container mx-auto px-4 py-12 max-w-5xl">
+        {/* Status Alerts */}
+        {status === "success" && (
+          <Alert className="mb-6 border-green-600/50 bg-green-600/10">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-600">
+              Payment successful! Your credits will be available shortly. If they don't appear within a few minutes, please refresh the page or contact support.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {status === "cancelled" && (
+          <Alert className="mb-6 border-muted-foreground/50 bg-muted/50">
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertDescription className="text-muted-foreground">
+              Payment canceled. No credits were charged. You can try again anytime.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Credits</h1>
           <p className="text-muted-foreground">
-            Manage your ClearMarket credits balance and view transaction history.
+            Manage your ClearMarket credits balance and purchase more to unlock premium features.
           </p>
         </div>
 
@@ -144,9 +222,9 @@ const VendorCredits = () => {
             </p>
             
             {/* Powered by Credits explainer */}
-            <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border">
+            <div className="bg-muted/50 rounded-lg p-4 border border-border">
               <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                <Coins className="h-4 w-4 text-secondary" />
+                <Sparkles className="h-4 w-4 text-secondary" />
                 Powered by Credits
               </p>
               <ul className="text-sm text-muted-foreground space-y-1">
@@ -154,12 +232,57 @@ const VendorCredits = () => {
                 <li>• <strong>Unlock rep contact</strong> – 1 credit per rep</li>
                 <li>• <strong>Boost post visibility</strong> – Coming soon</li>
               </ul>
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                All payments are securely processed via Stripe. Credits are non-refundable and do not expire.
+              </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Buy Credits Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-secondary" />
+              Buy Credits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-6">
+              Choose a credit pack to get started. Payments are securely handled by Stripe.
+            </p>
             
-            {/* TODO: Wire up Stripe or payment flow */}
-            <Button disabled variant="secondary">
-              Buy Credits (Coming Soon)
-            </Button>
+            <div className="grid gap-4 md:grid-cols-3">
+              {CREDIT_PACKS.map((pack) => (
+                <div
+                  key={pack.id}
+                  className="border border-border rounded-lg p-4 hover:border-primary/50 transition-colors"
+                >
+                  <div className="text-lg font-semibold text-foreground mb-1">{pack.label}</div>
+                  <div className="text-3xl font-bold text-foreground mb-2">
+                    {pack.credits} <span className="text-sm font-normal text-muted-foreground">credits</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">{pack.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-semibold text-foreground">${pack.priceUsd.toFixed(2)}</span>
+                    <Button
+                      onClick={() => handleBuyCredits(pack)}
+                      disabled={purchaseLoading !== null}
+                      size="sm"
+                    >
+                      {purchaseLoading === pack.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Buy"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -222,9 +345,8 @@ const VendorCredits = () => {
         <div className="mt-6 p-4 bg-muted/30 rounded-md border border-border">
           <p className="text-sm font-medium text-foreground mb-2">Coming Soon:</p>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• <strong>Unlock rep contact details</strong> – Reveal phone/email for direct outreach</li>
             <li>• <strong>Boost Seeking Coverage posts</strong> – Get more visibility from reps</li>
-            <li>• <strong>Hide/unhide feedback</strong> – Manage reputation display (if paid later)</li>
+            <li>• <strong>Hide/unhide feedback</strong> – Manage reputation display</li>
           </ul>
         </div>
       </div>

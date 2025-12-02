@@ -659,6 +659,50 @@ export type Database = {
           },
         ]
       }
+      pending_credit_purchases: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          credit_pack_id: string
+          credits_to_add: number
+          id: string
+          status: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          credit_pack_id: string
+          credits_to_add: number
+          id?: string
+          status?: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          credit_pack_id?: string
+          credits_to_add?: number
+          id?: string
+          status?: string
+          stripe_checkout_session_id?: string
+          stripe_payment_intent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_credit_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           community_score: number
