@@ -6,6 +6,8 @@ export interface CreateReportParams {
   conversationId?: string;
   reasonCategory: string;
   reasonDetails?: string;
+  targetType?: string;
+  targetId?: string;
 }
 
 export async function createReport(params: CreateReportParams): Promise<{ success: boolean; error?: string }> {
@@ -18,6 +20,8 @@ export async function createReport(params: CreateReportParams): Promise<{ succes
         conversation_id: params.conversationId || null,
         reason_category: params.reasonCategory,
         reason_details: params.reasonDetails || null,
+        target_type: params.targetType || (params.conversationId ? "message" : "profile"),
+        target_id: params.targetId || null,
       });
 
     if (error) {

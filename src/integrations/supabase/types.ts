@@ -779,9 +779,12 @@ export type Database = {
           comment: string | null
           created_at: string
           direction: string
+          exclude_from_trust_score: boolean
           id: string
           is_exit_review: boolean
+          is_hidden: boolean
           is_verified: boolean
+          moderation_notes: string | null
           rating_communication: number | null
           rating_on_time: number | null
           rating_quality: number | null
@@ -796,9 +799,12 @@ export type Database = {
           comment?: string | null
           created_at?: string
           direction: string
+          exclude_from_trust_score?: boolean
           id?: string
           is_exit_review?: boolean
+          is_hidden?: boolean
           is_verified?: boolean
+          moderation_notes?: string | null
           rating_communication?: number | null
           rating_on_time?: number | null
           rating_quality?: number | null
@@ -813,9 +819,12 @@ export type Database = {
           comment?: string | null
           created_at?: string
           direction?: string
+          exclude_from_trust_score?: boolean
           id?: string
           is_exit_review?: boolean
+          is_hidden?: boolean
           is_verified?: boolean
+          moderation_notes?: string | null
           rating_communication?: number | null
           rating_on_time?: number | null
           rating_quality?: number | null
@@ -1023,6 +1032,7 @@ export type Database = {
       }
       user_reports: {
         Row: {
+          admin_notes: string | null
           conversation_id: string | null
           created_at: string
           id: string
@@ -1034,8 +1044,11 @@ export type Database = {
           reviewed_by: string | null
           reviewer_notes: string | null
           status: string
+          target_id: string | null
+          target_type: string | null
         }
         Insert: {
+          admin_notes?: string | null
           conversation_id?: string | null
           created_at?: string
           id?: string
@@ -1047,8 +1060,11 @@ export type Database = {
           reviewed_by?: string | null
           reviewer_notes?: string | null
           status?: string
+          target_id?: string | null
+          target_type?: string | null
         }
         Update: {
+          admin_notes?: string | null
           conversation_id?: string | null
           created_at?: string
           id?: string
@@ -1060,6 +1076,8 @@ export type Database = {
           reviewed_by?: string | null
           reviewer_notes?: string | null
           status?: string
+          target_id?: string | null
+          target_type?: string | null
         }
         Relationships: [
           {
