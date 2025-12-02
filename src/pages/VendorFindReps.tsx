@@ -860,6 +860,7 @@ export default function VendorFindReps() {
           </div>
         );
       })()}
+      </div>
 
       {/* Reviews Detail Dialog */}
       <ReviewsDetailDialog
