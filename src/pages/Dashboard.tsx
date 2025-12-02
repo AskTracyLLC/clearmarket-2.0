@@ -15,11 +15,15 @@ import { Progress } from "@/components/ui/progress";
 import { computeRepProfileCompleteness, computeVendorProfileCompleteness, getCompletionMessage, ProfileCompletenessResult } from "@/lib/profileCompleteness";
 import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
+import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  
+  // Auto-update last_seen_at heartbeat
+  useLastSeenHeartbeat();
   const [profile, setProfile] = useState<any>(null);
   const [repProfile, setRepProfile] = useState<any>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);

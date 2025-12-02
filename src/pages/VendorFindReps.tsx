@@ -81,6 +81,7 @@ interface RepResult {
   isContactUnlocked?: boolean;
   hasValidBackgroundCheck?: boolean;
   isWillingToObtain?: boolean;
+  last_seen_at?: string | null;
 }
 
 export default function VendorFindReps() {
@@ -105,6 +106,9 @@ export default function VendorFindReps() {
 
   // Background check filter mode
   const [bgCheckFilterMode, setBgCheckFilterMode] = useState<"include-willing" | "active-only">("include-willing");
+
+  // Activity filter
+  const [activityFilter, setActivityFilter] = useState<"all" | "active-week">("all");
 
   // Results state
   const [results, setResults] = useState<RepResult[]>([]);
@@ -177,7 +181,23 @@ export default function VendorFindReps() {
 
       let query = supabase
         .from("rep_profile")
-        .select("id, user_id, anonymous_id, city, state, systems_used, inspection_types, is_accepting_new_vendors, background_check_is_active, background_check_provider, background_check_expires_on, willing_to_obtain_background_check, has_hud_keys, equipment_notes");
+        .select(`
+          id, 
+          user_id, 
+          anonymous_id, 
+          city, 
+          state, 
+          systems_used, 
+          inspection_types, 
+          is_accepting_new_vendors, 
+          background_check_is_active, 
+          background_check_provider, 
+          background_check_expires_on, 
+          willing_to_obtain_background_check, 
+          has_hud_keys, 
+          equipment_notes,
+          profiles!inner(last_seen_at)
+        `);
 
       // Apply state filter
       if (selectedState !== "all") {
@@ -203,6 +223,7 @@ export default function VendorFindReps() {
 
           return {
             ...rep,
+            last_seen_at: (rep as any).profiles?.last_seen_at || null,
             coverageAreas: coverageData || [],
           };
         })
@@ -326,7 +347,7 @@ export default function VendorFindReps() {
       const blockedUserIds = await fetchBlockedUserIds();
 
       // Enhance results with trust scores, connection data, unlock status, and filter blocked users
-      const enhancedResults = filtered
+      let enhancedResults = filtered
         .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
         .map(rep => ({
           ...rep,
@@ -335,6 +356,16 @@ export default function VendorFindReps() {
           connectedSince: connectionMap.get(rep.user_id) ?? null,
           isContactUnlocked: unlockMap[rep.user_id] ?? false,
         }));
+
+      // Apply activity filter (client-side)
+      if (activityFilter === "active-week") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        enhancedResults = enhancedResults.filter(rep => {
+          if (!rep.last_seen_at) return false;
+          return new Date(rep.last_seen_at) >= sevenDaysAgo;
+        });
+      }
 
       setResults(enhancedResults as RepResult[]);
       toast.success(`Found ${enhancedResults.length} matching reps`);
@@ -419,6 +450,26 @@ export default function VendorFindReps() {
       
       default:
         return sorted;
+    }
+  };
+
+  const getActivityStatus = (lastSeenAt: string | null | undefined) => {
+    if (!lastSeenAt) return { label: "Last active: Unknown", variant: "outline" as const };
+    
+    const now = new Date();
+    const lastSeen = new Date(lastSeenAt);
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 15) {
+      return { label: "● Active now", variant: "default" as const };
+    } else if (diffDays < 7) {
+      return { label: "● Active this week", variant: "secondary" as const };
+    } else if (diffDays >= 30) {
+      return { label: `Last active: ${lastSeen.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}`, variant: "outline" as const };
+    } else {
+      return { label: `Active recently (${lastSeen.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })})`, variant: "outline" as const };
     }
   };
 
@@ -617,6 +668,20 @@ export default function VendorFindReps() {
                 </p>
               </div>
             )}
+
+            {/* Activity Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Activity</Label>
+              <Select value={activityFilter} onValueChange={(val) => setActivityFilter(val as "all" | "active-week")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  <SelectItem value="all">All activity</SelectItem>
+                  <SelectItem value="active-week">Active this week only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Search Button */}
             <Button
@@ -847,6 +912,18 @@ export default function VendorFindReps() {
                             + equipment
                           </span>
                         )}
+                      </div>
+
+                      {/* Activity Badge */}
+                      <div className="pb-3 border-b border-border">
+                        {(() => {
+                          const activity = getActivityStatus(rep.last_seen_at);
+                          return (
+                            <Badge variant={activity.variant} className="text-xs">
+                              {activity.label}
+                            </Badge>
+                          );
+                        })()}
                       </div>
 
                       {/* Connected Since (if applicable) */}

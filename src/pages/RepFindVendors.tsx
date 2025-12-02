@@ -53,6 +53,7 @@ interface VendorResult {
   // Background check expectations
   requiresActiveBackgroundCheck?: boolean;
   acceptsWillingToObtain?: boolean;
+  last_seen_at?: string | null;
 }
 
 export default function RepFindVendors() {
@@ -66,6 +67,7 @@ export default function RepFindVendors() {
   const [selectedCounty, setSelectedCounty] = useState<string>("");
   const [selectedInspectionTypes, setSelectedInspectionTypes] = useState<string[]>([]);
   const [bgCheckMode, setBgCheckMode] = useState<"any" | "requires-active" | "accepts-willing">("any");
+  const [activityFilter, setActivityFilter] = useState<"all" | "active-week">("all");
 
   // Results state
   const [results, setResults] = useState<VendorResult[]>([]);
@@ -184,7 +186,17 @@ export default function RepFindVendors() {
       // Fetch vendor profiles
       const { data: vendorProfiles, error: profileError } = await supabase
         .from("vendor_profile")
-        .select("user_id, anonymous_id, company_name, city, state, primary_inspection_types, systems_used, is_accepting_new_reps")
+        .select(`
+          user_id, 
+          anonymous_id, 
+          company_name, 
+          city, 
+          state, 
+          primary_inspection_types, 
+          systems_used, 
+          is_accepting_new_reps,
+          profiles!inner(last_seen_at)
+        `)
         .in("user_id", vendorUserIds);
 
       if (profileError) throw profileError;
@@ -260,7 +272,7 @@ export default function RepFindVendors() {
       const blockedUserIds = await fetchBlockedUserIds();
 
       // Enhance results and filter blocked users
-      const enhancedResults: VendorResult[] = filtered
+      let enhancedResults: VendorResult[] = filtered
         .filter(vendor => !blockedUserIds.includes(vendor.user_id)) // Filter out blocked users
         .map(vendor => {
         const connection = connectionMap.get(vendor.user_id);
@@ -287,8 +299,19 @@ export default function RepFindVendors() {
           // Background check placeholders (would need to query seeking_coverage_posts)
           requiresActiveBackgroundCheck: false,
           acceptsWillingToObtain: true,
+          last_seen_at: (vendor as any).profiles?.last_seen_at || null,
         };
       });
+
+      // Apply activity filter (client-side)
+      if (activityFilter === "active-week") {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        enhancedResults = enhancedResults.filter(vendor => {
+          if (!vendor.last_seen_at) return false;
+          return new Date(vendor.last_seen_at) >= sevenDaysAgo;
+        });
+      }
 
       setResults(enhancedResults);
       toast.success(`Found ${enhancedResults.length} matching vendors`);
@@ -382,6 +405,26 @@ export default function RepFindVendors() {
       
       default:
         return sorted;
+    }
+  };
+
+  const getActivityStatus = (lastSeenAt: string | null | undefined) => {
+    if (!lastSeenAt) return { label: "Last active: Unknown", variant: "outline" as const };
+    
+    const now = new Date();
+    const lastSeen = new Date(lastSeenAt);
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 15) {
+      return { label: "● Active now", variant: "default" as const };
+    } else if (diffDays < 7) {
+      return { label: "● Active this week", variant: "secondary" as const };
+    } else if (diffDays >= 30) {
+      return { label: `Last active: ${lastSeen.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}`, variant: "outline" as const };
+    } else {
+      return { label: `Active recently (${lastSeen.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })})`, variant: "outline" as const };
     }
   };
 
@@ -511,6 +554,20 @@ export default function RepFindVendors() {
               </div>
             </div>
 
+            {/* Activity Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Activity</Label>
+              <Select value={activityFilter} onValueChange={(val) => setActivityFilter(val as "all" | "active-week")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  <SelectItem value="all">All activity</SelectItem>
+                  <SelectItem value="active-week">Active this week only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Search Button */}
             <Button
               onClick={handleSearch}
@@ -630,6 +687,18 @@ export default function RepFindVendors() {
                           Requires active background check
                         </Badge>
                       )}
+
+                      {/* Activity Badge */}
+                      <div>
+                        {(() => {
+                          const activity = getActivityStatus(vendor.last_seen_at);
+                          return (
+                            <Badge variant={activity.variant} className="text-xs">
+                              {activity.label}
+                            </Badge>
+                          );
+                        })()}
+                      </div>
 
                       {/* Inspection Types */}
                       {vendor.primary_inspection_types.length > 0 && (
