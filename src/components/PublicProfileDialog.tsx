@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban } from "lucide-react";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
+import { useBlockStatus } from "@/hooks/useBlockStatus";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -111,6 +112,9 @@ export function PublicProfileDialog({
   const [repEmail, setRepEmail] = useState<string | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
+  
+  // Check block status
+  const blockStatus = useBlockStatus(targetUserId);
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -1004,6 +1008,17 @@ export function PublicProfileDialog({
           {viewerContext?.type === "vendor_my_reps" && viewerContext.rep && viewerContext.actions && (
             <Card className="p-4 bg-card-elevated border-primary/20">
               <h3 className="font-semibold text-foreground mb-4">Actions</h3>
+              
+              {/* Block notice */}
+              {blockStatus.anyBlock && (
+                <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <Ban className="h-4 w-4" />
+                    <span>Some actions are unavailable due to a block between users.</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-3">
                 <Button
                   className="w-full"
@@ -1043,13 +1058,16 @@ export function PublicProfileDialog({
                   )}
                 </div>
 
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => viewerContext.actions?.onReview?.(viewerContext.rep)}
-                >
-                  {viewerContext.rep.review ? "Edit Review" : "Leave Review"}
-                </Button>
+                {/* Hide Review button when blocked */}
+                {!blockStatus.anyBlock && (
+                  <Button
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => viewerContext.actions?.onReview?.(viewerContext.rep)}
+                  >
+                    {viewerContext.rep.review ? "Edit Review" : "Leave Review"}
+                  </Button>
+                )}
 
                 <Separator />
 

@@ -100,6 +100,48 @@ export async function areUsersBlocked(userId1: string, userId2: string): Promise
 }
 
 /**
+ * Check bidirectional block status between current user and another user
+ * Returns { hasBlocked, isBlocked, anyBlock }
+ */
+export async function checkBidirectionalBlockStatus(targetUserId: string): Promise<{
+  hasBlocked: boolean;
+  isBlocked: boolean;
+  anyBlock: boolean;
+}> {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user || user.id === targetUserId) {
+    return { hasBlocked: false, isBlocked: false, anyBlock: false };
+  }
+
+  const { data, error } = await supabase
+    .from("user_blocks")
+    .select("blocker_user_id, blocked_user_id")
+    .or(
+      `and(blocker_user_id.eq.${user.id},blocked_user_id.eq.${targetUserId}),and(blocker_user_id.eq.${targetUserId},blocked_user_id.eq.${user.id})`
+    );
+
+  if (error) {
+    console.error("Error checking bidirectional block status:", error);
+    return { hasBlocked: false, isBlocked: false, anyBlock: false };
+  }
+
+  let hasBlocked = false;
+  let isBlocked = false;
+
+  for (const row of data || []) {
+    if (row.blocker_user_id === user.id && row.blocked_user_id === targetUserId) {
+      hasBlocked = true;
+    }
+    if (row.blocker_user_id === targetUserId && row.blocked_user_id === user.id) {
+      isBlocked = true;
+    }
+  }
+
+  return { hasBlocked, isBlocked, anyBlock: hasBlocked || isBlocked };
+}
+
+/**
  * Fetch all user IDs that the current user has blocked
  */
 export async function fetchBlockedUserIds(): Promise<string[]> {
