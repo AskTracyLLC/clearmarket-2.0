@@ -139,9 +139,23 @@ const VendorCredits = () => {
           </CardHeader>
           <CardContent>
             <div className="text-5xl font-bold text-foreground mb-4">{balance}</div>
-            <p className="text-sm text-muted-foreground mb-6">
-              Credits are used for premium ClearMarket actions like posting Seeking Coverage, unlocking contacts, and other tools. More coming soon.
+            <p className="text-sm text-muted-foreground mb-4">
+              Credits are used for premium ClearMarket actions like posting Seeking Coverage, unlocking contacts, and other tools.
             </p>
+            
+            {/* Powered by Credits explainer */}
+            <div className="bg-muted/50 rounded-lg p-4 mb-6 border border-border">
+              <p className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <Coins className="h-4 w-4 text-secondary" />
+                Powered by Credits
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• <strong>Seeking Coverage post</strong> – 1 credit per post</li>
+                <li>• <strong>Unlock rep contact</strong> – 1 credit per rep</li>
+                <li>• <strong>Boost post visibility</strong> – Coming soon</li>
+              </ul>
+            </div>
+            
             {/* TODO: Wire up Stripe or payment flow */}
             <Button disabled variant="secondary">
               Buy Credits (Coming Soon)

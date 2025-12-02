@@ -17,6 +17,7 @@ import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
 import { format, parseISO } from "date-fns";
+import { BetaBadge } from "@/components/BetaBadge";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -424,8 +425,9 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
+              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors flex items-center gap-2">
                 ClearMarket
+                <BetaBadge />
               </Link>
               <nav className="hidden md:flex gap-6">
                 <NavLink to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">

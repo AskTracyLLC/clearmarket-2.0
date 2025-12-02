@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { KnownIssuesPanel } from "@/components/KnownIssuesPanel";
 
 interface BlockedUser {
   id: string;
@@ -402,6 +403,11 @@ export default function SafetyCenter() {
           </TabsContent>
 
         </Tabs>
+
+        {/* Known Issues Panel */}
+        <div className="mt-6">
+          <KnownIssuesPanel />
+        </div>
       </div>
 
       {selectedUserId && (

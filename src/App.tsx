@@ -27,6 +27,8 @@ import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import RepAvailability from "./pages/RepAvailability";
 import PublicReputationSnapshot from "./pages/PublicReputationSnapshot";
+import PublicRepReviews from "./pages/PublicRepReviews";
+import PublicVendorReviews from "./pages/PublicVendorReviews";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -78,6 +80,8 @@ const App = () => (
             <Route path="/community" element={<CommunityBoard />} />
             <Route path="/community/:postId" element={<CommunityPostDetail />} />
             <Route path="/snapshot/:slug" element={<PublicReputationSnapshot />} />
+            <Route path="/rep/reviews/:id" element={<PublicRepReviews />} />
+            <Route path="/vendor/reviews/:id" element={<PublicVendorReviews />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
