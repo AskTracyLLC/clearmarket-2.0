@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.daily-digest-emails]
 verify_jwt = false
+
+[functions.get_public_reputation_snapshot]
+verify_jwt = false
+
+[functions.create-credit-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
