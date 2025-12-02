@@ -60,6 +60,8 @@ interface ConnectedVendor {
   // Trust Score
   trustScore?: number | null;
   trustScoreCount?: number;
+  // Community Score
+  communityScore?: number;
 }
 
 interface PendingRequest {
@@ -425,11 +427,21 @@ const RepMyVendors = () => {
       // Fetch trust scores for all connected vendors
       const trustScores = await fetchTrustScoresForUsers(vendorUserIds);
 
-      // Assign trust scores to vendors
+      // Fetch community scores for all connected vendors
+      const { data: communityScoreData } = await supabase
+        .from("profiles")
+        .select("id, community_score")
+        .in("id", vendorUserIds);
+      
+      const communityScoreMap = new Map<string, number>();
+      communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
+
+      // Assign trust scores and community scores to vendors
       vendorsArray.forEach(vendor => {
         const trust = trustScores[vendor.vendorUserId];
         vendor.trustScore = trust ? trust.average : null;
         vendor.trustScoreCount = trust ? trust.count : 0;
+        vendor.communityScore = communityScoreMap.get(vendor.vendorUserId) ?? 0;
       });
 
       // Fetch blocked user IDs
@@ -954,6 +966,13 @@ const RepMyVendors = () => {
                             <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
                           </button>
                         )}
+                        {/* Community Score */}
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <span>Community:</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0">
+                            {(vendor.communityScore ?? 0) >= 0 ? `+${vendor.communityScore ?? 0}` : vendor.communityScore}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="py-4 px-4 text-sm text-muted-foreground">
                         {vendor.statesCovered && vendor.statesCovered.length > 0

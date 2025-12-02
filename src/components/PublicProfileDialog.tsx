@@ -103,6 +103,7 @@ export function PublicProfileDialog({
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [backgroundCheckSignedUrl, setBackgroundCheckSignedUrl] = useState<string | null>(null);
   const [trustScore, setTrustScore] = useState<{ average: number; count: number } | null>(null);
+  const [communityScore, setCommunityScore] = useState<number>(0);
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [isContactUnlocked, setIsContactUnlocked] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -325,17 +326,26 @@ export function PublicProfileDialog({
     loadPublicProfile();
   }, [open, targetUserId]);
 
-  // Fetch trust score separately
+  // Fetch trust score and community score separately
   useEffect(() => {
     if (!open || !targetUserId) return;
 
-    async function loadTrustScore() {
+    async function loadScores() {
       const scores = await fetchTrustScoresForUsers([targetUserId]);
       const score = scores[targetUserId];
       setTrustScore(score || null);
+
+      // Fetch community score
+      const { data } = await supabase
+        .from("profiles")
+        .select("community_score")
+        .eq("id", targetUserId)
+        .maybeSingle();
+      
+      setCommunityScore(data?.community_score ?? 0);
     }
 
-    loadTrustScore();
+    loadScores();
   }, [open, targetUserId]);
 
   const handleUnlockContact = async () => {
@@ -446,6 +456,24 @@ export function PublicProfileDialog({
                 <Badge variant="secondary" className="text-sm w-fit">New – not yet rated</Badge>
               </button>
             )}
+            {/* Community Score */}
+            <div className="mt-3 pt-3 border-t border-border">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Community Score:</span>
+                      <Badge variant="outline" className="text-xs">
+                        {communityScore >= 0 ? `+${communityScore}` : communityScore}
+                      </Badge>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs text-xs">Based on helpful/not helpful votes on this user's Community Board posts and comments.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </Card>
           {/* Last Active */}
           {profileData.lastSeenAt && (
