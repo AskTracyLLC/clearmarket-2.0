@@ -24,6 +24,7 @@ import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
+import { fetchBlockedUserIds } from "@/lib/blocks";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -431,7 +432,13 @@ const RepMyVendors = () => {
         vendor.trustScoreCount = trust ? trust.count : 0;
       });
 
-      setConnectedVendors(vendorsArray);
+      // Fetch blocked user IDs
+      const blockedUserIds = await fetchBlockedUserIds();
+
+      // Filter out blocked vendors
+      const filteredVendors = vendorsArray.filter(vendor => !blockedUserIds.includes(vendor.vendorUserId));
+
+      setConnectedVendors(filteredVendors);
     } catch (error) {
       console.error("Error in loadConnectedVendors:", error);
     } finally {
