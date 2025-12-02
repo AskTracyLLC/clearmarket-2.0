@@ -16,7 +16,7 @@ export function ReportFlagButton({ onClick, disabled, alreadyReported }: ReportF
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={onClick}
             disabled={disabled}
