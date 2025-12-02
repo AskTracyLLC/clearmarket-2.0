@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, UserPlus, Star } from "lucide-react";
+import { ArrowLeft, MessageSquare, UserPlus, Star, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
@@ -162,11 +162,22 @@ export default function Notifications() {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-3xl font-bold">Notifications</h1>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/notifications/settings")}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
             </Button>
-            <h1 className="text-3xl font-bold">Notifications</h1>
           </div>
           <p className="text-muted-foreground">Loading notifications...</p>
         </div>
@@ -177,11 +188,22 @@ export default function Notifications() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-3xl font-bold">Notifications</h1>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/notifications/settings")}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Settings
           </Button>
-          <h1 className="text-3xl font-bold">Notifications</h1>
         </div>
 
         {notifications.length === 0 ? (
