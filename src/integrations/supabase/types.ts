@@ -366,6 +366,50 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          notify_connection_accepted: boolean
+          notify_connection_request: boolean
+          notify_credits_events: boolean
+          notify_new_message: boolean
+          notify_review_received: boolean
+          notify_system_updates: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          notify_connection_accepted?: boolean
+          notify_connection_request?: boolean
+          notify_credits_events?: boolean
+          notify_new_message?: boolean
+          notify_review_received?: boolean
+          notify_system_updates?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          notify_connection_accepted?: boolean
+          notify_connection_request?: boolean
+          notify_credits_events?: boolean
+          notify_new_message?: boolean
+          notify_review_received?: boolean
+          notify_system_updates?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
