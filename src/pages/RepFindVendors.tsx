@@ -16,6 +16,7 @@ import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { getOrCreateConversation } from "@/lib/conversations";
+import { fetchBlockedUserIds } from "@/lib/blocks";
 
 const INSPECTION_TYPE_OPTIONS = [
   "Property Inspections",
@@ -253,8 +254,13 @@ export default function RepFindVendors() {
         stats.count += 1;
       });
 
-      // Enhance results
-      const enhancedResults: VendorResult[] = filtered.map(vendor => {
+      // Fetch blocked user IDs
+      const blockedUserIds = await fetchBlockedUserIds();
+
+      // Enhance results and filter blocked users
+      const enhancedResults: VendorResult[] = filtered
+        .filter(vendor => !blockedUserIds.includes(vendor.user_id)) // Filter out blocked users
+        .map(vendor => {
         const connection = connectionMap.get(vendor.user_id);
         const trust = trustScores[vendor.user_id];
         const ratings = vendorRatings.get(vendor.user_id);

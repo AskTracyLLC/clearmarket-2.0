@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
+import { fetchBlockedUserIds } from "@/lib/blocks";
 
 interface ConversationWithParticipant {
   id: string;
@@ -56,6 +57,7 @@ export default function MessagesList() {
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "seeking" | "direct">("all");
   const [openPostsOnly, setOpenPostsOnly] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -66,9 +68,15 @@ export default function MessagesList() {
     }
 
     loadUserRole();
+    loadBlockedUsers();
     loadConversations();
     loadPendingRequests();
   }, [user, authLoading, navigate]);
+
+  async function loadBlockedUsers() {
+    const blocked = await fetchBlockedUserIds();
+    setBlockedUserIds(blocked);
+  }
 
   async function loadUserRole() {
     if (!user) return;
@@ -340,10 +348,12 @@ export default function MessagesList() {
         })
       );
 
-      // Filter out archived conversations for current user
+      // Filter out archived conversations and blocked users
       const filteredConversations = conversationsWithNames.filter((conv) => {
         const isParticipantOne = conv.participant_one === user.id;
-        return isParticipantOne ? !conv.hidden_for_one : !conv.hidden_for_two;
+        const isArchived = isParticipantOne ? conv.hidden_for_one : conv.hidden_for_two;
+        const isBlocked = blockedUserIds.includes(conv.otherParticipantUserId);
+        return !isArchived && !isBlocked;
       });
 
       // Load pending connection states for field reps

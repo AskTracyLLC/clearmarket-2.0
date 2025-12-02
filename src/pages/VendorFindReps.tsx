@@ -17,6 +17,7 @@ import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { checkContactUnlockedBatch } from "@/lib/credits";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { fetchBlockedUserIds } from "@/lib/blocks";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -317,14 +318,19 @@ export default function VendorFindReps() {
       // Fetch unlock status for all reps
       const unlockMap = user ? await checkContactUnlockedBatch(user.id, repUserIds) : {};
 
-      // Enhance results with trust scores, connection data, and unlock status
-      const enhancedResults = filtered.map(rep => ({
-        ...rep,
-        trustScore: trustScores[rep.user_id]?.average ?? null,
-        trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
-        connectedSince: connectionMap.get(rep.user_id) ?? null,
-        isContactUnlocked: unlockMap[rep.user_id] ?? false,
-      }));
+      // Fetch blocked user IDs
+      const blockedUserIds = await fetchBlockedUserIds();
+
+      // Enhance results with trust scores, connection data, unlock status, and filter blocked users
+      const enhancedResults = filtered
+        .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
+        .map(rep => ({
+          ...rep,
+          trustScore: trustScores[rep.user_id]?.average ?? null,
+          trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
+          connectedSince: connectionMap.get(rep.user_id) ?? null,
+          isContactUnlocked: unlockMap[rep.user_id] ?? false,
+        }));
 
       setResults(enhancedResults as RepResult[]);
       toast.success(`Found ${enhancedResults.length} matching reps`);

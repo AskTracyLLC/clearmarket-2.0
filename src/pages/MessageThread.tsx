@@ -16,8 +16,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Send, Eye, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
@@ -26,6 +32,7 @@ import { TemplateSelector } from "@/components/TemplateSelector";
 import { ExitReviewDialog } from "@/components/ExitReviewDialog";
 import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { blockUser, unblockUser, isUserBlocked } from "@/lib/blocks";
 
 interface Message {
   id: string;
@@ -70,6 +77,10 @@ export default function MessageThread() {
   const [agreement, setAgreement] = useState<any>(null);
   const [creatingAgreement, setCreatingAgreement] = useState(false);
   const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+  const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -88,11 +99,19 @@ export default function MessageThread() {
   }, [user, authLoading, conversationId, navigate]);
 
   useEffect(() => {
-    // Load agreement when we have user and other participant
+    // Load agreement and block status when we have user and other participant
     if (user && otherParticipantId) {
       loadAgreement();
+      checkBlockStatus();
     }
   }, [user, otherParticipantId]);
+
+  async function checkBlockStatus() {
+    if (!otherParticipantId) return;
+    
+    const blocked = await isUserBlocked(otherParticipantId);
+    setIsBlocked(blocked);
+  }
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -500,6 +519,16 @@ export default function MessageThread() {
 
   async function handleSendMessage() {
     if (!messageText.trim() || !user || !conversationId || !otherParticipantId) return;
+
+    // Check if current user has blocked the recipient
+    if (isBlocked) {
+      toast({
+        title: "Cannot send message",
+        description: "You've blocked this user and can't send further messages.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSending(true);
     try {
@@ -982,6 +1011,21 @@ export default function MessageThread() {
             >
               {archiving ? "Archiving..." : "Archive Conversation"}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setShowBlockDialog(true)}
+                  className={isBlocked ? "text-foreground" : "text-destructive"}
+                >
+                  {isBlocked ? "Unblock this user" : "Block this user"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div>
             {(() => {
@@ -1602,6 +1646,89 @@ export default function MessageThread() {
             saving={creatingAgreement}
           />
         )}
+
+        {/* Block/Unblock Dialog */}
+        <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{isBlocked ? "Unblock this user?" : "Block this user?"}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {isBlocked ? (
+                  "Do you want to unblock this user? You'll be able to see them again in discovery and receive new messages."
+                ) : (
+                  <>
+                    You won't see this user in Find Reps / Find Vendors, My Network, or Messages, and you won't be able to send new messages. You can unblock them later if needed.
+                    <Textarea
+                      placeholder="Reason (optional, for your records)"
+                      value={blockReason}
+                      onChange={(e) => setBlockReason(e.target.value)}
+                      className="mt-4"
+                    />
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setBlockReason("")}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  setBlocking(true);
+                  try {
+                    if (isBlocked) {
+                      const { error } = await unblockUser(otherParticipantId);
+                      if (error) {
+                        toast({
+                          title: "Error",
+                          description: error,
+                          variant: "destructive",
+                        });
+                      } else {
+                        setIsBlocked(false);
+                        toast({
+                          title: "User unblocked",
+                          description: "You can now see this user and communicate with them.",
+                        });
+                        setShowBlockDialog(false);
+                      }
+                    } else {
+                      const { error } = await blockUser(otherParticipantId, blockReason || undefined);
+                      if (error) {
+                        toast({
+                          title: "Error",
+                          description: error,
+                          variant: "destructive",
+                        });
+                      } else {
+                        setIsBlocked(true);
+                        toast({
+                          title: "User blocked",
+                          description: "This conversation has been hidden from your inbox.",
+                        });
+                        setBlockReason("");
+                        setShowBlockDialog(false);
+                        // Navigate back to messages
+                        navigate("/messages");
+                      }
+                    }
+                  } catch (error) {
+                    console.error("Error blocking/unblocking:", error);
+                    toast({
+                      title: "Error",
+                      description: "An unexpected error occurred",
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setBlocking(false);
+                  }
+                }}
+                disabled={blocking}
+                className={isBlocked ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+              >
+                {blocking ? (isBlocked ? "Unblocking..." : "Blocking...") : (isBlocked ? "Unblock" : "Block")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

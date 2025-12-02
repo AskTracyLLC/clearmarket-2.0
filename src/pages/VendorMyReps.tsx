@@ -25,6 +25,7 @@ import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
 import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
+import { fetchBlockedUserIds } from "@/lib/blocks";
 
 interface ConnectedRep {
   repUserId: string;
@@ -312,7 +313,13 @@ const VendorMyReps = () => {
         rep.trustScoreCount = trust ? trust.count : 0;
       });
 
-      setConnectedReps(repsArray);
+      // Fetch blocked user IDs
+      const blockedUserIds = await fetchBlockedUserIds();
+
+      // Filter out blocked reps
+      const filteredReps = repsArray.filter(rep => !blockedUserIds.includes(rep.repUserId));
+
+      setConnectedReps(filteredReps);
     } catch (error) {
       console.error("Error in loadConnectedReps:", error);
     } finally {
