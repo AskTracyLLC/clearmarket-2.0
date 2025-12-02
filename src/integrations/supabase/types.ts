@@ -369,6 +369,10 @@ export type Database = {
       notification_preferences: {
         Row: {
           created_at: string
+          digest_connections: boolean
+          digest_messages: boolean
+          digest_reviews: boolean
+          digest_system: boolean
           email_connections: boolean
           email_messages: boolean
           email_reviews: boolean
@@ -384,6 +388,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          digest_connections?: boolean
+          digest_messages?: boolean
+          digest_reviews?: boolean
+          digest_system?: boolean
           email_connections?: boolean
           email_messages?: boolean
           email_reviews?: boolean
@@ -399,6 +407,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          digest_connections?: boolean
+          digest_messages?: boolean
+          digest_reviews?: boolean
+          digest_system?: boolean
           email_connections?: boolean
           email_messages?: boolean
           email_reviews?: boolean
@@ -426,6 +438,7 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          digest_sent_at: string | null
           email_sent_at: string | null
           id: string
           is_read: boolean
@@ -437,6 +450,7 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          digest_sent_at?: string | null
           email_sent_at?: string | null
           id?: string
           is_read?: boolean
@@ -448,6 +462,7 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          digest_sent_at?: string | null
           email_sent_at?: string | null
           id?: string
           is_read?: boolean
