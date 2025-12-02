@@ -7,11 +7,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, ShieldAlert } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Eye, ShieldAlert, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { Database } from "@/integrations/supabase/types";
+
+type NotificationPreferences = Database["public"]["Tables"]["notification_preferences"]["Row"];
 
 interface BlockedUser {
   id: string;
@@ -45,6 +50,8 @@ export default function SafetyCenter() {
   const [unblocking, setUnblocking] = useState<string | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
+  const [prefsLoading, setPrefsLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -62,12 +69,68 @@ export default function SafetyCenter() {
 
     setLoading(true);
     try {
-      await Promise.all([loadBlockedUsers(), loadUserReports()]);
+      await Promise.all([loadBlockedUsers(), loadUserReports(), loadNotificationPreferences()]);
     } catch (error) {
       console.error("Error loading safety data:", error);
       toast.error("Failed to load safety data");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadNotificationPreferences() {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error loading notification preferences:", error);
+      return;
+    }
+
+    if (!data) {
+      // Create default preferences
+      const { data: inserted, error: insertError } = await supabase
+        .from("notification_preferences")
+        .insert({ user_id: user.id })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Error creating notification preferences:", insertError);
+        return;
+      }
+
+      setPreferences(inserted);
+    } else {
+      setPreferences(data);
+    }
+  }
+
+  async function handleTogglePreference(
+    field: keyof Omit<NotificationPreferences, "user_id" | "created_at" | "updated_at">,
+    value: boolean
+  ) {
+    if (!preferences || !user) return;
+
+    const optimisticUpdate = { ...preferences, [field]: value };
+    setPreferences(optimisticUpdate);
+
+    const { error } = await supabase
+      .from("notification_preferences")
+      .update({ [field]: value })
+      .eq("user_id", user.id);
+
+    if (error) {
+      // Revert on error
+      setPreferences(preferences);
+      toast.error("Failed to update notification settings");
+    } else {
+      toast.success("Notification settings updated");
     }
   }
 
@@ -254,9 +317,10 @@ export default function SafetyCenter() {
         </div>
 
         <Tabs defaultValue="blocked" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
             <TabsTrigger value="reports">Your Reports</TabsTrigger>
+            <TabsTrigger value="notifications">Notification Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="blocked" className="space-y-4">
@@ -387,6 +451,135 @@ export default function SafetyCenter() {
                       </div>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Notification Settings
+                </CardTitle>
+                <CardDescription>
+                  Choose which in-app notifications you'd like to receive. Critical safety alerts may still be sent.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {!preferences ? (
+                  <p className="text-sm text-muted-foreground">Loading preferences...</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_new_message" className="text-sm font-medium">
+                          New messages
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Show a notification when someone sends you a new message.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_new_message"
+                        checked={preferences.notify_new_message}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_new_message", value)
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_connection_request" className="text-sm font-medium">
+                          Connection requests
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Show a notification when someone wants to connect with you.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_connection_request"
+                        checked={preferences.notify_connection_request}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_connection_request", value)
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_connection_accepted" className="text-sm font-medium">
+                          Connection accepted
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Show a notification when your connection request is accepted.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_connection_accepted"
+                        checked={preferences.notify_connection_accepted}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_connection_accepted", value)
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_review_received" className="text-sm font-medium">
+                          Reviews received
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Show a notification when you receive a new review.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_review_received"
+                        checked={preferences.notify_review_received}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_review_received", value)
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_credits_events" className="text-sm font-medium">
+                          Credits & billing updates
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Notifications about credits, low balance, and purchases.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_credits_events"
+                        checked={preferences.notify_credits_events}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_credits_events", value)
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="notify_system_updates" className="text-sm font-medium">
+                          System updates & announcements
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Important announcements and updates about ClearMarket.
+                        </p>
+                      </div>
+                      <Switch
+                        id="notify_system_updates"
+                        checked={preferences.notify_system_updates}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("notify_system_updates", value)
+                        }
+                      />
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
