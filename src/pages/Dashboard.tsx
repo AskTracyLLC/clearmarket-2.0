@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 
@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingConnectionCount, setPendingConnectionCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [reviewPrompts, setReviewPrompts] = useState<Array<{
     userId: string;
     anonymousId: string;
@@ -114,6 +115,15 @@ const Dashboard = () => {
         
         setPendingConnectionCount(pendingCount || 0);
       }
+
+      // Load unread notification count
+      const { count: notificationCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+      
+      setUnreadNotificationCount(notificationCount || 0);
 
       // Check for 14-day review prompts
       await checkReviewPrompts(user.id, data.is_fieldrep, data.is_vendor_admin);
@@ -344,6 +354,15 @@ const Dashboard = () => {
                   {unreadMessageCount > 0 && (
                     <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 ml-1">
                       {unreadMessageCount}
+                    </Badge>
+                  )}
+                </NavLink>
+                <NavLink to="/notifications" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Bell className="w-4 h-4" />
+                  Notifications
+                  {unreadNotificationCount > 0 && (
+                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 ml-1">
+                      {unreadNotificationCount}
                     </Badge>
                   )}
                 </NavLink>
