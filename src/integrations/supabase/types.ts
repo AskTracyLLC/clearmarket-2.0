@@ -14,6 +14,148 @@ export type Database = {
   }
   public: {
     Tables: {
+      community_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          helpful_count: number
+          id: string
+          not_helpful_count: number
+          post_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          not_helpful_count?: number
+          post_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          not_helpful_count?: number
+          post_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_posts: {
+        Row: {
+          author_anonymous_id: string | null
+          author_id: string
+          author_role: string | null
+          body: string
+          category: string
+          comments_count: number
+          created_at: string
+          helpful_count: number
+          id: string
+          not_helpful_count: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_anonymous_id?: string | null
+          author_id: string
+          author_role?: string | null
+          body: string
+          category: string
+          comments_count?: number
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          not_helpful_count?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_anonymous_id?: string | null
+          author_id?: string
+          author_role?: string | null
+          body?: string
+          category?: string
+          comments_count?: number
+          created_at?: string
+          helpful_count?: number
+          id?: string
+          not_helpful_count?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_votes: {
+        Row: {
+          created_at: string
+          id: string
+          target_id: string
+          target_type: string
+          user_id: string
+          vote_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          target_id: string
+          target_type: string
+          user_id: string
+          vote_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          target_id?: string
+          target_type?: string
+          user_id?: string
+          vote_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connection_notes: {
         Row: {
           author_id: string

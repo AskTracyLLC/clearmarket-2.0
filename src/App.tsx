@@ -34,6 +34,8 @@ import VendorCredits from "./pages/VendorCredits";
 import AdminReports from "./pages/AdminReports";
 import AdminModeration from "./pages/AdminModeration";
 import SafetyCenter from "./pages/SafetyCenter";
+import CommunityBoard from "./pages/CommunityBoard";
+import CommunityPostDetail from "./pages/CommunityPostDetail";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,8 @@ const App = () => (
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/safety" element={<SafetyCenter />} />
+            <Route path="/community" element={<CommunityBoard />} />
+            <Route path="/community/:postId" element={<CommunityPostDetail />} />
             <Route path="/snapshot/:slug" element={<PublicReputationSnapshot />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
