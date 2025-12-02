@@ -55,6 +55,7 @@ interface ProfileData {
   isAcceptingNewVendors?: boolean;
   isAcceptingNewReps?: boolean;
   willingToTravelOutOfState?: boolean;
+  lastSeenAt?: string | null;
   coverageAreas?: Array<{
     stateCode: string;
     stateName: string;
@@ -160,7 +161,7 @@ export function PublicProfileDialog({
         // Load base profile (for display name and email)
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email, is_fieldrep, is_vendor_admin")
+          .select("full_name, email, is_fieldrep, is_vendor_admin, last_seen_at")
           .eq("id", targetUserId)
           .maybeSingle();
 
@@ -217,6 +218,7 @@ export function PublicProfileDialog({
             inspectionTypes: repProfile.inspection_types || [],
             isAcceptingNewVendors: repProfile.is_accepting_new_vendors,
             willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state,
+            lastSeenAt: profile?.last_seen_at || null,
             coverageAreas: (coverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
@@ -290,6 +292,7 @@ export function PublicProfileDialog({
             systemsUsed: vendorProfile.systems_used || [],
             inspectionTypes: vendorProfile.primary_inspection_types || [],
             isAcceptingNewReps: vendorProfile.is_accepting_new_reps,
+            lastSeenAt: profile?.last_seen_at || null,
             coverageAreas: (vendorCoverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
@@ -438,6 +441,20 @@ export function PublicProfileDialog({
               </button>
             )}
           </Card>
+          {/* Last Active */}
+          {profileData.lastSeenAt && (
+            <Card className="p-4 bg-card-elevated">
+              <p className="text-sm text-muted-foreground">
+                Last active: {new Date(profileData.lastSeenAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+              </p>
+            </Card>
+          )}
+          {!profileData.lastSeenAt && (
+            <Card className="p-4 bg-card-elevated">
+              <p className="text-sm text-muted-foreground">Last active: Not yet recorded</p>
+            </Card>
+          )}
+
           {/* Location */}
           {(profileData.city || profileData.state) && (
             <Card className="p-4 bg-card-elevated">
