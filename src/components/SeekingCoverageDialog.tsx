@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, INSPECTION_TYPES_LIST, SYSTEMS_LIST } from "@/lib/constants";
+import { evaluateMatchAlertsForNewPost } from "@/lib/matchAlerts";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -397,6 +398,12 @@ export const SeekingCoverageDialog = ({
           post_title: data.title,
           state_code: data.state_code,
         },
+      });
+
+      // Evaluate match alerts for reps
+      evaluateMatchAlertsForNewPost(newPost.id).catch((err) => {
+        console.error("Error evaluating match alerts:", err);
+        // Don't block post creation on match alert errors
       });
 
       toast({

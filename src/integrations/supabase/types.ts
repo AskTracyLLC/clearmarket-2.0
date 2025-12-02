@@ -726,6 +726,50 @@ export type Database = {
           },
         ]
       }
+      rep_match_settings: {
+        Row: {
+          created_at: string
+          id: string
+          inspection_types: string[] | null
+          minimum_pay: number | null
+          notify_email: boolean
+          notify_in_app: boolean
+          states_interested: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          minimum_pay?: number | null
+          notify_email?: boolean
+          notify_in_app?: boolean
+          states_interested?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inspection_types?: string[] | null
+          minimum_pay?: number | null
+          notify_email?: boolean
+          notify_in_app?: boolean
+          states_interested?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_match_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_profile: {
         Row: {
           anonymous_id: string | null

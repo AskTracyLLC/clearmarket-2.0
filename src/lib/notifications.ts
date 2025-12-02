@@ -15,6 +15,8 @@ function getEmailPreferenceField(type: string): keyof NotificationPreferences | 
       return "email_connections";
     case "review_received":
       return "email_reviews";
+    case "new_coverage_opportunity":
+      return "email_system"; // Match alerts use system email preference
     case "credits_event":
     case "system_update":
     case "safety_alert":
@@ -68,6 +70,9 @@ function buildEmailContent(
       break;
     case "review_received":
       htmlBody += `<a href="${baseUrl}/dashboard" class="button">View Reviews</a>`;
+      break;
+    case "new_coverage_opportunity":
+      htmlBody += `<a href="${baseUrl}/rep/find-work" class="button">View Opportunity</a>`;
       break;
     default:
       htmlBody += `<a href="${baseUrl}/dashboard" class="button">Go to Dashboard</a>`;
@@ -164,6 +169,8 @@ export async function createNotification(
         return prefs.notify_connection_accepted;
       case "review_received":
         return prefs.notify_review_received;
+      case "new_coverage_opportunity":
+        return prefs.notify_system_updates; // Match alerts use system notification preference
       case "credits_event":
         return prefs.notify_credits_events;
       case "system_update":

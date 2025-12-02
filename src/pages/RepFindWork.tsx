@@ -10,10 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2 } from "lucide-react";
+import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2, Bell } from "lucide-react";
 import { US_STATES } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
+import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
+import { getRepMatchSettings } from "@/lib/matchAlerts";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -108,6 +111,10 @@ export default function RepFindWork() {
 
   // Detail dialog
   const [viewingPost, setViewingPost] = useState<MatchedPost | null>(null);
+  
+  // Match settings
+  const [matchSettingsOpen, setMatchSettingsOpen] = useState(false);
+  const [hasMatchSettings, setHasMatchSettings] = useState(false);
 
   // Check auth and rep role
   useEffect(() => {
@@ -149,6 +156,10 @@ export default function RepFindWork() {
           .eq("user_id", user.id);
 
         setCoverageAreas(coverageData || []);
+
+        // Check if match settings exist
+        const matchSettings = await getRepMatchSettings(user.id);
+        setHasMatchSettings(!!matchSettings);
 
         // Load rep_interest records to track which posts this rep has already expressed interest in
         if (repData) {
@@ -527,7 +538,18 @@ export default function RepFindWork() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Find Work in Your Coverage Areas</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-3xl font-bold text-foreground">Find Work in Your Coverage Areas</h1>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMatchSettingsOpen(true)}
+                  className="gap-2"
+                >
+                  <Bell className="h-4 w-4" />
+                  Match Alerts
+                </Button>
+              </div>
               <p className="text-muted-foreground mt-1">
                 These opportunities are based on your coverage areas, systems, and inspection types. 
                 Update your profile to refine matches.
@@ -537,6 +559,34 @@ export default function RepFindWork() {
               Back to Dashboard
             </Button>
           </div>
+          
+          {/* Match alerts banner */}
+          <Alert className="mt-4 border-primary/50 bg-primary/5">
+            <Bell className="h-4 w-4" />
+            <AlertDescription>
+              {hasMatchSettings ? (
+                <span>
+                  Match alerts are enabled. We'll notify you when new opportunities match your coverage and preferences.{" "}
+                  <button
+                    onClick={() => setMatchSettingsOpen(true)}
+                    className="underline hover:text-primary"
+                  >
+                    Manage settings
+                  </button>
+                </span>
+              ) : (
+                <span>
+                  Set up match alerts to get notified when new opportunities match your coverage.{" "}
+                  <button
+                    onClick={() => setMatchSettingsOpen(true)}
+                    className="underline hover:text-primary font-semibold"
+                  >
+                    Configure alerts
+                  </button>
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
         </div>
       </header>
 
@@ -1038,6 +1088,13 @@ export default function RepFindWork() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Match Settings Dialog */}
+      <RepMatchSettingsDialog
+        open={matchSettingsOpen}
+        onOpenChange={setMatchSettingsOpen}
+        userId={user?.id || ""}
+      />
     </div>
   );
 }

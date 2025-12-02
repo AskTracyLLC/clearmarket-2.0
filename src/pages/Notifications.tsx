@@ -5,14 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, UserPlus, Star, Settings } from "lucide-react";
+import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
 interface Notification {
   id: string;
   created_at: string;
-  type: "message" | "connection_request" | "review";
+  type: "message" | "connection_request" | "review" | "new_coverage_opportunity";
   ref_id: string | null;
   title: string;
   body: string | null;
@@ -126,6 +126,9 @@ export default function Notifications() {
         } else if (profile?.is_fieldrep) {
           navigate("/rep/reviews");
         }
+      } else if (notification.type === "new_coverage_opportunity") {
+        // Navigate to Find Work page
+        navigate("/rep/find-work");
       }
     } catch (error) {
       console.error("Error navigating from notification:", error);
@@ -140,6 +143,8 @@ export default function Notifications() {
         return <UserPlus className="h-4 w-4" />;
       case "review":
         return <Star className="h-4 w-4" />;
+      case "new_coverage_opportunity":
+        return <Briefcase className="h-4 w-4" />;
       default:
         return null;
     }
@@ -153,6 +158,8 @@ export default function Notifications() {
         return "Connection";
       case "review":
         return "Review";
+      case "new_coverage_opportunity":
+        return "New Work";
       default:
         return type;
     }
