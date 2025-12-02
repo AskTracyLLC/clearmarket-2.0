@@ -14,6 +14,9 @@ import {
   notifyPostAuthorOfComment,
   getCategoryConfig,
   getStatusConfig,
+  isUserWatchingPost,
+  watchPost,
+  unwatchPost,
   CommunityPost,
   CommunityComment,
 } from "@/lib/community";
@@ -33,6 +36,7 @@ import {
   Edit,
   Users,
   Lock,
+  BellRing,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -54,6 +58,8 @@ const CommunityPostDetail = () => {
   const [reportTarget, setReportTarget] = useState<{ type: string; id: string; authorId: string; context: string } | null>(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profileTargetUserId, setProfileTargetUserId] = useState<string | null>(null);
+  const [isWatching, setIsWatching] = useState(false);
+  const [watchLoading, setWatchLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -93,7 +99,43 @@ const CommunityPostDetail = () => {
       setCommentVotes(cVotes);
     }
 
+    // Check if user is watching this post (for under_review status)
+    if (postData.status === "under_review") {
+      const watching = await isUserWatchingPost(user.id, postId);
+      setIsWatching(watching);
+    }
+
     setLoading(false);
+  };
+
+  const handlePingForUpdates = async () => {
+    if (!user || !post) return;
+    setWatchLoading(true);
+
+    const result = await watchPost(user.id, post.id);
+    if (result.success) {
+      setIsWatching(true);
+      toast({ title: "You'll be notified when this post is resolved" });
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+
+    setWatchLoading(false);
+  };
+
+  const handleUnwatch = async () => {
+    if (!user || !post) return;
+    setWatchLoading(true);
+
+    const result = await unwatchPost(user.id, post.id);
+    if (result.success) {
+      setIsWatching(false);
+      toast({ title: "You've unfollowed this post" });
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+
+    setWatchLoading(false);
   };
 
   const handleSubmitComment = async () => {
@@ -221,6 +263,43 @@ const CommunityPostDetail = () => {
                 </Badge>
               )}
             </div>
+
+            {/* Ping for updates control for under_review posts */}
+            {post.status === "under_review" && (
+              <div className="bg-muted/50 border border-border rounded-lg p-3 mb-3">
+                {isWatching ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <BellRing className="w-4 h-4" />
+                      <span>You'll be notified when this is resolved</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleUnwatch}
+                      disabled={watchLoading}
+                    >
+                      Unfollow
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      This post is under review by moderators.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePingForUpdates}
+                      disabled={watchLoading}
+                    >
+                      <BellRing className="w-4 h-4 mr-1" />
+                      Ping for updates
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <h1 className="text-2xl font-bold text-foreground mb-2">{post.title}</h1>
 

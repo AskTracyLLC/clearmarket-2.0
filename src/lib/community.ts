@@ -450,3 +450,162 @@ export async function notifyPostAuthorOfComment(postAuthorId: string, postId: st
     console.error("Error creating notification:", error);
   }
 }
+
+// ========== Post Watchers / Ping for Updates ==========
+
+export async function isUserWatchingPost(userId: string, postId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("community_post_watchers")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("post_id", postId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Error checking watch status:", error);
+      return false;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error("Error checking watch status:", error);
+    return false;
+  }
+}
+
+export async function watchPost(userId: string, postId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from("community_post_watchers")
+      .insert({ user_id: userId, post_id: postId });
+
+    if (error) {
+      if (error.code === "23505") {
+        // Already watching
+        return { success: true };
+      }
+      console.error("Error watching post:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error watching post:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+export async function unwatchPost(userId: string, postId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from("community_post_watchers")
+      .delete()
+      .eq("user_id", userId)
+      .eq("post_id", postId);
+
+    if (error) {
+      console.error("Error unwatching post:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error unwatching post:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+export async function getPostWatchers(postId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from("community_post_watchers")
+      .select("user_id")
+      .eq("post_id", postId);
+
+    if (error) {
+      console.error("Error fetching watchers:", error);
+      return [];
+    }
+
+    return data?.map((w) => w.user_id) || [];
+  } catch (error) {
+    console.error("Error fetching watchers:", error);
+    return [];
+  }
+}
+
+export async function deletePostWatchers(postId: string): Promise<void> {
+  try {
+    await supabase
+      .from("community_post_watchers")
+      .delete()
+      .eq("post_id", postId);
+  } catch (error) {
+    console.error("Error deleting watchers:", error);
+  }
+}
+
+export async function notifyWatchersPostResolved(
+  postId: string,
+  postTitle: string,
+  newStatus: string
+): Promise<void> {
+  try {
+    const watchers = await getPostWatchers(postId);
+    
+    if (watchers.length === 0) return;
+
+    const notifications = watchers.map((userId) => ({
+      user_id: userId,
+      type: "community_post_resolved",
+      title: "Community post update",
+      body: `A post you pinged has been resolved: "${postTitle}"`,
+      ref_id: postId,
+    }));
+
+    await supabase.from("notifications").insert(notifications);
+
+    // Clean up watchers after notifying
+    await deletePostWatchers(postId);
+  } catch (error) {
+    console.error("Error notifying watchers:", error);
+  }
+}
+
+export async function updateCommunityPostStatus(
+  postId: string,
+  newStatus: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Get old status first
+    const { data: postBefore } = await supabase
+      .from("community_posts")
+      .select("id, title, status")
+      .eq("id", postId)
+      .single();
+
+    const oldStatus = postBefore?.status;
+
+    // Update the status
+    const { error } = await supabase
+      .from("community_posts")
+      .update({ status: newStatus })
+      .eq("id", postId);
+
+    if (error) {
+      console.error("Error updating post status:", error);
+      return { success: false, error: error.message };
+    }
+
+    // If transitioning from under_review to another status, notify watchers
+    if (oldStatus === "under_review" && newStatus !== "under_review" && postBefore) {
+      await notifyWatchersPostResolved(postId, postBefore.title, newStatus);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating post status:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
