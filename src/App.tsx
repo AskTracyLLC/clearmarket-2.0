@@ -27,6 +27,7 @@ import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
+import NotificationSettings from "./pages/NotificationSettings";
 import VendorCredits from "./pages/VendorCredits";
 import AdminReports from "./pages/AdminReports";
 import SafetyCenter from "./pages/SafetyCenter";
@@ -64,6 +65,7 @@ const App = () => (
             <Route path="/rep/reviews" element={<RepReviews />} />
             <Route path="/vendor/credits" element={<VendorCredits />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/notifications/settings" element={<NotificationSettings />} />
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/safety" element={<SafetyCenter />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
