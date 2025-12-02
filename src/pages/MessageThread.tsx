@@ -33,6 +33,9 @@ import { ExitReviewDialog } from "@/components/ExitReviewDialog";
 import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { blockUser, unblockUser, isUserBlocked } from "@/lib/blocks";
+import { ReportFlagButton } from "@/components/ReportFlagButton";
+import { ReportUserDialog } from "@/components/ReportUserDialog";
+import { checkAlreadyReported } from "@/lib/reports";
 
 interface Message {
   id: string;
@@ -81,6 +84,8 @@ export default function MessageThread() {
   const [blocking, setBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [blockReason, setBlockReason] = useState("");
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [alreadyReported, setAlreadyReported] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,18 +104,26 @@ export default function MessageThread() {
   }, [user, authLoading, conversationId, navigate]);
 
   useEffect(() => {
-    // Load agreement and block status when we have user and other participant
+    // Load agreement, block status, and report status when we have user and other participant
     if (user && otherParticipantId) {
       loadAgreement();
       checkBlockStatus();
+      checkReportStatus();
     }
-  }, [user, otherParticipantId]);
+  }, [user, otherParticipantId, conversationId]);
 
   async function checkBlockStatus() {
     if (!otherParticipantId) return;
     
     const blocked = await isUserBlocked(otherParticipantId);
     setIsBlocked(blocked);
+  }
+
+  async function checkReportStatus() {
+    if (!user || !otherParticipantId) return;
+    
+    const reported = await checkAlreadyReported(user.id, otherParticipantId, conversationId);
+    setAlreadyReported(reported);
   }
 
   useEffect(() => {
@@ -1011,6 +1024,10 @@ export default function MessageThread() {
             >
               {archiving ? "Archiving..." : "Archive Conversation"}
             </Button>
+            <ReportFlagButton
+              onClick={() => setShowReportDialog(true)}
+              alreadyReported={alreadyReported}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon">
@@ -1729,6 +1746,17 @@ export default function MessageThread() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Report User Dialog */}
+        <ReportUserDialog
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+          reporterUserId={user?.id || ""}
+          reportedUserId={otherParticipantId}
+          conversationId={conversationId}
+          targetAnonId={otherParticipantName}
+          alreadyReported={alreadyReported}
+        />
       </div>
     </div>
   );

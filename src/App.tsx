@@ -28,6 +28,7 @@ import RepReviews from "./pages/RepReviews";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import VendorCredits from "./pages/VendorCredits";
+import AdminReports from "./pages/AdminReports";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/rep/reviews" element={<RepReviews />} />
             <Route path="/vendor/credits" element={<VendorCredits />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/admin/reports" element={<AdminReports />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
