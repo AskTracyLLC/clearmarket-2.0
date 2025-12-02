@@ -36,6 +36,7 @@ import { blockUser, unblockUser, isUserBlocked } from "@/lib/blocks";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
+import { useBlockStatus } from "@/hooks/useBlockStatus";
 
 interface Message {
   id: string;
@@ -86,6 +87,9 @@ export default function MessageThread() {
   const [blockReason, setBlockReason] = useState("");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
+
+  // Bidirectional block check - used to hide Connect buttons
+  const blockStatus = useBlockStatus(otherParticipantId || null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -1197,7 +1201,7 @@ export default function MessageThread() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Status: Not connected yet</span>
-                      {isVendor && (
+                      {isVendor && !blockStatus.anyBlock && (
                         <Button
                           onClick={handleConnect}
                           disabled={connectingStatus}
@@ -1403,7 +1407,7 @@ export default function MessageThread() {
         )}
 
         {/* Vendor Connection State (works for all vendor-rep conversations) */}
-        {isVendor && otherParticipantId && (
+        {isVendor && otherParticipantId && !blockStatus.anyBlock && (
           <>
             {/* Show button only when no connection or declined */}
             {(!vendorConnection || vendorConnection.status === 'declined') && (
@@ -1436,7 +1440,7 @@ export default function MessageThread() {
 
         {/* Rep-side Pending Vendor Connection Request Banner */}
         {isRep && 
-         vendorConnection?.status === "pending" && (
+         vendorConnection?.status === "pending" && !blockStatus.anyBlock && (
           <Alert className="border-amber-500/40 bg-amber-500/10">
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm">
@@ -1469,7 +1473,7 @@ export default function MessageThread() {
         {isRep && 
          conversationData?.origin_type === "seeking_coverage" && 
          repInterest?.status === "pending_rep_confirm" && 
-         otherPartyProfile?.type === "vendor" && (
+         otherPartyProfile?.type === "vendor" && !blockStatus.anyBlock && (
           <Alert className="border-amber-500/40 bg-amber-500/10">
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm">
