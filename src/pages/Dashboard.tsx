@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { Progress } from "@/components/ui/progress";
 import { computeRepProfileCompleteness, computeVendorProfileCompleteness, getCompletionMessage, ProfileCompletenessResult } from "@/lib/profileCompleteness";
+import { SoftWarningBanner } from "@/components/SoftWarningBanner";
+import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -34,6 +36,11 @@ const Dashboard = () => {
   }>>([]);
   const [repCompleteness, setRepCompleteness] = useState<ProfileCompletenessResult | null>(null);
   const [vendorCompleteness, setVendorCompleteness] = useState<ProfileCompletenessResult | null>(null);
+  const [softWarning, setSoftWarning] = useState<{
+    showWarning: boolean;
+    warningMessage: string;
+    warningType: "reports" | "reviews" | null;
+  }>({ showWarning: false, warningMessage: "", warningType: null });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -152,6 +159,13 @@ const Dashboard = () => {
       if (data.is_vendor_admin) {
         const vendorResult = await computeVendorProfileCompleteness(supabase, user.id);
         setVendorCompleteness(vendorResult);
+      }
+
+      // Check for soft warnings
+      const role = data.is_fieldrep ? "rep" : data.is_vendor_admin ? "vendor" : null;
+      if (role) {
+        const warningData = await checkSoftWarnings(user.id, role);
+        setSoftWarning(warningData);
       }
     }
 
@@ -460,6 +474,11 @@ const Dashboard = () => {
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Soft Warning Banner */}
+        {softWarning.showWarning && softWarning.warningType && (
+          <SoftWarningBanner message={softWarning.warningMessage} type={softWarning.warningType} />
         )}
 
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
