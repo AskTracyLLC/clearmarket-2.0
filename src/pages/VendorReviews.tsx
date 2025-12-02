@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { VendorQualityRadar } from "@/components/VendorQualityRadar";
+import { fetchVendorQualityRadar, QualityRadarData } from "@/lib/qualityAnalytics";
 
 interface ReviewData {
   id: string;
@@ -51,6 +53,9 @@ export default function VendorReviews() {
   // Dialog state
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
+
+  // Quality Radar
+  const [qualityRadarData, setQualityRadarData] = useState<QualityRadarData | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -124,6 +129,10 @@ export default function VendorReviews() {
         setAvgCommunication(communicationSum / received.length);
         setAvgPay(paySum / received.length);
       }
+
+      // Fetch quality radar data
+      const radarData = await fetchVendorQualityRadar(user.id);
+      setQualityRadarData(radarData);
     } catch (error) {
       console.error("Error loading reviews:", error);
       toast.error("Failed to load reviews");
@@ -300,6 +309,9 @@ export default function VendorReviews() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Quality Radar */}
+        {qualityRadarData && <VendorQualityRadar data={qualityRadarData} />}
+
         {/* Trust Score Summary */}
         <Card className="mb-6">
           <CardHeader>

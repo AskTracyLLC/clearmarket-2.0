@@ -14,10 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3 } from "lucide-react";
 import { fetchReportStats, fetchReportsByType, ReportWithDetails } from "@/lib/adminReports";
 import { ReportDetailPanel } from "@/components/admin/ReportDetailPanel";
 import { ReportsDataTable } from "@/components/admin/ReportsDataTable";
+import { SafetyAnalyticsTab } from "@/components/admin/SafetyAnalyticsTab";
+import { fetchSafetyAnalytics, SafetyAnalyticsData } from "@/lib/qualityAnalytics";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { toast } from "sonner";
 
 export default function AdminModeration() {
@@ -31,6 +34,9 @@ export default function AdminModeration() {
   const [currentTab, setCurrentTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [safetyAnalytics, setSafetyAnalytics] = useState<SafetyAnalyticsData | null>(null);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -71,6 +77,10 @@ export default function AdminModeration() {
       setStats(statsData);
       
       await loadReports();
+
+      // Load safety analytics
+      const analyticsData = await fetchSafetyAnalytics();
+      setSafetyAnalytics(analyticsData);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load moderation data");
@@ -221,13 +231,31 @@ export default function AdminModeration() {
               <FileText className="h-4 w-4 mr-2" />
               Posts
             </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Safety Analytics
+            </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="analytics" className="mt-6">
+            {safetyAnalytics && (
+              <SafetyAnalyticsTab 
+                data={safetyAnalytics} 
+                onViewProfile={(userId) => {
+                  setProfileDialogUserId(userId);
+                  setShowProfileDialog(true);
+                }}
+              />
+            )}
+          </TabsContent>
+
           <TabsContent value={currentTab} className="mt-6">
-            <ReportsDataTable
-              reports={filteredReports}
-              onReportClick={handleReportClick}
-            />
+            {currentTab !== "analytics" && (
+              <ReportsDataTable
+                reports={filteredReports}
+                onReportClick={handleReportClick}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -237,6 +265,15 @@ export default function AdminModeration() {
         <ReportDetailPanel
           report={selectedReport}
           onClose={handleClosePanel}
+        />
+      )}
+
+      {/* Profile Dialog */}
+      {showProfileDialog && profileDialogUserId && (
+        <PublicProfileDialog
+          open={showProfileDialog}
+          onOpenChange={setShowProfileDialog}
+          targetUserId={profileDialogUserId}
         />
       )}
     </div>

@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { RepReputationSnapshot } from "@/components/RepReputationSnapshot";
+import { fetchRepReputationSnapshot, ReputationSnapshotData } from "@/lib/qualityAnalytics";
 
 interface ReviewData {
   id: string;
@@ -51,6 +53,9 @@ export default function RepReviews() {
   // Dialog state
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
+
+  // Reputation Snapshot
+  const [reputationData, setReputationData] = useState<ReputationSnapshotData | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -124,6 +129,10 @@ export default function RepReviews() {
         setAvgQuality(qualitySum / received.length);
         setAvgCommunication(communicationSum / received.length);
       }
+
+      // Fetch reputation snapshot data
+      const snapshotData = await fetchRepReputationSnapshot(user.id);
+      setReputationData(snapshotData);
     } catch (error) {
       console.error("Error loading reviews:", error);
       toast.error("Failed to load reviews");
@@ -302,6 +311,9 @@ export default function RepReviews() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Reputation Snapshot */}
+        {reputationData && <RepReputationSnapshot data={reputationData} trustScore={trustScore || 3.0} />}
+
         {/* Trust Score Summary */}
         <Card className="mb-6">
           <CardHeader>
