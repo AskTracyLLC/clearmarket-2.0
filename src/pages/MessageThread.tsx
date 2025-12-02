@@ -512,14 +512,16 @@ export default function MessageThread() {
         })
         .eq("id", conversationId);
       // Insert message
-      const { error: insertError } = await supabase
+      const { data: newMessage, error: insertError } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
           recipient_id: otherParticipantId,
           body: messageText.trim(),
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         console.error("Error sending message:", insertError);
@@ -529,6 +531,17 @@ export default function MessageThread() {
           variant: "destructive",
         });
         return;
+      }
+
+      // Create notification for recipient
+      if (newMessage) {
+        await supabase.from("notifications").insert({
+          user_id: otherParticipantId,
+          type: "message",
+          ref_id: newMessage.id,
+          title: "New message",
+          body: `You have a new message from ${otherParticipantName}`,
+        });
       }
 
       // Update conversation metadata
@@ -804,6 +817,21 @@ export default function MessageThread() {
         sender_id: user.id,
         recipient_id: otherParticipantId,
         body: `${otherParticipantName} has requested to connect with you. You can accept or decline this request.`,
+      });
+
+      // Create notification for rep
+      const { data: vendorProfile } = await supabase
+        .from("vendor_profile")
+        .select("anonymous_id")
+        .eq("user_id", vendorId)
+        .single();
+
+      await supabase.from("notifications").insert({
+        user_id: fieldRepId,
+        type: "connection_request",
+        ref_id: newConnection.id,
+        title: "New connection request",
+        body: `${vendorProfile?.anonymous_id || "A vendor"} wants to add you to their network.`,
       });
 
       // Reload messages

@@ -174,6 +174,21 @@ export function ReviewDialog({
 
         if (error) throw error;
         savedReview = data as Review;
+
+        // Create notification for reviewee (only for new reviews, not edits)
+        const { data: reviewerProfile } = await supabase
+          .from(direction === 'vendor_to_rep' ? "vendor_profile" : "rep_profile")
+          .select("anonymous_id")
+          .eq("user_id", reviewerId)
+          .single();
+
+        await supabase.from("notifications").insert({
+          user_id: revieweeId,
+          type: "review",
+          ref_id: savedReview.id,
+          title: "New review received",
+          body: `You received a new review from ${reviewerProfile?.anonymous_id || "another user"}.`,
+        });
       }
 
       toast({

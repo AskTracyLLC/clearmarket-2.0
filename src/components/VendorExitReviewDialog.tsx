@@ -49,11 +49,28 @@ export function VendorExitReviewDialog({
         comment: comment.trim() || null,
       };
 
-      const { error } = await supabase
+      const { data: savedReview, error } = await supabase
         .from("reviews")
-        .insert(reviewData);
+        .insert(reviewData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Create notification for rep
+      const { data: vendorProfile } = await supabase
+        .from("vendor_profile")
+        .select("anonymous_id")
+        .eq("user_id", vendorUserId)
+        .single();
+
+      await supabase.from("notifications").insert({
+        user_id: repUserId,
+        type: "review",
+        ref_id: savedReview.id,
+        title: "New review received",
+        body: `You received a new review from ${vendorProfile?.anonymous_id || "a vendor"}.`,
+      });
 
       toast({
         title: "Exit review saved",
