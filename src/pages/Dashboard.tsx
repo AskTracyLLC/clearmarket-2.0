@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 
@@ -377,6 +377,10 @@ const Dashboard = () => {
                       {unreadNotificationCount}
                     </Badge>
                   )}
+                </NavLink>
+                <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <ShieldAlert className="w-4 h-4" />
+                  Safety
                 </NavLink>
                 {isVendor && vendorCredits !== null && (
                   <Link to="/vendor/credits" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
