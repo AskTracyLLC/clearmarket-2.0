@@ -16,6 +16,8 @@ import { ReportWithDetails, updateReportStatus } from "@/lib/adminReports";
 import { ReviewModerationPanel } from "./ReviewModerationPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { updateCommunityPostStatus } from "@/lib/community";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ReportDetailPanelProps {
   report: ReportWithDetails;
@@ -27,6 +29,51 @@ export function ReportDetailPanel({ report, onClose }: ReportDetailPanelProps) {
   const [adminNotes, setAdminNotes] = useState(report.admin_notes || "");
   const [status, setStatus] = useState(report.status);
   const [saving, setSaving] = useState(false);
+  const [communityPostStatus, setCommunityPostStatus] = useState<string | null>(null);
+  const [loadingPostStatus, setLoadingPostStatus] = useState(false);
+
+  // Load community post status if this is a community_post report
+  useEffect(() => {
+    if (report.target_type === "community_post" && report.target_id) {
+      loadCommunityPostStatus();
+    }
+  }, [report.target_type, report.target_id]);
+
+  const loadCommunityPostStatus = async () => {
+    if (!report.target_id) return;
+    setLoadingPostStatus(true);
+    try {
+      const { data, error } = await supabase
+        .from("community_posts")
+        .select("status")
+        .eq("id", report.target_id)
+        .single();
+      
+      if (!error && data) {
+        setCommunityPostStatus(data.status);
+      }
+    } catch (error) {
+      console.error("Error loading post status:", error);
+    } finally {
+      setLoadingPostStatus(false);
+    }
+  };
+
+  const handleUpdateCommunityPostStatus = async (newStatus: string) => {
+    if (!report.target_id) return;
+    
+    const result = await updateCommunityPostStatus(report.target_id, newStatus);
+    if (result.success) {
+      setCommunityPostStatus(newStatus);
+      toast.success("Post status updated", {
+        description: newStatus === "active" ? "Watchers have been notified." : undefined,
+      });
+    } else {
+      toast.error("Failed to update post status", {
+        description: result.error,
+      });
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -117,6 +164,63 @@ export function ReportDetailPanel({ report, onClose }: ReportDetailPanelProps) {
               reviewId={report.target_id} 
               onModerated={onClose}
             />
+          </div>
+        )}
+
+        {/* Community Post Moderation (if target_type is community_post) */}
+        {report.target_type === "community_post" && report.target_id && (
+          <div className="border-t border-border pt-4 space-y-3">
+            <Label className="text-sm font-medium">Community Post Moderation</Label>
+            {loadingPostStatus ? (
+              <p className="text-sm text-muted-foreground">Loading post status...</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Current status:</span>
+                  <Badge>{communityPostStatus || "unknown"}</Badge>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Change Post Status</Label>
+                  <Select 
+                    value={communityPostStatus || ""} 
+                    onValueChange={handleUpdateCommunityPostStatus}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="under_review">Under Review</SelectItem>
+                      <SelectItem value="locked">Locked</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Changing from "Under Review" to another status will notify users who pinged this post.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/community/${report.target_id}`, "_blank")}
+                >
+                  View Post
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Community Comment Moderation (if target_type is community_comment) */}
+        {report.target_type === "community_comment" && report.target_id && (
+          <div className="border-t border-border pt-4">
+            <Label className="text-sm font-medium">Community Comment</Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Comment ID: {report.target_id}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              To hide this comment, update its status directly in the database.
+            </p>
           </div>
         )}
 
