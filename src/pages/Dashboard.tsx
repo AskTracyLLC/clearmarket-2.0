@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
+import { Progress } from "@/components/ui/progress";
+import { computeRepProfileCompleteness, computeVendorProfileCompleteness, getCompletionMessage, ProfileCompletenessResult } from "@/lib/profileCompleteness";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -30,6 +32,8 @@ const Dashboard = () => {
     role: 'rep' | 'vendor';
     connectedAt: string;
   }>>([]);
+  const [repCompleteness, setRepCompleteness] = useState<ProfileCompletenessResult | null>(null);
+  const [vendorCompleteness, setVendorCompleteness] = useState<ProfileCompletenessResult | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -139,6 +143,16 @@ const Dashboard = () => {
 
       // Check for 14-day review prompts
       await checkReviewPrompts(user.id, data.is_fieldrep, data.is_vendor_admin);
+
+      // Compute profile completeness
+      if (data.is_fieldrep) {
+        const repResult = await computeRepProfileCompleteness(supabase, user.id);
+        setRepCompleteness(repResult);
+      }
+      if (data.is_vendor_admin) {
+        const vendorResult = await computeVendorProfileCompleteness(supabase, user.id);
+        setVendorCompleteness(vendorResult);
+      }
     }
 
     setLoading(false);
@@ -445,6 +459,92 @@ const Dashboard = () => {
         <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
           {/* Main Content Area */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Profile Setup Cards */}
+            {isRep && repCompleteness && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Field Rep Profile Setup</CardTitle>
+                  <CardDescription>
+                    You're {repCompleteness.percent}% set up. {getCompletionMessage(repCompleteness.percent)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Progress value={repCompleteness.percent} />
+                  <ul className="space-y-3">
+                    {repCompleteness.checklist.map((item) => (
+                      <li key={item.id} className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2 flex-1">
+                          {item.done ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.label}</p>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        {!item.done && item.link && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(item.link)}
+                            className="flex-shrink-0"
+                          >
+                            Complete
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {isVendor && vendorCompleteness && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendor Profile Setup</CardTitle>
+                  <CardDescription>
+                    You're {vendorCompleteness.percent}% set up. {getCompletionMessage(vendorCompleteness.percent)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Progress value={vendorCompleteness.percent} />
+                  <ul className="space-y-3">
+                    {vendorCompleteness.checklist.map((item) => (
+                      <li key={item.id} className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2 flex-1">
+                          {item.done ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{item.label}</p>
+                            {item.description && (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        {!item.done && item.link && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(item.link)}
+                            className="flex-shrink-0"
+                          >
+                            Complete
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
             {/* Profile Status Card */}
             <Card className="p-6 bg-card-elevated border border-border">
               <div className="flex items-start gap-4">
