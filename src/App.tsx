@@ -26,6 +26,7 @@ import RepFindVendors from "./pages/RepFindVendors";
 import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import RepAvailability from "./pages/RepAvailability";
+import PublicReputationSnapshot from "./pages/PublicReputationSnapshot";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/safety" element={<SafetyCenter />} />
+            <Route path="/snapshot/:slug" element={<PublicReputationSnapshot />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

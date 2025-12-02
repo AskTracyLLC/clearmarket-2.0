@@ -830,6 +830,50 @@ export type Database = {
           },
         ]
       }
+      reputation_share_links: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          last_viewed_at: string | null
+          role_type: string
+          slug: string
+          updated_at: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_viewed_at?: string | null
+          role_type: string
+          slug: string
+          updated_at?: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_viewed_at?: string | null
+          role_type?: string
+          slug?: string
+          updated_at?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reputation_share_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           comment: string | null

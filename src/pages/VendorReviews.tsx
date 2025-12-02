@@ -12,6 +12,7 @@ import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-re
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { VendorReputationSnapshot } from "@/components/VendorReputationSnapshot";
+import { ReputationSharePanel } from "@/components/ReputationSharePanel";
 
 interface ReviewData {
   id: string;
@@ -349,6 +350,9 @@ export default function VendorReviews() {
             recent: recentAvgPay || avgPay || 0,
           }}
         />
+
+        {/* Share Panel */}
+        <ReputationSharePanel roleType="vendor" />
 
         {/* Trust Score Summary */}
         <Card className="mb-6">
