@@ -23,6 +23,10 @@ type NotificationPreferences = {
   email_connections: boolean;
   email_reviews: boolean;
   email_system: boolean;
+  digest_messages: boolean;
+  digest_connections: boolean;
+  digest_reviews: boolean;
+  digest_system: boolean;
 };
 
 export default function NotificationSettings() {
@@ -141,7 +145,7 @@ export default function NotificationSettings() {
           <CardHeader>
             <CardTitle>Notification Preferences</CardTitle>
             <CardDescription>
-              Choose how you'd like to receive notifications. You can enable or disable both in-app and email notifications for each category.
+              Choose how you'd like to receive notifications. You can enable or disable in-app, real-time email, and daily digest notifications for each category.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -149,6 +153,14 @@ export default function NotificationSettings() {
               <p className="text-sm text-muted-foreground">Loading preferences...</p>
             ) : (
               <>
+                <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
+                  <p className="text-sm space-y-1">
+                    <span className="block"><strong>In-app:</strong> Notifications appear in your ClearMarket inbox.</span>
+                    <span className="block"><strong>Real-time email:</strong> Sends you an email as events happen.</span>
+                    <span className="block"><strong>Daily digest:</strong> Sends one summary email per day (8am Central) with events from the last 24 hours.</span>
+                  </p>
+                </div>
+
                 {/* Messages */}
                 <div className="space-y-4">
                   <div>
@@ -176,10 +188,10 @@ export default function NotificationSettings() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <Label htmlFor="email_messages" className="text-sm font-medium">
-                          Email notifications
+                          Real-time email
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Send email when you receive a new message or reply
+                          Send email immediately when you receive a new message or reply
                         </p>
                       </div>
                       <Switch
@@ -187,6 +199,23 @@ export default function NotificationSettings() {
                         checked={preferences.email_messages}
                         onCheckedChange={(value) =>
                           handleTogglePreference("email_messages", value)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="digest_messages" className="text-sm font-medium">
+                          Daily digest email
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Include message notifications in daily summary email
+                        </p>
+                      </div>
+                      <Switch
+                        id="digest_messages"
+                        checked={preferences.digest_messages}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("digest_messages", value)
                         }
                       />
                     </div>
@@ -220,10 +249,10 @@ export default function NotificationSettings() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <Label htmlFor="email_connections" className="text-sm font-medium">
-                          Email notifications
+                          Real-time email
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Send email for connection requests and connection changes
+                          Send email immediately for connection requests and changes
                         </p>
                       </div>
                       <Switch
@@ -231,6 +260,23 @@ export default function NotificationSettings() {
                         checked={preferences.email_connections}
                         onCheckedChange={(value) =>
                           handleTogglePreference("email_connections", value)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="digest_connections" className="text-sm font-medium">
+                          Daily digest email
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Include connection notifications in daily summary email
+                        </p>
+                      </div>
+                      <Switch
+                        id="digest_connections"
+                        checked={preferences.digest_connections}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("digest_connections", value)
                         }
                       />
                     </div>
@@ -264,10 +310,10 @@ export default function NotificationSettings() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <Label htmlFor="email_reviews" className="text-sm font-medium">
-                          Email notifications
+                          Real-time email
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Send email when you receive a new review
+                          Send email immediately when you receive a new review
                         </p>
                       </div>
                       <Switch
@@ -275,6 +321,23 @@ export default function NotificationSettings() {
                         checked={preferences.email_reviews}
                         onCheckedChange={(value) =>
                           handleTogglePreference("email_reviews", value)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="digest_reviews" className="text-sm font-medium">
+                          Daily digest email
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Include review notifications in daily summary email
+                        </p>
+                      </div>
+                      <Switch
+                        id="digest_reviews"
+                        checked={preferences.digest_reviews}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("digest_reviews", value)
                         }
                       />
                     </div>
@@ -308,10 +371,10 @@ export default function NotificationSettings() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <Label htmlFor="email_system" className="text-sm font-medium">
-                          Email notifications
+                          Real-time email
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Send email for important system notices (credits, safety, account)
+                          Send email immediately for important system notices (credits, safety, account)
                         </p>
                       </div>
                       <Switch
@@ -319,6 +382,23 @@ export default function NotificationSettings() {
                         checked={preferences.email_system}
                         onCheckedChange={(value) =>
                           handleTogglePreference("email_system", value)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="digest_system" className="text-sm font-medium">
+                          Daily digest email
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Include system notifications in daily summary email
+                        </p>
+                      </div>
+                      <Switch
+                        id="digest_system"
+                        checked={preferences.digest_system}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("digest_system", value)
                         }
                       />
                     </div>

@@ -1,1 +1,7 @@
 project_id = "frgporyxxajpbxwhgjta"
+
+[functions.send-notification-email]
+verify_jwt = false
+
+[functions.daily-digest-emails]
+verify_jwt = false
