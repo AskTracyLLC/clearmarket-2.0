@@ -4,6 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,6 +26,7 @@ import {
   CommunityPost,
   CommunityComment,
 } from "@/lib/community";
+import { formatCommunityScore, fetchCommunityScoresForUsers } from "@/lib/communityScore";
 import { CommunityPostDialog } from "@/components/CommunityPostDialog";
 import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
@@ -37,8 +44,12 @@ import {
   Users,
   Lock,
   BellRing,
+  Award,
+  HelpCircle,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
 
 const CommunityPostDetail = () => {
   const navigate = useNavigate();
@@ -47,6 +58,7 @@ const CommunityPostDetail = () => {
   const { toast } = useToast();
 
   const [post, setPost] = useState<CommunityPost | null>(null);
+  const [postAuthorScore, setPostAuthorScore] = useState<number | null>(null);
   const [comments, setComments] = useState<CommunityComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [postVote, setPostVote] = useState<string | undefined>();
@@ -85,11 +97,15 @@ const CommunityPostDetail = () => {
     }
     setPost(postData);
 
+    // Fetch post author's community score
+    const authorScores = await fetchCommunityScoresForUsers([postData.author_id]);
+    setPostAuthorScore(authorScores[postData.author_id]?.communityScore ?? null);
+
     // Load votes for the post
     const postVotes = await fetchUserVotes(user.id, "post", [postId]);
     setPostVote(postVotes[postId]);
 
-    // Load comments
+    // Load comments (now includes author_community_score)
     const commentsData = await fetchCommentsForPost(postId);
     setComments(commentsData);
 
@@ -315,6 +331,28 @@ const CommunityPostDetail = () => {
               <span>{post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : ""}</span>
               <span>·</span>
               <span>{format(new Date(post.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+              <span>·</span>
+              {postAuthorScore !== null && postAuthorScore >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
+                <Badge variant="secondary" className="text-[11px] gap-1">
+                  <Award className="w-3 h-3" />
+                  Trusted Contributor
+                </Badge>
+              )}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
+                      <HelpCircle className="w-3 h-3" />
+                      {postAuthorScore !== null
+                        ? `Score: ${formatCommunityScore(postAuthorScore)}`
+                        : "Score: N/A"}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[200px]">
+                    <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
             <div className="prose prose-invert max-w-none mb-4">
@@ -411,6 +449,28 @@ const CommunityPostDetail = () => {
                           </span>
                           <span>·</span>
                           <span>{format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                          <span>·</span>
+                          {comment.author_community_score !== null && comment.author_community_score !== undefined && comment.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
+                            <Badge variant="secondary" className="text-[11px] gap-1">
+                              <Award className="w-3 h-3" />
+                              Trusted
+                            </Badge>
+                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
+                                  <HelpCircle className="w-3 h-3" />
+                                  {comment.author_community_score !== null && comment.author_community_score !== undefined
+                                    ? `${formatCommunityScore(comment.author_community_score)}`
+                                    : "N/A"}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[200px]">
+                                <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                         <p className="text-foreground whitespace-pre-wrap">{comment.body}</p>
                         <div className="mt-2">
