@@ -77,6 +77,7 @@ interface RepResult {
   equipment_notes?: string | null;
   trustScore?: number | null;
   trustScoreCount?: number;
+  communityScore?: number;
   connectedSince?: string | null;
   isContactUnlocked?: boolean;
   hasValidBackgroundCheck?: boolean;
@@ -337,6 +338,15 @@ export default function VendorFindReps() {
       const repUserIds = filtered.map(r => r.user_id);
       const trustScores = await fetchTrustScoresForUsers(repUserIds);
 
+      // Fetch community scores for all reps
+      const { data: communityScoreData } = await supabase
+        .from("profiles")
+        .select("id, community_score")
+        .in("id", repUserIds);
+      
+      const communityScoreMap = new Map<string, number>();
+      communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
+
       // Fetch connection status (connected_at) for all reps
       let connectionMap = new Map<string, string | null>();
       if (user && repUserIds.length > 0) {
@@ -358,13 +368,14 @@ export default function VendorFindReps() {
       // Fetch blocked user IDs
       const blockedUserIds = await fetchBlockedUserIds();
 
-      // Enhance results with trust scores, connection data, unlock status, and filter blocked users
+      // Enhance results with trust scores, community scores, connection data, unlock status, and filter blocked users
       let enhancedResults = filtered
         .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
         .map(rep => ({
           ...rep,
           trustScore: trustScores[rep.user_id]?.average ?? null,
           trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
+          communityScore: communityScoreMap.get(rep.user_id) ?? 0,
           connectedSince: connectionMap.get(rep.user_id) ?? null,
           isContactUnlocked: unlockMap[rep.user_id] ?? false,
         }));
@@ -460,6 +471,14 @@ export default function VendorFindReps() {
         return sorted.sort((a, b) => {
           const scoreA = a.trustScore ?? 3.0;
           const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+        });
+      
+      case "community-score":
+        return sorted.sort((a, b) => {
+          const scoreA = a.communityScore ?? 0;
+          const scoreB = b.communityScore ?? 0;
           if (scoreA !== scoreB) return scoreB - scoreA;
           return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
         });
@@ -802,6 +821,7 @@ export default function VendorFindReps() {
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="best-match">Best match (recommended)</SelectItem>
                       <SelectItem value="trust-score">Highest Trust Score</SelectItem>
+                      <SelectItem value="community-score">Community Score (High to Low)</SelectItem>
                       <SelectItem value="most-reviews">Most reviews</SelectItem>
                       <SelectItem value="newest">Newest profiles</SelectItem>
                       <SelectItem value="alphabetical">Alphabetical (Anon ID)</SelectItem>
@@ -911,6 +931,14 @@ export default function VendorFindReps() {
                             </span>
                           )}
                         </button>
+                      </div>
+
+                      {/* Community Score */}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Community Score:</span>
+                        <Badge variant="outline" className="text-xs">
+                          {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
+                        </Badge>
                       </div>
 
                       {/* Credentials Badges */}

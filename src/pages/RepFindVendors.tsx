@@ -44,6 +44,7 @@ interface VendorResult {
   is_accepting_new_reps: boolean;
   trustScore?: number | null;
   trustScoreCount?: number;
+  communityScore?: number;
   connectedSince?: string | null;
   conversationId?: string | null;
   // Review dimensions for vendor rating
@@ -228,6 +229,15 @@ export default function RepFindVendors() {
       // Fetch trust scores
       const trustScores = await fetchTrustScoresForUsers(filtered.map(v => v.user_id));
 
+      // Fetch community scores
+      const { data: communityScoreData } = await supabase
+        .from("profiles")
+        .select("id, community_score")
+        .in("id", filtered.map(v => v.user_id));
+      
+      const communityScoreMap = new Map<string, number>();
+      communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
+
       // Fetch connection status (vendor_connections)
       let connectionMap = new Map<string, { conversationId?: string; connectedAt?: string }>();
       if (user && filtered.length > 0) {
@@ -291,6 +301,7 @@ export default function RepFindVendors() {
           is_accepting_new_reps: vendor.is_accepting_new_reps ?? true,
           trustScore: trust?.average ?? null,
           trustScoreCount: trust?.count ?? 0,
+          communityScore: communityScoreMap.get(vendor.user_id) ?? 0,
           connectedSince: connection?.connectedAt ?? null,
           conversationId: connection?.conversationId ?? null,
           helpfulnessRating: ratings ? ratings.helpfulness / ratings.count : null,
@@ -379,6 +390,14 @@ export default function RepFindVendors() {
         return sorted.sort((a, b) => {
           const scoreA = a.trustScore ?? 3.0;
           const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+        });
+      
+      case "community-score":
+        return sorted.sort((a, b) => {
+          const scoreA = a.communityScore ?? 0;
+          const scoreB = b.communityScore ?? 0;
           if (scoreA !== scoreB) return scoreB - scoreA;
           return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
         });
@@ -608,6 +627,7 @@ export default function RepFindVendors() {
                       <SelectContent className="bg-background border border-border z-50">
                         <SelectItem value="best-match">Best match (recommended)</SelectItem>
                         <SelectItem value="trust-score">Highest Trust Score</SelectItem>
+                        <SelectItem value="community-score">Community Score (High to Low)</SelectItem>
                         <SelectItem value="most-reviews">Most reviews</SelectItem>
                         <SelectItem value="newest">Newest profiles</SelectItem>
                         <SelectItem value="alphabetical">Alphabetical (Anon ID)</SelectItem>
@@ -679,6 +699,14 @@ export default function RepFindVendors() {
                           )}
                         </div>
                       )}
+
+                      {/* Community Score */}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>Community Score:</span>
+                        <Badge variant="outline" className="text-xs">
+                          {(vendor.communityScore ?? 0) >= 0 ? `+${vendor.communityScore ?? 0}` : vendor.communityScore}
+                        </Badge>
+                      </div>
 
                       {/* Background Check */}
                       {vendor.requiresActiveBackgroundCheck && (

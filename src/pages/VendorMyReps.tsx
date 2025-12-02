@@ -61,6 +61,8 @@ interface ConnectedRep {
   // Trust Score
   trustScore?: number | null;
   trustScoreCount?: number;
+  // Community Score
+  communityScore?: number;
 }
 
 const VendorMyReps = () => {
@@ -306,11 +308,21 @@ const VendorMyReps = () => {
       // Fetch trust scores for all connected reps
       const trustScores = await fetchTrustScoresForUsers(repUserIds);
 
-      // Assign trust scores to reps
+      // Fetch community scores for all connected reps
+      const { data: communityScoreData } = await supabase
+        .from("profiles")
+        .select("id, community_score")
+        .in("id", repUserIds);
+      
+      const communityScoreMap = new Map<string, number>();
+      communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
+
+      // Assign trust scores and community scores to reps
       repsArray.forEach(rep => {
         const trust = trustScores[rep.repUserId];
         rep.trustScore = trust ? trust.average : null;
         rep.trustScoreCount = trust ? trust.count : 0;
+        rep.communityScore = communityScoreMap.get(rep.repUserId) ?? 0;
       });
 
       // Fetch blocked user IDs
@@ -751,6 +763,13 @@ const VendorMyReps = () => {
                           <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
                         </button>
                       )}
+                      {/* Community Score */}
+                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                        <span>Community:</span>
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
+                        </Badge>
+                      </div>
                     </td>
                     <td className="py-4 px-4 text-sm text-muted-foreground">
                       {rep.statesCovered && rep.statesCovered.length > 0

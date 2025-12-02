@@ -661,6 +661,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          community_score: number
+          community_score_last_calculated: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -678,6 +680,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          community_score?: number
+          community_score_last_calculated?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -695,6 +699,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          community_score?: number
+          community_score_last_calculated?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
@@ -1905,6 +1911,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_community_score: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      refresh_community_score_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       unlock_rep_contact: {
         Args: { p_rep_user_id: string; p_vendor_user_id: string }
         Returns: Json
