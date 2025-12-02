@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, Eye, MessageSquare, Building2, Shield } from "lucide-react";
+import { Search, MapPin, Eye, MessageSquare, Building2, Shield, HelpCircle } from "lucide-react";
 import { US_STATES } from "@/lib/constants";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { fetchBlockedUserIds } from "@/lib/blocks";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const INSPECTION_TYPE_OPTIONS = [
   "Property Inspections",
@@ -70,6 +71,7 @@ export default function RepFindVendors() {
   const [results, setResults] = useState<VendorResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("best-match");
 
   // Dialog state
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
@@ -330,6 +332,59 @@ export default function RepFindVendors() {
     navigate(`/messages/${result.id}`);
   };
 
+  const getSortedResults = () => {
+    const sorted = [...results];
+    
+    switch (sortBy) {
+      case "best-match":
+        // Primary: Trust Score desc, then most reviews, then newest
+        return sorted.sort((a, b) => {
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          
+          if ((b.trustScoreCount ?? 0) !== (a.trustScoreCount ?? 0)) {
+            return (b.trustScoreCount ?? 0) - (a.trustScoreCount ?? 0);
+          }
+          
+          const numA = parseInt((a.anonymous_id || "Vendor#0").replace(/\D/g, "")) || 0;
+          const numB = parseInt((b.anonymous_id || "Vendor#0").replace(/\D/g, "")) || 0;
+          return numB - numA;
+        });
+      
+      case "trust-score":
+        return sorted.sort((a, b) => {
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+        });
+      
+      case "most-reviews":
+        return sorted.sort((a, b) => {
+          if ((b.trustScoreCount ?? 0) !== (a.trustScoreCount ?? 0)) {
+            return (b.trustScoreCount ?? 0) - (a.trustScoreCount ?? 0);
+          }
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          return scoreB - scoreA;
+        });
+      
+      case "newest":
+        return sorted.sort((a, b) => {
+          const numA = parseInt((a.anonymous_id || "Vendor#0").replace(/\D/g, "")) || 0;
+          const numB = parseInt((b.anonymous_id || "Vendor#0").replace(/\D/g, "")) || 0;
+          return numB - numA;
+        });
+      
+      case "alphabetical":
+        return sorted.sort((a, b) => (a.anonymous_id || "").localeCompare(b.anonymous_id || ""));
+      
+      default:
+        return sorted;
+    }
+  };
+
   const renderTrustScoreBadge = (vendor: VendorResult) => {
     const score = vendor.trustScore ?? 3.0;
     const isNew = vendor.trustScoreCount === 0;
@@ -480,10 +535,30 @@ export default function RepFindVendors() {
               </Card>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground">
-                  Showing {results.length} vendor{results.length !== 1 ? "s" : ""}
-                </p>
-                {results.map(vendor => (
+                {/* Sort Control */}
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {results.length} vendor{results.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="sort-by" className="text-sm text-muted-foreground">
+                      Sort by:
+                    </Label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger id="sort-by" className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        <SelectItem value="best-match">Best match (recommended)</SelectItem>
+                        <SelectItem value="trust-score">Highest Trust Score</SelectItem>
+                        <SelectItem value="most-reviews">Most reviews</SelectItem>
+                        <SelectItem value="newest">Newest profiles</SelectItem>
+                        <SelectItem value="alphabetical">Alphabetical (Anon ID)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {getSortedResults().map(vendor => (
                   <Card key={vendor.id}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
@@ -515,7 +590,24 @@ export default function RepFindVendors() {
                     <CardContent className="space-y-4">
                       {/* Trust Score */}
                       <div>
-                        <Label className="text-xs text-muted-foreground">Trust Score</Label>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Label className="text-xs text-muted-foreground">Trust Score</Label>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="inline-flex" onClick={(e) => e.stopPropagation()}>
+                                  <HelpCircle className="h-3 w-3 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-xs">Trust Score (MVP)</p>
+                                  <p className="text-xs">Everyone starts in the middle. The score moves up or down based on verified reviews over time. It's intended as a quick signal, not a guarantee.</p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         {renderTrustScoreBadge(vendor)}
                       </div>
 

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock } from "lucide-react";
+import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock, HelpCircle } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
@@ -18,6 +18,7 @@ import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { checkContactUnlockedBatch } from "@/lib/credits";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -78,6 +79,8 @@ interface RepResult {
   trustScoreCount?: number;
   connectedSince?: string | null;
   isContactUnlocked?: boolean;
+  hasValidBackgroundCheck?: boolean;
+  isWillingToObtain?: boolean;
 }
 
 export default function VendorFindReps() {
@@ -107,6 +110,7 @@ export default function VendorFindReps() {
   const [results, setResults] = useState<RepResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("best-match");
 
   // Reviews dialog
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
@@ -362,6 +366,62 @@ export default function VendorFindReps() {
     toast.info("Unlocking contacts will be available soon in ClearMarket 2.0.");
   };
 
+  const getSortedResults = () => {
+    const sorted = [...results];
+    
+    switch (sortBy) {
+      case "best-match":
+        // Primary: Trust Score desc (neutral baseline 3.0 for new users)
+        // Secondary: has active background check > willing to obtain > none
+        // Tertiary: HUD keys present > none
+        return sorted.sort((a, b) => {
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          
+          const bgScoreA = isBackgroundCheckActive({ background_check_is_active: a.background_check_is_active, background_check_expires_on: a.background_check_expires_on }) ? 2 : (a.willing_to_obtain_background_check ? 1 : 0);
+          const bgScoreB = isBackgroundCheckActive({ background_check_is_active: b.background_check_is_active, background_check_expires_on: b.background_check_expires_on }) ? 2 : (b.willing_to_obtain_background_check ? 1 : 0);
+          if (bgScoreA !== bgScoreB) return bgScoreB - bgScoreA;
+          
+          const hudScoreA = a.has_hud_keys ? 1 : 0;
+          const hudScoreB = b.has_hud_keys ? 1 : 0;
+          return hudScoreB - hudScoreA;
+        });
+      
+      case "trust-score":
+        return sorted.sort((a, b) => {
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          if (scoreA !== scoreB) return scoreB - scoreA;
+          return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+        });
+      
+      case "most-reviews":
+        return sorted.sort((a, b) => {
+          if ((b.trustScoreCount ?? 0) !== (a.trustScoreCount ?? 0)) {
+            return (b.trustScoreCount ?? 0) - (a.trustScoreCount ?? 0);
+          }
+          const scoreA = a.trustScore ?? 3.0;
+          const scoreB = b.trustScore ?? 3.0;
+          return scoreB - scoreA;
+        });
+      
+      case "newest":
+        // Note: We don't have created_at in the current payload, so use anonymous_id as proxy (higher number = newer)
+        return sorted.sort((a, b) => {
+          const numA = parseInt((a.anonymous_id || "FieldRep#0").replace(/\D/g, "")) || 0;
+          const numB = parseInt((b.anonymous_id || "FieldRep#0").replace(/\D/g, "")) || 0;
+          return numB - numA;
+        });
+      
+      case "alphabetical":
+        return sorted.sort((a, b) => (a.anonymous_id || "").localeCompare(b.anonymous_id || ""));
+      
+      default:
+        return sorted;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -610,9 +670,29 @@ export default function VendorFindReps() {
 
           return (
             <div>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">
-                {filteredResults.length} {filteredResults.length === 1 ? "Rep" : "Reps"} Found
-              </h2>
+              {/* Sort Control */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold text-foreground">
+                  {filteredResults.length} {filteredResults.length === 1 ? "Rep" : "Reps"} Found
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="sort-by" className="text-sm text-muted-foreground">
+                    Sort by:
+                  </Label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger id="sort-by" className="w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border border-border z-50">
+                      <SelectItem value="best-match">Best match (recommended)</SelectItem>
+                      <SelectItem value="trust-score">Highest Trust Score</SelectItem>
+                      <SelectItem value="most-reviews">Most reviews</SelectItem>
+                      <SelectItem value="newest">Newest profiles</SelectItem>
+                      <SelectItem value="alphabetical">Alphabetical (Anon ID)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               {filteredResults.length === 0 ? (
                 <Card>
@@ -625,7 +705,25 @@ export default function VendorFindReps() {
                 </Card>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredResults.map((rep) => (
+                  {getSortedResults().filter(rep => {
+                    // Apply the same filtering logic as above
+                    const hasValidBgCheck = isBackgroundCheckActive({
+                      background_check_is_active: rep.background_check_is_active,
+                      background_check_expires_on: rep.background_check_expires_on,
+                    });
+                    const isWillingToObtain = !hasValidBgCheck && (rep.willing_to_obtain_background_check ?? false);
+                    
+                    if (!post || !post.requires_background_check) return true;
+                    if (bgCheckFilterMode === "active-only") return hasValidBgCheck;
+                    return true;
+                  }).map((rep) => {
+                    const hasValidBgCheck = isBackgroundCheckActive({
+                      background_check_is_active: rep.background_check_is_active,
+                      background_check_expires_on: rep.background_check_expires_on,
+                    });
+                    const isWillingToObtain = !hasValidBgCheck && (rep.willing_to_obtain_background_check ?? false);
+                    
+                    return (
                   <Card key={rep.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">
@@ -639,7 +737,24 @@ export default function VendorFindReps() {
                     <CardContent className="space-y-4">
                       {/* Trust Score */}
                       <div className="pb-3 border-b border-border">
-                        <p className="text-xs font-medium text-muted-foreground mb-1.5">Trust Score</p>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <p className="text-xs font-medium text-muted-foreground">Trust Score</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="inline-flex" onClick={(e) => e.stopPropagation()}>
+                                  <HelpCircle className="h-3 w-3 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <div className="space-y-1">
+                                  <p className="font-semibold text-xs">Trust Score (MVP)</p>
+                                  <p className="text-xs">Everyone starts in the middle. The score moves up or down based on verified reviews over time. It's intended as a quick signal, not a guarantee.</p>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                         <button
                           onClick={() => {
                             setReviewsDialogUserId(rep.user_id);
@@ -860,9 +975,10 @@ export default function VendorFindReps() {
                       </Button>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
           </div>
         );
       })()}
