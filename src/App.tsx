@@ -27,6 +27,7 @@ import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
+import VendorCredits from "./pages/VendorCredits";
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/rep/message-templates" element={<RepMessageTemplates />} />
             <Route path="/vendor/reviews" element={<VendorReviews />} />
             <Route path="/rep/reviews" element={<RepReviews />} />
+            <Route path="/vendor/credits" element={<VendorCredits />} />
             <Route path="/notifications" element={<Notifications />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

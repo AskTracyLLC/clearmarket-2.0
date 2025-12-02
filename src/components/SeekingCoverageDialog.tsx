@@ -222,6 +222,36 @@ export const SeekingCoverageDialog = ({
 
     setSaving(true);
 
+    // Check vendor credits before creating (not editing)
+    if (!editingPost) {
+      const { data: walletData, error: walletError } = await supabase
+        .from("user_wallet")
+        .select("credits")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (walletError || !walletData) {
+        toast({
+          title: "Error",
+          description: "Unable to check credit balance. Please try again.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      if (walletData.credits < 1) {
+        toast({
+          title: "Insufficient Credits",
+          description: "You don't have enough credits to post Seeking Coverage. Please add credits to continue.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        navigate("/vendor/credits");
+        return;
+      }
+    }
+
     // Handle "Other" options
     const finalInspectionTypes = [...data.inspection_types];
     if (data.inspection_types.includes("Other") && data.inspection_types_other) {
@@ -298,24 +328,83 @@ export const SeekingCoverageDialog = ({
         navigate("/vendor/seeking-coverage");
       }
     } else {
-      // Create new
-      const { error } = await supabase.from("seeking_coverage_posts").insert([payload]);
+      // Create new - deduct credits first
+      const { data: currentWallet } = await supabase
+        .from("user_wallet")
+        .select("credits")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!currentWallet || currentWallet.credits < 1) {
+        toast({
+          title: "Insufficient Credits",
+          description: "You don't have enough credits to post Seeking Coverage.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      // Deduct 1 credit
+      const { error: walletUpdateError } = await supabase
+        .from("user_wallet")
+        .update({ credits: currentWallet.credits - 1 })
+        .eq("user_id", user.id);
+
+      if (walletUpdateError) {
+        console.error("Error deducting credits:", walletUpdateError);
+        toast({
+          title: "Error",
+          description: "Failed to deduct credits. Please try again.",
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
+      // Create the post
+      const { data: newPost, error } = await supabase
+        .from("seeking_coverage_posts")
+        .insert([payload])
+        .select()
+        .single();
 
       if (error) {
         console.error("Error creating post:", error);
+        
+        // Refund the credit on error
+        await supabase
+          .from("user_wallet")
+          .update({ credits: currentWallet.credits })
+          .eq("user_id", user.id);
+
         toast({
           title: "Error",
           description: "Failed to create seeking coverage post.",
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Post Created",
-          description: "Your seeking coverage post has been created successfully.",
-        });
-        onSave();
-        navigate("/vendor/seeking-coverage");
+        setSaving(false);
+        return;
       }
+
+      // Log the transaction
+      await supabase.from("vendor_credit_transactions").insert({
+        user_id: user.id,
+        amount: -1,
+        action: "post_seeking_coverage",
+        metadata: {
+          post_id: newPost.id,
+          post_title: data.title,
+          state_code: data.state_code,
+        },
+      });
+
+      toast({
+        title: "Post Created",
+        description: "Your seeking coverage post has been created successfully. 1 credit deducted.",
+      });
+      onSave();
+      navigate("/vendor/seeking-coverage");
     }
 
     setSaving(false);
