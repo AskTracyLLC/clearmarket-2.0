@@ -101,8 +101,8 @@ const VendorCredits = () => {
       }
 
       if (data?.checkoutUrl) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.checkoutUrl;
+        // Open Stripe Checkout in new tab (can't run in iframe)
+        window.open(data.checkoutUrl, '_blank');
       } else {
         toast.error("No checkout URL received");
       }
