@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      beta_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_uses: number
+          used_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          used_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_uses?: number
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beta_invite_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_comments: {
         Row: {
           author_id: string
@@ -722,6 +763,7 @@ export type Database = {
           terms_signed_at: string | null
           terms_version: string | null
           updated_at: string
+          used_invite_code: string | null
         }
         Insert: {
           community_score?: number
@@ -741,6 +783,7 @@ export type Database = {
           terms_signed_at?: string | null
           terms_version?: string | null
           updated_at?: string
+          used_invite_code?: string | null
         }
         Update: {
           community_score?: number
@@ -760,6 +803,7 @@ export type Database = {
           terms_signed_at?: string | null
           terms_version?: string | null
           updated_at?: string
+          used_invite_code?: string | null
         }
         Relationships: []
       }
