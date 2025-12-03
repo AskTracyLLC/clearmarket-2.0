@@ -5,14 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle } from "lucide-react";
+import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { ReviewDialog } from "@/components/ReviewDialog";
 
 interface Notification {
   id: string;
   created_at: string;
-  type: "message" | "connection_request" | "review" | "new_coverage_opportunity" | "community_comment_on_post" | "community_post_resolved";
+  type: "message" | "connection_request" | "review" | "review_reminder" | "new_coverage_opportunity" | "community_comment_on_post" | "community_post_resolved";
   ref_id: string | null;
   title: string;
   body: string | null;
@@ -25,6 +26,12 @@ export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingRead, setMarkingRead] = useState(false);
+  
+  // Review dialog state for review_reminder deep-linking
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewTargetUserId, setReviewTargetUserId] = useState<string | null>(null);
+  const [reviewRepInterestId, setReviewRepInterestId] = useState<string | null>(null);
+  const [reviewDirection, setReviewDirection] = useState<"vendor_to_rep" | "rep_to_vendor" | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -135,9 +142,81 @@ export default function Notifications() {
       } else if (notification.type === "community_post_resolved" && notification.ref_id) {
         // Navigate to the resolved community post
         navigate(`/community/${notification.ref_id}`);
+      } else if (notification.type === "review_reminder" && notification.ref_id) {
+        // Deep-link to open review dialog for this connection
+        await handleReviewReminderClick(notification.ref_id);
       }
     } catch (error) {
       console.error("Error navigating from notification:", error);
+    }
+  }
+
+  async function handleReviewReminderClick(repInterestId: string) {
+    if (!user) return;
+
+    try {
+      // Fetch the rep_interest to determine direction and target user
+      const { data: repInterest, error: riError } = await supabase
+        .from("rep_interest")
+        .select("id, rep_id, post_id")
+        .eq("id", repInterestId)
+        .maybeSingle();
+
+      if (riError || !repInterest) {
+        console.error("Error fetching rep_interest:", riError);
+        toast({
+          title: "Error",
+          description: "Could not load review details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch rep profile to get user_id
+      const { data: repProfile, error: rpError } = await supabase
+        .from("rep_profile")
+        .select("user_id")
+        .eq("id", repInterest.rep_id)
+        .maybeSingle();
+
+      if (rpError || !repProfile) {
+        console.error("Error fetching rep profile:", rpError);
+        return;
+      }
+
+      // Fetch post to get vendor_id
+      const { data: post, error: postError } = await supabase
+        .from("seeking_coverage_posts")
+        .select("vendor_id")
+        .eq("id", repInterest.post_id)
+        .maybeSingle();
+
+      if (postError || !post) {
+        console.error("Error fetching post:", postError);
+        return;
+      }
+
+      const repUserId = repProfile.user_id;
+      const vendorUserId = post.vendor_id;
+
+      // Determine direction based on current user
+      if (user.id === vendorUserId) {
+        // Vendor reviewing rep
+        setReviewDirection("vendor_to_rep");
+        setReviewTargetUserId(repUserId);
+      } else if (user.id === repUserId) {
+        // Rep reviewing vendor
+        setReviewDirection("rep_to_vendor");
+        setReviewTargetUserId(vendorUserId);
+      } else {
+        console.error("Current user is neither vendor nor rep for this connection");
+        return;
+      }
+
+      setReviewRepInterestId(repInterestId);
+      setReviewDialogOpen(true);
+    } catch (error) {
+      console.error("Error handling review reminder click:", error);
     }
   }
 
@@ -149,6 +228,8 @@ export default function Notifications() {
         return <UserPlus className="h-4 w-4" />;
       case "review":
         return <Star className="h-4 w-4" />;
+      case "review_reminder":
+        return <ClipboardCheck className="h-4 w-4" />;
       case "new_coverage_opportunity":
         return <Briefcase className="h-4 w-4" />;
       case "community_comment_on_post":
@@ -168,6 +249,8 @@ export default function Notifications() {
         return "Connection";
       case "review":
         return "Review";
+      case "review_reminder":
+        return "Review Request";
       case "new_coverage_opportunity":
         return "New Work";
       case "community_comment_on_post":
@@ -279,6 +362,36 @@ export default function Notifications() {
           </div>
         )}
       </div>
+
+      {/* Review Dialog for review_reminder deep-linking */}
+      {reviewTargetUserId && reviewDirection && user && (
+        <ReviewDialog
+          open={reviewDialogOpen}
+          onOpenChange={(open) => {
+            setReviewDialogOpen(open);
+            if (!open) {
+              setReviewTargetUserId(null);
+              setReviewRepInterestId(null);
+              setReviewDirection(null);
+            }
+          }}
+          reviewerId={user.id}
+          revieweeId={reviewTargetUserId}
+          direction={reviewDirection}
+          repInterestId={reviewRepInterestId}
+          isExitReview={false}
+          onSaved={() => {
+            setReviewDialogOpen(false);
+            setReviewTargetUserId(null);
+            setReviewRepInterestId(null);
+            setReviewDirection(null);
+            toast({
+              title: "Review submitted",
+              description: "Thank you for your feedback!",
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

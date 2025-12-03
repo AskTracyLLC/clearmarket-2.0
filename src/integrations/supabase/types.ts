@@ -914,6 +914,7 @@ export type Database = {
           connected_at: string | null
           created_at: string
           id: string
+          last_reminder_sent_at: string | null
           post_id: string
           rep_id: string
           status: string
@@ -923,6 +924,7 @@ export type Database = {
           connected_at?: string | null
           created_at?: string
           id?: string
+          last_reminder_sent_at?: string | null
           post_id: string
           rep_id: string
           status?: string
@@ -932,6 +934,7 @@ export type Database = {
           connected_at?: string | null
           created_at?: string
           id?: string
+          last_reminder_sent_at?: string | null
           post_id?: string
           rep_id?: string
           status?: string
