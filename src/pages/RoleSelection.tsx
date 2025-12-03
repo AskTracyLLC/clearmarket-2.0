@@ -5,19 +5,40 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Building } from "lucide-react";
+import { Briefcase, Building, Shield } from "lucide-react";
 
 const RoleSelection = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/signin");
     }
   }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+      
+      setIsAdmin(profile?.is_admin || false);
+      setCheckingAdmin(false);
+    };
+
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user]);
 
   const handleRoleSelect = async (role: 'rep' | 'vendor') => {
     if (!user) return;
@@ -52,7 +73,41 @@ const RoleSelection = () => {
     navigate("/onboarding/terms");
   };
 
-  if (authLoading) {
+  const handleAdminSkip = async () => {
+    if (!user) return;
+
+    setLoading(true);
+
+    // Update terms for admin users skipping role selection
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        has_signed_terms: true,
+        terms_signed_at: new Date().toISOString(),
+        terms_version: 'v1'
+      })
+      .eq('id', user.id);
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Welcome, Admin!",
+      description: "Redirecting to dashboard...",
+    });
+
+    navigate("/dashboard");
+  };
+
+  if (authLoading || checkingAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -116,6 +171,24 @@ const RoleSelection = () => {
             </div>
           </Card>
         </div>
+
+        {isAdmin && (
+          <div className="mt-8 text-center">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleAdminSkip}
+              disabled={loading}
+              className="gap-2"
+            >
+              <Shield className="h-4 w-4" />
+              Skip (Admin Only)
+            </Button>
+            <p className="text-sm text-muted-foreground mt-2">
+              You have admin privileges. Skip role selection to access admin features directly.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
