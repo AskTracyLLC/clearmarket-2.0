@@ -23,22 +23,33 @@ const RoleSelection = () => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (!user) return;
+      if (!user) {
+        setCheckingAdmin(false);
+        return;
+      }
       
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("is_admin")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       
-      setIsAdmin(profile?.is_admin || false);
+      console.log("Admin check:", { profile, error, userId: user.id });
+      
+      if (error) {
+        console.error("Error checking admin status:", error);
+      }
+      
+      setIsAdmin(profile?.is_admin === true);
       setCheckingAdmin(false);
     };
 
-    if (user) {
+    if (user && !authLoading) {
       checkAdminStatus();
+    } else if (!authLoading && !user) {
+      setCheckingAdmin(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleRoleSelect = async (role: 'rep' | 'vendor') => {
     if (!user) return;
