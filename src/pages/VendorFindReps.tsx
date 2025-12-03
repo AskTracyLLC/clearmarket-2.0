@@ -206,8 +206,9 @@ export default function VendorFindReps() {
           unavailable_from,
           unavailable_to,
           unavailable_note,
-          profiles!inner(last_seen_at)
-        `);
+          profiles!inner(last_seen_at, account_status)
+        `)
+        .eq("profiles.account_status", "active");
 
       // Apply state filter
       if (selectedState !== "all") {

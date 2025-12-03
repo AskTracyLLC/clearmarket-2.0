@@ -1,17 +1,20 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  accountStatus: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  accountStatus: null,
 });
 
 export const useAuth = () => {
@@ -26,6 +29,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountStatus, setAccountStatus] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Check account status after user is set
+  const checkAccountStatus = useCallback(async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('account_status')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profile) {
+        setAccountStatus(profile.account_status);
+        
+        // If account is not active, sign out the user
+        if (profile.account_status !== 'active') {
+          toast({
+            title: "Account Deactivated",
+            description: "Your ClearMarket account has been deactivated. Please contact support if you believe this is an error.",
+            variant: "destructive",
+          });
+          
+          // Sign out after a brief delay to show the toast
+          setTimeout(async () => {
+            await supabase.auth.signOut();
+          }, 100);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking account status:', error);
+    }
+  }, [toast]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -34,6 +70,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Check account status when user signs in
+        if (session?.user) {
+          setTimeout(() => {
+            checkAccountStatus(session.user.id);
+          }, 0);
+        } else {
+          setAccountStatus(null);
+        }
       }
     );
 
@@ -42,13 +87,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      if (session?.user) {
+        setTimeout(() => {
+          checkAccountStatus(session.user.id);
+        }, 0);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [checkAccountStatus]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading }}>
+    <AuthContext.Provider value={{ user, session, loading, accountStatus }}>
       {children}
     </AuthContext.Provider>
   );

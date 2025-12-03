@@ -202,17 +202,17 @@ export default function RepFindVendors() {
 
       if (profileError) throw profileError;
 
-      // Fetch profiles for is_vendor_admin check
+      // Fetch profiles for is_vendor_admin check and account_status filter
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, is_vendor_admin")
+        .select("id, is_vendor_admin, account_status")
         .in("id", vendorUserIds);
 
       if (profilesError) throw profilesError;
 
-      // Filter to active vendors only
+      // Filter to active vendors only (both role and account status)
       const activeVendorIds = new Set(
-        (profiles || []).filter(p => p.is_vendor_admin).map(p => p.id)
+        (profiles || []).filter(p => p.is_vendor_admin && p.account_status === "active").map(p => p.id)
       );
 
       let filtered = (vendorProfiles || []).filter(v => activeVendorIds.has(v.user_id));
