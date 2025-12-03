@@ -11,15 +11,15 @@ const corsHeaders = {
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string }> = {
   starter_10: {
     credits: 10,
-    stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
+    stripePriceId: "price_1Sa4EMIZ7isA0IxEtbEPua6I",
   },
   standard_25: {
     credits: 25,
-    stripePriceId: "price_1Sa448IZ7isA0IxE40HI8lhW",
+    stripePriceId: "price_1Sa4EhIZ7isA0IxEKfZMFClq",
   },
   pro_50: {
     credits: 50,
-    stripePriceId: "price_1Sa44oIZ7isA0IxEqglY4AOg",
+    stripePriceId: "price_1Sa4FJIZ7isA0IxEFHF6VYoL",
   },
 };
 
