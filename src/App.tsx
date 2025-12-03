@@ -35,6 +35,7 @@ import NotificationSettings from "./pages/NotificationSettings";
 import VendorCredits from "./pages/VendorCredits";
 import AdminReports from "./pages/AdminReports";
 import AdminModeration from "./pages/AdminModeration";
+import AdminInviteCodes from "./pages/AdminInviteCodes";
 import SafetyCenter from "./pages/SafetyCenter";
 import CommunityBoard from "./pages/CommunityBoard";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
@@ -76,6 +77,7 @@ const App = () => (
             <Route path="/notifications/settings" element={<NotificationSettings />} />
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
+            <Route path="/admin/invites" element={<AdminInviteCodes />} />
             <Route path="/safety" element={<SafetyCenter />} />
             <Route path="/community" element={<CommunityBoard />} />
             <Route path="/community/:postId" element={<CommunityPostDetail />} />

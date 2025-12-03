@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.review-reminder]
 verify_jwt = false
+
+[functions.validate-invite-code]
+verify_jwt = false

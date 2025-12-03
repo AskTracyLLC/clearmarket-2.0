@@ -6,13 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { signUp } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import { isBetaMode } from "@/components/BetaBadge";
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required").max(100, "Name too long"),
   email: z.string().trim().email("Invalid email address").max(255, "Email too long"),
   password: z.string().min(8, "Password must be at least 8 characters").max(100, "Password too long"),
-  confirmPassword: z.string()
+  confirmPassword: z.string(),
+  inviteCode: z.string().optional()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -27,18 +30,31 @@ const SignUp = () => {
     fullName: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    inviteCode: ""
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const role = searchParams.get("role");
   const roleLabel = role === "rep" ? "Field Rep" : role === "vendor" ? "Vendor" : "User";
+  const betaMode = isBetaMode();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     
-    // Validate
+    // Check invite code in beta mode
+    if (betaMode && !formData.inviteCode.trim()) {
+      setErrors({ inviteCode: "Invite code is required during beta" });
+      toast({
+        title: "Invite Code Required",
+        description: "ClearMarket is currently in invite-only beta. Please enter a valid invite code.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate form
     const result = signupSchema.safeParse(formData);
     if (!result.success) {
       const newErrors: Record<string, string> = {};
@@ -59,9 +75,8 @@ const SignUp = () => {
       formData.fullName
     );
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       toast({
         title: "Sign up failed",
         description: error.message,
@@ -71,11 +86,65 @@ const SignUp = () => {
     }
 
     if (data.user) {
+      // Validate and consume invite code
+      try {
+        const { data: validateResult, error: validateError } = await supabase.functions.invoke(
+          "validate-invite-code",
+          {
+            body: {
+              code: formData.inviteCode.trim() || null,
+              userId: data.user.id
+            }
+          }
+        );
+
+        if (validateError) {
+          console.error("Invite validation error:", validateError);
+          // In beta mode, sign out the user if validation fails
+          if (betaMode) {
+            await supabase.auth.signOut();
+            setLoading(false);
+            toast({
+              title: "Invalid Invite Code",
+              description: "We couldn't validate your invite code. Your account wasn't activated. Please check your code or contact support.",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
+        if (validateResult && !validateResult.success && betaMode) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          toast({
+            title: "Invalid Invite Code",
+            description: validateResult.error || "We couldn't validate your invite code. Please check your code or contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (err) {
+        console.error("Invite validation exception:", err);
+        if (betaMode) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          toast({
+            title: "Validation Error",
+            description: "We couldn't validate your invite code. Please try again or contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      setLoading(false);
       toast({
         title: "Account created!",
         description: "Redirecting to role selection...",
       });
       navigate("/onboarding/role");
+    } else {
+      setLoading(false);
     }
   };
 
@@ -140,10 +209,39 @@ const SignUp = () => {
             {errors.confirmPassword && <p className="text-sm text-destructive mt-1">{errors.confirmPassword}</p>}
           </div>
 
+          <div>
+            <Label htmlFor="inviteCode">
+              Invite Code {betaMode && <span className="text-destructive">*</span>}
+            </Label>
+            <Input
+              id="inviteCode"
+              type="text"
+              placeholder={betaMode ? "Required during beta" : "Optional"}
+              value={formData.inviteCode}
+              onChange={(e) => setFormData({ ...formData, inviteCode: e.target.value })}
+              className={errors.inviteCode ? "border-destructive" : ""}
+              disabled={loading}
+            />
+            {errors.inviteCode && <p className="text-sm text-destructive mt-1">{errors.inviteCode}</p>}
+          </div>
+
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Creating account..." : "Create Account"}
           </Button>
         </form>
+
+        {betaMode && (
+          <p className="mt-4 text-xs text-muted-foreground text-center">
+            Don't have an invite code yet? We're in a small beta. Join the waitlist at{" "}
+            <a href="https://asktracyllc.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              asktracyllc.com
+            </a>{" "}
+            or contact{" "}
+            <a href="mailto:support@useclearmarket.io" className="text-primary hover:underline">
+              support@useclearmarket.io
+            </a>
+          </p>
+        )}
 
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
