@@ -36,9 +36,12 @@ import VendorCredits from "./pages/VendorCredits";
 import AdminReports from "./pages/AdminReports";
 import AdminModeration from "./pages/AdminModeration";
 import AdminInviteCodes from "./pages/AdminInviteCodes";
+import AdminUsers from "./pages/AdminUsers";
 import SafetyCenter from "./pages/SafetyCenter";
 import CommunityBoard from "./pages/CommunityBoard";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
+import ForgotPassword from "./pages/ForgotPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +56,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/signin" element={<SignIn />} />
+            <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+            <Route path="/auth/update-password" element={<UpdatePassword />} />
             <Route path="/onboarding/role" element={<RoleSelection />} />
             <Route path="/onboarding/terms" element={<Terms />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -78,6 +83,7 @@ const App = () => (
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/admin/invites" element={<AdminInviteCodes />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/safety" element={<SafetyCenter />} />
             <Route path="/community" element={<CommunityBoard />} />
             <Route path="/community/:postId" element={<CommunityPostDetail />} />

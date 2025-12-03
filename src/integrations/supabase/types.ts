@@ -746,9 +746,12 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
           community_score: number
           community_score_last_calculated: string | null
           created_at: string
+          deactivated_at: string | null
+          deactivated_reason: string | null
           email: string
           full_name: string | null
           has_signed_terms: boolean
@@ -766,9 +769,12 @@ export type Database = {
           used_invite_code: string | null
         }
         Insert: {
+          account_status?: string
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_reason?: string | null
           email: string
           full_name?: string | null
           has_signed_terms?: boolean
@@ -786,9 +792,12 @@ export type Database = {
           used_invite_code?: string | null
         }
         Update: {
+          account_status?: string
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_reason?: string | null
           email?: string
           full_name?: string | null
           has_signed_terms?: boolean
