@@ -22,9 +22,9 @@ serve(async (req) => {
     logStep("Webhook received");
 
     // Initialize Stripe
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    const stripeKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
     if (!stripeKey) {
-      throw new Error("STRIPE_SECRET_KEY is not set");
+      throw new Error("STRIPE_SECRET_TESTKEY is not set");
     }
     
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
