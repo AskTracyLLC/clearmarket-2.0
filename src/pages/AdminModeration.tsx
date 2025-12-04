@@ -101,11 +101,12 @@ export default function AdminModeration() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, is_moderator")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_admin) {
+    // Allow access if admin OR moderator
+    if (!profile?.is_admin && !profile?.is_moderator) {
       toast.error("Unauthorized", {
         description: "You don't have permission to access this page.",
       });

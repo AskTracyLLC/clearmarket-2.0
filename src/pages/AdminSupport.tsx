@@ -90,10 +90,11 @@ export default function AdminSupport() {
       if (!user) return;
       const { data } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, is_support")
         .eq("id", user.id)
         .single();
-      if (data?.is_admin) {
+      // Allow access if admin OR support
+      if (data?.is_admin || data?.is_support) {
         setIsAdmin(true);
       } else {
         navigate("/dashboard");
