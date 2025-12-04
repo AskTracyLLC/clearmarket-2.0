@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,11 +22,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Search, Mail, UserX, UserCheck, Users } from "lucide-react";
+import { ArrowLeft, Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 
 interface UserProfile {
   id: string;
@@ -50,23 +58,50 @@ interface RepProfile {
 interface VendorProfile {
   user_id: string;
   anonymous_id: string | null;
+  company_name: string | null;
 }
 
 export default function AdminUsers() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [repProfiles, setRepProfiles] = useState<Record<string, string>>({});
-  const [vendorProfiles, setVendorProfiles] = useState<Record<string, string>>({});
+  const [vendorProfiles, setVendorProfiles] = useState<Record<string, { anonymousId: string; companyName: string | null }>>({});
+  const [reportCounts, setReportCounts] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [deactivateDialog, setDeactivateDialog] = useState<{ open: boolean; user: UserProfile | null }>({
     open: false,
     user: null,
   });
   const [deactivateReason, setDeactivateReason] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [profileDialog, setProfileDialog] = useState<{ open: boolean; userId: string | null }>({
+    open: false,
+    userId: null,
+  });
+
+  // Initialize search from URL param
+  useEffect(() => {
+    const userIdParam = searchParams.get("userId");
+    if (userIdParam) {
+      setSearchTerm(userIdParam);
+      setDebouncedSearch(userIdParam);
+    }
+  }, [searchParams]);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -120,7 +155,7 @@ export default function AdminUsers() {
           last_seen_at
         `)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (error) throw error;
       setUsers(profiles || []);
@@ -138,17 +173,33 @@ export default function AdminUsers() {
         setRepProfiles(repMap);
       }
 
-      // Load vendor profiles for anonymous IDs
+      // Load vendor profiles for anonymous IDs and company names
       const { data: vendors } = await supabase
         .from("vendor_profile")
-        .select("user_id, anonymous_id");
+        .select("user_id, anonymous_id, company_name");
 
       if (vendors) {
-        const vendorMap: Record<string, string> = {};
+        const vendorMap: Record<string, { anonymousId: string; companyName: string | null }> = {};
         vendors.forEach((v: VendorProfile) => {
-          if (v.anonymous_id) vendorMap[v.user_id] = v.anonymous_id;
+          vendorMap[v.user_id] = {
+            anonymousId: v.anonymous_id || "",
+            companyName: v.company_name,
+          };
         });
         setVendorProfiles(vendorMap);
+      }
+
+      // Load report counts per user
+      const { data: reports } = await supabase
+        .from("user_reports")
+        .select("reported_user_id");
+
+      if (reports) {
+        const counts: Record<string, number> = {};
+        reports.forEach((r) => {
+          counts[r.reported_user_id] = (counts[r.reported_user_id] || 0) + 1;
+        });
+        setReportCounts(counts);
       }
     } catch (error) {
       console.error("Error loading users:", error);
@@ -265,8 +316,12 @@ export default function AdminUsers() {
 
   const getAnonymousId = (userProfile: UserProfile) => {
     if (repProfiles[userProfile.id]) return repProfiles[userProfile.id];
-    if (vendorProfiles[userProfile.id]) return vendorProfiles[userProfile.id];
+    if (vendorProfiles[userProfile.id]?.anonymousId) return vendorProfiles[userProfile.id].anonymousId;
     return "—";
+  };
+
+  const getCompanyName = (userProfile: UserProfile) => {
+    return vendorProfiles[userProfile.id]?.companyName || null;
   };
 
   const getStatusBadge = (status: string) => {
@@ -282,16 +337,35 @@ export default function AdminUsers() {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    const anonId = getAnonymousId(u).toLowerCase();
-    return (
-      u.email.toLowerCase().includes(term) ||
-      anonId.includes(term) ||
-      u.full_name?.toLowerCase().includes(term)
-    );
-  });
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      // Role filter
+      if (roleFilter === "fieldreps" && !u.is_fieldrep) return false;
+      if (roleFilter === "vendors" && !u.is_vendor_admin) return false;
+      if (roleFilter === "admins" && !u.is_admin) return false;
+
+      // Status filter
+      if (statusFilter === "active" && u.account_status !== "active") return false;
+      if (statusFilter === "deactivated" && u.account_status !== "deactivated") return false;
+
+      // Search filter
+      if (!debouncedSearch) return true;
+      const term = debouncedSearch.toLowerCase();
+      const anonId = getAnonymousId(u).toLowerCase();
+      const companyName = getCompanyName(u)?.toLowerCase() || "";
+      return (
+        u.email.toLowerCase().includes(term) ||
+        anonId.includes(term) ||
+        u.full_name?.toLowerCase().includes(term) ||
+        companyName.includes(term) ||
+        u.id.toLowerCase().includes(term)
+      );
+    });
+  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles]);
+
+  const handleViewInModeration = (userId: string) => {
+    navigate(`/admin/moderation?targetUserId=${userId}`);
+  };
 
   if (authLoading || loading) {
     return (
@@ -325,17 +399,40 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search and Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by email or anonymous ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by email, name, anonymous ID, or company..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="fieldreps">Field Reps</SelectItem>
+                  <SelectItem value="vendors">Vendors</SelectItem>
+                  <SelectItem value="admins">Admins</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="deactivated">Deactivated</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -366,9 +463,23 @@ export default function AdminUsers() {
                   {filteredUsers.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium text-foreground">{u.full_name || "—"}</p>
-                          <p className="text-sm text-muted-foreground">{u.email}</p>
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-foreground">{u.full_name || "—"}</p>
+                            <p className="text-sm text-muted-foreground">{u.email}</p>
+                            {getCompanyName(u) && (
+                              <p className="text-xs text-muted-foreground">{getCompanyName(u)}</p>
+                            )}
+                          </div>
+                          {reportCounts[u.id] > 0 && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-red-500/10 text-red-600 border-red-500/20 text-xs shrink-0"
+                            >
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {reportCounts[u.id]} {reportCounts[u.id] === 1 ? "report" : "reports"}
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -398,7 +509,25 @@ export default function AdminUsers() {
                         <span className="text-sm">{u.community_score}</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setProfileDialog({ open: true, userId: u.id })}
+                            title="View Public Profile"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {reportCounts[u.id] > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewInModeration(u.id)}
+                              title="View reports for this user"
+                            >
+                              <Gavel className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -477,6 +606,15 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Public Profile Dialog */}
+      {profileDialog.open && profileDialog.userId && (
+        <PublicProfileDialog
+          open={profileDialog.open}
+          onOpenChange={(open) => setProfileDialog({ open, userId: open ? profileDialog.userId : null })}
+          targetUserId={profileDialog.userId}
+        />
+      )}
     </div>
   );
 }
