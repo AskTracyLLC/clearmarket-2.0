@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,9 +27,10 @@ interface InviteCode {
 
 const AdminInviteCodes = () => {
   const { user, loading: authLoading } = useAuth();
+  const { loading: permsLoading, permissions } = useStaffPermissions();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -49,36 +51,38 @@ const AdminInviteCodes = () => {
     setNewCode({ ...newCode, code });
   };
 
-  // Check admin status
+  // Permission-based access control
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) return;
-      
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.is_admin) {
-        setIsAdmin(true);
-        fetchInviteCodes();
-      } else {
+    if (!permsLoading) {
+      if (!permissions.canViewInvitesAdmin) {
+        toast({
+          title: "Access denied",
+          description: "You don't have permission to view this page.",
+          variant: "destructive",
+        });
         navigate("/dashboard");
-      }
-      setLoading(false);
-    };
-
-    if (!authLoading) {
-      if (!user) {
-        navigate("/signin");
       } else {
-        checkAdmin();
+        setHasAccess(true);
       }
     }
-  }, [user, authLoading, navigate]);
+  }, [permsLoading, permissions, navigate, toast]);
+
+  // Auth check and data loading
+  useEffect(() => {
+    if (authLoading || permsLoading) return;
+
+    if (!user) {
+      navigate("/signin");
+      return;
+    }
+
+    if (hasAccess) {
+      fetchInviteCodes();
+    }
+  }, [user, authLoading, permsLoading, hasAccess, navigate]);
 
   const fetchInviteCodes = async () => {
+    setLoading(true);
     const { data, error } = await supabase
       .from("beta_invite_codes")
       .select("*")
@@ -94,6 +98,7 @@ const AdminInviteCodes = () => {
     } else {
       setInviteCodes(data || []);
     }
+    setLoading(false);
   };
 
   const handleCreateCode = async () => {
@@ -139,6 +144,15 @@ const AdminInviteCodes = () => {
   };
 
   const toggleActive = async (id: string, currentActive: boolean) => {
+    if (!permissions.canEditInvitesAdmin) {
+      toast({
+        title: "Permission denied",
+        description: "You don't have permission to edit invite codes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("beta_invite_codes")
       .update({ is_active: !currentActive })
@@ -163,7 +177,7 @@ const AdminInviteCodes = () => {
     });
   };
 
-  if (authLoading || loading) {
+  if (authLoading || permsLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -171,7 +185,7 @@ const AdminInviteCodes = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return null;
   }
 
@@ -194,57 +208,59 @@ const AdminInviteCodes = () => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Code
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Invite Code</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <Label htmlFor="code">Code</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="code"
-                          value={newCode.code}
-                          onChange={(e) => setNewCode({ ...newCode, code: e.target.value.toUpperCase() })}
-                          placeholder="Enter or generate code"
-                        />
-                        <Button variant="outline" onClick={generateCode} type="button">
-                          Generate
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="maxUses">Max Uses</Label>
-                      <Input
-                        id="maxUses"
-                        type="number"
-                        min={1}
-                        value={newCode.maxUses}
-                        onChange={(e) => setNewCode({ ...newCode, maxUses: parseInt(e.target.value) || 1 })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="expiresAt">Expires At (optional)</Label>
-                      <Input
-                        id="expiresAt"
-                        type="datetime-local"
-                        value={newCode.expiresAt}
-                        onChange={(e) => setNewCode({ ...newCode, expiresAt: e.target.value })}
-                      />
-                    </div>
-                    <Button onClick={handleCreateCode} disabled={creating} className="w-full">
-                      {creating ? "Creating..." : "Create Invite Code"}
+              {permissions.canEditInvitesAdmin && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Code
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create Invite Code</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div>
+                        <Label htmlFor="code">Code</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="code"
+                            value={newCode.code}
+                            onChange={(e) => setNewCode({ ...newCode, code: e.target.value.toUpperCase() })}
+                            placeholder="Enter or generate code"
+                          />
+                          <Button variant="outline" onClick={generateCode} type="button">
+                            Generate
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="maxUses">Max Uses</Label>
+                        <Input
+                          id="maxUses"
+                          type="number"
+                          min={1}
+                          value={newCode.maxUses}
+                          onChange={(e) => setNewCode({ ...newCode, maxUses: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="expiresAt">Expires At (optional)</Label>
+                        <Input
+                          id="expiresAt"
+                          type="datetime-local"
+                          value={newCode.expiresAt}
+                          onChange={(e) => setNewCode({ ...newCode, expiresAt: e.target.value })}
+                        />
+                      </div>
+                      <Button onClick={handleCreateCode} disabled={creating} className="w-full">
+                        {creating ? "Creating..." : "Create Invite Code"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -261,7 +277,7 @@ const AdminInviteCodes = () => {
                     <TableHead>Uses</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    {permissions.canEditInvitesAdmin && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -295,15 +311,17 @@ const AdminInviteCodes = () => {
                           {code.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleActive(code.id, code.is_active)}
-                        >
-                          {code.is_active ? "Deactivate" : "Activate"}
-                        </Button>
-                      </TableCell>
+                      {permissions.canEditInvitesAdmin && (
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleActive(code.id, code.is_active)}
+                          >
+                            {code.is_active ? "Deactivate" : "Activate"}
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

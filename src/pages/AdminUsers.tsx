@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -63,10 +64,11 @@ interface VendorProfile {
 
 export default function AdminUsers() {
   const { user, loading: authLoading } = useAuth();
+  const { loading: permsLoading, permissions } = useStaffPermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [repProfiles, setRepProfiles] = useState<Record<string, string>>({});
   const [vendorProfiles, setVendorProfiles] = useState<Record<string, { anonymousId: string; companyName: string | null }>>({});
@@ -86,6 +88,20 @@ export default function AdminUsers() {
     userId: null,
   });
 
+  // Permission-based access control
+  useEffect(() => {
+    if (!permsLoading) {
+      if (!permissions.canViewUsersAdmin) {
+        toast.error("Access denied", {
+          description: "You don't have permission to view this page.",
+        });
+        navigate("/dashboard");
+      } else {
+        setHasAccess(true);
+      }
+    }
+  }, [permsLoading, permissions, navigate]);
+
   // Initialize search from URL param
   useEffect(() => {
     const userIdParam = searchParams.get("userId");
@@ -104,36 +120,17 @@ export default function AdminUsers() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || permsLoading) return;
 
     if (!user) {
       navigate("/signin");
       return;
     }
 
-    checkAdminStatus();
-  }, [user, authLoading, navigate]);
-
-  const checkAdminStatus = async () => {
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin, is_vendor_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin && !profile?.is_vendor_admin) {
-      toast.error("Unauthorized", {
-        description: "You don't have permission to access this page.",
-      });
-      navigate("/dashboard");
-      return;
+    if (hasAccess) {
+      loadUsers();
     }
-
-    setIsAdmin(true);
-    loadUsers();
-  };
+  }, [user, authLoading, permsLoading, hasAccess, navigate]);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -377,7 +374,7 @@ export default function AdminUsers() {
 
   const hasActiveFilters = searchTerm !== "" || roleFilter !== "all" || statusFilter !== "all";
 
-  if (authLoading || loading) {
+  if (authLoading || permsLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
@@ -387,7 +384,7 @@ export default function AdminUsers() {
     );
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return null;
   }
 
@@ -505,107 +502,100 @@ export default function AdminUsers() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredUsers.map((u) => (
-                      <TableRow key={u.id}>
+                    filteredUsers.map((userProfile) => (
+                      <TableRow key={userProfile.id}>
                         <TableCell>
-                          <div className="flex items-start gap-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">{u.full_name || "—"}</p>
-                              <p className="text-sm text-muted-foreground">{u.email}</p>
-                              {getCompanyName(u) && (
-                                <p className="text-xs text-muted-foreground">{getCompanyName(u)}</p>
-                              )}
-                            </div>
-                            {reportCounts[u.id] > 0 && (
-                              <Badge 
-                                variant="outline" 
-                                className="bg-red-500/10 text-red-600 border-red-500/20 text-xs shrink-0"
-                              >
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                {reportCounts[u.id]} {reportCounts[u.id] === 1 ? "report" : "reports"}
-                              </Badge>
-                            )}
+                          <div>
+                            <p className="font-medium">{userProfile.full_name || "—"}</p>
+                            <p className="text-sm text-muted-foreground">{userProfile.email}</p>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="font-mono text-sm">{getAnonymousId(u)}</span>
+                        <TableCell className="font-mono text-sm">
+                          {getAnonymousId(userProfile)}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {u.is_fieldrep && <Badge variant="secondary">Field Rep</Badge>}
-                            {u.is_vendor_admin && <Badge variant="secondary">Vendor</Badge>}
-                            {u.is_admin && <Badge variant="default">Admin</Badge>}
-                            {!u.is_fieldrep && !u.is_vendor_admin && !u.is_admin && (
-                              <span className="text-muted-foreground text-sm">—</span>
+                            {userProfile.is_fieldrep && (
+                              <Badge variant="secondary" className="text-xs">Rep</Badge>
+                            )}
+                            {userProfile.is_vendor_admin && (
+                              <Badge variant="secondary" className="text-xs">Vendor</Badge>
+                            )}
+                            {userProfile.is_admin && (
+                              <Badge variant="default" className="text-xs">Admin</Badge>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(u.account_status)}</TableCell>
-                        <TableCell>
-                          {u.last_seen_at ? (
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(u.last_seen_at), "MMM d, yyyy")}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{u.community_score}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setProfileDialog({ open: true, userId: u.id })}
-                            title="View Public Profile"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {reportCounts[u.id] > 0 && (
+                        <TableCell>{getStatusBadge(userProfile.account_status)}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {userProfile.last_seen_at
+                            ? format(new Date(userProfile.last_seen_at), "MMM d, yyyy")
+                            : "Never"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="font-medium">{userProfile.community_score}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleViewInModeration(u.id)}
-                              title="View reports for this user"
+                              onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
+                              title="View Profile"
                             >
-                              <Gavel className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSendResetLink(u)}
-                            disabled={actionLoading === u.id}
-                          >
-                            <Mail className="h-4 w-4 mr-1" />
-                            Reset
-                          </Button>
-                          {u.account_status === "active" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
-                              onClick={() => setDeactivateDialog({ open: true, user: u })}
-                              disabled={actionLoading === u.id}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Deactivate
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
-                              onClick={() => handleReactivate(u)}
-                              disabled={actionLoading === u.id}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Reactivate
-                            </Button>
-                          )}
-                        </div>
+                            {reportCounts[userProfile.id] > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewInModeration(userProfile.id)}
+                                title="View in Moderation"
+                                className="gap-1"
+                              >
+                                <Gavel className="h-4 w-4" />
+                                <Badge variant="destructive" className="text-xs">
+                                  {reportCounts[userProfile.id]}
+                                </Badge>
+                              </Button>
+                            )}
+                            {permissions.canEditUsersAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleSendResetLink(userProfile)}
+                                  disabled={actionLoading === userProfile.id}
+                                  title="Send password reset"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                                {userProfile.account_status === "active" ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setDeactivateDialog({ open: true, user: userProfile })}
+                                    disabled={actionLoading === userProfile.id}
+                                    title="Deactivate account"
+                                    className="text-orange-600 hover:text-orange-700"
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleReactivate(userProfile)}
+                                    disabled={actionLoading === userProfile.id}
+                                    title="Reactivate account"
+                                    className="text-green-600 hover:text-green-700"
+                                  >
+                                    <UserCheck className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -618,25 +608,36 @@ export default function AdminUsers() {
       </div>
 
       {/* Deactivate Dialog */}
-      <Dialog open={deactivateDialog.open} onOpenChange={(open) => setDeactivateDialog({ open, user: open ? deactivateDialog.user : null })}>
+      <Dialog
+        open={deactivateDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeactivateDialog({ open: false, user: null });
+            setDeactivateReason("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deactivate account?</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Deactivate Account
+            </DialogTitle>
             <DialogDescription>
-              This will prevent <strong>{deactivateDialog.user?.email}</strong> from accessing ClearMarket. 
-              They will be signed out on next refresh, and their profile will not appear in searches. 
-              You can reactivate later.
+              This will prevent {deactivateDialog.user?.email} from logging in. Their data will be preserved.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="reason">Reason (optional)</Label>
-            <Textarea
-              id="reason"
-              placeholder="Why is this account being deactivated?"
-              value={deactivateReason}
-              onChange={(e) => setDeactivateReason(e.target.value)}
-              className="mt-2"
-            />
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reason">Reason (optional)</Label>
+              <Textarea
+                id="reason"
+                placeholder="Enter a reason for deactivation..."
+                value={deactivateReason}
+                onChange={(e) => setDeactivateReason(e.target.value)}
+                className="mt-2"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeactivateDialog({ open: false, user: null })}>
@@ -647,13 +648,13 @@ export default function AdminUsers() {
               onClick={handleDeactivate}
               disabled={actionLoading === deactivateDialog.user?.id}
             >
-              {actionLoading === deactivateDialog.user?.id ? "Deactivating..." : "Deactivate"}
+              {actionLoading === deactivateDialog.user?.id ? "Deactivating..." : "Deactivate Account"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Public Profile Dialog */}
+      {/* Profile Dialog */}
       {profileDialog.open && profileDialog.userId && (
         <PublicProfileDialog
           open={profileDialog.open}

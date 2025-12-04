@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -45,10 +46,10 @@ interface StaffUser {
 
 export default function AdminStaff() {
   const { user, loading: authLoading } = useAuth();
+  const { loading: permsLoading, permissions, isSuperAdmin } = useStaffPermissions();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [profileDialog, setProfileDialog] = useState<{ open: boolean; userId: string | null }>({
     open: false,
@@ -65,33 +66,30 @@ export default function AdminStaff() {
   });
   const [updatingRole, setUpdatingRole] = useState<string | null>(null);
 
+  // Permission-based access control
   useEffect(() => {
-    if (authLoading) return;
+    if (!permsLoading) {
+      if (!permissions.canViewStaffAdmin) {
+        toast.error("Access denied", {
+          description: "You don't have permission to view this page.",
+        });
+        navigate("/dashboard");
+      } else {
+        setHasAccess(true);
+      }
+    }
+  }, [permsLoading, permissions, navigate]);
+
+  useEffect(() => {
+    if (authLoading || permsLoading) return;
     if (!user) {
       navigate("/signin");
       return;
     }
-    checkAccess();
-  }, [user, authLoading, navigate]);
-
-  const checkAccess = async () => {
-    if (!user) return;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin, is_super_admin")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      toast.error("Unauthorized");
-      navigate("/dashboard");
-      return;
+    if (hasAccess) {
+      loadStaffUsers();
     }
-
-    setIsAdmin(true);
-    setIsSuperAdmin(profile.is_super_admin || false);
-    loadStaffUsers();
-  };
+  }, [user, authLoading, permsLoading, hasAccess, navigate]);
 
   const loadStaffUsers = async () => {
     setLoading(true);
@@ -115,7 +113,12 @@ export default function AdminStaff() {
   };
 
   const handleToggleRole = async (staffId: string, role: "is_admin" | "is_moderator" | "is_support", currentValue: boolean) => {
-    if (!isSuperAdmin) return;
+    if (!permissions.canEditStaffAdmin) {
+      toast.error("Permission denied", {
+        description: "You don't have permission to change staff roles.",
+      });
+      return;
+    }
     
     setUpdatingRole(`${staffId}-${role}`);
     try {
@@ -140,6 +143,13 @@ export default function AdminStaff() {
   };
 
   const handleCreateStaff = async () => {
+    if (!permissions.canEditStaffAdmin) {
+      toast.error("Permission denied", {
+        description: "You don't have permission to create staff accounts.",
+      });
+      return;
+    }
+
     if (!newStaff.email || !newStaff.full_name) {
       toast.error("Email and full name are required");
       return;
@@ -192,7 +202,7 @@ export default function AdminStaff() {
     return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">{status}</Badge>;
   };
 
-  if (authLoading || loading) {
+  if (authLoading || permsLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-6xl mx-auto">
@@ -202,7 +212,7 @@ export default function AdminStaff() {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!hasAccess) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,7 +226,7 @@ export default function AdminStaff() {
             <h1 className="text-3xl font-bold text-foreground">Staff & Roles</h1>
             <p className="text-muted-foreground">Manage admin, moderator, and support staff</p>
           </div>
-          {isSuperAdmin && (
+          {permissions.canEditStaffAdmin && (
             <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -348,7 +358,7 @@ export default function AdminStaff() {
                       <TableCell className="text-muted-foreground">{staff.email}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {isSuperAdmin && !staff.is_super_admin ? (
+                          {permissions.canEditStaffAdmin && !staff.is_super_admin ? (
                             <>
                               <div className="flex items-center gap-1.5">
                                 <Switch
