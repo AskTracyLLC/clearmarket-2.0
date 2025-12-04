@@ -36,6 +36,7 @@ import { ArrowLeft, Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTria
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { logAdminAction } from "@/lib/adminAudit";
 
 interface UserProfile {
   id: string;
@@ -228,9 +229,12 @@ export default function AdminUsers() {
   };
 
   const handleDeactivate = async () => {
-    if (!deactivateDialog.user) return;
+    if (!deactivateDialog.user || !user) return;
 
     setActionLoading(deactivateDialog.user.id);
+    const targetUser = deactivateDialog.user;
+    const prevStatus = targetUser.account_status;
+    
     try {
       const { error } = await supabase
         .from("profiles")
@@ -239,14 +243,14 @@ export default function AdminUsers() {
           deactivated_at: new Date().toISOString(),
           deactivated_reason: deactivateReason || null,
         })
-        .eq("id", deactivateDialog.user.id);
+        .eq("id", targetUser.id);
 
       if (error) throw error;
 
       // Update local state
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === deactivateDialog.user!.id
+          u.id === targetUser.id
             ? {
                 ...u,
                 account_status: "deactivated",
@@ -256,6 +260,19 @@ export default function AdminUsers() {
             : u
         )
       );
+
+      // Log admin action
+      logAdminAction(user.id, {
+        actionType: "user.deactivated",
+        actionSummary: `Deactivated user ${targetUser.email || targetUser.full_name || getAnonymousId(targetUser)}`,
+        targetUserId: targetUser.id,
+        actionDetails: {
+          previous_status: prevStatus,
+          new_status: "deactivated",
+          reason: deactivateReason || null,
+        },
+        sourcePage: "/admin/users",
+      });
 
       toast.success("Account deactivated", {
         description: "The user account has been deactivated.",
@@ -272,7 +289,11 @@ export default function AdminUsers() {
   };
 
   const handleReactivate = async (userProfile: UserProfile) => {
+    if (!user) return;
+    
     setActionLoading(userProfile.id);
+    const prevStatus = userProfile.account_status;
+    
     try {
       const { error } = await supabase
         .from("profiles")
@@ -298,6 +319,18 @@ export default function AdminUsers() {
             : u
         )
       );
+
+      // Log admin action
+      logAdminAction(user.id, {
+        actionType: "user.reactivated",
+        actionSummary: `Reactivated user ${userProfile.email || userProfile.full_name || getAnonymousId(userProfile)}`,
+        targetUserId: userProfile.id,
+        actionDetails: {
+          previous_status: prevStatus,
+          new_status: "active",
+        },
+        sourcePage: "/admin/users",
+      });
 
       toast.success("Account reactivated", {
         description: "The user account has been reactivated.",

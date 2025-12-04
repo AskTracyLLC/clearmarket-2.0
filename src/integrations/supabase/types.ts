@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action_details: Json | null
+          action_summary: string
+          action_type: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          source_page: string | null
+          target_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_details?: Json | null
+          action_summary: string
+          action_type: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          source_page?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_details?: Json | null
+          action_summary?: string
+          action_type?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          source_page?: string | null
+          target_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_audit_log_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beta_invite_codes: {
         Row: {
           code: string

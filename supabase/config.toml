@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.create-staff-user]
 verify_jwt = true
+
+[functions.admin-audit-log]
+verify_jwt = true

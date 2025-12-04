@@ -38,6 +38,7 @@ import { ArrowLeft, Users, Eye, ExternalLink, Crown, UserPlus, ShieldCheck, Mess
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { logAdminAction } from "@/lib/adminAudit";
 
 interface StaffUser {
   id: string;
@@ -140,11 +141,31 @@ export default function AdminStaff() {
 
       if (error) throw error;
 
+      // Get staff info for logging
+      const staffUser = staffUsers.find(s => s.id === staffId);
+
       setStaffUsers(prev =>
         prev.map(u =>
           u.id === staffId ? { ...u, [role]: !currentValue } : u
         )
       );
+
+      // Log admin action
+      if (user && staffUser) {
+        const roleName = role.replace("is_", "");
+        logAdminAction(user.id, {
+          actionType: "staff.role_changed",
+          actionSummary: `${!currentValue ? "Added" : "Removed"} ${roleName} role for ${staffUser.email}`,
+          targetUserId: staffId,
+          actionDetails: {
+            role: roleName,
+            previous_value: currentValue,
+            new_value: !currentValue,
+          },
+          sourcePage: "/admin/staff",
+        });
+      }
+
       toast.success("Role updated");
     } catch (error: any) {
       toast.error("Failed to update role", { description: error.message });
@@ -192,6 +213,20 @@ export default function AdminStaff() {
         throw new Error(data.error || "Failed to create staff");
       }
 
+      // Log admin action
+      if (user) {
+        logAdminAction(user.id, {
+          actionType: "staff.invited",
+          actionSummary: `Invited ${newStaff.email} as ${newStaff.role}`,
+          targetUserId: data.user_id,
+          actionDetails: {
+            role: newStaff.role,
+            note: newStaff.note || null,
+          },
+          sourcePage: "/admin/staff",
+        });
+      }
+
       toast.success(`Staff invite sent to ${newStaff.email}`);
       setCreateDialogOpen(false);
       setNewStaff({ email: "", full_name: "", role: "admin", note: "" });
@@ -229,6 +264,19 @@ export default function AdminStaff() {
       const data = response.data;
       if (!data.success) {
         throw new Error(data.error || "Failed to resend invite");
+      }
+
+      // Log admin action
+      if (user) {
+        logAdminAction(user.id, {
+          actionType: "staff.invite_resent",
+          actionSummary: `Resent staff invite to ${staff.email}`,
+          targetUserId: staff.id,
+          actionDetails: {
+            staff_role: staff.staff_role,
+          },
+          sourcePage: "/admin/staff",
+        });
       }
 
       toast.success(`Invite resent to ${staff.email}`);
