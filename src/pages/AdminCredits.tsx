@@ -36,6 +36,7 @@ interface UserSearchResult {
   credits: number;
   rep_anonymous_id?: string | null;
   vendor_anonymous_id?: string | null;
+  staff_anonymous_id?: string | null;
 }
 
 interface Transaction {
@@ -90,7 +91,7 @@ const AdminCredits = () => {
     const { data, error } = await supabase
       .from("profiles")
       .select(`
-        id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support,
+        id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
         rep_profile(anonymous_id),
         vendor_profile(anonymous_id)
       `)
@@ -121,6 +122,7 @@ const AdminCredits = () => {
       credits: walletData?.credits ?? 0,
       rep_anonymous_id: (data.rep_profile as any)?.anonymous_id,
       vendor_anonymous_id: (data.vendor_profile as any)?.anonymous_id,
+      staff_anonymous_id: data.staff_anonymous_id,
     };
 
     setSelectedUser(userResult);
@@ -140,7 +142,7 @@ const AdminCredits = () => {
       const { data, error } = await supabase
         .from("profiles")
         .select(`
-          id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support,
+          id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
           rep_profile(anonymous_id),
           vendor_profile(anonymous_id)
         `)
@@ -174,10 +176,11 @@ const AdminCredits = () => {
         credits: walletMap.get(u.id) ?? 0,
         rep_anonymous_id: (u.rep_profile as any)?.anonymous_id,
         vendor_anonymous_id: (u.vendor_profile as any)?.anonymous_id,
+        staff_anonymous_id: u.staff_anonymous_id,
       }));
 
       // Also search by anonymous ID if query matches pattern
-      if (query.toLowerCase().includes("fieldrep#") || query.toLowerCase().includes("vendor#")) {
+      if (query.toLowerCase().includes("fieldrep#") || query.toLowerCase().includes("vendor#") || query.toLowerCase().includes("admin#")) {
         const { data: repData } = await supabase
           .from("rep_profile")
           .select("user_id, anonymous_id")
@@ -188,16 +191,23 @@ const AdminCredits = () => {
           .select("user_id, anonymous_id")
           .ilike("anonymous_id", searchTerm);
 
+        // Also search staff_anonymous_id for Admin# pattern
+        const { data: staffData } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("staff_anonymous_id", searchTerm);
+
         const additionalUserIds = [
           ...(repData || []).map((r) => r.user_id),
           ...(vendorData || []).map((v) => v.user_id),
+          ...(staffData || []).map((s) => s.id),
         ].filter((id) => !userIds.includes(id));
 
         if (additionalUserIds.length > 0) {
           const { data: additionalUsers } = await supabase
             .from("profiles")
             .select(`
-              id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support,
+              id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
               rep_profile(anonymous_id),
               vendor_profile(anonymous_id)
             `)
@@ -223,6 +233,7 @@ const AdminCredits = () => {
               credits: addWalletMap.get(u.id) ?? 0,
               rep_anonymous_id: (u.rep_profile as any)?.anonymous_id,
               vendor_anonymous_id: (u.vendor_profile as any)?.anonymous_id,
+              staff_anonymous_id: u.staff_anonymous_id,
             });
           });
         }
@@ -347,7 +358,8 @@ const AdminCredits = () => {
   };
 
   const getAnonymousId = (u: UserSearchResult) => {
-    return u.rep_anonymous_id || u.vendor_anonymous_id || null;
+    // Staff get their staff_anonymous_id first (Admin#1, etc.)
+    return u.staff_anonymous_id || u.rep_anonymous_id || u.vendor_anonymous_id || null;
   };
 
   const getActionLabel = (action: string) => {
