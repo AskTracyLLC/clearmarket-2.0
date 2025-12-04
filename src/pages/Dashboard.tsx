@@ -324,6 +324,8 @@ const Dashboard = () => {
 
   const isRep = profile?.is_fieldrep;
   const isVendor = profile?.is_vendor_admin;
+  const isAdmin = profile?.is_admin === true;
+  const isAdminOnly = isAdmin && !isRep && !isVendor;
 
   // Calculate profile completion for Reps (MVP version + coverage areas)
   const calculateRepCompletion = () => {
@@ -475,15 +477,71 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">
-            {isRep ? "Field Rep Dashboard" : "Vendor Dashboard"}
+            {isAdminOnly ? "Admin Dashboard" : isRep ? "Field Rep Dashboard" : "Vendor Dashboard"}
           </h1>
           <p className="text-muted-foreground">
             Welcome back, {profile?.full_name || user?.email}
-            {isRep && repProfile?.anonymous_id && ` (${repProfile.anonymous_id})`}
-            {isVendor && vendorProfile?.anonymous_id && ` (${vendorProfile.anonymous_id})`}
+            {!isAdminOnly && isRep && repProfile?.anonymous_id && ` (${repProfile.anonymous_id})`}
+            {!isAdminOnly && isVendor && vendorProfile?.anonymous_id && ` (${vendorProfile.anonymous_id})`}
           </p>
         </div>
 
+        {/* Admin Dashboard Content */}
+        {isAdminOnly && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl">
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/users")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  User Management
+                </CardTitle>
+                <CardDescription>
+                  Search users, manage accounts, reset passwords
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/moderation")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-primary" />
+                  Moderation
+                </CardTitle>
+                <CardDescription>
+                  Review flagged content and moderate posts
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/reports")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Reports
+                </CardTitle>
+                <CardDescription>
+                  View and manage user reports
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/invites")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-primary" />
+                  Invite Codes
+                </CardTitle>
+                <CardDescription>
+                  Create and manage beta invite codes
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
+
+        {/* Rep/Vendor Dashboard Content */}
+        {!isAdminOnly && (
+          <>
         {/* Review Prompts */}
         {reviewPrompts.length > 0 && (
           <div className="mb-6 space-y-3 max-w-7xl">
@@ -1054,6 +1112,8 @@ const Dashboard = () => {
             </Card>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
