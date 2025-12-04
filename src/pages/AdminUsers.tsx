@@ -45,11 +45,14 @@ interface UserProfile {
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
   is_admin: boolean;
+  is_moderator: boolean;
+  is_support: boolean;
   account_status: string;
   deactivated_at: string | null;
   deactivated_reason: string | null;
   community_score: number;
   last_seen_at: string | null;
+  staff_anonymous_id: string | null;
 }
 
 interface RepProfile {
@@ -146,11 +149,14 @@ export default function AdminUsers() {
           is_fieldrep,
           is_vendor_admin,
           is_admin,
+          is_moderator,
+          is_support,
           account_status,
           deactivated_at,
           deactivated_reason,
           community_score,
-          last_seen_at
+          last_seen_at,
+          staff_anonymous_id
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -345,6 +351,8 @@ export default function AdminUsers() {
   };
 
   const getAnonymousId = (userProfile: UserProfile) => {
+    // Staff get their staff_anonymous_id (Admin#1, etc.)
+    if (userProfile.staff_anonymous_id) return userProfile.staff_anonymous_id;
     if (repProfiles[userProfile.id]) return repProfiles[userProfile.id];
     if (vendorProfiles[userProfile.id]?.anonymousId) return vendorProfiles[userProfile.id].anonymousId;
     return "—";
