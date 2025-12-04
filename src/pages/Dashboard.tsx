@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { Progress } from "@/components/ui/progress";
@@ -452,6 +452,10 @@ const Dashboard = () => {
                   <Users className="w-4 h-4" />
                   Community
                 </NavLink>
+                <NavLink to="/help" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Headphones className="w-4 h-4" />
+                  Help
+                </NavLink>
                 {profile?.is_admin && (
                   <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                     <ShieldAlert className="w-4 h-4" />
@@ -533,6 +537,18 @@ const Dashboard = () => {
                 </CardTitle>
                 <CardDescription>
                   Create and manage beta invite codes
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/support")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Headphones className="w-5 h-5 text-primary" />
+                  Support Queue
+                </CardTitle>
+                <CardDescription>
+                  Manage and respond to support tickets
                 </CardDescription>
               </CardHeader>
             </Card>

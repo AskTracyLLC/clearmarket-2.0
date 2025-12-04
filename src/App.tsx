@@ -42,6 +42,9 @@ import CommunityBoard from "./pages/CommunityBoard";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
 import ForgotPassword from "./pages/ForgotPassword";
 import UpdatePassword from "./pages/UpdatePassword";
+import Support from "./pages/Support";
+import AdminSupport from "./pages/AdminSupport";
+import HelpCenter from "./pages/HelpCenter";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +87,9 @@ const App = () => (
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/admin/invites" element={<AdminInviteCodes />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/support" element={<AdminSupport />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/help" element={<HelpCenter />} />
             <Route path="/safety" element={<SafetyCenter />} />
             <Route path="/community" element={<CommunityBoard />} />
             <Route path="/community/:postId" element={<CommunityPostDetail />} />

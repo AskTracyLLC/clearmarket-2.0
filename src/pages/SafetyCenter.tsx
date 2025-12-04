@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Eye, ShieldAlert, ArrowLeft, MessageSquare, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
@@ -403,6 +403,32 @@ export default function SafetyCenter() {
           </TabsContent>
 
         </Tabs>
+
+        {/* Need Help Card */}
+        <Card className="mt-6">
+          <CardContent className="py-6 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <MessageSquare className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Need more help?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Contact our support team or browse help articles
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate("/help")}>
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Help Center
+              </Button>
+              <Button onClick={() => navigate("/support")}>
+                Contact Support
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Known Issues Panel */}
         <div className="mt-6">

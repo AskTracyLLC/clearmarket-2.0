@@ -1465,6 +1465,134 @@ export type Database = {
           },
         ]
       }
+      support_articles: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          is_published: boolean
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      support_ticket_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_internal_note: boolean
+          sender_id: string
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          sender_id: string
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          sender_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          category: string
+          closed_at: string | null
+          created_at: string
+          id: string
+          last_admin_reply_at: string | null
+          last_user_reply_at: string | null
+          message: string
+          priority: string
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          last_admin_reply_at?: string | null
+          last_user_reply_at?: string | null
+          message: string
+          priority?: string
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          id?: string
+          last_admin_reply_at?: string | null
+          last_user_reply_at?: string | null
+          message?: string
+          priority?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       us_counties: {
         Row: {
           county_fips: string | null
