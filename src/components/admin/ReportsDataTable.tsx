@@ -9,15 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Flag, MessageSquare, User, FileText, Eye, Star } from "lucide-react";
+import { Flag, MessageSquare, User, FileText, Eye, Star, Users } from "lucide-react";
 import { ReportWithDetails } from "@/lib/adminReports";
 
 interface ReportsDataTableProps {
   reports: ReportWithDetails[];
   onReportClick: (report: ReportWithDetails) => void;
+  onViewProfile?: (userId: string) => void;
+  onViewInUsers?: (userId: string) => void;
 }
 
-export function ReportsDataTable({ reports, onReportClick }: ReportsDataTableProps) {
+export function ReportsDataTable({ reports, onReportClick, onViewProfile, onViewInUsers }: ReportsDataTableProps) {
   const getTypeIcon = (type: string | null) => {
     switch (type) {
       case "review":
@@ -66,7 +68,7 @@ export function ReportsDataTable({ reports, onReportClick }: ReportsDataTablePro
             <TableHead>Reason</TableHead>
             <TableHead className="w-[120px]">Status</TableHead>
             <TableHead className="w-[150px]">Reported On</TableHead>
-            <TableHead className="w-[100px] text-right">Actions</TableHead>
+            <TableHead className="w-[150px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -82,9 +84,12 @@ export function ReportsDataTable({ reports, onReportClick }: ReportsDataTablePro
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">
+                  <button
+                    onClick={() => onViewProfile?.(report.reported_user_id)}
+                    className="text-sm font-medium hover:underline text-left"
+                  >
                     {report.reported.full_name || report.reported.email}
-                  </p>
+                  </button>
                   <p className="text-xs text-muted-foreground">
                     Reported by: {report.reporter.full_name || report.reporter.email}
                   </p>
@@ -105,14 +110,31 @@ export function ReportsDataTable({ reports, onReportClick }: ReportsDataTablePro
                 {format(new Date(report.created_at), "MMM d, yyyy")}
               </TableCell>
               <TableCell className="text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onReportClick(report)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Review
-                </Button>
+                <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onViewProfile?.(report.reported_user_id)}
+                    title="View Public Profile"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onViewInUsers?.(report.reported_user_id)}
+                    title="View in Users Admin"
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onReportClick(report)}
+                  >
+                    Review
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

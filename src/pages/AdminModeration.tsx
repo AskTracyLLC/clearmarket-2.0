@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3 } from "lucide-react";
+import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3, X } from "lucide-react";
 import { fetchReportStats, fetchReportsByType, ReportWithDetails } from "@/lib/adminReports";
 import { ReportDetailPanel } from "@/components/admin/ReportDetailPanel";
 import { ReportsDataTable } from "@/components/admin/ReportsDataTable";
@@ -26,6 +26,7 @@ import { toast } from "sonner";
 export default function AdminModeration() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [stats, setStats] = useState({ openReports: 0, flaggedReviews: 0, usersWithMultipleReports: 0 });
@@ -33,10 +34,56 @@ export default function AdminModeration() {
   const [selectedReport, setSelectedReport] = useState<ReportWithDetails | null>(null);
   const [currentTab, setCurrentTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [targetTypeFilter, setTargetTypeFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [searchTerm, setSearchTerm] = useState("");
+  const [targetUserFilter, setTargetUserFilter] = useState<{ id: string; label: string } | null>(null);
   const [safetyAnalytics, setSafetyAnalytics] = useState<SafetyAnalyticsData | null>(null);
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
+
+  // Read targetUserId from URL params
+  useEffect(() => {
+    const targetUserId = searchParams.get("targetUserId");
+    if (targetUserId && !targetUserFilter) {
+      // Fetch user info for the label
+      loadTargetUserInfo(targetUserId);
+    }
+  }, [searchParams]);
+
+  const loadTargetUserInfo = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+
+    // Also try to get anonymous ID
+    const { data: repProfile } = await supabase
+      .from("rep_profile")
+      .select("anonymous_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const { data: vendorProfile } = await supabase
+      .from("vendor_profile")
+      .select("anonymous_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const anonId = repProfile?.anonymous_id || vendorProfile?.anonymous_id;
+    const label = anonId || profile?.full_name || profile?.email || userId.slice(0, 8);
+
+    setTargetUserFilter({ id: userId, label });
+  };
+
+  const clearTargetUserFilter = () => {
+    setTargetUserFilter(null);
+    setSearchParams((prev) => {
+      prev.delete("targetUserId");
+      return prev;
+    });
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -112,17 +159,42 @@ export default function AdminModeration() {
     loadData(); // Refresh data after panel closes
   };
 
-  const filteredReports = reports.filter((report) => {
-    if (!searchTerm) return true;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      report.reporter.email?.toLowerCase().includes(searchLower) ||
-      report.reported.email?.toLowerCase().includes(searchLower) ||
-      report.reason_category?.toLowerCase().includes(searchLower) ||
-      report.reason_details?.toLowerCase().includes(searchLower)
-    );
-  });
+  const handleViewProfile = (userId: string) => {
+    setProfileDialogUserId(userId);
+    setShowProfileDialog(true);
+  };
+
+  const handleViewInUsers = (userId: string) => {
+    navigate(`/admin/users?userId=${userId}`);
+  };
+
+  const filteredReports = reports
+    .filter((report) => {
+      // Target user filter from URL
+      if (targetUserFilter && report.reported_user_id !== targetUserFilter.id) {
+        return false;
+      }
+
+      // Target type filter
+      if (targetTypeFilter !== "all" && report.target_type !== targetTypeFilter) {
+        return false;
+      }
+
+      // Search filter
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        report.reporter.email?.toLowerCase().includes(searchLower) ||
+        report.reported.email?.toLowerCase().includes(searchLower) ||
+        report.reason_category?.toLowerCase().includes(searchLower) ||
+        report.reason_details?.toLowerCase().includes(searchLower)
+      );
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
 
   if (authLoading || loading) {
     return (
@@ -185,11 +257,23 @@ export default function AdminModeration() {
           </Card>
         </div>
 
+        {/* Target User Filter Pill */}
+        {targetUserFilter && (
+          <div className="mb-4">
+            <Badge variant="secondary" className="text-sm py-1.5 px-3 gap-2">
+              Filtering by target user: {targetUserFilter.label}
+              <button onClick={clearTargetUserFilter} className="hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+
         {/* Filters */}
-        <div className="flex gap-4 mb-6">
+        <div className="flex flex-wrap gap-4 mb-6">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
@@ -197,6 +281,29 @@ export default function AdminModeration() {
               <SelectItem value="in_review">In Review</SelectItem>
               <SelectItem value="resolved">Resolved</SelectItem>
               <SelectItem value="dismissed">Dismissed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={targetTypeFilter} onValueChange={setTargetTypeFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="review">Review</SelectItem>
+              <SelectItem value="message">Message</SelectItem>
+              <SelectItem value="profile">Profile</SelectItem>
+              <SelectItem value="post">Post</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as "newest" | "oldest")}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
             </SelectContent>
           </Select>
 
@@ -254,6 +361,8 @@ export default function AdminModeration() {
               <ReportsDataTable
                 reports={filteredReports}
                 onReportClick={handleReportClick}
+                onViewProfile={handleViewProfile}
+                onViewInUsers={handleViewInUsers}
               />
             )}
           </TabsContent>
