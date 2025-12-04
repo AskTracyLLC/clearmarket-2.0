@@ -764,6 +764,10 @@ export type Database = {
           is_vendor_admin: boolean
           is_vendor_staff: boolean
           last_seen_at: string | null
+          staff_invite_note: string | null
+          staff_invite_sent_at: string | null
+          staff_invited_at: string | null
+          staff_role: string | null
           terms_signed_at: string | null
           terms_version: string | null
           updated_at: string
@@ -788,6 +792,10 @@ export type Database = {
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
           last_seen_at?: string | null
+          staff_invite_note?: string | null
+          staff_invite_sent_at?: string | null
+          staff_invited_at?: string | null
+          staff_role?: string | null
           terms_signed_at?: string | null
           terms_version?: string | null
           updated_at?: string
@@ -812,6 +820,10 @@ export type Database = {
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
           last_seen_at?: string | null
+          staff_invite_note?: string | null
+          staff_invite_sent_at?: string | null
+          staff_invited_at?: string | null
+          staff_role?: string | null
           terms_signed_at?: string | null
           terms_version?: string | null
           updated_at?: string

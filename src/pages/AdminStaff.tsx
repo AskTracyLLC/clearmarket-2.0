@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -27,7 +28,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Users, Eye, ExternalLink, Crown, UserPlus, ShieldCheck, MessageSquare, Gavel } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ArrowLeft, Users, Eye, ExternalLink, Crown, UserPlus, ShieldCheck, MessageSquare, Gavel, Mail, RefreshCw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -42,6 +49,10 @@ interface StaffUser {
   is_super_admin: boolean;
   account_status: string;
   last_seen_at: string | null;
+  staff_role: string | null;
+  staff_invited_at: string | null;
+  staff_invite_sent_at: string | null;
+  staff_invite_note: string | null;
 }
 
 export default function AdminStaff() {
@@ -60,11 +71,11 @@ export default function AdminStaff() {
   const [newStaff, setNewStaff] = useState({
     email: "",
     full_name: "",
-    is_admin: true,
-    is_moderator: false,
-    is_support: false,
+    role: "admin" as "admin" | "moderator" | "support",
+    note: "",
   });
   const [updatingRole, setUpdatingRole] = useState<string | null>(null);
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
 
   // Permission-based access control
   useEffect(() => {
@@ -96,14 +107,14 @@ export default function AdminStaff() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, is_admin, is_moderator, is_support, is_super_admin, account_status, last_seen_at")
+        .select("id, email, full_name, is_admin, is_moderator, is_support, is_super_admin, account_status, last_seen_at, staff_role, staff_invited_at, staff_invite_sent_at, staff_invite_note")
         .or("is_admin.eq.true,is_moderator.eq.true,is_support.eq.true")
         .order("is_super_admin", { ascending: false })
         .order("is_admin", { ascending: false })
         .order("full_name", { ascending: true });
 
       if (error) throw error;
-      setStaffUsers(data || []);
+      setStaffUsers((data as StaffUser[]) || []);
     } catch (error) {
       console.error("Error loading staff:", error);
       toast.error("Failed to load staff users");
@@ -167,11 +178,8 @@ export default function AdminStaff() {
         body: {
           email: newStaff.email,
           full_name: newStaff.full_name,
-          roles: {
-            is_admin: newStaff.is_admin,
-            is_moderator: newStaff.is_moderator,
-            is_support: newStaff.is_support,
-          },
+          role: newStaff.role,
+          note: newStaff.note || undefined,
         },
       });
 
@@ -186,7 +194,7 @@ export default function AdminStaff() {
 
       toast.success(`Staff invite sent to ${newStaff.email}`);
       setCreateDialogOpen(false);
-      setNewStaff({ email: "", full_name: "", is_admin: true, is_moderator: false, is_support: false });
+      setNewStaff({ email: "", full_name: "", role: "admin", note: "" });
       loadStaffUsers();
     } catch (error: any) {
       toast.error("Failed to create staff", { description: error.message });
@@ -195,11 +203,61 @@ export default function AdminStaff() {
     }
   };
 
+  const handleResendInvite = async (staff: StaffUser) => {
+    if (!permissions.canEditStaffAdmin) {
+      toast.error("Permission denied", {
+        description: "You don't have permission to resend invites.",
+      });
+      return;
+    }
+
+    setResendingInvite(staff.id);
+    try {
+      const response = await supabase.functions.invoke("create-staff-user", {
+        body: {
+          email: staff.email,
+          full_name: staff.full_name || staff.email,
+          role: staff.staff_role || "admin",
+          resend: true,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to resend invite");
+      }
+
+      const data = response.data;
+      if (!data.success) {
+        throw new Error(data.error || "Failed to resend invite");
+      }
+
+      toast.success(`Invite resent to ${staff.email}`);
+      loadStaffUsers();
+    } catch (error: any) {
+      toast.error("Failed to resend invite", { description: error.message });
+    } finally {
+      setResendingInvite(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     if (status === "active") {
       return <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">Active</Badge>;
     }
     return <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">{status}</Badge>;
+  };
+
+  const getRoleBadge = (role: string | null) => {
+    switch (role) {
+      case "admin":
+        return <Badge variant="secondary" className="gap-1"><ShieldCheck className="h-3 w-3" />Admin</Badge>;
+      case "moderator":
+        return <Badge variant="secondary" className="gap-1"><Gavel className="h-3 w-3" />Moderator</Badge>;
+      case "support":
+        return <Badge variant="secondary" className="gap-1"><MessageSquare className="h-3 w-3" />Support</Badge>;
+      default:
+        return null;
+    }
   };
 
   if (authLoading || permsLoading || loading) {
@@ -216,7 +274,7 @@ export default function AdminStaff() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto p-8">
+      <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
@@ -231,19 +289,19 @@ export default function AdminStaff() {
               <DialogTrigger asChild>
                 <Button>
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Create Staff Account
+                  Invite New Staff
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Create Staff Account</DialogTitle>
+                  <DialogTitle>Invite New Staff</DialogTitle>
                   <DialogDescription>
-                    An invitation email will be sent with a link to set their password and log in.
+                    A welcome email will be sent with a link to set their password and log in.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">Email *</Label>
                     <Input
                       id="email"
                       type="email"
@@ -253,7 +311,7 @@ export default function AdminStaff() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="full_name">Full Name</Label>
+                    <Label htmlFor="full_name">Full Name *</Label>
                     <Input
                       id="full_name"
                       placeholder="Jane Doe"
@@ -262,39 +320,45 @@ export default function AdminStaff() {
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label>Roles</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="role-admin"
-                          checked={newStaff.is_admin}
-                          onCheckedChange={(checked) => setNewStaff(prev => ({ ...prev, is_admin: !!checked }))}
-                        />
-                        <Label htmlFor="role-admin" className="text-sm font-normal cursor-pointer">
-                          Admin – Full access to admin pages
-                        </Label>
+                    <Label>Staff Role *</Label>
+                    <RadioGroup
+                      value={newStaff.role}
+                      onValueChange={(value) => setNewStaff(prev => ({ ...prev, role: value as "admin" | "moderator" | "support" }))}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-start gap-3">
+                        <RadioGroupItem value="admin" id="role-admin" className="mt-1" />
+                        <div>
+                          <Label htmlFor="role-admin" className="font-medium cursor-pointer">Admin</Label>
+                          <p className="text-xs text-muted-foreground">Full access to all admin features</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="role-moderator"
-                          checked={newStaff.is_moderator}
-                          onCheckedChange={(checked) => setNewStaff(prev => ({ ...prev, is_moderator: !!checked }))}
-                        />
-                        <Label htmlFor="role-moderator" className="text-sm font-normal cursor-pointer">
-                          Moderator – Access to moderation pages
-                        </Label>
+                      <div className="flex items-start gap-3">
+                        <RadioGroupItem value="moderator" id="role-moderator" className="mt-1" />
+                        <div>
+                          <Label htmlFor="role-moderator" className="font-medium cursor-pointer">Moderator</Label>
+                          <p className="text-xs text-muted-foreground">Access to moderation and trust & safety</p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="role-support"
-                          checked={newStaff.is_support}
-                          onCheckedChange={(checked) => setNewStaff(prev => ({ ...prev, is_support: !!checked }))}
-                        />
-                        <Label htmlFor="role-support" className="text-sm font-normal cursor-pointer">
-                          Support – Access to support tickets
-                        </Label>
+                      <div className="flex items-start gap-3">
+                        <RadioGroupItem value="support" id="role-support" className="mt-1" />
+                        <div>
+                          <Label htmlFor="role-support" className="font-medium cursor-pointer">Support</Label>
+                          <p className="text-xs text-muted-foreground">Access to support tickets and help center</p>
+                        </div>
                       </div>
-                    </div>
+                    </RadioGroup>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="note">Internal Note (optional)</Label>
+                    <Textarea
+                      id="note"
+                      placeholder="What will they be responsible for?"
+                      value={newStaff.note}
+                      onChange={(e) => setNewStaff(prev => ({ ...prev, note: e.target.value }))}
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground">Only visible to other admins</p>
                   </div>
                 </div>
                 <DialogFooter>
@@ -302,6 +366,7 @@ export default function AdminStaff() {
                     Cancel
                   </Button>
                   <Button onClick={handleCreateStaff} disabled={creating}>
+                    <Mail className="h-4 w-4 mr-2" />
                     {creating ? "Sending invite..." : "Send Invite"}
                   </Button>
                 </DialogFooter>
@@ -331,130 +396,179 @@ export default function AdminStaff() {
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Active</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {staffUsers.map((staff) => (
-                    <TableRow key={staff.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {staff.full_name || "—"}
-                          {staff.is_super_admin && (
-                            <span title="Super Admin">
-                              <Crown className="h-4 w-4 text-yellow-500" />
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{staff.email}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {permissions.canEditStaffAdmin && !staff.is_super_admin ? (
-                            <>
-                              <div className="flex items-center gap-1.5">
-                                <Switch
-                                  checked={staff.is_admin}
-                                  onCheckedChange={() => handleToggleRole(staff.id, "is_admin", staff.is_admin)}
-                                  disabled={updatingRole === `${staff.id}-is_admin`}
-                                  className="scale-75"
-                                />
-                                <span className="text-xs">Admin</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Switch
-                                  checked={staff.is_moderator}
-                                  onCheckedChange={() => handleToggleRole(staff.id, "is_moderator", staff.is_moderator)}
-                                  disabled={updatingRole === `${staff.id}-is_moderator`}
-                                  className="scale-75"
-                                />
-                                <span className="text-xs">Mod</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <Switch
-                                  checked={staff.is_support}
-                                  onCheckedChange={() => handleToggleRole(staff.id, "is_support", staff.is_support)}
-                                  disabled={updatingRole === `${staff.id}-is_support`}
-                                  className="scale-75"
-                                />
-                                <span className="text-xs">Support</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              {staff.is_admin && (
-                                <Badge variant="secondary" className="gap-1">
-                                  <ShieldCheck className="h-3 w-3" />
-                                  Admin
-                                </Badge>
-                              )}
-                              {staff.is_moderator && (
-                                <Badge variant="secondary" className="gap-1">
-                                  <Gavel className="h-3 w-3" />
-                                  Moderator
-                                </Badge>
-                              )}
-                              {staff.is_support && (
-                                <Badge variant="secondary" className="gap-1">
-                                  <MessageSquare className="h-3 w-3" />
-                                  Support
-                                </Badge>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(staff.account_status)}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {staff.last_seen_at
-                          ? format(new Date(staff.last_seen_at), "MMM d, yyyy")
-                          : "Never"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setProfileDialog({ open: true, userId: staff.id })}
-                            title="View Profile"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/admin/users?userId=${staff.id}`)}
-                            title="View in Users Admin"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Invited</TableHead>
+                      <TableHead>Last Invite Sent</TableHead>
+                      <TableHead>Note</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {staffUsers.map((staff) => (
+                      <TableRow key={staff.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {staff.full_name || "—"}
+                            {staff.is_super_admin && (
+                              <span title="Super Admin">
+                                <Crown className="h-4 w-4 text-yellow-500" />
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{staff.email}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {permissions.canEditStaffAdmin && !staff.is_super_admin ? (
+                              <>
+                                <div className="flex items-center gap-1.5">
+                                  <Switch
+                                    checked={staff.is_admin}
+                                    onCheckedChange={() => handleToggleRole(staff.id, "is_admin", staff.is_admin)}
+                                    disabled={updatingRole === `${staff.id}-is_admin`}
+                                    className="scale-75"
+                                  />
+                                  <span className="text-xs">Admin</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <Switch
+                                    checked={staff.is_moderator}
+                                    onCheckedChange={() => handleToggleRole(staff.id, "is_moderator", staff.is_moderator)}
+                                    disabled={updatingRole === `${staff.id}-is_moderator`}
+                                    className="scale-75"
+                                  />
+                                  <span className="text-xs">Mod</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <Switch
+                                    checked={staff.is_support}
+                                    onCheckedChange={() => handleToggleRole(staff.id, "is_support", staff.is_support)}
+                                    disabled={updatingRole === `${staff.id}-is_support`}
+                                    className="scale-75"
+                                  />
+                                  <span className="text-xs">Support</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {staff.staff_role ? (
+                                  getRoleBadge(staff.staff_role)
+                                ) : (
+                                  <>
+                                    {staff.is_admin && (
+                                      <Badge variant="secondary" className="gap-1">
+                                        <ShieldCheck className="h-3 w-3" />
+                                        Admin
+                                      </Badge>
+                                    )}
+                                    {staff.is_moderator && (
+                                      <Badge variant="secondary" className="gap-1">
+                                        <Gavel className="h-3 w-3" />
+                                        Moderator
+                                      </Badge>
+                                    )}
+                                    {staff.is_support && (
+                                      <Badge variant="secondary" className="gap-1">
+                                        <MessageSquare className="h-3 w-3" />
+                                        Support
+                                      </Badge>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(staff.account_status)}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {staff.staff_invited_at
+                            ? format(new Date(staff.staff_invited_at), "MMM d, yyyy")
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {staff.staff_invite_sent_at
+                            ? format(new Date(staff.staff_invite_sent_at), "MMM d, yyyy h:mm a")
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {staff.staff_invite_note ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1 text-muted-foreground cursor-help">
+                                    <Info className="h-3.5 w-3.5" />
+                                    <span className="text-xs max-w-[100px] truncate">
+                                      {staff.staff_invite_note}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p>{staff.staff_invite_note}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {permissions.canEditStaffAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleResendInvite(staff)}
+                                disabled={resendingInvite === staff.id}
+                                title="Resend Invite Email"
+                              >
+                                {resendingInvite === staff.id ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setProfileDialog({ open: true, userId: staff.id })}
+                              title="View Profile"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => navigate(`/admin/users?userId=${staff.id}`)}
+                              title="View in Users Admin"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Profile Dialog */}
-      {profileDialog.open && profileDialog.userId && (
-        <PublicProfileDialog
-          open={profileDialog.open}
-          onOpenChange={(open) => setProfileDialog({ open, userId: open ? profileDialog.userId : null })}
-          targetUserId={profileDialog.userId}
-        />
-      )}
+      <PublicProfileDialog
+        open={profileDialog.open}
+        onOpenChange={(open) => !open && setProfileDialog({ open: false, userId: null })}
+        targetUserId={profileDialog.userId || ""}
+      />
     </div>
   );
 }
