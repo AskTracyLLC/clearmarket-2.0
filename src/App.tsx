@@ -46,6 +46,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import Support from "./pages/Support";
 import AdminSupport from "./pages/AdminSupport";
 import AdminAuditLog from "./pages/AdminAuditLog";
+import AdminMetrics from "./pages/AdminMetrics";
 import HelpCenter from "./pages/HelpCenter";
 
 const queryClient = new QueryClient();
@@ -92,6 +93,7 @@ const App = () => (
             <Route path="/admin/staff" element={<AdminStaff />} />
             <Route path="/admin/support" element={<AdminSupport />} />
             <Route path="/admin/audit" element={<AdminAuditLog />} />
+            <Route path="/admin/metrics" element={<AdminMetrics />} />
             <Route path="/support" element={<Support />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/safety" element={<SafetyCenter />} />

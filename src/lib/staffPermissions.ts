@@ -31,6 +31,9 @@ export interface StaffPermissions {
 
   // Audit log
   canViewAuditLog: boolean;          // /admin/audit
+
+  // Metrics
+  canViewMetrics: boolean;           // /admin/metrics
 }
 
 export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
@@ -51,6 +54,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewCreditsAdmin: true,
     canAdjustCreditsAdmin: true,
     canViewAuditLog: true,
+    canViewMetrics: true,
   },
   moderator: {
     canViewAdminDashboard: true,
@@ -69,6 +73,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewCreditsAdmin: false,
     canAdjustCreditsAdmin: false,
     canViewAuditLog: false,
+    canViewMetrics: false,
   },
   support: {
     canViewAdminDashboard: true,
@@ -87,6 +92,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewCreditsAdmin: false,
     canAdjustCreditsAdmin: false,
     canViewAuditLog: false,
+    canViewMetrics: false,
   },
   none: {
     canViewAdminDashboard: false,
@@ -105,6 +111,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewCreditsAdmin: false,
     canAdjustCreditsAdmin: false,
     canViewAuditLog: false,
+    canViewMetrics: false,
   },
 };
 
