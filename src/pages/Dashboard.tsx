@@ -79,12 +79,15 @@ const Dashboard = () => {
     } else {
       setProfile(data);
       
-      // Redirect to onboarding if needed
-      if (!data.has_signed_terms) {
+      // Redirect to onboarding if needed (admins bypass role selection)
+      const isAdmin = data.is_admin === true;
+      
+      if (!data.has_signed_terms && !isAdmin) {
         navigate("/onboarding/terms");
         return;
       }
-      if (!data.is_fieldrep && !data.is_vendor_admin) {
+      // Admins don't need a rep/vendor role to access the dashboard
+      if (!isAdmin && !data.is_fieldrep && !data.is_vendor_admin) {
         navigate("/onboarding/role");
         return;
       }
