@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones, Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { Progress } from "@/components/ui/progress";
@@ -585,6 +585,18 @@ const Dashboard = () => {
                 </CardTitle>
                 <CardDescription>
                   High-level system stats and activity overview
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/credits")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-primary" />
+                  Credit Management
+                </CardTitle>
+                <CardDescription>
+                  Manually adjust user credit balances
                 </CardDescription>
               </CardHeader>
             </Card>
