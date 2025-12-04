@@ -2215,6 +2215,8 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      is_admin_user: { Args: { user_id: string }; Returns: boolean }
+      is_staff_user: { Args: { user_id: string }; Returns: boolean }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
