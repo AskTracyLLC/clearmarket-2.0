@@ -564,6 +564,30 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/audit")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  Activity Log
+                </CardTitle>
+                <CardDescription>
+                  View admin actions and audit history
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/metrics")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="w-5 h-5 text-primary" />
+                  System Metrics
+                </CardTitle>
+                <CardDescription>
+                  High-level system stats and activity overview
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         )}
 
