@@ -9,11 +9,15 @@ const corsHeaders = {
 interface CreateStaffRequest {
   email: string;
   full_name: string;
-  roles: {
+  role: "admin" | "moderator" | "support";
+  note?: string;
+  // Legacy support for old format
+  roles?: {
     is_admin?: boolean;
     is_moderator?: boolean;
     is_support?: boolean;
   };
+  resend?: boolean; // If true, just resend invite to existing user
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -77,7 +81,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Parse request body
     const body: CreateStaffRequest = await req.json();
-    const { email, full_name, roles } = body;
+    const { email, full_name, role, note, roles, resend } = body;
 
     if (!email || !full_name) {
       return new Response(
@@ -95,9 +99,110 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Creating staff user:", email, "with roles:", roles);
+    // Determine role flags - support both new 'role' field and legacy 'roles' object
+    let is_admin = false;
+    let is_moderator = false;
+    let is_support = false;
+    let staff_role = role || null;
 
-    // Use admin API to invite user by email
+    if (role) {
+      is_admin = role === "admin";
+      is_moderator = role === "moderator";
+      is_support = role === "support";
+    } else if (roles) {
+      // Legacy support
+      is_admin = roles.is_admin ?? false;
+      is_moderator = roles.is_moderator ?? false;
+      is_support = roles.is_support ?? false;
+      // Derive staff_role from legacy flags
+      if (is_admin) staff_role = "admin";
+      else if (is_moderator) staff_role = "moderator";
+      else if (is_support) staff_role = "support";
+    }
+
+    console.log("Creating/inviting staff user:", email, "with role:", staff_role, "resend:", resend);
+
+    // Check if user already exists
+    const { data: existingUsers } = await serviceClient.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    let userId: string;
+    const now = new Date().toISOString();
+
+    if (existingUser) {
+      userId = existingUser.id;
+      console.log("User already exists:", userId);
+
+      if (resend) {
+        // Resend invite - generate a recovery link (password reset)
+        const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
+          type: "recovery",
+          email: email,
+        });
+
+        if (linkError) {
+          console.error("Failed to generate recovery link:", linkError);
+          return new Response(
+            JSON.stringify({ success: false, error: "Failed to generate invite link" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Note: Supabase sends the email automatically when using generateLink with proper email settings
+        // Update invite sent timestamp
+        await serviceClient
+          .from("profiles")
+          .update({ staff_invite_sent_at: now })
+          .eq("id", userId);
+
+        console.log("Resent invite to existing user:", email);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user_id: userId,
+            email: email,
+            role: staff_role,
+            resent: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else {
+        // Just update the existing user's profile with staff flags
+        const { error: updateError } = await serviceClient
+          .from("profiles")
+          .update({
+            full_name: full_name,
+            is_admin,
+            is_moderator,
+            is_support,
+            staff_role,
+            staff_invited_at: now,
+            staff_invite_note: note || null,
+            has_signed_terms: true,
+            terms_signed_at: now,
+            terms_version: "staff_bypass",
+          })
+          .eq("id", userId);
+
+        if (updateError) {
+          console.error("Profile update error:", updateError);
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user_id: userId,
+            email: email,
+            role: staff_role,
+            existing_user: true,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Create new user via invite
     const { data: inviteData, error: inviteError } = await serviceClient.auth.admin.inviteUserByEmail(
       email,
       {
@@ -107,7 +212,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (inviteError) {
       console.error("Invite error:", inviteError);
-      // Check for common errors
       if (inviteError.message?.includes("already registered")) {
         return new Response(
           JSON.stringify({ success: false, error: "This email is already registered" }),
@@ -127,34 +231,37 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const newUserId = inviteData.user.id;
-    console.log("User created with ID:", newUserId);
+    userId = inviteData.user.id;
+    console.log("User created with ID:", userId);
 
-    // Upsert profile with staff roles
+    // Upsert profile with staff roles and onboarding metadata
     const { error: profileUpsertError } = await serviceClient
       .from("profiles")
       .upsert({
-        id: newUserId,
+        id: userId,
         email: email,
         full_name: full_name,
-        is_admin: roles.is_admin ?? false,
-        is_moderator: roles.is_moderator ?? false,
-        is_support: roles.is_support ?? false,
+        is_admin,
+        is_moderator,
+        is_support,
+        staff_role,
+        staff_invited_at: now,
+        staff_invite_sent_at: now,
+        staff_invite_note: note || null,
         // Staff members bypass normal onboarding
         has_signed_terms: true,
-        terms_signed_at: new Date().toISOString(),
+        terms_signed_at: now,
         terms_version: "staff_bypass",
       }, { onConflict: "id" });
 
     if (profileUpsertError) {
       console.error("Profile upsert error:", profileUpsertError);
-      // User was created but profile failed - still return success but note the issue
       return new Response(
         JSON.stringify({ 
           success: true, 
-          user_id: newUserId, 
+          user_id: userId, 
           email: email,
-          roles: roles,
+          role: staff_role,
           warning: "User created but profile update may have failed" 
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -166,9 +273,9 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        user_id: newUserId,
+        user_id: userId,
         email: email,
-        roles: roles,
+        role: staff_role,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
