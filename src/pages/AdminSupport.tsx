@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -58,12 +59,13 @@ interface TicketWithUser extends SupportTicket {
 }
 
 export default function AdminSupport() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { loading: permsLoading, permissions } = useStaffPermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
 
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [tickets, setTickets] = useState<TicketWithUser[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<TicketWithUser | null>(null);
@@ -85,33 +87,34 @@ export default function AdminSupport() {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
+  // Permission-based access control
   useEffect(() => {
-    async function checkAdmin() {
-      if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("is_admin, is_support")
-        .eq("id", user.id)
-        .single();
-      // Allow access if admin OR support
-      if (data?.is_admin || data?.is_support) {
-        setIsAdmin(true);
-      } else {
+    if (!permsLoading) {
+      if (!permissions.canViewSupportQueue) {
+        toast({
+          title: "Access denied",
+          description: "You don't have permission to view this page.",
+          variant: "destructive",
+        });
         navigate("/dashboard");
+      } else {
+        setHasAccess(true);
       }
     }
-    if (!loading && user) {
-      checkAdmin();
-    } else if (!loading && !user) {
-      navigate("/signin");
-    }
-  }, [loading, user, navigate]);
+  }, [permsLoading, permissions, navigate, toast]);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (authLoading || permsLoading) return;
+
+    if (!user) {
+      navigate("/signin");
+      return;
+    }
+
+    if (hasAccess) {
       loadTickets();
     }
-  }, [isAdmin]);
+  }, [user, authLoading, permsLoading, hasAccess, navigate]);
 
   async function loadTickets() {
     setLoadingTickets(true);
@@ -160,6 +163,15 @@ export default function AdminSupport() {
   async function handleSendReply() {
     if (!user || !selectedTicket || !replyText.trim()) return;
 
+    if (!permissions.canReplySupportTickets) {
+      toast({
+        title: "Permission denied",
+        description: "You don't have permission to reply to tickets.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const isInternal = replyTab === "internal";
     setSendingReply(true);
     const { error } = await addTicketMessage(selectedTicket.id, user.id, replyText, isInternal);
@@ -188,6 +200,16 @@ export default function AdminSupport() {
 
   async function handleStatusChange(status: SupportTicketStatus) {
     if (!selectedTicket) return;
+
+    if (!permissions.canReplySupportTickets) {
+      toast({
+        title: "Permission denied",
+        description: "You don't have permission to change ticket status.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await updateTicketStatus(selectedTicket.id, status, true);
     if (error) {
       toast({ title: "Failed to update status", variant: "destructive" });
@@ -200,6 +222,16 @@ export default function AdminSupport() {
 
   async function handlePriorityChange(priority: SupportTicketPriority) {
     if (!selectedTicket) return;
+
+    if (!permissions.canReplySupportTickets) {
+      toast({
+        title: "Permission denied",
+        description: "You don't have permission to change ticket priority.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await updateTicketPriority(selectedTicket.id, priority);
     if (error) {
       toast({ title: "Failed to update priority", variant: "destructive" });
@@ -231,12 +263,16 @@ export default function AdminSupport() {
     return ticket.repProfile?.anonymous_id || ticket.vendorProfile?.anonymous_id || "User";
   }
 
-  if (loading || !isAdmin) {
+  if (authLoading || permsLoading || loadingTickets) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
       </div>
     );
+  }
+
+  if (!hasAccess) {
+    return null;
   }
 
   return (
@@ -320,9 +356,7 @@ export default function AdminSupport() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                {loadingTickets ? (
-                  <p className="p-4 text-muted-foreground text-sm">Loading...</p>
-                ) : filteredTickets.length === 0 ? (
+                {filteredTickets.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-50" />
                     <p>No tickets found</p>
@@ -433,124 +467,122 @@ export default function AdminSupport() {
                   </div>
 
                   {/* Status/Priority controls */}
-                  <div className="mt-3 flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs">Status:</Label>
-                      <Select
-                        value={selectedTicket.status}
-                        onValueChange={(v) => handleStatusChange(v as SupportTicketStatus)}
-                      >
-                        <SelectTrigger className="w-32 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TICKET_STATUSES.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>
-                              {s.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {permissions.canReplySupportTickets && (
+                    <div className="mt-3 flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">Status:</Label>
+                        <Select
+                          value={selectedTicket.status}
+                          onValueChange={(v) => handleStatusChange(v as SupportTicketStatus)}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TICKET_STATUSES.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs">Priority:</Label>
+                        <Select
+                          value={selectedTicket.priority}
+                          onValueChange={(v) => handlePriorityChange(v as SupportTicketPriority)}
+                        >
+                          <SelectTrigger className="h-8 text-xs w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TICKET_PRIORITIES.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>
+                                {p.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs">Priority:</Label>
-                      <Select
-                        value={selectedTicket.priority}
-                        onValueChange={(v) => handlePriorityChange(v as SupportTicketPriority)}
-                      >
-                        <SelectTrigger className="w-28 h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TICKET_PRIORITIES.map((p) => (
-                            <SelectItem key={p.value} value={p.value}>
-                              {p.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+                  )}
                 </CardHeader>
 
                 {/* Messages */}
-                <CardContent className="flex-1 overflow-hidden p-0">
-                  <ScrollArea className="h-full p-4">
-                    {loadingMessages ? (
-                      <p className="text-muted-foreground text-sm">Loading messages...</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {ticketMessages.map((msg) => {
-                          const isUser = msg.sender_id === selectedTicket.user_id;
-                          const isInternal = msg.is_internal_note;
-                          return (
-                            <div
-                              key={msg.id}
-                              className={`p-3 rounded-lg ${
-                                isInternal
-                                  ? "bg-yellow-500/10 border border-yellow-500/20 ml-8"
-                                  : isUser
-                                  ? "bg-muted border border-border mr-8"
-                                  : "bg-primary/10 border border-primary/20 ml-8"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                {isInternal && <Lock className="h-3 w-3 text-yellow-500" />}
-                                <span className="text-xs font-medium">
-                                  {isInternal ? "Internal Note" : isUser ? getAnonId(selectedTicket) : "Support"}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {format(new Date(msg.created_at), "MMM d, h:mm a")}
-                                </span>
-                              </div>
-                              <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                            </div>
-                          );
-                        })}
+                <ScrollArea className="flex-1 p-4">
+                  {loadingMessages ? (
+                    <p className="text-muted-foreground text-sm">Loading messages...</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Original message */}
+                      <div className="bg-muted/50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-sm">{getAnonId(selectedTicket)}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(selectedTicket.created_at), "MMM d, h:mm a")}
+                          </span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{selectedTicket.message}</p>
                       </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
 
-                {/* Reply Section */}
-                <div className="p-4 border-t">
-                  <Tabs value={replyTab} onValueChange={(v) => setReplyTab(v as "reply" | "internal")}>
-                    <TabsList className="mb-3">
-                      <TabsTrigger value="reply">Reply to User</TabsTrigger>
-                      <TabsTrigger value="internal">Internal Note</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="reply" className="mt-0">
+                      {/* Thread messages */}
+                      {ticketMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`rounded-lg p-4 ${
+                            msg.is_internal_note
+                              ? "bg-yellow-500/10 border border-yellow-500/20"
+                              : msg.sender_id === selectedTicket.user_id
+                              ? "bg-muted/50"
+                              : "bg-primary/10"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">
+                                {msg.sender_id === selectedTicket.user_id ? getAnonId(selectedTicket) : "Support"}
+                              </span>
+                              {msg.is_internal_note && (
+                                <Badge variant="outline" className="text-xs bg-yellow-500/20">
+                                  <Lock className="h-3 w-3 mr-1" />
+                                  Internal
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(msg.created_at), "MMM d, h:mm a")}
+                            </span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+
+                {/* Reply box */}
+                {permissions.canReplySupportTickets && (
+                  <div className="p-4 border-t">
+                    <Tabs value={replyTab} onValueChange={(v) => setReplyTab(v as "reply" | "internal")}>
+                      <TabsList className="mb-3">
+                        <TabsTrigger value="reply">Reply to User</TabsTrigger>
+                        <TabsTrigger value="internal">Internal Note</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    <div className="flex gap-2">
                       <Textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
-                        placeholder="Type your reply to the user..."
-                        rows={3}
-                        maxLength={2000}
+                        placeholder={replyTab === "internal" ? "Add an internal note..." : "Type your reply..."}
+                        className="min-h-[80px]"
                       />
-                    </TabsContent>
-                    <TabsContent value="internal" className="mt-0">
-                      <div className="flex items-center gap-2 mb-2 text-xs text-yellow-500">
-                        <Lock className="h-3 w-3" />
-                        <span>This note is visible only to admins</span>
-                      </div>
-                      <Textarea
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        placeholder="Add an internal note..."
-                        rows={3}
-                        maxLength={2000}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                  <Button
-                    onClick={handleSendReply}
-                    disabled={sendingReply || !replyText.trim()}
-                    className="mt-3 w-full"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    {sendingReply ? "Sending..." : replyTab === "internal" ? "Add Note" : "Send Reply"}
-                  </Button>
-                </div>
+                      <Button onClick={handleSendReply} disabled={sendingReply || !replyText.trim()}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             ) : (
               <Card className="h-[calc(100vh-180px)] flex items-center justify-center">
@@ -565,7 +597,7 @@ export default function AdminSupport() {
       </div>
 
       {/* Profile Dialog */}
-      {profileUserId && (
+      {profileDialogOpen && profileUserId && (
         <PublicProfileDialog
           open={profileDialogOpen}
           onOpenChange={setProfileDialogOpen}

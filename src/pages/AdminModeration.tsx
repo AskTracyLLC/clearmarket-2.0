@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -25,10 +26,11 @@ import { toast } from "sonner";
 
 export default function AdminModeration() {
   const { user, loading: authLoading } = useAuth();
+  const { loading: permsLoading, permissions } = useStaffPermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [stats, setStats] = useState({ openReports: 0, flaggedReviews: 0, usersWithMultipleReports: 0 });
   const [reports, setReports] = useState<ReportWithDetails[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportWithDetails | null>(null);
@@ -42,11 +44,24 @@ export default function AdminModeration() {
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
 
+  // Permission-based access control
+  useEffect(() => {
+    if (!permsLoading) {
+      if (!permissions.canViewModeration) {
+        toast.error("Access denied", {
+          description: "You don't have permission to view this page.",
+        });
+        navigate("/dashboard");
+      } else {
+        setHasAccess(true);
+      }
+    }
+  }, [permsLoading, permissions, navigate]);
+
   // Read targetUserId from URL params
   useEffect(() => {
     const targetUserId = searchParams.get("targetUserId");
     if (targetUserId && !targetUserFilter) {
-      // Fetch user info for the label
       loadTargetUserInfo(targetUserId);
     }
   }, [searchParams]);
@@ -58,7 +73,6 @@ export default function AdminModeration() {
       .eq("id", userId)
       .maybeSingle();
 
-    // Also try to get anonymous ID
     const { data: repProfile } = await supabase
       .from("rep_profile")
       .select("anonymous_id")
@@ -86,37 +100,17 @@ export default function AdminModeration() {
   };
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || permsLoading) return;
     
     if (!user) {
       navigate("/signin");
       return;
     }
 
-    checkAdminStatus();
-  }, [user, authLoading, navigate]);
-
-  const checkAdminStatus = async () => {
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_admin, is_moderator")
-      .eq("id", user.id)
-      .single();
-
-    // Allow access if admin OR moderator
-    if (!profile?.is_admin && !profile?.is_moderator) {
-      toast.error("Unauthorized", {
-        description: "You don't have permission to access this page.",
-      });
-      navigate("/dashboard");
-      return;
+    if (hasAccess) {
+      loadData();
     }
-
-    setIsAdmin(true);
-    loadData();
-  };
+  }, [user, authLoading, permsLoading, hasAccess, navigate]);
 
   const loadData = async () => {
     setLoading(true);
@@ -126,7 +120,6 @@ export default function AdminModeration() {
       
       await loadReports();
 
-      // Load safety analytics
       const analyticsData = await fetchSafetyAnalytics();
       setSafetyAnalytics(analyticsData);
     } catch (error) {
@@ -146,10 +139,10 @@ export default function AdminModeration() {
   };
 
   useEffect(() => {
-    if (isAdmin) {
+    if (hasAccess) {
       loadReports();
     }
-  }, [currentTab, statusFilter, isAdmin]);
+  }, [currentTab, statusFilter, hasAccess]);
 
   const handleReportClick = (report: ReportWithDetails) => {
     setSelectedReport(report);
@@ -157,7 +150,7 @@ export default function AdminModeration() {
 
   const handleClosePanel = () => {
     setSelectedReport(null);
-    loadData(); // Refresh data after panel closes
+    loadData();
   };
 
   const handleViewProfile = (userId: string) => {
@@ -180,17 +173,14 @@ export default function AdminModeration() {
 
   const filteredReports = reports
     .filter((report) => {
-      // Target user filter from URL
       if (targetUserFilter && report.reported_user_id !== targetUserFilter.id) {
         return false;
       }
 
-      // Target type filter
       if (targetTypeFilter !== "all" && report.target_type !== targetTypeFilter) {
         return false;
       }
 
-      // Search filter
       if (!searchTerm) return true;
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -206,7 +196,7 @@ export default function AdminModeration() {
       return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
     });
 
-  if (authLoading || loading) {
+  if (authLoading || permsLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
@@ -216,7 +206,7 @@ export default function AdminModeration() {
     );
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return null;
   }
 
@@ -399,7 +389,7 @@ export default function AdminModeration() {
                   )}
                 </div>
               ) : (
-                <ReportsDataTable
+              <ReportsDataTable
                   reports={filteredReports}
                   onReportClick={handleReportClick}
                   onViewProfile={handleViewProfile}
