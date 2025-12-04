@@ -37,6 +37,7 @@ import AdminReports from "./pages/AdminReports";
 import AdminModeration from "./pages/AdminModeration";
 import AdminInviteCodes from "./pages/AdminInviteCodes";
 import AdminUsers from "./pages/AdminUsers";
+import AdminStaff from "./pages/AdminStaff";
 import SafetyCenter from "./pages/SafetyCenter";
 import CommunityBoard from "./pages/CommunityBoard";
 import CommunityPostDetail from "./pages/CommunityPostDetail";
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/admin/invites" element={<AdminInviteCodes />} />
             <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/staff" element={<AdminStaff />} />
             <Route path="/admin/support" element={<AdminSupport />} />
             <Route path="/support" element={<Support />} />
             <Route path="/help" element={<HelpCenter />} />

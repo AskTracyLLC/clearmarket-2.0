@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.validate-invite-code]
 verify_jwt = false
+
+[functions.create-staff-user]
+verify_jwt = true

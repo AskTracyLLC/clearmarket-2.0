@@ -552,6 +552,18 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
+
+            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/staff")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  Staff & Roles
+                </CardTitle>
+                <CardDescription>
+                  Manage admin, moderator, and support staff
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         )}
 

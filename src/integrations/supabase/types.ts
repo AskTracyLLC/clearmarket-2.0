@@ -759,6 +759,7 @@ export type Database = {
           is_admin: boolean
           is_fieldrep: boolean
           is_moderator: boolean
+          is_super_admin: boolean
           is_support: boolean
           is_vendor_admin: boolean
           is_vendor_staff: boolean
@@ -782,6 +783,7 @@ export type Database = {
           is_admin?: boolean
           is_fieldrep?: boolean
           is_moderator?: boolean
+          is_super_admin?: boolean
           is_support?: boolean
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
@@ -805,6 +807,7 @@ export type Database = {
           is_admin?: boolean
           is_fieldrep?: boolean
           is_moderator?: boolean
+          is_super_admin?: boolean
           is_support?: boolean
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
