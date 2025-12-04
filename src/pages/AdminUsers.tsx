@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -367,6 +367,16 @@ export default function AdminUsers() {
     navigate(`/admin/moderation?targetUserId=${userId}`);
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setRoleFilter("all");
+    setStatusFilter("all");
+    setSearchParams({});
+  };
+
+  const hasActiveFilters = searchTerm !== "" || roleFilter !== "all" || statusFilter !== "all";
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-8">
@@ -460,44 +470,79 @@ export default function AdminUsers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell>
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <p className="font-medium text-foreground">{u.full_name || "—"}</p>
-                            <p className="text-sm text-muted-foreground">{u.email}</p>
-                            {getCompanyName(u) && (
-                              <p className="text-xs text-muted-foreground">{getCompanyName(u)}</p>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-48">
+                        <div className="flex flex-col items-center justify-center text-center py-8">
+                          {users.length === 0 ? (
+                            <>
+                              <Users className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                              <p className="font-medium text-foreground">No users found yet</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Once people sign up and complete onboarding, they'll appear here.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <SearchX className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                              <p className="font-medium text-foreground">No users match your filters</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Try clearing your search or adjusting the filters above.
+                              </p>
+                              {hasActiveFilters && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleClearFilters}
+                                  className="mt-4"
+                                >
+                                  Clear filters
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <div className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-foreground">{u.full_name || "—"}</p>
+                              <p className="text-sm text-muted-foreground">{u.email}</p>
+                              {getCompanyName(u) && (
+                                <p className="text-xs text-muted-foreground">{getCompanyName(u)}</p>
+                              )}
+                            </div>
+                            {reportCounts[u.id] > 0 && (
+                              <Badge 
+                                variant="outline" 
+                                className="bg-red-500/10 text-red-600 border-red-500/20 text-xs shrink-0"
+                              >
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                {reportCounts[u.id]} {reportCounts[u.id] === 1 ? "report" : "reports"}
+                              </Badge>
                             )}
                           </div>
-                          {reportCounts[u.id] > 0 && (
-                            <Badge 
-                              variant="outline" 
-                              className="bg-red-500/10 text-red-600 border-red-500/20 text-xs shrink-0"
-                            >
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              {reportCounts[u.id]} {reportCounts[u.id] === 1 ? "report" : "reports"}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">{getAnonymousId(u)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {u.is_fieldrep && <Badge variant="secondary">Field Rep</Badge>}
-                          {u.is_vendor_admin && <Badge variant="secondary">Vendor</Badge>}
-                          {u.is_admin && <Badge variant="default">Admin</Badge>}
-                          {!u.is_fieldrep && !u.is_vendor_admin && !u.is_admin && (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(u.account_status)}</TableCell>
-                      <TableCell>
-                        {u.last_seen_at ? (
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm">{getAnonymousId(u)}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {u.is_fieldrep && <Badge variant="secondary">Field Rep</Badge>}
+                            {u.is_vendor_admin && <Badge variant="secondary">Vendor</Badge>}
+                            {u.is_admin && <Badge variant="default">Admin</Badge>}
+                            {!u.is_fieldrep && !u.is_vendor_admin && !u.is_admin && (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(u.account_status)}</TableCell>
+                        <TableCell>
+                          {u.last_seen_at ? (
                           <span className="text-sm text-muted-foreground">
                             {format(new Date(u.last_seen_at), "MMM d, yyyy")}
                           </span>
@@ -561,9 +606,10 @@ export default function AdminUsers() {
                             </Button>
                           )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>

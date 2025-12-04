@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3, X } from "lucide-react";
+import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3, X, ShieldAlert, SearchX } from "lucide-react";
 import { fetchReportStats, fetchReportsByType, ReportWithDetails } from "@/lib/adminReports";
 import { ReportDetailPanel } from "@/components/admin/ReportDetailPanel";
 import { ReportsDataTable } from "@/components/admin/ReportsDataTable";
@@ -167,6 +167,15 @@ export default function AdminModeration() {
   const handleViewInUsers = (userId: string) => {
     navigate(`/admin/users?userId=${userId}`);
   };
+
+  const handleClearFilters = () => {
+    setStatusFilter("all");
+    setTargetTypeFilter("all");
+    setSortOrder("newest");
+    clearTargetUserFilter();
+  };
+
+  const hasActiveFilters = statusFilter !== "all" || targetTypeFilter !== "all" || targetUserFilter !== null;
 
   const filteredReports = reports
     .filter((report) => {
@@ -358,12 +367,44 @@ export default function AdminModeration() {
 
           <TabsContent value={currentTab} className="mt-6">
             {currentTab !== "analytics" && (
-              <ReportsDataTable
-                reports={filteredReports}
-                onReportClick={handleReportClick}
-                onViewProfile={handleViewProfile}
-                onViewInUsers={handleViewInUsers}
-              />
+              filteredReports.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-16 border border-border rounded-lg bg-card">
+                  {reports.length === 0 ? (
+                    <>
+                      <ShieldAlert className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="font-medium text-foreground text-lg">No reports yet</p>
+                      <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                        When users flag profiles, messages, reviews, or posts, they'll show up here for review.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <SearchX className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="font-medium text-foreground text-lg">No reports match your filters</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Try adjusting the filters above to see more activity.
+                      </p>
+                      {hasActiveFilters && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearFilters}
+                          className="mt-4"
+                        >
+                          Clear filters
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              ) : (
+                <ReportsDataTable
+                  reports={filteredReports}
+                  onReportClick={handleReportClick}
+                  onViewProfile={handleViewProfile}
+                  onViewInUsers={handleViewInUsers}
+                />
+              )
             )}
           </TabsContent>
         </Tabs>
