@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { CoverageAreaDialog } from "@/components/CoverageAreaDialog";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
+import { ProfileSharePanel } from "@/components/ProfileSharePanel";
 
 // Validation schema for rep profile (MVP)
 const repProfileSchema = z.object({
@@ -420,6 +421,11 @@ const RepProfile = () => {
           <p className="text-muted-foreground">
             Complete your profile to appear in vendor searches
           </p>
+        </div>
+
+        {/* Share Profile Panel */}
+        <div className="mb-6">
+          <ProfileSharePanel roleType="rep" />
         </div>
 
         {/* Profile completion warning */}

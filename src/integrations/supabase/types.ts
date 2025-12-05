@@ -818,6 +818,9 @@ export type Database = {
           is_vendor_admin: boolean
           is_vendor_staff: boolean
           last_seen_at: string | null
+          share_profile_enabled: boolean | null
+          share_profile_last_generated_at: string | null
+          share_profile_slug: string | null
           staff_anonymous_id: string | null
           staff_invite_note: string | null
           staff_invite_sent_at: string | null
@@ -847,6 +850,9 @@ export type Database = {
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
           last_seen_at?: string | null
+          share_profile_enabled?: boolean | null
+          share_profile_last_generated_at?: string | null
+          share_profile_slug?: string | null
           staff_anonymous_id?: string | null
           staff_invite_note?: string | null
           staff_invite_sent_at?: string | null
@@ -876,6 +882,9 @@ export type Database = {
           is_vendor_admin?: boolean
           is_vendor_staff?: boolean
           last_seen_at?: string | null
+          share_profile_enabled?: boolean | null
+          share_profile_last_generated_at?: string | null
+          share_profile_slug?: string | null
           staff_anonymous_id?: string | null
           staff_invite_note?: string | null
           staff_invite_sent_at?: string | null

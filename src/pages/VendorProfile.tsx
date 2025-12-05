@@ -19,6 +19,7 @@ import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ProfileSharePanel } from "@/components/ProfileSharePanel";
 
 // Validation schema for vendor profile (MVP)
 const vendorProfileSchema = z.object({
@@ -332,6 +333,11 @@ const VendorProfile = () => {
           <p className="text-muted-foreground">
             Complete your profile to connect with field reps
           </p>
+        </div>
+
+        {/* Share Profile Panel */}
+        <div className="mb-6">
+          <ProfileSharePanel roleType="vendor" />
         </div>
 
         {/* Profile completion warning */}

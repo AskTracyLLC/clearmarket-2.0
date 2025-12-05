@@ -134,7 +134,15 @@ function VendorCoverageNeedsCTA({
 }
 
 // Internal component for public profile note
-function PublicProfileNote({ role }: { role: "rep" | "vendor" | null }) {
+function PublicProfileNote({ 
+  role, 
+  shareProfileEnabled, 
+  shareProfileSlug 
+}: { 
+  role: "rep" | "vendor" | null;
+  shareProfileEnabled?: boolean;
+  shareProfileSlug?: string | null;
+}) {
   if (!role) return null;
   
   const noteText = role === "rep"
@@ -142,11 +150,24 @@ function PublicProfileNote({ role }: { role: "rep" | "vendor" | null }) {
     : "This is a public snapshot. Detailed coverage maps and internal systems are only visible to this vendor and ClearMarket staff.";
   
   return (
-    <div className="flex items-start gap-2 pt-4 border-t border-border">
-      <Info className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
-      <p className="text-xs text-muted-foreground">
-        {noteText}
-      </p>
+    <div className="space-y-3 pt-4 border-t border-border">
+      {shareProfileEnabled && shareProfileSlug && (
+        <Button
+          variant="link"
+          size="sm"
+          className="px-0 h-auto"
+          onClick={() => window.open(`/share/${role}/${shareProfileSlug}`, '_blank')}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          View full public profile
+        </Button>
+      )}
+      <div className="flex items-start gap-2">
+        <Info className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          {noteText}
+        </p>
+      </div>
     </div>
   );
 }
@@ -172,6 +193,8 @@ export function PublicProfileDialog({
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
   const [activePostsCount, setActivePostsCount] = useState<number>(0);
+  const [shareProfileSlug, setShareProfileSlug] = useState<string | null>(null);
+  const [shareProfileEnabled, setShareProfileEnabled] = useState(false);
   
   // Credit confirmation hook
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
@@ -255,7 +278,7 @@ export function PublicProfileDialog({
         // Load base profile (for display name and email)
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email, is_fieldrep, is_vendor_admin, last_seen_at")
+          .select("full_name, email, is_fieldrep, is_vendor_admin, last_seen_at, share_profile_slug, share_profile_enabled")
           .eq("id", targetUserId)
           .maybeSingle();
 
@@ -285,6 +308,9 @@ export function PublicProfileDialog({
         if (repProfile) {
           // Store rep email for contact unlock feature
           setRepEmail(profile?.email || null);
+          // Store share profile info
+          setShareProfileSlug(profile?.share_profile_slug || null);
+          setShareProfileEnabled(profile?.share_profile_enabled || false);
 
           // Load coverage areas
           const { data: coverageAreas } = await supabase
@@ -342,6 +368,9 @@ export function PublicProfileDialog({
         }
         // Otherwise use vendor profile
         else if (vendorProfile) {
+          // Store share profile info
+          setShareProfileSlug(profile?.share_profile_slug || null);
+          setShareProfileEnabled(profile?.share_profile_enabled || false);
           // Load vendor coverage areas
           const { data: vendorCoverageAreas } = await supabase
             .from("vendor_coverage_areas")
@@ -1185,7 +1214,11 @@ export function PublicProfileDialog({
 
           {/* Public profile note - shown only to non-owners */}
           {!isOwnerOrAdmin && (
-            <PublicProfileNote role={profileData.role} />
+            <PublicProfileNote 
+              role={profileData.role} 
+              shareProfileEnabled={shareProfileEnabled}
+              shareProfileSlug={shareProfileSlug}
+            />
           )}
         </div>
       </DialogContent>

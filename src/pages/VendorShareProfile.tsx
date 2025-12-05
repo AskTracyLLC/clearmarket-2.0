@@ -1,0 +1,350 @@
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Star, MapPin, Calendar, CheckCircle, ExternalLink, Users, Globe } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+
+interface VendorProfileData {
+  role: "vendor";
+  anonymous_id: string;
+  company_name: string;
+  display_name: string;
+  contact_name: string | null;
+  location: string | null;
+  company_description: string | null;
+  website: string | null;
+  trust_score: number;
+  review_count: number;
+  community_score: number;
+  dimensions: { on_time: number; quality: number; communication: number };
+  systems_used: string[];
+  inspection_types: string[];
+  coverage_summary: string[];
+  coverage_states: string[];
+  is_accepting_new_reps: boolean;
+  last_active: string | null;
+  recent_reviews: any[];
+}
+
+export default function VendorShareProfile() {
+  const { slug } = useParams<{ slug: string }>();
+  const [profile, setProfile] = useState<VendorProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!slug) {
+      setError("Invalid profile URL");
+      setLoading(false);
+      return;
+    }
+    loadProfile();
+  }, [slug]);
+
+  async function loadProfile() {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-profile-share?slug=${slug}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to load profile');
+      }
+
+      const profileData = await response.json();
+      
+      if (profileData.role !== 'vendor') {
+        setError("This is not a Vendor profile");
+        return;
+      }
+
+      setProfile(profileData);
+    } catch (err: any) {
+      console.error('Error loading profile:', err);
+      setError(err.message || "Profile not found or disabled");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const renderStars = (rating: number) => {
+    if (!rating || rating === 0) return null;
+    return (
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-4 w-4 ${
+              star <= rating ? 'fill-yellow-500 text-yellow-500' : 'text-muted'
+            }`}
+          />
+        ))}
+        <span className="ml-2 text-sm font-medium">{rating.toFixed(1)}</span>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-3xl">
+          <CardContent className="p-12 text-center">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-muted rounded w-1/2 mx-auto" />
+              <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-3xl">
+          <CardContent className="p-12 text-center space-y-4">
+            <div className="text-6xl">🔒</div>
+            <h1 className="text-2xl font-bold">Profile Not Available</h1>
+            <p className="text-muted-foreground">
+              {error || "This shared profile is no longer available. The owner may have disabled the link."}
+            </p>
+            <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline">
+              Visit ClearMarket <ExternalLink className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background py-8 px-4">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <Link to="/" className="inline-block">
+            <h2 className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              ClearMarket Profile
+            </h2>
+          </Link>
+        </div>
+
+        {/* Main Card */}
+        <Card>
+          <CardHeader className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-3xl">{profile.company_name}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">Vendor Company</Badge>
+                  <span className="text-sm text-muted-foreground">{profile.anonymous_id}</span>
+                </div>
+                {profile.contact_name && (
+                  <p className="text-sm text-muted-foreground">Contact: {profile.contact_name}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              {profile.location && (
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  {profile.location}
+                </div>
+              )}
+              {profile.website && (
+                <a 
+                  href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-primary hover:underline"
+                >
+                  <Globe className="h-4 w-4" />
+                  Website
+                </a>
+              )}
+              {profile.last_active && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Active {formatDistanceToNow(new Date(profile.last_active), { addSuffix: true })}
+                </div>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Company Description */}
+            {profile.company_description && (
+              <>
+                <div className="space-y-2">
+                  <h3 className="font-semibold">About the Company</h3>
+                  <p className="text-muted-foreground">{profile.company_description}</p>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Trust & Community Score */}
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h3 className="font-semibold">Trust Score</h3>
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl font-bold text-primary">
+                    {profile.trust_score.toFixed(1)}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground">
+                      Based on {profile.review_count} {profile.review_count === 1 ? 'review' : 'reviews'}
+                    </div>
+                    {profile.review_count === 0 && (
+                      <Badge variant="outline" className="text-xs">New – building reputation</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <h3 className="font-semibold">Community Score</h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-2xl font-semibold">{profile.community_score}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Ratings */}
+            {profile.review_count > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Performance Ratings</h3>
+                  <div className="grid gap-4">
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">Helpfulness & Support</div>
+                      {renderStars(profile.dimensions.on_time)}
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">Communication</div>
+                      {renderStars(profile.dimensions.quality)}
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground">Pay Reliability</div>
+                      {renderStars(profile.dimensions.communication)}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <Separator />
+
+            {/* Systems & Inspection Types */}
+            <div className="grid sm:grid-cols-2 gap-6">
+              {profile.systems_used.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Systems We Use</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.systems_used.map((system) => (
+                      <Badge key={system} variant="outline">{system}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {profile.inspection_types.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold">Inspection Types We Assign</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.inspection_types.map((type) => (
+                      <Badge key={type} variant="outline">{type}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Coverage */}
+            <div className="space-y-3">
+              <h3 className="font-semibold">Coverage & Focus Areas</h3>
+              {profile.coverage_summary.length > 0 ? (
+                <div className="space-y-2">
+                  {profile.coverage_summary.map((summary, idx) => (
+                    <div key={idx} className="text-muted-foreground">{summary}</div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Coverage areas not specified</p>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Availability */}
+            <div className="flex items-center gap-2">
+              <CheckCircle className={`h-5 w-5 ${profile.is_accepting_new_reps ? 'text-green-500' : 'text-muted-foreground'}`} />
+              <span>
+                {profile.is_accepting_new_reps ? 'Accepting new field reps' : 'Not currently accepting new field reps'}
+              </span>
+            </div>
+
+            {/* Recent Reviews */}
+            {profile.recent_reviews.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Recent Feedback</h3>
+                  <div className="space-y-4">
+                    {profile.recent_reviews.map((review: any, idx: number) => (
+                      <Card key={idx} className="border-muted">
+                        <CardContent className="pt-4 space-y-2">
+                          <div className="text-sm text-muted-foreground">
+                            {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                          </div>
+                          <div className="flex gap-4 text-sm">
+                            {review.dimension_scores.on_time && (
+                              <div>Helpfulness: {review.dimension_scores.on_time}/5</div>
+                            )}
+                            {review.dimension_scores.quality && (
+                              <div>Communication: {review.dimension_scores.quality}/5</div>
+                            )}
+                            {review.dimension_scores.communication && (
+                              <div>Pay: {review.dimension_scores.communication}/5</div>
+                            )}
+                          </div>
+                          {review.comment && (
+                            <p className="text-muted-foreground italic">"{review.comment}"</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <div className="text-center text-sm text-muted-foreground space-y-2">
+          <p>Profile hosted by ClearMarket. Information provided by the profile owner.</p>
+          <p>Contact information is not shown here for privacy.</p>
+          <Link to="/" className="inline-flex items-center gap-1 text-primary hover:underline">
+            Learn more about ClearMarket <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
