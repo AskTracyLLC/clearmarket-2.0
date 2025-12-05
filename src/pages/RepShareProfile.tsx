@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Star, MapPin, Calendar, Shield, Key, Wrench, CheckCircle, ExternalLink, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 interface RepProfileData {
   role: "rep";
@@ -34,6 +36,8 @@ interface RepProfileData {
 
 export default function RepShareProfile() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<RepProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -366,14 +370,41 @@ export default function RepShareProfile() {
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <div className="text-center text-sm text-muted-foreground space-y-2">
-          <p>Profile hosted by ClearMarket. Information provided by the profile owner.</p>
-          <p>Contact information is not shown here for privacy.</p>
-          <Link to="/" className="inline-flex items-center gap-1 text-primary hover:underline">
-            Learn more about ClearMarket <ExternalLink className="h-3 w-3" />
-          </Link>
-        </div>
+        {/* CTA Panel */}
+        {!user ? (
+          <Card className="border-primary/30 bg-card-elevated">
+            <CardContent className="p-6 text-center space-y-4">
+              <h3 className="text-xl font-semibold">Not on ClearMarket yet?</h3>
+              <p className="text-muted-foreground">
+                Join ClearMarket to connect with field reps and vendors, build your reputation, and track coverage opportunities.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => navigate("/signup?vendor=1")}>
+                  Join as Vendor
+                </Button>
+                <Button variant="secondary" onClick={() => navigate("/signup?rep=1")}>
+                  Join as Field Rep
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="bg-card-elevated border-border">
+            <CardContent className="p-4 text-center space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Already on ClearMarket? Head back to your dashboard to manage your own profile and connections.
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Branding Footer */}
+        <p className="text-center text-xs text-muted-foreground">
+          Profile hosted by ClearMarket. Information provided by the profile owner.
+        </p>
       </div>
     </div>
   );
