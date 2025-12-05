@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2 } from "lucide-react";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AddCalendarEventDialog } from "@/components/AddCalendarEventDialog";
+import { VendorNetworkAlertsCard } from "@/components/VendorNetworkAlertsCard";
 import { format, parseISO, isBefore, startOfToday } from "date-fns";
 import {
   Select,
@@ -521,6 +522,11 @@ const VendorAvailability = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Network Alerts */}
+        {targetVendorId && (
+          <VendorNetworkAlertsCard vendorId={targetVendorId} />
+        )}
       </div>
 
       {/* Add/Edit Event Dialog */}
