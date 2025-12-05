@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-// Cache bust: 2025-12-05-v2
+// Cache bust: 2025-12-05-v3
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -15,5 +15,9 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  optimizeDeps: {
+    include: ["react-day-picker", "date-fns"],
+    force: true,
   },
 }));
