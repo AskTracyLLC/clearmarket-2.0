@@ -679,7 +679,7 @@ const AdminCredits = () => {
                             <div className="col-span-5 text-xs">
                               {hasRelatedEntity ? (
                                 <a
-                                  href={`/vendor/seeking-coverage?highlightPostId=${tx.related_entity_id}`}
+                                  href={`/vendor/seeking-coverage?vendorId=${selectedUser.id}&highlightPostId=${tx.related_entity_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-primary hover:underline flex items-center gap-1"
