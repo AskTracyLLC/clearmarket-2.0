@@ -223,15 +223,6 @@ export const SeekingCoverageDialog = ({
   const onSubmit = async (data: SeekingCoverageForm) => {
     if (!user) return;
 
-    // Show credit confirmation dialog for new posts
-    if (!editingPost) {
-      const confirmed = await confirmCreditSpend({
-        cost: 1,
-        actionLabel: "create this Seeking Coverage post",
-      });
-      if (!confirmed) return;
-    }
-
     setSaving(true);
 
     // Handle "Other" options
@@ -265,6 +256,20 @@ export const SeekingCoverageDialog = ({
       countyName = selectedCounty?.county_name || null;
     }
 
+    // For new posts, show credit confirmation before proceeding
+    let saveAsDraft = false;
+    if (!editingPost) {
+      const confirmed = await confirmCreditSpend({
+        cost: 1,
+        actionLabel: "publish this Seeking Coverage post",
+        cancelLabel: "Save as Draft",
+      });
+      if (!confirmed) {
+        // User declined - save as draft instead
+        saveAsDraft = true;
+      }
+    }
+
     const payload = {
       title: data.title,
       description: data.description || null,
@@ -273,8 +278,8 @@ export const SeekingCoverageDialog = ({
       covers_entire_state: data.covers_entire_state,
       inspection_types: filteredInspectionTypes,
       systems_required_array: filteredSystemsRequired,
-      is_accepting_responses: data.is_accepting_responses,
-      status: "active",
+      is_accepting_responses: saveAsDraft ? false : data.is_accepting_responses,
+      status: saveAsDraft ? "draft" : "active",
       auto_expires_at: editingPost
         ? editingPost.auto_expires_at
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
@@ -309,8 +314,29 @@ export const SeekingCoverageDialog = ({
         onSave();
         navigate("/vendor/seeking-coverage");
       }
+    } else if (saveAsDraft) {
+      // Save as draft - no credit charge
+      const { error } = await supabase
+        .from("seeking_coverage_posts")
+        .insert([payload]);
+
+      if (error) {
+        console.error("Error saving draft:", error);
+        toast({
+          title: "Error",
+          description: "Failed to save draft.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Draft Saved",
+          description: "Your post has been saved as a draft. You can publish it later from the Seeking Coverage page.",
+        });
+        onSave();
+        navigate("/vendor/seeking-coverage");
+      }
     } else {
-      // Create new - deduct credits first
+      // Create new active post - deduct credits first
       const { data: currentWallet } = await supabase
         .from("user_wallet")
         .select("credits")

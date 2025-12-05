@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface ConfirmCreditSpendOptions {
   cost: number;
   actionLabel: string;
+  cancelLabel?: string;
 }
 
 export function useCreditConfirm() {
@@ -15,6 +16,7 @@ export function useCreditConfirm() {
     cost: number;
     currentBalance: number;
     actionLabel: string;
+    cancelLabel?: string;
   } | null>(null);
 
   const resolveRef = useRef<((confirmed: boolean) => void) | null>(null);
@@ -33,6 +35,7 @@ export function useCreditConfirm() {
           cost: options.cost,
           currentBalance,
           actionLabel: options.actionLabel,
+          cancelLabel: options.cancelLabel,
         });
         setDialogOpen(true);
       });
@@ -62,6 +65,7 @@ export function useCreditConfirm() {
       cost={dialogProps.cost}
       currentBalance={dialogProps.currentBalance}
       actionLabel={dialogProps.actionLabel}
+      cancelLabel={dialogProps.cancelLabel}
       onConfirm={handleConfirm}
     />
   ) : null;
