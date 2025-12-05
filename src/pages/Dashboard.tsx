@@ -1020,6 +1020,26 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </Card>
+
+                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/availability")}>
+                  <div className="flex items-start gap-4">
+                    <Calendar className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-lg font-semibold text-foreground">Office & Pay Calendar</h3>
+                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
+                          New
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Keep reps informed about when your office is open and when they get paid.
+                      </p>
+                      <Button size="sm" variant="secondary">
+                        Manage Calendar →
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
               </>
             )}
 

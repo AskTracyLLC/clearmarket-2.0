@@ -1893,6 +1893,47 @@ export type Database = {
           },
         ]
       }
+      vendor_calendar_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          title: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_type: string
+          id?: string
+          title: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_calendar_events_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_connections: {
         Row: {
           conversation_id: string | null
@@ -2099,6 +2140,47 @@ export type Database = {
           {
             foreignKeyName: "vendor_message_templates_vendor_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_office_hours: {
+        Row: {
+          close_time: string | null
+          created_at: string
+          id: string
+          open_time: string | null
+          timezone: string
+          updated_at: string
+          vendor_id: string
+          weekday: number
+        }
+        Insert: {
+          close_time?: string | null
+          created_at?: string
+          id?: string
+          open_time?: string | null
+          timezone?: string
+          updated_at?: string
+          vendor_id: string
+          weekday: number
+        }
+        Update: {
+          close_time?: string | null
+          created_at?: string
+          id?: string
+          open_time?: string | null
+          timezone?: string
+          updated_at?: string
+          vendor_id?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_office_hours_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

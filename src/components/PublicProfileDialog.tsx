@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban, Info } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban, Info, Clock, Calendar, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
@@ -25,6 +25,8 @@ import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
 import { useBlockStatus } from "@/hooks/useBlockStatus";
 import { useCreditConfirm } from "@/hooks/useCreditConfirm";
+import { VendorCalendarDialog, useVendorCalendarSummary } from "@/components/VendorCalendarDialog";
+import { format, parseISO } from "date-fns";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -93,6 +95,71 @@ interface ProfileData {
     hudKeysDetails: string | null;
     equipmentNotes: string | null;
   };
+}
+
+// Internal component for vendor calendar section
+function VendorCalendarSection({ 
+  vendorId, 
+  isOwnerOrAdmin 
+}: { 
+  vendorId: string; 
+  isOwnerOrAdmin: boolean;
+}) {
+  const calendarSummary = useVendorCalendarSummary(vendorId);
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  
+  if (calendarSummary.loading) return null;
+  if (!calendarSummary.hoursSummary && !calendarSummary.nextPayDay) {
+    if (!isOwnerOrAdmin) return null;
+    return (
+      <Card className="p-4 bg-card-elevated">
+        <div className="flex items-start gap-3">
+          <Clock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-foreground mb-1">Office & Pay Schedule</h3>
+            <p className="text-sm text-muted-foreground">Not configured yet.</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+  
+  return (
+    <>
+      <Card className="p-4 bg-card-elevated">
+        <div className="flex items-start gap-3">
+          <Clock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="font-semibold text-foreground mb-2">Office & Pay Schedule</h3>
+            {calendarSummary.hoursSummary && (
+              <p className="text-sm text-muted-foreground mb-1">
+                <span className="font-medium">Office Hours:</span> {calendarSummary.hoursSummary}
+              </p>
+            )}
+            {calendarSummary.nextPayDay && (
+              <p className="text-sm text-muted-foreground mb-2">
+                <span className="font-medium">Next Pay Day:</span>{" "}
+                {format(parseISO(calendarSummary.nextPayDay.date), "MMM d, yyyy")}
+              </p>
+            )}
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-primary"
+              onClick={() => setShowCalendarDialog(true)}
+            >
+              View full calendar →
+            </Button>
+          </div>
+        </div>
+      </Card>
+      <VendorCalendarDialog
+        open={showCalendarDialog}
+        onOpenChange={setShowCalendarDialog}
+        vendorId={vendorId}
+      />
+    </>
+  );
 }
 
 // Internal component for vendor coverage needs CTA
@@ -1025,6 +1092,11 @@ export function PublicProfileDialog({
                   </span>
                 </div>
               </Card>
+
+              {/* Office & Pay Schedule - only for connected reps or admins */}
+              {(isOwnerOrAdmin || viewerIsVendor === false) && targetUserId && (
+                <VendorCalendarSection vendorId={targetUserId} isOwnerOrAdmin={isOwnerOrAdmin} />
+              )}
 
               {/* Coverage & Focus Areas - only visible to owner/admin */}
               {isOwnerOrAdmin && profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
