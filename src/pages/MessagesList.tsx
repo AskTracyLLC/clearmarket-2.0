@@ -12,6 +12,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { fetchBlockedUserIds } from "@/lib/blocks";
+import { useSectionCounts } from "@/hooks/useSectionCounts";
 
 interface ConversationWithParticipant {
   id: string;
@@ -48,6 +49,7 @@ interface PendingConnectionRequest {
 export default function MessagesList() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const sectionCounts = useSectionCounts();
   const [conversations, setConversations] = useState<ConversationWithParticipant[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -412,14 +414,18 @@ export default function MessagesList() {
         {/* Header */}
         <div className="space-y-4">
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/dashboard")}
-            >
+            <Button variant="outline" onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
-            <h1 className="text-3xl font-bold text-foreground">Messages</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">Messages</h1>
+              {sectionCounts.unreadMessages > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  ({sectionCounts.unreadMessages} conversation{sectionCounts.unreadMessages !== 1 ? "s" : ""} with unread messages)
+                </span>
+              )}
+            </div>
           </div>
           
           {/* Primary Filter */}

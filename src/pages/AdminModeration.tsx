@@ -23,6 +23,8 @@ import { SafetyAnalyticsTab } from "@/components/admin/SafetyAnalyticsTab";
 import { fetchSafetyAnalytics, SafetyAnalyticsData } from "@/lib/qualityAnalytics";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { toast } from "sonner";
+import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { CountBadge } from "@/components/CountBadge";
 
 export default function AdminModeration() {
   const { user, loading: authLoading } = useAuth();
@@ -31,6 +33,7 @@ export default function AdminModeration() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const sectionCounts = useSectionCounts();
   const [stats, setStats] = useState({ openReports: 0, flaggedReviews: 0, usersWithMultipleReports: 0 });
   const [reports, setReports] = useState<ReportWithDetails[]>([]);
   const [selectedReport, setSelectedReport] = useState<ReportWithDetails | null>(null);
@@ -219,8 +222,14 @@ export default function AdminModeration() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Moderation Dashboard</h1>
-            <p className="text-muted-foreground">Review and manage flagged content and user reports</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">Admin Moderation Dashboard</h1>
+              <CountBadge count={sectionCounts.adminOpenReports} />
+            </div>
+            <p className="text-muted-foreground">
+              Review and manage flagged content and user reports
+              {sectionCounts.adminOpenReports > 0 && ` · ${sectionCounts.adminOpenReports} items need review`}
+            </p>
           </div>
         </div>
 
