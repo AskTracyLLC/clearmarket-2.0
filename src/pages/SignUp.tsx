@@ -237,8 +237,8 @@ const SignUp = () => {
               asktracyllc.com
             </a>{" "}
             or contact{" "}
-            <a href="mailto:support@useclearmarket.io" className="text-primary hover:underline">
-              support@useclearmarket.io
+            <a href="mailto:hello@useclearmarket.io" className="text-primary hover:underline">
+              hello@useclearmarket.io
             </a>
           </p>
         )}
