@@ -1956,6 +1956,9 @@ export type Database = {
           event_date: string
           event_type: string
           id: string
+          is_recurring: boolean
+          recurrence_type: string | null
+          recurrence_until: string | null
           title: string
           updated_at: string
           vendor_id: string
@@ -1966,6 +1969,9 @@ export type Database = {
           event_date: string
           event_type: string
           id?: string
+          is_recurring?: boolean
+          recurrence_type?: string | null
+          recurrence_until?: string | null
           title: string
           updated_at?: string
           vendor_id: string
@@ -1976,6 +1982,9 @@ export type Database = {
           event_date?: string
           event_type?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_type?: string | null
+          recurrence_until?: string | null
           title?: string
           updated_at?: string
           vendor_id?: string
