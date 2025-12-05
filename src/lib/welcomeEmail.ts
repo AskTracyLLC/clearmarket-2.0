@@ -157,7 +157,7 @@ function buildWelcomeEmailHTML(
         
         <p style="color: #999999; font-size: 14px; margin-top: 24px;">
           Have questions? Visit our <a href="${baseUrl}/help" style="color: #f97316;">Help Center</a> or 
-          reach out to <a href="mailto:support@useclearmarket.io" style="color: #f97316;">support@useclearmarket.io</a>
+          reach out to <a href="mailto:hello@useclearmarket.io" style="color: #f97316;">hello@useclearmarket.io</a>
         </p>
       </div>
       <div class="footer">
