@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import AdminViewBanner from "@/components/AdminViewBanner";
 
 interface SeekingCoveragePost {
   id: string;
@@ -46,6 +45,7 @@ const VendorSeekingCoverage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const highlightPostId = searchParams.get("highlightPostId");
+  const vendorIdParam = searchParams.get("vendorId");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
@@ -60,6 +60,11 @@ const VendorSeekingCoverage = () => {
   
   // Interested reps count per post
   const [interestedCounts, setInterestedCounts] = useState<Record<string, number>>({});
+  
+  // For admin viewing another vendor's posts
+  const [targetVendorId, setTargetVendorId] = useState<string | null>(null);
+  const [targetVendorName, setTargetVendorName] = useState<string | null>(null);
+  const isAdminViewingOther = profile?.is_admin && vendorIdParam && vendorIdParam !== user?.id;
   
   // Ref for scrolling to highlighted post
   const highlightedPostRef = useRef<HTMLDivElement>(null);
@@ -105,44 +110,58 @@ const VendorSeekingCoverage = () => {
       return;
     }
 
-    // Load vendor profile
+    // Determine which vendor's posts to load
+    const isAdmin = profileData.is_admin === true;
+    const effectiveVendorId = isAdmin && vendorIdParam ? vendorIdParam : user.id;
+    setTargetVendorId(effectiveVendorId);
+
+    // Load vendor profile (for the target vendor, not necessarily current user)
     const { data: vendorData } = await supabase
       .from("vendor_profile")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveVendorId)
       .maybeSingle();
 
     setVendorProfile(vendorData);
+    
+    // If admin viewing another vendor, store their name for display
+    if (isAdmin && vendorIdParam && vendorIdParam !== user.id) {
+      setTargetVendorName(vendorData?.company_name || null);
+    }
 
     // Load seeking coverage posts with auto-expiry logic
-    await loadPosts();
+    await loadPosts(effectiveVendorId);
 
     setLoading(false);
   };
 
-  const loadPosts = async () => {
+  const loadPosts = async (vendorId?: string) => {
     if (!user) return;
+    
+    const effectiveVendorId = vendorId || targetVendorId || user.id;
 
-    // Auto-expire old active posts
-    const { error: updateError } = await supabase
-      .from("seeking_coverage_posts")
-      .update({
-        status: "expired",
-        is_accepting_responses: false,
-      })
-      .eq("vendor_id", user.id)
-      .eq("status", "active")
-      .lt("auto_expires_at", new Date().toISOString());
+    // Auto-expire old active posts (only for own posts, not admin viewing)
+    if (effectiveVendorId === user.id) {
+      const { error: updateError } = await supabase
+        .from("seeking_coverage_posts")
+        .update({
+          status: "expired",
+          is_accepting_responses: false,
+        })
+        .eq("vendor_id", effectiveVendorId)
+        .eq("status", "active")
+        .lt("auto_expires_at", new Date().toISOString());
 
-    if (updateError) {
-      console.error("Error auto-expiring posts:", updateError);
+      if (updateError) {
+        console.error("Error auto-expiring posts:", updateError);
+      }
     }
 
     // Fetch all non-deleted posts
     const { data: posts, error: postsError } = await supabase
       .from("seeking_coverage_posts")
       .select("*")
-      .eq("vendor_id", user.id)
+      .eq("vendor_id", effectiveVendorId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
@@ -498,22 +517,44 @@ Thank you again for your interest!`;
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         {/* Admin View Banner */}
-        {profile?.is_admin && <AdminViewBanner />}
+        {profile?.is_admin && (
+          <div className="mb-3 rounded-md bg-amber-900/40 border border-amber-500/40 px-3 py-2 text-xs text-amber-100 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>
+              You are viewing this page with <span className="font-semibold">Admin</span> access.
+              {isAdminViewingOther && targetVendorName && (
+                <> Viewing posts for <span className="font-semibold">{targetVendorName}</span>.</>
+              )}
+              {isAdminViewingOther && !targetVendorName && vendorIdParam && (
+                <> Viewing posts for vendor <span className="font-mono text-[10px]">{vendorIdParam.slice(0,8)}...</span>.</>
+              )}
+            </span>
+          </div>
+        )}
         
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Seeking Coverage</h1>
           <p className="text-muted-foreground">
-            Post where you need Field Reps. Requests auto-expire after 30 days.
+            {isAdminViewingOther 
+              ? `Viewing Seeking Coverage posts for ${targetVendorName || 'this vendor'}.`
+              : "Post where you need Field Reps. Requests auto-expire after 30 days."}
           </p>
         </div>
 
         {/* Create New Button */}
         <div className="mb-8">
-          <Button onClick={handleCreateNew} size="lg">
-            <PlusCircle className="h-5 w-5 mr-2" />
-            New Seeking Coverage Request
-          </Button>
+          {isAdminViewingOther ? (
+            <Button size="lg" disabled className="opacity-60 cursor-not-allowed" title="Admins can view vendor posts here; posting on their behalf is not available yet.">
+              <PlusCircle className="h-5 w-5 mr-2" />
+              New Seeking Coverage Request
+            </Button>
+          ) : (
+            <Button onClick={handleCreateNew} size="lg">
+              <PlusCircle className="h-5 w-5 mr-2" />
+              New Seeking Coverage Request
+            </Button>
+          )}
         </div>
 
         {/* Filter Tabs */}
@@ -533,15 +574,21 @@ Thank you again for your interest!`;
           <Card className="p-12 text-center border-2 border-dashed">
             <div className="max-w-md mx-auto">
               <h3 className="text-xl font-semibold text-foreground mb-2">
-                No Seeking Coverage posts yet
+                {isAdminViewingOther 
+                  ? "No Seeking Coverage posts found"
+                  : "No Seeking Coverage posts yet"}
               </h3>
               <p className="text-muted-foreground mb-6">
-                Create your first post to let reps know where you need coverage.
+                {isAdminViewingOther
+                  ? `This vendor has no Seeking Coverage posts${filterStatus !== "all" ? " matching this filter" : ""}.`
+                  : "Create your first post to let reps know where you need coverage."}
               </p>
-              <Button onClick={handleCreateNew}>
-                <PlusCircle className="h-5 w-5 mr-2" />
-                Create Seeking Coverage Post
-              </Button>
+              {!isAdminViewingOther && (
+                <Button onClick={handleCreateNew}>
+                  <PlusCircle className="h-5 w-5 mr-2" />
+                  Create Seeking Coverage Post
+                </Button>
+              )}
             </div>
           </Card>
         ) : (
