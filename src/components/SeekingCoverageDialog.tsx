@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, INSPECTION_TYPES_LIST, SYSTEMS_LIST } from "@/lib/constants";
 import { evaluateMatchAlertsForNewPost } from "@/lib/matchAlerts";
+import { useCreditConfirm } from "@/hooks/useCreditConfirm";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -99,6 +100,7 @@ export const SeekingCoverageDialog = ({
   const [counties, setCounties] = useState<County[]>([]);
   const [loadingCounties, setLoadingCounties] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
 
   const {
     register,
@@ -221,37 +223,16 @@ export const SeekingCoverageDialog = ({
   const onSubmit = async (data: SeekingCoverageForm) => {
     if (!user) return;
 
-    setSaving(true);
-
-    // Check vendor credits before creating (not editing)
+    // Show credit confirmation dialog for new posts
     if (!editingPost) {
-      const { data: walletData, error: walletError } = await supabase
-        .from("user_wallet")
-        .select("credits")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (walletError || !walletData) {
-        toast({
-          title: "Error",
-          description: "Unable to check credit balance. Please try again.",
-          variant: "destructive",
-        });
-        setSaving(false);
-        return;
-      }
-
-      if (walletData.credits < 1) {
-        toast({
-          title: "Insufficient Credits",
-          description: "You don't have enough credits to post Seeking Coverage. Please add credits to continue.",
-          variant: "destructive",
-        });
-        setSaving(false);
-        navigate("/vendor/credits");
-        return;
-      }
+      const confirmed = await confirmCreditSpend({
+        cost: 1,
+        actionLabel: "create this Seeking Coverage post",
+      });
+      if (!confirmed) return;
     }
+
+    setSaving(true);
 
     // Handle "Other" options
     const finalInspectionTypes = [...data.inspection_types];
@@ -789,6 +770,7 @@ export const SeekingCoverageDialog = ({
           </div>
         </form>
       </DialogContent>
+      {CreditConfirmDialog}
     </Dialog>
   );
 };
