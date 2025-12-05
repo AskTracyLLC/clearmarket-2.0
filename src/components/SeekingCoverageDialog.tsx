@@ -388,7 +388,7 @@ export const SeekingCoverageDialog = ({
         return;
       }
 
-      // Log the transaction
+      // Log the transaction with related entity reference
       await supabase.from("vendor_credit_transactions").insert({
         user_id: user.id,
         amount: -1,
@@ -398,6 +398,8 @@ export const SeekingCoverageDialog = ({
           post_title: data.title,
           state_code: data.state_code,
         },
+        related_entity_type: "seeking_coverage_post",
+        related_entity_id: newPost.id,
       });
 
       // Evaluate match alerts for reps
