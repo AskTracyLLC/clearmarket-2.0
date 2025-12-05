@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,10 +7,10 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Clock, Calendar, DollarSign } from "lucide-react";
+import { Clock, Calendar, DollarSign, Repeat } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, parseISO, isBefore, startOfToday, addDays } from "date-fns";
+import { format, parseISO, startOfToday, addDays, addMonths } from "date-fns";
+import { expandCalendarEvents, RecurringEvent, ExpandedEvent, RecurrenceType } from "@/lib/recurringEvents";
 
 interface OfficeHours {
   weekday: number;
@@ -19,12 +19,8 @@ interface OfficeHours {
   timezone: string;
 }
 
-interface CalendarEvent {
-  id: string;
-  event_date: string;
+interface CalendarEvent extends RecurringEvent {
   event_type: "office_closed" | "pay_day" | "note";
-  title: string;
-  description: string | null;
 }
 
 interface VendorCalendarDialogProps {
@@ -61,19 +57,19 @@ export function VendorCalendarDialog({
 
         setOfficeHours(hoursData || []);
 
-        // Load upcoming events (next 90 days)
-        const today = format(startOfToday(), "yyyy-MM-dd");
-        const futureDate = format(addDays(startOfToday(), 90), "yyyy-MM-dd");
-
+        // Load events (including recurring ones)
         const { data: eventsData } = await supabase
           .from("vendor_calendar_events")
-          .select("*")
+          .select("id, vendor_id, event_date, event_type, title, description, is_recurring, recurrence_type, recurrence_until")
           .eq("vendor_id", vendorId)
-          .gte("event_date", today)
-          .lte("event_date", futureDate)
           .order("event_date", { ascending: true });
 
-        setEvents((eventsData || []) as CalendarEvent[]);
+        setEvents((eventsData || []).map(e => ({
+          ...e,
+          is_recurring: e.is_recurring ?? false,
+          recurrence_type: e.recurrence_type as RecurrenceType | null,
+          recurrence_until: e.recurrence_until,
+        })) as CalendarEvent[]);
       } catch (error) {
         console.error("Error loading vendor calendar:", error);
       } finally {
@@ -83,6 +79,16 @@ export function VendorCalendarDialog({
 
     loadData();
   }, [open, vendorId]);
+
+  // Expand recurring events for the next 90 days
+  const expandedEvents = useMemo(() => {
+    const rangeStart = startOfToday();
+    const rangeEnd = addDays(rangeStart, 90);
+    const expanded = expandCalendarEvents(events, rangeStart, rangeEnd);
+    // Filter to only future events
+    const todayStr = format(rangeStart, "yyyy-MM-dd");
+    return expanded.filter(e => e.event_date >= todayStr);
+  }, [events]);
 
   const formatTime = (time: string | null) => {
     if (!time) return null;
@@ -126,12 +132,21 @@ export function VendorCalendarDialog({
     }).join(", ");
   };
 
-  const getEventTypeBadge = (type: string) => {
+  const getEventTypeBadge = (type: string, isRecurring?: boolean) => {
     switch (type) {
       case "office_closed":
         return <Badge variant="outline" className="bg-amber-500/20 text-amber-500 border-amber-500/30">Office Closed</Badge>;
       case "pay_day":
-        return <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30">Pay Day</Badge>;
+        return (
+          <div className="flex items-center gap-1">
+            <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30">Pay Day</Badge>
+            {isRecurring && (
+              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                <Repeat className="h-3 w-3" />
+              </Badge>
+            )}
+          </div>
+        );
       case "note":
         return <Badge variant="outline" className="bg-muted text-muted-foreground">Note</Badge>;
       default:
@@ -139,7 +154,7 @@ export function VendorCalendarDialog({
     }
   };
 
-  const nextPayDay = events.find(e => e.event_type === "pay_day");
+  const nextPayDay = expandedEvents.find(e => e.event_type === "pay_day");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,6 +218,12 @@ export function VendorCalendarDialog({
                       {format(parseISO(nextPayDay.event_date), "EEEE, MMMM d, yyyy")}
                     </p>
                     <p className="text-sm text-muted-foreground">{nextPayDay.title}</p>
+                    {nextPayDay.is_recurring && (
+                      <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                        <Repeat className="h-3 w-3" />
+                        Recurring
+                      </p>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -211,23 +232,23 @@ export function VendorCalendarDialog({
             {/* Upcoming Events */}
             <div>
               <h3 className="font-semibold text-foreground mb-3">Upcoming Events</h3>
-              {events.length === 0 ? (
+              {expandedEvents.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No upcoming events scheduled.
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {events.map((event) => (
+                  {expandedEvents.map((event) => (
                     <div
                       key={event.id}
                       className="flex items-start gap-3 p-3 rounded-lg bg-card border border-border"
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-sm font-medium text-foreground">
                             {format(parseISO(event.event_date), "MMM d")}
                           </span>
-                          {getEventTypeBadge(event.event_type)}
+                          {getEventTypeBadge(event.event_type, event.is_recurring)}
                         </div>
                         <p className="text-sm text-foreground">{event.title}</p>
                         {event.description && (
@@ -303,21 +324,40 @@ export function useVendorCalendarSummary(vendorId: string) {
           }
         }
 
-        // Load next pay day
-        const today = format(startOfToday(), "yyyy-MM-dd");
+        // Load pay day events (including recurring)
         const { data: payDayData } = await supabase
           .from("vendor_calendar_events")
-          .select("event_date, title")
+          .select("id, event_date, title, is_recurring, recurrence_type, recurrence_until")
           .eq("vendor_id", vendorId)
           .eq("event_type", "pay_day")
-          .gte("event_date", today)
-          .order("event_date", { ascending: true })
-          .limit(1)
-          .maybeSingle();
+          .order("event_date", { ascending: true });
 
-        const nextPayDay = payDayData
-          ? { date: payDayData.event_date, title: payDayData.title }
-          : null;
+        // Expand recurring events and find next pay day
+        let nextPayDay: { date: string; title: string } | null = null;
+        if (payDayData && payDayData.length > 0) {
+          const today = startOfToday();
+          const rangeEnd = addMonths(today, 12);
+          
+          const expanded = expandCalendarEvents(
+            payDayData.map(e => ({
+              ...e,
+              event_type: "pay_day",
+              description: null,
+              is_recurring: e.is_recurring ?? false,
+              recurrence_type: e.recurrence_type as RecurrenceType | null,
+              recurrence_until: e.recurrence_until,
+            })),
+            today,
+            rangeEnd
+          );
+
+          const todayStr = format(today, "yyyy-MM-dd");
+          const futurePayDays = expanded.filter(e => e.event_date >= todayStr);
+          
+          if (futurePayDays.length > 0) {
+            nextPayDay = { date: futurePayDays[0].event_date, title: futurePayDays[0].title };
+          }
+        }
 
         setSummary({ hoursSummary, nextPayDay, loading: false });
       } catch (error) {

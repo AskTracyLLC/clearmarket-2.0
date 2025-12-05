@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2, Repeat } from "lucide-react";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AddCalendarEventDialog } from "@/components/AddCalendarEventDialog";
 import { VendorNetworkAlertsCard } from "@/components/VendorNetworkAlertsCard";
-import { format, parseISO, isBefore, startOfToday } from "date-fns";
+import { format, parseISO, isBefore, startOfToday, addMonths } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { expandCalendarEvents, ExpandedEvent, RecurrenceType } from "@/lib/recurringEvents";
 
 const WEEKDAYS = [
   { value: 0, label: "Sunday" },
@@ -62,6 +63,9 @@ interface CalendarEvent {
   event_type: "office_closed" | "pay_day" | "note";
   title: string;
   description: string | null;
+  is_recurring: boolean;
+  recurrence_type: RecurrenceType | null;
+  recurrence_until: string | null;
 }
 
 const VendorAvailability = () => {
@@ -79,7 +83,7 @@ const VendorAvailability = () => {
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<ExpandedEvent | null>(null);
 
   // Check for vendorId param (admin viewing)
   useEffect(() => {
@@ -175,16 +179,21 @@ const VendorAvailability = () => {
 
       setOfficeHours(fullWeek);
 
-      // Load calendar events
+      // Load calendar events with recurrence columns
       const { data: eventsData, error: eventsError } = await supabase
         .from("vendor_calendar_events")
-        .select("*")
+        .select("id, vendor_id, event_date, event_type, title, description, is_recurring, recurrence_type, recurrence_until")
         .eq("vendor_id", vendorId)
         .order("event_date", { ascending: true });
 
       if (eventsError) throw eventsError;
 
-      setEvents((eventsData || []) as CalendarEvent[]);
+      setEvents((eventsData || []).map(e => ({
+        ...e,
+        is_recurring: e.is_recurring ?? false,
+        recurrence_type: e.recurrence_type as RecurrenceType | null,
+        recurrence_until: e.recurrence_until,
+      })) as CalendarEvent[]);
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -294,20 +303,25 @@ const VendorAvailability = () => {
   };
 
   const handleDeleteEvent = async () => {
-    if (!deletingEventId) return;
+    if (!deletingEvent) return;
+
+    // For generated instances, delete the parent event
+    const eventIdToDelete = deletingEvent.parentEventId || deletingEvent.id;
 
     try {
       const { error } = await supabase
         .from("vendor_calendar_events")
         .delete()
-        .eq("id", deletingEventId);
+        .eq("id", eventIdToDelete);
 
       if (error) throw error;
 
-      setEvents(prev => prev.filter(e => e.id !== deletingEventId));
+      setEvents(prev => prev.filter(e => e.id !== eventIdToDelete));
       toast({
         title: "Deleted",
-        description: "Event deleted successfully.",
+        description: deletingEvent.is_recurring 
+          ? "Recurring pay day series deleted."
+          : "Event deleted successfully.",
       });
     } catch (error) {
       console.error("Error deleting event:", error);
@@ -317,11 +331,18 @@ const VendorAvailability = () => {
         variant: "destructive",
       });
     } finally {
-      setDeletingEventId(null);
+      setDeletingEvent(null);
     }
   };
 
-  const filteredEvents = events.filter(e => {
+  // Expand recurring events for display (12 months ahead)
+  const expandedEvents = useMemo(() => {
+    const rangeStart = startOfToday();
+    const rangeEnd = addMonths(rangeStart, 12);
+    return expandCalendarEvents(events, rangeStart, rangeEnd);
+  }, [events]);
+
+  const filteredEvents = expandedEvents.filter(e => {
     if (eventFilter === "all") return true;
     return e.event_type === eventFilter;
   });
@@ -471,6 +492,25 @@ const VendorAvailability = () => {
                 {filteredEvents.map((event) => {
                   const eventDate = parseISO(event.event_date);
                   const isPast = isBefore(eventDate, startOfToday());
+                  const isGenerated = (event as ExpandedEvent).isGeneratedInstance;
+                  
+                  // For editing generated instances, find the parent event
+                  const handleEdit = () => {
+                    if (isGenerated && (event as ExpandedEvent).parentEventId) {
+                      const parent = events.find(e => e.id === (event as ExpandedEvent).parentEventId);
+                      if (parent) {
+                        setEditingEvent(parent);
+                        setShowAddEventDialog(true);
+                      }
+                    } else {
+                      // Cast to CalendarEvent (base events have the right type)
+                      const baseEvent = events.find(e => e.id === event.id);
+                      if (baseEvent) {
+                        setEditingEvent(baseEvent);
+                        setShowAddEventDialog(true);
+                      }
+                    }
+                  };
                   
                   return (
                     <div
@@ -480,11 +520,17 @@ const VendorAvailability = () => {
                       }`}
                     >
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className={`font-medium ${isPast ? "text-muted-foreground" : "text-foreground"}`}>
                             {format(eventDate, "EEEE, MMMM d, yyyy")}
                           </span>
                           {getEventTypeBadge(event.event_type)}
+                          {event.is_recurring && (
+                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                              <Repeat className="h-3 w-3 mr-1" />
+                              Recurring
+                            </Badge>
+                          )}
                           {isPast && (
                             <Badge variant="outline" className="text-xs">Past</Badge>
                           )}
@@ -496,24 +542,26 @@ const VendorAvailability = () => {
                           <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
                         )}
                       </div>
+                      {/* Only show edit/delete for base events or allow editing recurring series */}
                       <div className="flex gap-2 ml-4">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setEditingEvent(event);
-                            setShowAddEventDialog(true);
-                          }}
+                          onClick={handleEdit}
+                          title={isGenerated ? "Edit recurring series" : "Edit event"}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeletingEventId(event.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {!isGenerated && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletingEvent(event as ExpandedEvent)}
+                            title={event.is_recurring ? "Delete recurring series" : "Delete event"}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -542,12 +590,17 @@ const VendorAvailability = () => {
       />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingEventId} onOpenChange={() => setDeletingEventId(null)}>
+      <AlertDialog open={!!deletingEvent} onOpenChange={() => setDeletingEvent(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deletingEvent?.is_recurring ? "Delete Recurring Pay Day?" : "Delete Event?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The event will be permanently removed.
+              {deletingEvent?.is_recurring 
+                ? "This will remove all future pay day instances from your calendar. This action cannot be undone."
+                : "This action cannot be undone. The event will be permanently removed."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
