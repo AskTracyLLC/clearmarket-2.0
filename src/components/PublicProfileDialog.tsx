@@ -11,7 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban, Info } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
@@ -94,6 +95,62 @@ interface ProfileData {
   };
 }
 
+// Internal component for vendor coverage needs CTA
+function VendorCoverageNeedsCTA({ 
+  vendorUserId, 
+  activePostsCount 
+}: { 
+  vendorUserId: string; 
+  activePostsCount: number;
+}) {
+  const navigate = useNavigate();
+  
+  return (
+    <Card className="p-4 bg-card-elevated border-primary/20">
+      <div className="flex items-start gap-3">
+        <MapPin className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h3 className="font-semibold text-foreground mb-2">Coverage Needs</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            This vendor posts specific areas where they're currently looking for Field Reps. 
+            You can view their active Seeking Coverage requests for more detail.
+          </p>
+          <Button
+            size="sm"
+            onClick={() => navigate(`/rep/find-work?vendorId=${vendorUserId}`)}
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            View Active Areas Looking for Coverage
+            {activePostsCount > 0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {activePostsCount}
+              </Badge>
+            )}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Internal component for public profile note
+function PublicProfileNote({ role }: { role: "rep" | "vendor" | null }) {
+  if (!role) return null;
+  
+  const noteText = role === "rep"
+    ? "This is a public snapshot. Detailed coverage, systems, and background check info is only visible to the profile owner and ClearMarket staff."
+    : "This is a public snapshot. Detailed coverage maps and internal systems are only visible to this vendor and ClearMarket staff.";
+  
+  return (
+    <div className="flex items-start gap-2 pt-4 border-t border-border">
+      <Info className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
+      <p className="text-xs text-muted-foreground">
+        {noteText}
+      </p>
+    </div>
+  );
+}
+
 export function PublicProfileDialog({
   open,
   onOpenChange,
@@ -110,15 +167,21 @@ export function PublicProfileDialog({
   const [isContactUnlocked, setIsContactUnlocked] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [viewerIsVendor, setViewerIsVendor] = useState(false);
+  const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
   const [repEmail, setRepEmail] = useState<string | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
+  const [activePostsCount, setActivePostsCount] = useState<number>(0);
   
   // Credit confirmation hook
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
   
   // Check block status
   const blockStatus = useBlockStatus(targetUserId);
+
+  // Determine if viewer is owner or admin
+  const isSelf = user?.id === targetUserId;
+  const isOwnerOrAdmin = isSelf || viewerIsAdmin;
 
   // Generate signed URL for background check screenshot when available
   useEffect(() => {
@@ -135,20 +198,21 @@ export function PublicProfileDialog({
     generateSignedUrl();
   }, [profileData?.backgroundCheck?.screenshotUrl]);
 
-  // Check if viewer is a vendor and if contact is unlocked
+  // Check if viewer is a vendor/admin and if contact is unlocked
   useEffect(() => {
     if (!open || !targetUserId || !user) return;
 
     async function checkViewerAndUnlock() {
-      // Check if current user is a vendor
+      // Check if current user is a vendor or admin
       const { data: viewerProfile } = await supabase
         .from("profiles")
-        .select("is_vendor_admin, is_vendor_staff")
+        .select("is_vendor_admin, is_vendor_staff, is_admin")
         .eq("id", user.id)
         .maybeSingle();
 
       const isVendor = viewerProfile?.is_vendor_admin || viewerProfile?.is_vendor_staff || false;
       setViewerIsVendor(isVendor);
+      setViewerIsAdmin(viewerProfile?.is_admin || false);
 
       // If vendor viewing a rep, check unlock status
       if (isVendor) {
@@ -163,6 +227,24 @@ export function PublicProfileDialog({
 
     checkViewerAndUnlock();
   }, [open, targetUserId, user]);
+
+  // Fetch active Seeking Coverage posts count for vendor profiles
+  useEffect(() => {
+    if (!open || !targetUserId || !profileData || profileData.role !== "vendor") return;
+
+    async function fetchActivePostsCount() {
+      const { count } = await supabase
+        .from("seeking_coverage_posts")
+        .select("*", { count: "exact", head: true })
+        .eq("vendor_id", targetUserId)
+        .eq("status", "active")
+        .is("deleted_at", null);
+      
+      setActivePostsCount(count || 0);
+    }
+
+    fetchActivePostsCount();
+  }, [open, targetUserId, profileData?.role]);
 
   useEffect(() => {
     if (!open || !targetUserId) return;
@@ -532,8 +614,8 @@ export function PublicProfileDialog({
                 </Card>
               )}
 
-              {/* Systems Used */}
-              {profileData.systemsUsed && profileData.systemsUsed.length > 0 && (
+              {/* Systems Used - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.systemsUsed && profileData.systemsUsed.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <h3 className="font-semibold text-foreground mb-3">Systems I Use</h3>
                   <div className="flex flex-wrap gap-2">
@@ -546,8 +628,8 @@ export function PublicProfileDialog({
                 </Card>
               )}
 
-              {/* Inspection Types */}
-              {profileData.inspectionTypes && profileData.inspectionTypes.length > 0 && (
+              {/* Inspection Types - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.inspectionTypes && profileData.inspectionTypes.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <h3 className="font-semibold text-foreground mb-3">Inspection Types</h3>
                   <div className="flex flex-wrap gap-2">
@@ -658,8 +740,8 @@ export function PublicProfileDialog({
                 )}
               </Card>
 
-              {/* Coverage Snapshot */}
-              {profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
+              {/* Coverage Snapshot - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <h3 className="font-semibold text-foreground mb-3">Coverage Snapshot</h3>
                   <div className="space-y-2">
@@ -686,8 +768,8 @@ export function PublicProfileDialog({
                 </Card>
               )}
 
-              {/* Background Check */}
-              {profileData.backgroundCheck && (
+              {/* Background Check - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.backgroundCheck && (
                 <Card className="p-4 bg-card-elevated">
                   <div className="flex items-start gap-3">
                     <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
@@ -868,8 +950,8 @@ export function PublicProfileDialog({
                 </div>
               </Card>
 
-              {/* Systems We Use */}
-              {profileData.systemsUsed && profileData.systemsUsed.length > 0 && (
+              {/* Systems We Use - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.systemsUsed && profileData.systemsUsed.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <h3 className="font-semibold text-foreground mb-3">Systems We Use</h3>
                   <div className="flex flex-wrap gap-2">
@@ -882,8 +964,8 @@ export function PublicProfileDialog({
                 </Card>
               )}
 
-              {/* Inspection Types We Assign */}
-              {profileData.inspectionTypes && profileData.inspectionTypes.length > 0 && (
+              {/* Inspection Types We Assign - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.inspectionTypes && profileData.inspectionTypes.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <h3 className="font-semibold text-foreground mb-3">
                     Inspection Types We Assign
@@ -915,8 +997,8 @@ export function PublicProfileDialog({
                 </div>
               </Card>
 
-              {/* Coverage & Focus Areas */}
-              {profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
+              {/* Coverage & Focus Areas - only visible to owner/admin */}
+              {isOwnerOrAdmin && profileData.coverageAreas && profileData.coverageAreas.length > 0 && (
                 <Card className="p-4 bg-card-elevated">
                   <div className="mb-3">
                     <h3 className="font-semibold text-foreground flex items-center gap-2 mb-1">
@@ -1012,6 +1094,14 @@ export function PublicProfileDialog({
                   </div>
                 </Card>
               )}
+
+              {/* Coverage Needs CTA - shown to non-owner/non-admin */}
+              {!isOwnerOrAdmin && (
+                <VendorCoverageNeedsCTA 
+                  vendorUserId={targetUserId!} 
+                  activePostsCount={activePostsCount} 
+                />
+              )}
             </>
           )}
 
@@ -1091,6 +1181,11 @@ export function PublicProfileDialog({
                 </Button>
               </div>
             </Card>
+          )}
+
+          {/* Public profile note - shown only to non-owners */}
+          {!isOwnerOrAdmin && (
+            <PublicProfileNote role={profileData.role} />
           )}
         </div>
       </DialogContent>
