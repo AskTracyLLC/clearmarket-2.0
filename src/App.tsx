@@ -23,6 +23,7 @@ import MessageThread from "./pages/MessageThread";
 import VendorMessageTemplates from "./pages/VendorMessageTemplates";
 import RepMessageTemplates from "./pages/RepMessageTemplates";
 import RepFindVendors from "./pages/RepFindVendors";
+import VendorAvailability from "./pages/VendorAvailability";
 import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import RepAvailability from "./pages/RepAvailability";
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/vendor/seeking-coverage" element={<VendorSeekingCoverage />} />
             <Route path="/vendor/seeking-coverage/:postId/interested" element={<VendorInterestedReps />} />
             <Route path="/vendor/my-reps" element={<VendorMyReps />} />
+            <Route path="/vendor/availability" element={<VendorAvailability />} />
             <Route path="/rep/my-vendors" element={<RepMyVendors />} />
             <Route path="/rep/availability" element={<RepAvailability />} />
             <Route path="/messages" element={<MessagesList />} />

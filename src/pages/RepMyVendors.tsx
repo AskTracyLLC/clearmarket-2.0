@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check, Info } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check, Info, Calendar, Clock, DollarSign } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { getOrCreateConversation } from "@/lib/conversations";
@@ -26,6 +26,8 @@ import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
+import { VendorCalendarDialog, useVendorCalendarSummary } from "@/components/VendorCalendarDialog";
+import { format, parseISO } from "date-fns";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -111,6 +113,9 @@ const RepMyVendors = () => {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
+  const [showCalendarDialog, setShowCalendarDialog] = useState(false);
+  const [calendarVendorId, setCalendarVendorId] = useState<string | null>(null);
+  const [calendarVendorName, setCalendarVendorName] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -991,13 +996,25 @@ const RepMyVendors = () => {
                         {vendor.connectedAt && new Date(vendor.connectedAt).toLocaleDateString()}
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-2 justify-end flex-wrap">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleViewProfile(vendor.vendorUserId)}
                           >
                             View Profile
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setCalendarVendorId(vendor.vendorUserId);
+                              setCalendarVendorName(vendor.companyName);
+                              setShowCalendarDialog(true);
+                            }}
+                          >
+                            <Calendar className="h-4 w-4 mr-1" />
+                            Calendar
                           </Button>
                           <Button
                             variant="outline"
@@ -1194,6 +1211,13 @@ const RepMyVendors = () => {
         open={showReviewsDialog}
         onOpenChange={setShowReviewsDialog}
         targetUserId={reviewsDialogUserId}
+      />
+
+      <VendorCalendarDialog
+        open={showCalendarDialog}
+        onOpenChange={setShowCalendarDialog}
+        vendorId={calendarVendorId || ""}
+        vendorName={calendarVendorName}
       />
 
       {reviewDialogData && user && (
