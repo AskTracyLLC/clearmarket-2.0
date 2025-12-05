@@ -16,6 +16,7 @@ interface ConfirmCreditSpendDialogProps {
   currentBalance: number;
   actionLabel: string;
   onConfirm: () => void;
+  cancelLabel?: string;
 }
 
 export function ConfirmCreditSpendDialog({
@@ -25,6 +26,7 @@ export function ConfirmCreditSpendDialog({
   currentBalance,
   actionLabel,
   onConfirm,
+  cancelLabel = "Cancel",
 }: ConfirmCreditSpendDialogProps) {
   const hasEnoughCredits = currentBalance >= cost;
   const newBalance = currentBalance - cost;
@@ -78,7 +80,7 @@ export function ConfirmCreditSpendDialog({
           {hasEnoughCredits ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {cancelLabel}
               </Button>
               <Button onClick={handleConfirm}>
                 Yes, spend {cost} {creditText}
