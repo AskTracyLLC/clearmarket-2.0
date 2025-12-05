@@ -287,18 +287,24 @@ export async function createCommunityComment(
       return { success: false, error: error.message };
     }
 
-    // Update via direct increment
-    const { data: post } = await supabase
+    // Update comments_count - fetch current count first
+    const { data: post, error: fetchError } = await supabase
       .from("community_posts")
       .select("comments_count")
       .eq("id", postId)
       .single();
 
-    if (post) {
-      await supabase
+    if (fetchError) {
+      console.error("Error fetching post for comment count update:", fetchError);
+    } else if (post) {
+      const { error: updateError } = await supabase
         .from("community_posts")
         .update({ comments_count: (post.comments_count || 0) + 1 })
         .eq("id", postId);
+
+      if (updateError) {
+        console.error("Error updating comments_count:", updateError);
+      }
     }
 
     return { success: true, commentId: data.id };
@@ -324,31 +330,71 @@ export async function fetchCommentsForPost(postId: string): Promise<CommunityCom
 
     if (!comments || comments.length === 0) return [];
 
-    // Fetch author info and community scores for each comment
+    // Fetch author info in a single batch query instead of individual calls
     const authorIds = [...new Set(comments.map(c => c.author_id))];
-    const authorInfoMap: Record<string, { anonymousId: string; role: string }> = {};
-
-    for (const authorId of authorIds) {
-      authorInfoMap[authorId] = await getAuthorInfo(authorId);
-    }
-
-    // Fetch community scores
+    
+    // Batch fetch all profile data needed
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, community_score")
+      .select("id, community_score, is_fieldrep, is_vendor_admin")
       .in("id", authorIds);
+    
+    const { data: repProfiles } = await supabase
+      .from("rep_profile")
+      .select("user_id, anonymous_id")
+      .in("user_id", authorIds);
+    
+    const { data: vendorProfiles } = await supabase
+      .from("vendor_profile")
+      .select("user_id, anonymous_id")
+      .in("user_id", authorIds);
 
-    const scoreMap: Record<string, number | null> = {};
+    // Build lookup maps
+    const profileMap: Record<string, { communityScore: number | null; isFieldrep: boolean; isVendorAdmin: boolean }> = {};
     profiles?.forEach(p => {
-      scoreMap[p.id] = p.community_score;
+      profileMap[p.id] = {
+        communityScore: p.community_score,
+        isFieldrep: p.is_fieldrep || false,
+        isVendorAdmin: p.is_vendor_admin || false,
+      };
     });
 
-    return comments.map(c => ({
-      ...c,
-      author_anonymous_id: authorInfoMap[c.author_id]?.anonymousId || "User",
-      author_role: authorInfoMap[c.author_id]?.role || "unknown",
-      author_community_score: scoreMap[c.author_id] ?? null,
-    }));
+    const repAnonMap: Record<string, string | null> = {};
+    repProfiles?.forEach(rp => {
+      repAnonMap[rp.user_id] = rp.anonymous_id;
+    });
+
+    const vendorAnonMap: Record<string, string | null> = {};
+    vendorProfiles?.forEach(vp => {
+      vendorAnonMap[vp.user_id] = vp.anonymous_id;
+    });
+
+    return comments.map(c => {
+      const profile = profileMap[c.author_id];
+      const repAnon = repAnonMap[c.author_id];
+      const vendorAnon = vendorAnonMap[c.author_id];
+
+      let role = "unknown";
+      let anonymousId = "User";
+
+      if (profile?.isFieldrep && profile?.isVendorAdmin) {
+        role = "both";
+        anonymousId = repAnon || vendorAnon || "User";
+      } else if (profile?.isFieldrep) {
+        role = "field_rep";
+        anonymousId = repAnon || "FieldRep";
+      } else if (profile?.isVendorAdmin) {
+        role = "vendor";
+        anonymousId = vendorAnon || "Vendor";
+      }
+
+      return {
+        ...c,
+        author_anonymous_id: anonymousId,
+        author_role: role,
+        author_community_score: profile?.communityScore ?? null,
+      };
+    });
   } catch (error) {
     console.error("Error fetching comments:", error);
     return [];
