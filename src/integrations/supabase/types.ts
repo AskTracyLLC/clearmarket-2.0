@@ -1135,6 +1135,62 @@ export type Database = {
           },
         ]
       }
+      rep_network_alerts: {
+        Row: {
+          body: string
+          created_at: string
+          error_message: string | null
+          id: string
+          recipient_count: number | null
+          scheduled_at: string | null
+          send_mode: string
+          sent_at: string | null
+          status: string
+          target_scope: string
+          target_state_codes: string[] | null
+          title: string
+          vendor_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_count?: number | null
+          scheduled_at?: string | null
+          send_mode?: string
+          sent_at?: string | null
+          status?: string
+          target_scope?: string
+          target_state_codes?: string[] | null
+          title: string
+          vendor_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipient_count?: number | null
+          scheduled_at?: string | null
+          send_mode?: string
+          sent_at?: string | null
+          status?: string
+          target_scope?: string
+          target_state_codes?: string[] | null
+          title?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_network_alerts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rep_profile: {
         Row: {
           anonymous_id: string | null

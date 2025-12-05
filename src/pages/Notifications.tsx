@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ReviewDialog } from "@/components/ReviewDialog";
@@ -13,7 +13,7 @@ import { ReviewDialog } from "@/components/ReviewDialog";
 interface Notification {
   id: string;
   created_at: string;
-  type: "message" | "connection_request" | "review" | "review_reminder" | "new_coverage_opportunity" | "community_comment_on_post" | "community_post_resolved";
+  type: "message" | "connection_request" | "review" | "review_reminder" | "new_coverage_opportunity" | "community_comment_on_post" | "community_post_resolved" | "vendor_network_alert" | "vendor_alert";
   ref_id: string | null;
   title: string;
   body: string | null;
@@ -145,6 +145,12 @@ export default function Notifications() {
       } else if (notification.type === "review_reminder" && notification.ref_id) {
         // Deep-link to open review dialog for this connection
         await handleReviewReminderClick(notification.ref_id);
+      } else if (notification.type === "vendor_network_alert") {
+        // Navigate to My Vendors page for reps
+        navigate("/rep/my-vendors");
+      } else if (notification.type === "vendor_alert") {
+        // Vendor alert from rep - navigate to My Reps
+        navigate("/vendor/my-reps");
       }
     } catch (error) {
       console.error("Error navigating from notification:", error);
@@ -236,6 +242,9 @@ export default function Notifications() {
         return <Users className="h-4 w-4" />;
       case "community_post_resolved":
         return <CheckCircle className="h-4 w-4" />;
+      case "vendor_network_alert":
+      case "vendor_alert":
+        return <Megaphone className="h-4 w-4" />;
       default:
         return null;
     }
@@ -257,6 +266,10 @@ export default function Notifications() {
         return "Community";
       case "community_post_resolved":
         return "Post Update";
+      case "vendor_network_alert":
+        return "Vendor Alert";
+      case "vendor_alert":
+        return "Rep Alert";
       default:
         return type;
     }
