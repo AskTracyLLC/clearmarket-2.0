@@ -678,15 +678,14 @@ const AdminCredits = () => {
                             </div>
                             <div className="col-span-5 text-xs">
                               {hasRelatedEntity ? (
-                                <a
-                                  href={`/vendor/seeking-coverage?vendorId=${selectedUser.id}&highlightPostId=${tx.related_entity_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline flex items-center gap-1"
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/vendor/seeking-coverage?vendorId=${selectedUser.id}&highlightPostId=${tx.related_entity_id}`)}
+                                  className="text-primary hover:underline flex items-center gap-1 text-left"
                                 >
                                   {getActionLabel(tx.action)}
                                   <ExternalLink className="h-3 w-3" />
-                                </a>
+                                </button>
                               ) : (
                                 <span className="text-foreground">{getActionLabel(tx.action)}</span>
                               )}
