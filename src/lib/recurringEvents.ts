@@ -1,4 +1,4 @@
-import { addDays, addMonths, isAfter, isBefore, startOfDay, format, parseISO } from "date-fns";
+import { addDays, addMonths, isAfter, isBefore, startOfDay, format, parseISO, isSameDay } from "date-fns";
 
 export type RecurrenceType = "weekly" | "biweekly" | "monthly_date";
 
@@ -18,11 +18,97 @@ export interface ExpandedEvent extends RecurringEvent {
   parentEventId?: string;
 }
 
+export const RECURRENCE_OPTIONS = [
+  { value: "none", label: "Does not repeat" },
+  { value: "weekly", label: "Every week" },
+  { value: "biweekly", label: "Every 2 weeks" },
+  { value: "monthly_date", label: "Every month (same date)" },
+] as const;
+
+/**
+ * Get human-readable recurrence description
+ */
+export function getRecurrenceDescription(
+  recurrenceType: RecurrenceType | null,
+  baseDate: Date
+): string {
+  if (!recurrenceType) return "One-time";
+  
+  const dayName = format(baseDate, "EEEE");
+  const dayOfMonth = format(baseDate, "do");
+  
+  switch (recurrenceType) {
+    case "weekly":
+      return `Every ${dayName}`;
+    case "biweekly":
+      return `Every other ${dayName}`;
+    case "monthly_date":
+      return `Monthly on the ${dayOfMonth}`;
+    default:
+      return "One-time";
+  }
+}
+
+/**
+ * Generate upcoming pay dates for a schedule (for preview display)
+ * @param event The base recurring event
+ * @param count Number of dates to return
+ */
+export function getUpcomingPayDatesForSchedule(
+  event: RecurringEvent,
+  count: number = 3
+): Date[] {
+  const today = startOfDay(new Date());
+  const baseDate = startOfDay(parseISO(event.event_date));
+  
+  // If not recurring, just return the base date if it's in the future
+  if (!event.is_recurring || !event.recurrence_type) {
+    return !isBefore(baseDate, today) ? [baseDate] : [];
+  }
+
+  const endDate = event.recurrence_until 
+    ? startOfDay(parseISO(event.recurrence_until))
+    : addMonths(today, 12);
+  
+  const dates: Date[] = [];
+  let currentDate = baseDate;
+  const maxIterations = 365;
+  let iterations = 0;
+
+  while (dates.length < count && iterations < maxIterations) {
+    iterations++;
+
+    // Only include dates from today forward
+    if (!isBefore(currentDate, today)) {
+      // Stop if we've passed the end date
+      if (isAfter(currentDate, endDate)) {
+        break;
+      }
+      dates.push(currentDate);
+    }
+
+    // Calculate next occurrence
+    switch (event.recurrence_type) {
+      case "weekly":
+        currentDate = addDays(currentDate, 7);
+        break;
+      case "biweekly":
+        currentDate = addDays(currentDate, 14);
+        break;
+      case "monthly_date":
+        currentDate = addMonths(currentDate, 1);
+        break;
+      default:
+        return dates;
+    }
+  }
+
+  return dates;
+}
+
 /**
  * Generate recurring occurrences for a Pay Day event within a date range.
- * @param event The base recurring event
- * @param rangeStart Start of the visible range
- * @param rangeEnd End of the visible range (defaults to 12 months ahead if not specified)
+ * Used for rep-side calendar view.
  */
 export function generateRecurringOccurrences(
   event: RecurringEvent,
@@ -39,36 +125,30 @@ export function generateRecurringOccurrences(
     ? startOfDay(parseISO(event.recurrence_until))
     : rangeEnd;
   
-  // Cap the end date to rangeEnd
   const effectiveEnd = isBefore(endDate, rangeEnd) ? endDate : rangeEnd;
 
   let currentDate = baseDate;
-  const maxIterations = 365; // Safety limit to prevent infinite loops
+  const maxIterations = 365;
   let iterations = 0;
 
   while (iterations < maxIterations) {
     iterations++;
 
-    // Skip dates before the range start
     if (!isBefore(currentDate, rangeStart)) {
-      // Stop if we've passed the effective end date
       if (isAfter(currentDate, effectiveEnd)) {
         break;
       }
 
-      // Add this occurrence (skip the base date as it will be included as the original event)
-      if (format(currentDate, "yyyy-MM-dd") !== event.event_date) {
-        occurrences.push({
-          ...event,
-          id: `${event.id}-${format(currentDate, "yyyy-MM-dd")}`,
-          event_date: format(currentDate, "yyyy-MM-dd"),
-          isGeneratedInstance: true,
-          parentEventId: event.id,
-        });
-      }
+      // Include all occurrences including the base date
+      occurrences.push({
+        ...event,
+        id: `${event.id}-${format(currentDate, "yyyy-MM-dd")}`,
+        event_date: format(currentDate, "yyyy-MM-dd"),
+        isGeneratedInstance: !isSameDay(currentDate, baseDate),
+        parentEventId: event.id,
+      });
     }
 
-    // Calculate next occurrence based on recurrence type
     switch (event.recurrence_type) {
       case "weekly":
         currentDate = addDays(currentDate, 7);
@@ -83,7 +163,6 @@ export function generateRecurringOccurrences(
         return occurrences;
     }
 
-    // Safety check - if we're way past the end, stop
     if (isAfter(currentDate, addMonths(rangeEnd, 1))) {
       break;
     }
@@ -93,10 +172,8 @@ export function generateRecurringOccurrences(
 }
 
 /**
- * Expand all recurring events in a list, combining with one-time events
- * @param events List of calendar events from the database
- * @param rangeStart Start of the visible range
- * @param rangeEnd End of the visible range
+ * Expand all recurring events in a list (for rep-side display)
+ * This creates individual items for each occurrence
  */
 export function expandCalendarEvents(
   events: RecurringEvent[],
@@ -106,25 +183,16 @@ export function expandCalendarEvents(
   const result: ExpandedEvent[] = [];
 
   for (const event of events) {
-    // Always include the base event
-    result.push({ ...event, isGeneratedInstance: false });
-
-    // If recurring, generate additional occurrences
     if (event.is_recurring && event.event_type === "pay_day") {
+      // For recurring pay days, generate all occurrences
       const occurrences = generateRecurringOccurrences(event, rangeStart, rangeEnd);
       result.push(...occurrences);
+    } else {
+      // For non-recurring events, include as-is
+      result.push({ ...event, isGeneratedInstance: false });
     }
   }
 
-  // Sort by date
   result.sort((a, b) => a.event_date.localeCompare(b.event_date));
-
   return result;
 }
-
-export const RECURRENCE_OPTIONS = [
-  { value: "none", label: "Does not repeat" },
-  { value: "weekly", label: "Every week" },
-  { value: "biweekly", label: "Every 2 weeks" },
-  { value: "monthly_date", label: "Every month (same date)" },
-] as const;
