@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Briefcase, Building, Shield } from "lucide-react";
+import { sendWelcomeEmail } from "@/lib/welcomeEmail";
 
 const RoleSelection = () => {
   const navigate = useNavigate();
@@ -65,9 +66,8 @@ const RoleSelection = () => {
       .update(updates)
       .eq('id', user.id);
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       toast({
         title: "Error",
         description: error.message,
@@ -75,6 +75,33 @@ const RoleSelection = () => {
       });
       return;
     }
+
+    // Fetch anonymous ID from the appropriate profile table
+    let anonymousId = `User`;
+    const profileTable = role === 'rep' ? 'rep_profile' : 'vendor_profile';
+    
+    const { data: profileData } = await supabase
+      .from(profileTable)
+      .select('anonymous_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    
+    if (profileData?.anonymous_id) {
+      anonymousId = profileData.anonymous_id;
+    }
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail(user.email || '', anonymousId, role)
+      .then((result) => {
+        if (result.ok) {
+          console.log("Welcome email sent successfully");
+        } else if (!result.skipped) {
+          console.error("Failed to send welcome email:", result.error);
+        }
+      })
+      .catch((err) => console.error("Exception sending welcome email:", err));
+
+    setLoading(false);
 
     toast({
       title: "Role selected!",
