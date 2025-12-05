@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,8 @@ interface SeekingCoveragePost {
 
 const VendorSeekingCoverage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightPostId = searchParams.get("highlightPostId");
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
@@ -58,6 +60,16 @@ const VendorSeekingCoverage = () => {
   
   // Interested reps count per post
   const [interestedCounts, setInterestedCounts] = useState<Record<string, number>>({});
+  
+  // Ref for scrolling to highlighted post
+  const highlightedPostRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to highlighted post when it becomes available
+  useEffect(() => {
+    if (highlightPostId && highlightedPostRef.current && !loading) {
+      highlightedPostRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightPostId, filteredPosts, loading]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -541,8 +553,14 @@ Thank you again for your interest!`;
               const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
               const canReopen = (isClosed || post.status === "expired") && (!post.auto_expires_at || new Date(post.auto_expires_at) >= now);
 
+              const isHighlighted = highlightPostId === post.id;
+              
               return (
-                <Card key={post.id} className={`p-6 ${isActive ? 'bg-card-elevated' : 'bg-muted/20 opacity-75'} border border-border`}>
+                <Card 
+                  key={post.id} 
+                  ref={isHighlighted ? highlightedPostRef : undefined}
+                  className={`p-6 ${isActive ? 'bg-card-elevated' : 'bg-muted/20 opacity-75'} border ${isHighlighted ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
+                >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
