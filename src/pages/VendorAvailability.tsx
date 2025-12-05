@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +13,9 @@ import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2, Repeat, DollarSign, C
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AddCalendarEventDialog } from "@/components/AddCalendarEventDialog";
 import { VendorNetworkAlertsCard } from "@/components/VendorNetworkAlertsCard";
-import { format, parseISO, isBefore, startOfToday } from "date-fns";
+import { CalendarMonthView, CalendarEventPreview } from "@/components/CalendarMonthView";
+import { CalendarDayDialog } from "@/components/CalendarDayDialog";
+import { format, parseISO, isBefore, startOfToday, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -84,6 +86,12 @@ const VendorAvailability = () => {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(null);
+  
+  // Calendar view state
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showDayDialog, setShowDayDialog] = useState(false);
+  const [networkAlerts, setNetworkAlerts] = useState<any[]>([]);
 
   // Check for vendorId param (admin viewing)
   useEffect(() => {
@@ -189,6 +197,17 @@ const VendorAvailability = () => {
         recurrence_type: e.recurrence_type as RecurrenceType | null,
         recurrence_until: e.recurrence_until,
       })) as CalendarEvent[]);
+      
+      // Load network alerts for calendar view
+      const { data: alertsData, error: alertsError } = await supabase
+        .from("rep_network_alerts")
+        .select("id, title, body, scheduled_at, status")
+        .eq("vendor_id", vendorId)
+        .in("status", ["scheduled", "pending"]);
+      
+      if (!alertsError) {
+        setNetworkAlerts(alertsData || []);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -338,6 +357,72 @@ const VendorAvailability = () => {
     return e.event_type === eventFilter;
   });
 
+  // Convert data to calendar events for the month view
+  const calendarEvents = useMemo(() => {
+    const evts: CalendarEventPreview[] = [];
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+
+    // Add office closed events
+    events.forEach((event) => {
+      if (event.event_type === "office_closed") {
+        evts.push({
+          id: event.id,
+          date: event.event_date,
+          type: "office_closed",
+          label: event.title || "Office Closed",
+        });
+      }
+    });
+
+    // Add scheduled network alerts
+    networkAlerts.forEach((alert) => {
+      if (alert.scheduled_at) {
+        const alertDate = alert.scheduled_at.split("T")[0];
+        evts.push({
+          id: alert.id,
+          date: alertDate,
+          type: "alert",
+          label: alert.title || "Scheduled Alert",
+        });
+      }
+    });
+
+    // Add upcoming pay days from recurring schedules
+    paySchedules.forEach((schedule) => {
+      const upcomingDates = getUpcomingPayDatesForSchedule(schedule, 6);
+      upcomingDates.forEach((date, i) => {
+        if (isWithinInterval(date, { start: monthStart, end: monthEnd })) {
+          evts.push({
+            id: `${schedule.id}-pay-${i}`,
+            date: format(date, "yyyy-MM-dd"),
+            type: "pay_day",
+            label: "Pay Day",
+          });
+        }
+      });
+    });
+
+    return evts;
+  }, [events, networkAlerts, paySchedules, currentMonth]);
+
+  const handleDayClick = (date: Date) => {
+    setSelectedDate(date);
+    setShowDayDialog(true);
+  };
+
+  const handleCalendarEventSaved = () => {
+    const vid = viewingVendorId || user?.id;
+    if (vid) loadData(vid);
+  };
+
+  // Get events for selected date
+  const selectedDateEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    return calendarEvents.filter((e) => e.date === dateKey);
+  }, [selectedDate, calendarEvents]);
+
   const getEventTypeBadge = (type: string) => {
     switch (type) {
       case "office_closed":
@@ -382,6 +467,28 @@ const VendorAvailability = () => {
             Share your office hours, closure dates, and pay days with connected Field Reps.
           </p>
         </div>
+
+        {/* Calendar Month View */}
+        <div className="mb-8">
+          <CalendarMonthView
+            currentMonth={currentMonth}
+            onMonthChange={setCurrentMonth}
+            events={calendarEvents}
+            onDayClick={handleDayClick}
+            selectedDate={selectedDate}
+          />
+        </div>
+
+        {/* Day dialog for adding events */}
+        <CalendarDayDialog
+          open={showDayDialog}
+          onOpenChange={setShowDayDialog}
+          date={selectedDate}
+          mode="vendor"
+          userId={targetVendorId || ""}
+          existingEvents={selectedDateEvents}
+          onEventSaved={handleCalendarEventSaved}
+        />
 
         {/* Weekly Office Hours */}
         <Card className="mb-8">

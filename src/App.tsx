@@ -27,6 +27,7 @@ import VendorAvailability from "./pages/VendorAvailability";
 import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
 import RepAvailability from "./pages/RepAvailability";
+import RepCalendar from "./pages/RepCalendar";
 import PublicReputationSnapshot from "./pages/PublicReputationSnapshot";
 import PublicRepReviews from "./pages/PublicRepReviews";
 import PublicVendorReviews from "./pages/PublicVendorReviews";
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="/vendor/availability" element={<VendorAvailability />} />
             <Route path="/rep/my-vendors" element={<RepMyVendors />} />
             <Route path="/rep/availability" element={<RepAvailability />} />
+            <Route path="/rep/calendar" element={<RepCalendar />} />
             <Route path="/messages" element={<MessagesList />} />
             <Route path="/messages/:conversationId" element={<MessageThread />} />
             <Route path="/vendor/message-templates" element={<VendorMessageTemplates />} />
