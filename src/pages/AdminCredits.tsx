@@ -21,7 +21,8 @@ import {
   AlertCircle,
   Plus,
   Minus,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from "lucide-react";
 
 interface UserSearchResult {
@@ -45,6 +46,8 @@ interface Transaction {
   amount: number;
   action: string;
   metadata: any;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
 }
 
 const AdminCredits = () => {
@@ -660,7 +663,11 @@ const AdminCredits = () => {
                           <div className="col-span-2 text-right">Amount</div>
                           <div className="col-span-2 text-right">Note</div>
                         </div>
-                        {transactions.map((tx) => (
+                        {transactions.map((tx) => {
+                          // Determine if this transaction has a clickable related entity
+                          const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
+                          
+                          return (
                           <div
                             key={tx.id}
                             className="grid grid-cols-12 gap-2 px-2 py-2 text-sm border-b border-border last:border-0 hover:bg-muted/30"
@@ -668,8 +675,20 @@ const AdminCredits = () => {
                             <div className="col-span-3 text-muted-foreground text-xs">
                               {format(new Date(tx.created_at), "MM/dd/yy HH:mm")}
                             </div>
-                            <div className="col-span-5 text-foreground text-xs">
-                              {getActionLabel(tx.action)}
+                            <div className="col-span-5 text-xs">
+                              {hasRelatedEntity ? (
+                                <a
+                                  href={`/vendor/seeking-coverage?highlightPostId=${tx.related_entity_id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-primary hover:underline flex items-center gap-1"
+                                >
+                                  {getActionLabel(tx.action)}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                              ) : (
+                                <span className="text-foreground">{getActionLabel(tx.action)}</span>
+                              )}
                             </div>
                             <div className={`col-span-2 text-right font-semibold text-xs ${
                               tx.amount > 0 ? "text-green-600" : "text-orange-600"
@@ -680,7 +699,7 @@ const AdminCredits = () => {
                               {tx.metadata?.note ? "📝" : ""}
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     )}
                   </CardContent>

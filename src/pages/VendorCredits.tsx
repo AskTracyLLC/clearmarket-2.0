@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles } from "lucide-react";
+import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles, ExternalLink } from "lucide-react";
 import { getVendorCredits, getVendorTransactions } from "@/lib/credits";
 import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
@@ -17,6 +17,8 @@ interface Transaction {
   amount: number;
   action: string;
   metadata: any;
+  related_entity_type: string | null;
+  related_entity_id: string | null;
 }
 
 const VendorCredits = () => {
@@ -313,6 +315,9 @@ const VendorCredits = () => {
                     .slice(0, idx + 1)
                     .reduce((sum, t) => sum - t.amount, 0);
 
+                  // Determine if this transaction has a clickable related entity
+                  const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
+
                   return (
                     <div
                       key={tx.id}
@@ -322,7 +327,17 @@ const VendorCredits = () => {
                         {format(new Date(tx.created_at), "MM/dd/yyyy")}
                       </div>
                       <div className="col-span-4">
-                        <div className="font-medium text-foreground">{getActionLabel(tx.action)}</div>
+                        {hasRelatedEntity ? (
+                          <Link
+                            to={`/vendor/seeking-coverage?highlightPostId=${tx.related_entity_id}`}
+                            className="font-medium text-primary hover:underline flex items-center gap-1"
+                          >
+                            {getActionLabel(tx.action)}
+                            <ExternalLink className="h-3 w-3" />
+                          </Link>
+                        ) : (
+                          <div className="font-medium text-foreground">{getActionLabel(tx.action)}</div>
+                        )}
                         {getDetailsText(tx) && (
                           <div className="text-xs text-muted-foreground mt-0.5">{getDetailsText(tx)}</div>
                         )}

@@ -2021,6 +2021,8 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
+          related_entity_id: string | null
+          related_entity_type: string | null
           user_id: string
         }
         Insert: {
@@ -2029,6 +2031,8 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           user_id: string
         }
         Update: {
@@ -2037,6 +2041,8 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
           user_id?: string
         }
         Relationships: [
