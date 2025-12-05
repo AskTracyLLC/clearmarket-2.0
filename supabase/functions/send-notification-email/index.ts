@@ -56,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "ClearMarket <notifications@resend.dev>",
+        from: "ClearMarket <notifications@useclearmarket.io>",
         to: [to],
         subject,
         html: htmlBody,
