@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2, Repeat, DollarSign, CalendarDays } from "lucide-react";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AddCalendarEventDialog } from "@/components/AddCalendarEventDialog";
 import { VendorNetworkAlertsCard } from "@/components/VendorNetworkAlertsCard";
-import { format, parseISO, isBefore, startOfToday, addMonths } from "date-fns";
+import { format, parseISO, isBefore, startOfToday } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { expandCalendarEvents, ExpandedEvent, RecurrenceType } from "@/lib/recurringEvents";
+import { RecurrenceType, getRecurrenceDescription, getUpcomingPayDatesForSchedule } from "@/lib/recurringEvents";
 
 const WEEKDAYS = [
   { value: 0, label: "Sunday" },
@@ -83,7 +83,7 @@ const VendorAvailability = () => {
   const [eventFilter, setEventFilter] = useState<string>("all");
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [deletingEvent, setDeletingEvent] = useState<ExpandedEvent | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(null);
 
   // Check for vendorId param (admin viewing)
   useEffect(() => {
@@ -125,10 +125,8 @@ const VendorAvailability = () => {
       return;
     }
 
-    // Determine which vendor ID to use
     const targetVendorId = viewingVendorId || user.id;
     
-    // If admin is viewing another vendor, verify admin status
     if (viewingVendorId && viewingVendorId !== user.id && !profileData?.is_admin) {
       toast({
         title: "Access Denied",
@@ -145,7 +143,6 @@ const VendorAvailability = () => {
   const loadData = async (vendorId: string) => {
     setLoading(true);
     try {
-      // Load office hours
       const { data: hoursData, error: hoursError } = await supabase
         .from("vendor_office_hours")
         .select("*")
@@ -154,7 +151,6 @@ const VendorAvailability = () => {
 
       if (hoursError) throw hoursError;
 
-      // Build full week with defaults
       const hoursMap = new Map(hoursData?.map(h => [h.weekday, h]));
       const fullWeek: OfficeHours[] = WEEKDAYS.map(day => {
         const existing = hoursMap.get(day.value);
@@ -179,7 +175,6 @@ const VendorAvailability = () => {
 
       setOfficeHours(fullWeek);
 
-      // Load calendar events with recurrence columns
       const { data: eventsData, error: eventsError } = await supabase
         .from("vendor_calendar_events")
         .select("id, vendor_id, event_date, event_type, title, description, is_recurring, recurrence_type, recurrence_until")
@@ -235,7 +230,6 @@ const VendorAvailability = () => {
 
     setSaving(true);
     try {
-      // Upsert all office hours
       for (const hours of officeHours) {
         const payload = {
           vendor_id: targetVendorId,
@@ -246,14 +240,12 @@ const VendorAvailability = () => {
         };
 
         if (hours.id) {
-          // Update existing
           const { error } = await supabase
             .from("vendor_office_hours")
             .update(payload)
             .eq("id", hours.id);
           if (error) throw error;
         } else {
-          // Insert new
           const { error } = await supabase
             .from("vendor_office_hours")
             .insert(payload);
@@ -266,7 +258,6 @@ const VendorAvailability = () => {
         description: "Office hours updated successfully.",
       });
 
-      // Reload to get IDs
       loadData(targetVendorId);
     } catch (error) {
       console.error("Error saving hours:", error);
@@ -282,7 +273,6 @@ const VendorAvailability = () => {
 
   const handleResetToDefault = () => {
     setOfficeHours(prev => prev.map(h => {
-      // Mon-Fri (1-5) = open 9-5, Sat-Sun = closed
       const isWeekday = h.weekday >= 1 && h.weekday <= 5;
       return {
         ...h,
@@ -305,29 +295,26 @@ const VendorAvailability = () => {
   const handleDeleteEvent = async () => {
     if (!deletingEvent) return;
 
-    // For generated instances, delete the parent event
-    const eventIdToDelete = deletingEvent.parentEventId || deletingEvent.id;
-
     try {
       const { error } = await supabase
         .from("vendor_calendar_events")
         .delete()
-        .eq("id", eventIdToDelete);
+        .eq("id", deletingEvent.id);
 
       if (error) throw error;
 
-      setEvents(prev => prev.filter(e => e.id !== eventIdToDelete));
+      setEvents(prev => prev.filter(e => e.id !== deletingEvent.id));
       toast({
         title: "Deleted",
         description: deletingEvent.is_recurring 
-          ? "Recurring pay day series deleted."
+          ? "Pay schedule deleted. All future pay dates removed."
           : "Event deleted successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting event:", error);
       toast({
         title: "Error",
-        description: "Failed to delete event.",
+        description: error?.message || "Failed to delete event.",
         variant: "destructive",
       });
     } finally {
@@ -335,15 +322,19 @@ const VendorAvailability = () => {
     }
   };
 
-  // Expand recurring events for display (12 months ahead)
-  const expandedEvents = useMemo(() => {
-    const rangeStart = startOfToday();
-    const rangeEnd = addMonths(rangeStart, 12);
-    return expandCalendarEvents(events, rangeStart, rangeEnd);
-  }, [events]);
+  // Separate recurring pay schedules from one-off events
+  const paySchedules = events.filter(e => e.event_type === "pay_day" && e.is_recurring);
+  
+  // One-off events: non-recurring pay days + all other event types
+  const oneOffEvents = events.filter(e => {
+    if (e.event_type === "pay_day") return !e.is_recurring;
+    return true;
+  });
 
-  const filteredEvents = expandedEvents.filter(e => {
+  // Apply filter to one-off events
+  const filteredOneOffEvents = oneOffEvents.filter(e => {
     if (eventFilter === "all") return true;
+    if (eventFilter === "pay_day") return e.event_type === "pay_day";
     return e.event_type === eventFilter;
   });
 
@@ -448,21 +439,118 @@ const VendorAvailability = () => {
           </CardContent>
         </Card>
 
-        {/* Calendar Events */}
-        <Card>
+        {/* Pay Schedule Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                <CardTitle>Pay Schedule</CardTitle>
+              </div>
+              <Button onClick={() => setShowAddEventDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Pay Day
+              </Button>
+            </div>
+            <CardDescription>
+              Manage your recurring pay days. Reps will see upcoming dates.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {paySchedules.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground border border-dashed border-border rounded-lg">
+                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No recurring pay schedule set yet.</p>
+                <p className="text-xs mt-1">Add a Pay Day event and mark it as repeating to create your schedule.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {paySchedules.map((schedule) => {
+                  const baseDate = parseISO(schedule.event_date);
+                  const upcomingDates = getUpcomingPayDatesForSchedule(schedule, 3);
+                  const recurrenceDesc = getRecurrenceDescription(schedule.recurrence_type, baseDate);
+                  
+                  return (
+                    <div
+                      key={schedule.id}
+                      className="p-4 rounded-lg border border-primary/30 bg-primary/5"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="bg-primary/20 text-primary border-primary/30">
+                              <Repeat className="h-3 w-3 mr-1" />
+                              Pay Day
+                            </Badge>
+                            <span className="text-sm font-medium text-foreground">{recurrenceDesc}</span>
+                          </div>
+                          
+                          {upcomingDates.length > 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              <span className="text-xs uppercase tracking-wide">Next pay days: </span>
+                              {upcomingDates.map((d, i) => (
+                                <span key={i}>
+                                  {i > 0 && " · "}
+                                  {format(d, "MMM d, yyyy")}
+                                </span>
+                              ))}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No upcoming pay dates</p>
+                          )}
+                          
+                          {schedule.recurrence_until && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Ends: {format(parseISO(schedule.recurrence_until), "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingEvent(schedule);
+                              setShowAddEventDialog(true);
+                            }}
+                            title="Edit schedule"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeletingEvent(schedule)}
+                            title="Delete schedule"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Office Closed & One-off Events */}
+        <Card className="mb-8">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
-                <CardTitle>Office Closed & Pay Days</CardTitle>
+                <CardTitle>Office Closed & One-off Events</CardTitle>
               </div>
-              <Button onClick={() => setShowAddEventDialog(true)}>
+              <Button onClick={() => setShowAddEventDialog(true)} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Event
               </Button>
             </div>
             <CardDescription>
-              Mark specific dates for office closures, pay days, and other important dates.
+              Mark specific dates for office closures, one-time pay days, and other notes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -475,42 +563,23 @@ const VendorAvailability = () => {
                 <SelectContent>
                   <SelectItem value="all">All Events</SelectItem>
                   <SelectItem value="office_closed">Office Closed</SelectItem>
-                  <SelectItem value="pay_day">Pay Days</SelectItem>
+                  <SelectItem value="pay_day">One-off Pay Days</SelectItem>
                   <SelectItem value="note">Notes</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {filteredEvents.length === 0 ? (
+            {filteredOneOffEvents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No events scheduled yet.</p>
-                <p className="text-sm">Add office closures, pay days, or notes to keep reps informed.</p>
+                <p>No one-off events scheduled.</p>
+                <p className="text-sm">Add office closures, special pay days, or notes.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredEvents.map((event) => {
+                {filteredOneOffEvents.map((event) => {
                   const eventDate = parseISO(event.event_date);
                   const isPast = isBefore(eventDate, startOfToday());
-                  const isGenerated = (event as ExpandedEvent).isGeneratedInstance;
-                  
-                  // For editing generated instances, find the parent event
-                  const handleEdit = () => {
-                    if (isGenerated && (event as ExpandedEvent).parentEventId) {
-                      const parent = events.find(e => e.id === (event as ExpandedEvent).parentEventId);
-                      if (parent) {
-                        setEditingEvent(parent);
-                        setShowAddEventDialog(true);
-                      }
-                    } else {
-                      // Cast to CalendarEvent (base events have the right type)
-                      const baseEvent = events.find(e => e.id === event.id);
-                      if (baseEvent) {
-                        setEditingEvent(baseEvent);
-                        setShowAddEventDialog(true);
-                      }
-                    }
-                  };
                   
                   return (
                     <div
@@ -525,12 +594,6 @@ const VendorAvailability = () => {
                             {format(eventDate, "EEEE, MMMM d, yyyy")}
                           </span>
                           {getEventTypeBadge(event.event_type)}
-                          {event.is_recurring && (
-                            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-                              <Repeat className="h-3 w-3 mr-1" />
-                              Recurring
-                            </Badge>
-                          )}
                           {isPast && (
                             <Badge variant="outline" className="text-xs">Past</Badge>
                           )}
@@ -542,26 +605,26 @@ const VendorAvailability = () => {
                           <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
                         )}
                       </div>
-                      {/* Only show edit/delete for base events or allow editing recurring series */}
                       <div className="flex gap-2 ml-4">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={handleEdit}
-                          title={isGenerated ? "Edit recurring series" : "Edit event"}
+                          onClick={() => {
+                            setEditingEvent(event);
+                            setShowAddEventDialog(true);
+                          }}
+                          title="Edit event"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        {!isGenerated && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeletingEvent(event as ExpandedEvent)}
-                            title={event.is_recurring ? "Delete recurring series" : "Delete event"}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingEvent(event)}
+                          title="Delete event"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </div>
                   );
@@ -594,7 +657,7 @@ const VendorAvailability = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deletingEvent?.is_recurring ? "Delete Recurring Pay Day?" : "Delete Event?"}
+              {deletingEvent?.is_recurring ? "Delete Pay Schedule?" : "Delete Event?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deletingEvent?.is_recurring 
