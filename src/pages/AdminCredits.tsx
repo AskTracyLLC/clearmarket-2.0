@@ -664,8 +664,10 @@ const AdminCredits = () => {
                           <div className="col-span-2 text-right">Note</div>
                         </div>
                         {transactions.map((tx) => {
-                          // Determine if this transaction has a clickable related entity
-                          const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
+                          // For admin view, show post details from metadata instead of linking
+                          // since admins don't have access to vendor-only pages
+                          const isSeekingCoverage = tx.action === "post_seeking_coverage";
+                          const postTitle = tx.metadata?.post_title || tx.metadata?.state_code || null;
                           
                           return (
                           <div
@@ -676,18 +678,11 @@ const AdminCredits = () => {
                               {format(new Date(tx.created_at), "MM/dd/yy HH:mm")}
                             </div>
                             <div className="col-span-5 text-xs">
-                              {hasRelatedEntity ? (
-                                <a
-                                  href={`/vendor/seeking-coverage?highlightPostId=${tx.related_entity_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline flex items-center gap-1"
-                                >
-                                  {getActionLabel(tx.action)}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
-                              ) : (
-                                <span className="text-foreground">{getActionLabel(tx.action)}</span>
+                              <span className="text-foreground">{getActionLabel(tx.action)}</span>
+                              {isSeekingCoverage && postTitle && (
+                                <div className="text-muted-foreground text-[10px] mt-0.5 truncate" title={postTitle}>
+                                  {postTitle}
+                                </div>
                               )}
                             </div>
                             <div className={`col-span-2 text-right font-semibold text-xs ${
