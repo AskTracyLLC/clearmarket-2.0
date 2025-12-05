@@ -71,11 +71,11 @@ export default function RepReviews() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_fieldrep")
+      .select("is_fieldrep, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_fieldrep) {
+    if (!profile?.is_fieldrep && !profile?.is_admin) {
       toast.error("Access denied: Field rep role required");
       navigate("/dashboard");
       return;

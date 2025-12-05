@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import AdminViewBanner from "@/components/AdminViewBanner";
 
 interface SeekingCoveragePost {
   id: string;
@@ -86,8 +87,8 @@ const VendorSeekingCoverage = () => {
 
     setProfile(profileData);
 
-    // Redirect if not vendor
-    if (!profileData.is_vendor_admin) {
+    // Redirect if not vendor and not admin
+    if (!profileData.is_vendor_admin && !profileData.is_admin) {
       navigate("/dashboard");
       return;
     }
@@ -484,6 +485,9 @@ Thank you again for your interest!`;
       </header>
 
       <div className="container mx-auto px-4 py-12 max-w-6xl">
+        {/* Admin View Banner */}
+        {profile?.is_admin && <AdminViewBanner />}
+        
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Seeking Coverage</h1>

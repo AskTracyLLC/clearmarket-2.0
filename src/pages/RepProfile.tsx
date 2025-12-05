@@ -207,8 +207,8 @@ const RepProfile = () => {
 
       setProfile(profileData);
 
-      // Check if user is a field rep
-      if (!profileData.is_fieldrep) {
+      // Check if user is a field rep or admin
+      if (!profileData.is_fieldrep && !profileData.is_admin) {
         toast({
           title: "Access Denied",
           description: "This page is only accessible to Field Representatives.",

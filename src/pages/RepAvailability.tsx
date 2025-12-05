@@ -88,11 +88,11 @@ export default function RepAvailability() {
       // Check if user is a field rep
       const { data: profile } = await supabase
         .from("profiles")
-        .select("is_fieldrep")
+        .select("is_fieldrep, is_admin")
         .eq("id", user.id)
         .single();
 
-      if (!profile?.is_fieldrep) {
+      if (!profile?.is_fieldrep && !profile?.is_admin) {
         toast({
           title: "Access Denied",
           description: "This feature is only available for Field Reps.",

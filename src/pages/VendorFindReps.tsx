@@ -137,13 +137,13 @@ export default function VendorFindReps() {
       if (!authLoading && user) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_vendor_admin, is_vendor_staff")
+          .select("is_vendor_admin, is_vendor_staff, is_admin")
           .eq("id", user.id)
           .single();
 
         setProfiles(profile);
 
-        if (!profile?.is_vendor_admin && !profile?.is_vendor_staff) {
+        if (!profile?.is_vendor_admin && !profile?.is_vendor_staff && !profile?.is_admin) {
           toast.error("Access denied: Vendor role required");
           navigate("/dashboard");
           return;
@@ -174,7 +174,7 @@ export default function VendorFindReps() {
     );
   }
 
-  if (!user || (!profiles?.is_vendor_admin && !profiles?.is_vendor_staff)) {
+  if (!user || (!profiles?.is_vendor_admin && !profiles?.is_vendor_staff && !profiles?.is_admin)) {
     return null;
   }
 

@@ -71,11 +71,11 @@ export default function VendorReviews() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin")
+      .select("is_vendor_admin, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_vendor_admin) {
+    if (!profile?.is_vendor_admin && !profile?.is_admin) {
       toast.error("Access denied: Vendor role required");
       navigate("/dashboard");
       return;

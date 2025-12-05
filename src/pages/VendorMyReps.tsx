@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
 import { getOrCreateConversation } from "@/lib/conversations";
+import AdminViewBanner from "@/components/AdminViewBanner";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
@@ -70,6 +71,7 @@ const VendorMyReps = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{ is_vendor_admin: boolean; is_admin: boolean } | null>(null);
   const [connectedReps, setConnectedReps] = useState<ConnectedRep[]>([]);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
@@ -115,13 +117,15 @@ const VendorMyReps = () => {
   const checkAccess = async () => {
     if (!user) return;
 
-    const { data: profile } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
-      .select("is_vendor_admin")
+      .select("is_vendor_admin, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_vendor_admin) {
+    setProfile(profileData);
+
+    if (!profileData?.is_vendor_admin && !profileData?.is_admin) {
       toast({
         title: "Access Denied",
         description: "This page is only available to vendor accounts.",
@@ -638,6 +642,9 @@ const VendorMyReps = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
+        {/* Admin View Banner */}
+        {profile?.is_admin && <AdminViewBanner />}
+        
         <div className="mb-6 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="w-5 h-5" />
