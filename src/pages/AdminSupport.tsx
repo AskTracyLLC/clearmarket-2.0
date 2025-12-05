@@ -46,6 +46,8 @@ import {
   type SupportTicketPriority,
   type SupportTicketCategory,
 } from "@/lib/support";
+import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { CountBadge } from "@/components/CountBadge";
 
 interface TicketWithUser extends SupportTicket {
   userProfile?: {
@@ -64,6 +66,7 @@ export default function AdminSupport() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const sectionCounts = useSectionCounts();
 
   const [hasAccess, setHasAccess] = useState(false);
   const [tickets, setTickets] = useState<TicketWithUser[]>([]);
@@ -284,8 +287,14 @@ export default function AdminSupport() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Support Queue</h1>
-            <p className="text-muted-foreground">Manage support tickets from users</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">Support Queue</h1>
+              <CountBadge count={sectionCounts.adminOpenTickets} />
+            </div>
+            <p className="text-muted-foreground">
+              Manage support tickets from users
+              {sectionCounts.adminOpenTickets > 0 && ` · ${sectionCounts.adminOpenTickets} open`}
+            </p>
           </div>
         </div>
 

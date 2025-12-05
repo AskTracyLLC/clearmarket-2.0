@@ -8,7 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones, Coins } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones, Coins, LifeBuoy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,8 @@ import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
 import { format, parseISO } from "date-fns";
 import { BetaBadge } from "@/components/BetaBadge";
+import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { CountBadge } from "@/components/CountBadge";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ const Dashboard = () => {
   
   // Auto-update last_seen_at heartbeat
   useLastSeenHeartbeat();
+  const sectionCounts = useSectionCounts();
   const [profile, setProfile] = useState<any>(null);
   const [repProfile, setRepProfile] = useState<any>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
@@ -429,11 +432,7 @@ const Dashboard = () => {
                 <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <MessageSquare className="w-4 h-4" />
                   Messages
-                  {unreadMessageCount > 0 && (
-                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 ml-1">
-                      {unreadMessageCount}
-                    </Badge>
-                  )}
+                  <CountBadge count={sectionCounts.unreadMessages} className="ml-1" />
                 </NavLink>
                 <NavLink to="/notifications" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <Bell className="w-4 h-4" />
@@ -443,6 +442,11 @@ const Dashboard = () => {
                       {unreadNotificationCount}
                     </Badge>
                   )}
+                </NavLink>
+                <NavLink to="/support" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <LifeBuoy className="w-4 h-4" />
+                  Support
+                  <CountBadge count={sectionCounts.openSupportTickets} className="ml-1" />
                 </NavLink>
                 <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <ShieldAlert className="w-4 h-4" />
@@ -460,6 +464,7 @@ const Dashboard = () => {
                   <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                     <ShieldAlert className="w-4 h-4" />
                     Admin
+                    <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
                   </NavLink>
                 )}
                 {isVendor && vendorCredits !== null && (

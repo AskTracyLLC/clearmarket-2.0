@@ -29,11 +29,14 @@ import {
   type SupportTicketCategory,
   type SupportTicketPriority,
 } from "@/lib/support";
+import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { CountBadge } from "@/components/CountBadge";
 
 export default function Support() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const sectionCounts = useSectionCounts();
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
@@ -241,9 +244,11 @@ export default function Support() {
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Your Requests
+                <CountBadge count={sectionCounts.openSupportTickets} className="ml-2" />
               </CardTitle>
               <CardDescription>
                 {tickets.length} total request{tickets.length !== 1 ? "s" : ""}
+                {sectionCounts.openSupportTickets > 0 && ` · ${sectionCounts.openSupportTickets} open`}
               </CardDescription>
             </CardHeader>
             <CardContent>
