@@ -1053,32 +1053,14 @@ const Dashboard = () => {
                   </div>
                 </Card>
 
-                {/* NEW - Find Vendors */}
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/find-vendors")}>
-                  <div className="flex items-start gap-4">
-                    <Building2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Find Vendors</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Discover and connect with vendors in your coverage areas. View trust scores, reviews, and vendor expectations.
-                      </p>
-                      {activeSavedSearchCount > 0 && (
-                        <p className="text-xs text-muted-foreground mb-4">
-                          <Bell className="h-3 w-3 inline mr-1" />
-                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new vendors
-                        </p>
-                      )}
-                      <Button size="sm" variant="secondary">
-                        Browse Vendors →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+                {/* COMING SOON - Find Vendors */}
+                <div onClick={() => handleComingSoonClick("Find Vendors")}>
+                  <ComingSoonCard
+                    icon={<Building2 className="h-6 w-6" />}
+                    title="Find Vendors"
+                    description="Discover and connect with vendors in your coverage areas. View trust scores, reviews, and vendor expectations."
+                  />
+                </div>
 
                 {/* TODO: COMING SOON - Looking for Work posts */}
                 <div onClick={() => handleComingSoonClick("Looking for Work")}>
@@ -1093,32 +1075,14 @@ const Dashboard = () => {
 
             {isVendor && (
               <>
-                {/* MVP PREVIEW - Find Reps (read-only) */}
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/find-reps")}>
-                  <div className="flex items-start gap-4">
-                    <Users className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Find Reps</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          MVP Preview
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Search and filter field representatives by location, systems used, and inspection types (unlock coming soon).
-                      </p>
-                      {activeSavedSearchCount > 0 && (
-                        <p className="text-xs text-muted-foreground mb-4">
-                          <Bell className="h-3 w-3 inline mr-1" />
-                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new reps
-                        </p>
-                      )}
-                      <Button size="sm" variant="secondary">
-                        Browse Reps →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+                {/* COMING SOON - Find Reps */}
+                <div onClick={() => handleComingSoonClick("Find Reps")}>
+                  <ComingSoonCard
+                    icon={<Users className="h-6 w-6" />}
+                    title="Find Reps"
+                    description="Search and filter field representatives by location, systems used, and inspection types."
+                  />
+                </div>
 
                 {/* MVP READY - Seeking Coverage */}
                 <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/seeking-coverage")}>
