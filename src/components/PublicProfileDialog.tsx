@@ -23,6 +23,7 @@ import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
 import { useBlockStatus } from "@/hooks/useBlockStatus";
+import { useCreditConfirm } from "@/hooks/useCreditConfirm";
 
 interface PublicProfileDialogProps {
   open: boolean;
@@ -112,6 +113,9 @@ export function PublicProfileDialog({
   const [repEmail, setRepEmail] = useState<string | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
+  
+  // Credit confirmation hook
+  const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
   
   // Check block status
   const blockStatus = useBlockStatus(targetUserId);
@@ -354,6 +358,13 @@ export function PublicProfileDialog({
 
   const handleUnlockContact = async () => {
     if (!user || !targetUserId) return;
+
+    // Show credit confirmation dialog
+    const confirmed = await confirmCreditSpend({
+      cost: 1,
+      actionLabel: "unlock this Field Rep's contact details",
+    });
+    if (!confirmed) return;
 
     setUnlocking(true);
     try {
@@ -1101,6 +1112,7 @@ export function PublicProfileDialog({
           alreadyReported={alreadyReported}
         />
       )}
+      {CreditConfirmDialog}
     </Dialog>
   );
 }
