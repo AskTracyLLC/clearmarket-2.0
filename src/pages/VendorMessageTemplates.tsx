@@ -69,11 +69,11 @@ export default function VendorMessageTemplates() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin")
+      .select("is_vendor_admin, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_vendor_admin) {
+    if (!profile?.is_vendor_admin && !profile?.is_admin) {
       toast({
         title: "Access Denied",
         description: "This page is only available to vendors",

@@ -159,8 +159,8 @@ const VendorProfile = () => {
 
       setProfile(profileData);
 
-      // Check if user is a vendor
-      if (!profileData.is_vendor_admin) {
+      // Check if user is a vendor or admin
+      if (!profileData.is_vendor_admin && !profileData.is_admin) {
         toast({
           title: "Access Denied",
           description: "This page is only accessible to Vendors.",

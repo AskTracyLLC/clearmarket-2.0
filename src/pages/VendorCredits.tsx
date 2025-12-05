@@ -10,6 +10,7 @@ import { getVendorCredits, getVendorTransactions } from "@/lib/credits";
 import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import AdminViewBanner from "@/components/AdminViewBanner";
 
 interface Transaction {
   id: string;
@@ -65,7 +66,7 @@ const VendorCredits = () => {
       .eq("id", user.id)
       .single();
 
-    if (!profileData?.is_vendor_admin) {
+    if (!profileData?.is_vendor_admin && !profileData?.is_admin) {
       navigate("/dashboard");
       return;
     }
@@ -182,6 +183,9 @@ const VendorCredits = () => {
       </header>
 
       <div className="container mx-auto px-4 py-12 max-w-5xl">
+        {/* Admin View Banner */}
+        {profile?.is_admin && <AdminViewBanner />}
+        
         {/* Status Alerts */}
         {status === "success" && (
           <Alert className="mb-6 border-green-600/50 bg-green-600/10">

@@ -17,6 +17,7 @@ import { US_STATES } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
 import { getRepMatchSettings } from "@/lib/matchAlerts";
+import AdminViewBanner from "@/components/AdminViewBanner";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -134,7 +135,7 @@ export default function RepFindWork() {
 
         setProfile(profileData);
 
-        if (!profileData?.is_fieldrep) {
+        if (!profileData?.is_fieldrep && !profileData?.is_admin) {
           toast.error("Find Work is only available to Field Reps.");
           navigate("/dashboard");
           return;
@@ -527,7 +528,7 @@ export default function RepFindWork() {
     );
   }
 
-  if (!user || !profile?.is_fieldrep) {
+  if (!user || (!profile?.is_fieldrep && !profile?.is_admin)) {
     return null;
   }
 
@@ -591,6 +592,9 @@ export default function RepFindWork() {
       </header>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Admin View Banner */}
+        {profile?.is_admin && <AdminViewBanner />}
+        
         {/* Profile Incomplete Blocking Panel */}
         {isProfileIncomplete() ? (
           <Card className="border-destructive bg-destructive/5">
