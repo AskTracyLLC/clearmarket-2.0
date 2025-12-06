@@ -72,8 +72,8 @@ const PrivacyPage = () => {
             <h2 className="text-xl font-semibold text-foreground mt-8 mb-4">6. Contact Us</h2>
             <p>
               If you have any questions about this Privacy Policy, please contact us at{" "}
-              <a href="mailto:support@clearmarket.io" className="text-primary hover:underline">
-                support@clearmarket.io
+              <a href="mailto:hello@useclearmarket.io" className="text-primary hover:underline">
+                hello@useclearmarket.io
               </a>.
             </p>
           </section>
