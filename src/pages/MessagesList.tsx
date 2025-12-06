@@ -352,12 +352,14 @@ export default function MessagesList() {
         })
       );
 
-      // Filter out archived conversations and blocked users
+      // Filter out archived conversations (unless they have unread messages) and blocked users
       const filteredConversations = conversationsWithNames.filter((conv) => {
         const isParticipantOne = conv.participant_one === user.id;
         const isArchived = isParticipantOne ? conv.hidden_for_one : conv.hidden_for_two;
         const isBlocked = blockedUserIds.includes(conv.otherParticipantUserId);
-        return !isArchived && !isBlocked;
+        // Show archived conversations if they have unread messages
+        const hasUnread = conv.unreadCount > 0;
+        return (!isArchived || hasUnread) && !isBlocked;
       });
 
       // Load pending connection states for field reps
