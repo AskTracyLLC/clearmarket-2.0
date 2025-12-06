@@ -187,7 +187,9 @@ const RepWorkingTermsRequest = () => {
       rows.map((r, i) => ({
         id: `temp-${i}`,
         ...r,
-        selected: false,
+        // Ensure inspection_type has a valid value
+        inspection_type: r.inspection_type || "property",
+        selected: true, // Auto-select loaded rows
         source: 'from_profile' as const,
       }))
     );
