@@ -169,7 +169,7 @@ const CommunityPostDetail = () => {
       setNewComment("");
       // Notify post author if not self
       if (post.author_id !== user.id) {
-        await notifyPostAuthorOfComment(post.author_id, post.id, post.title);
+        await notifyPostAuthorOfComment(post.id, post.author_id, user.id, post.title);
       }
       loadPost();
     } else {

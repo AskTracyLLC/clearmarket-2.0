@@ -203,6 +203,7 @@ export type Database = {
           author_role: string | null
           body: string
           category: string
+          channel: string
           comments_count: number
           created_at: string
           helpful_count: number
@@ -218,6 +219,7 @@ export type Database = {
           author_role?: string | null
           body: string
           category: string
+          channel?: string
           comments_count?: number
           created_at?: string
           helpful_count?: number
@@ -233,6 +235,7 @@ export type Database = {
           author_role?: string | null
           body?: string
           category?: string
+          channel?: string
           comments_count?: number
           created_at?: string
           helpful_count?: number

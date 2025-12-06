@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export type CommunityChannel = "community" | "network" | "announcements";
+
 export interface CommunityPost {
   id: string;
   created_at: string;
@@ -8,6 +10,7 @@ export interface CommunityPost {
   author_anonymous_id: string | null;
   author_role: string | null;
   author_community_score: number | null;
+  channel: CommunityChannel;
   category: string;
   title: string;
   body: string;
@@ -41,12 +44,25 @@ export interface CommunityVote {
   vote_type: string;
 }
 
-export const POST_CATEGORIES = [
+// Category configurations per channel
+export const COMMUNITY_CATEGORIES = [
   { value: "question", label: "Question", color: "bg-blue-500/20 text-blue-400" },
-  { value: "warning", label: "Warning", color: "bg-orange-500/20 text-orange-400" },
-  { value: "experience", label: "Experience", color: "bg-green-500/20 text-green-400" },
-  { value: "info", label: "Info", color: "bg-purple-500/20 text-purple-400" },
+  { value: "general_discussion", label: "General Discussion", color: "bg-purple-500/20 text-purple-400" },
+  { value: "safety", label: "Safety", color: "bg-orange-500/20 text-orange-400" },
 ];
+
+export const NETWORK_CATEGORIES = [
+  { value: "vendor_alert", label: "Vendor Alert", color: "bg-amber-500/20 text-amber-400" },
+  { value: "rep_alert", label: "Rep Alert", color: "bg-cyan-500/20 text-cyan-400" },
+];
+
+export const ANNOUNCEMENT_CATEGORIES = [
+  { value: "system_news", label: "System News", color: "bg-green-500/20 text-green-400" },
+  { value: "release_updates", label: "Release Updates", color: "bg-indigo-500/20 text-indigo-400" },
+];
+
+// Legacy export for backward compatibility
+export const POST_CATEGORIES = COMMUNITY_CATEGORIES;
 
 export const POST_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "bg-green-500/20 text-green-400" },
@@ -55,8 +71,26 @@ export const POST_STATUS_CONFIG: Record<string, { label: string; color: string }
   archived: { label: "Archived", color: "bg-muted text-muted-foreground" },
 };
 
-export function getCategoryConfig(category: string) {
-  return POST_CATEGORIES.find(c => c.value === category) || POST_CATEGORIES[0];
+export function getCategoriesForChannel(channel: CommunityChannel) {
+  switch (channel) {
+    case "community":
+      return COMMUNITY_CATEGORIES;
+    case "network":
+      return NETWORK_CATEGORIES;
+    case "announcements":
+      return ANNOUNCEMENT_CATEGORIES;
+    default:
+      return COMMUNITY_CATEGORIES;
+  }
+}
+
+export function getCategoryConfig(category: string, channel?: CommunityChannel) {
+  const allCategories = [
+    ...COMMUNITY_CATEGORIES,
+    ...NETWORK_CATEGORIES,
+    ...ANNOUNCEMENT_CATEGORIES,
+  ];
+  return allCategories.find(c => c.value === category) || { value: category, label: category, color: "bg-muted text-muted-foreground" };
 }
 
 export function getStatusConfig(status: string) {
@@ -106,7 +140,8 @@ export async function createCommunityPost(
   authorId: string,
   category: string,
   title: string,
-  body: string
+  body: string,
+  channel: CommunityChannel = "community"
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   try {
     const { anonymousId, role } = await getAuthorInfo(authorId);
@@ -117,6 +152,7 @@ export async function createCommunityPost(
         author_id: authorId,
         author_anonymous_id: anonymousId,
         author_role: role,
+        channel,
         category,
         title,
         body,
@@ -159,6 +195,7 @@ export async function updateCommunityPost(
 }
 
 export async function fetchCommunityPosts(options?: {
+  channel?: CommunityChannel;
   category?: string;
   authorId?: string;
   sortBy?: "newest" | "helpful" | "comments" | "author_score";
@@ -167,6 +204,11 @@ export async function fetchCommunityPosts(options?: {
 }): Promise<CommunityPost[]> {
   try {
     let query = supabase.from("community_posts").select("*");
+
+    // Filter by channel
+    if (options?.channel) {
+      query = query.eq("channel", options.channel);
+    }
 
     if (options?.category && options.category !== "all") {
       query = query.eq("category", options.category);
@@ -216,6 +258,7 @@ export async function fetchCommunityPosts(options?: {
 
     let posts = data.map(p => ({
       ...p,
+      channel: (p.channel || "community") as CommunityChannel,
       author_community_score: scoreMap[p.author_id] ?? null,
     }));
 
@@ -258,6 +301,7 @@ export async function fetchCommunityPost(postId: string): Promise<CommunityPost 
 
     return {
       ...data,
+      channel: (data.channel || "community") as CommunityChannel,
       author_community_score: profile?.community_score ?? null,
     };
   } catch (error) {
@@ -500,16 +544,16 @@ export async function castVote(
       }
     } else {
       // New vote
-      const { error } = await supabase.from("community_votes").insert({
+      const { error: voteError } = await supabase.from("community_votes").insert({
         user_id: userId,
         target_type: targetType,
         target_id: targetId,
         vote_type: voteType,
       });
 
-      if (error) {
-        console.error("Error casting vote:", error);
-        return { success: false, error: error.message };
+      if (voteError) {
+        console.error("Error casting vote:", voteError);
+        return { success: false, error: voteError.message };
       }
 
       // Increment count
@@ -535,49 +579,55 @@ export async function castVote(
   }
 }
 
-// Notification for new comment on your post
-export async function notifyPostAuthorOfComment(postAuthorId: string, postId: string, postTitle: string) {
+export async function deleteVote(
+  userId: string,
+  targetType: "post" | "comment",
+  targetId: string
+): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.from("notifications").insert({
-      user_id: postAuthorId,
-      type: "community_comment_on_post",
-      title: "New comment on your post",
-      body: `Someone commented on "${postTitle}"`,
-      ref_id: postId,
-    });
-  } catch (error) {
-    console.error("Error creating notification:", error);
-  }
-}
-
-// ========== Post Watchers / Ping for Updates ==========
-
-export async function isUserWatchingPost(userId: string, postId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("community_post_watchers")
-      .select("id")
+    const { data: existingVote } = await supabase
+      .from("community_votes")
+      .select("id, vote_type")
       .eq("user_id", userId)
-      .eq("post_id", postId)
+      .eq("target_type", targetType)
+      .eq("target_id", targetId)
       .maybeSingle();
 
-    if (error) {
-      console.error("Error checking watch status:", error);
-      return false;
+    if (!existingVote) {
+      return { success: true };
     }
 
-    return !!data;
+    await supabase.from("community_votes").delete().eq("id", existingVote.id);
+
+    const tableName = targetType === "post" ? "community_posts" : "community_comments";
+
+    const { data: target } = await supabase
+      .from(tableName)
+      .select("helpful_count, not_helpful_count")
+      .eq("id", targetId)
+      .single();
+
+    if (target) {
+      const updates = existingVote.vote_type === "helpful"
+        ? { helpful_count: Math.max(0, (target.helpful_count || 0) - 1) }
+        : { not_helpful_count: Math.max(0, (target.not_helpful_count || 0) - 1) };
+
+      await supabase.from(tableName).update(updates).eq("id", targetId);
+    }
+
+    return { success: true };
   } catch (error) {
-    console.error("Error checking watch status:", error);
-    return false;
+    console.error("Error deleting vote:", error);
+    return { success: false, error: "An unexpected error occurred" };
   }
 }
 
 export async function watchPost(userId: string, postId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from("community_post_watchers")
-      .insert({ user_id: userId, post_id: postId });
+    const { error } = await supabase.from("community_post_watchers").insert({
+      user_id: userId,
+      post_id: postId,
+    });
 
     if (error) {
       if (error.code === "23505") {
@@ -615,91 +665,116 @@ export async function unwatchPost(userId: string, postId: string): Promise<{ suc
   }
 }
 
-export async function getPostWatchers(postId: string): Promise<string[]> {
+export async function isWatchingPost(userId: string, postId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from("community_post_watchers")
-      .select("user_id")
-      .eq("post_id", postId);
+      .select("id")
+      .eq("user_id", userId)
+      .eq("post_id", postId)
+      .maybeSingle();
 
     if (error) {
-      console.error("Error fetching watchers:", error);
-      return [];
+      console.error("Error checking watch status:", error);
+      return false;
     }
 
-    return data?.map((w) => w.user_id) || [];
+    return !!data;
   } catch (error) {
-    console.error("Error fetching watchers:", error);
-    return [];
+    console.error("Error checking watch status:", error);
+    return false;
   }
 }
 
-export async function deletePostWatchers(postId: string): Promise<void> {
-  try {
-    await supabase
-      .from("community_post_watchers")
-      .delete()
-      .eq("post_id", postId);
-  } catch (error) {
-    console.error("Error deleting watchers:", error);
-  }
-}
-
-export async function notifyWatchersPostResolved(
+export async function notifyPostWatchers(
   postId: string,
-  postTitle: string,
-  newStatus: string
+  excludeUserId: string,
+  notificationType: "community_comment_on_post" | "community_post_resolved",
+  title: string,
+  body: string
 ): Promise<void> {
   try {
-    const watchers = await getPostWatchers(postId);
-    
-    if (watchers.length === 0) return;
+    const { data: watchers } = await supabase
+      .from("community_post_watchers")
+      .select("user_id")
+      .eq("post_id", postId)
+      .neq("user_id", excludeUserId);
 
-    const notifications = watchers.map((userId) => ({
-      user_id: userId,
-      type: "community_post_resolved",
-      title: "Community post update",
-      body: `A post you pinged has been resolved: "${postTitle}"`,
+    if (!watchers || watchers.length === 0) return;
+
+    const notifications = watchers.map(w => ({
+      user_id: w.user_id,
+      type: notificationType,
+      title,
+      body,
       ref_id: postId,
     }));
 
     await supabase.from("notifications").insert(notifications);
-
-    // Clean up watchers after notifying
-    await deletePostWatchers(postId);
   } catch (error) {
     console.error("Error notifying watchers:", error);
   }
 }
 
-export async function updateCommunityPostStatus(
-  postId: string,
-  newStatus: string
-): Promise<{ success: boolean; error?: string }> {
+export async function resolvePost(postId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    // Get old status first
-    const { data: postBefore } = await supabase
-      .from("community_posts")
-      .select("id, title, status")
-      .eq("id", postId)
-      .single();
-
-    const oldStatus = postBefore?.status;
-
-    // Update the status
     const { error } = await supabase
       .from("community_posts")
-      .update({ status: newStatus })
+      .update({ status: "resolved" })
+      .eq("id", postId);
+
+    if (error) {
+      console.error("Error resolving post:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error resolving post:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
+
+// Alias for backward compatibility
+export const isUserWatchingPost = isWatchingPost;
+
+// Notify post author when someone comments
+export async function notifyPostAuthorOfComment(
+  postId: string,
+  postAuthorId: string,
+  commenterId: string,
+  postTitle: string
+): Promise<void> {
+  // Don't notify if author is commenting on their own post
+  if (postAuthorId === commenterId) return;
+
+  try {
+    await supabase.from("notifications").insert({
+      user_id: postAuthorId,
+      type: "community_comment_on_post",
+      title: "New comment on your post",
+      body: `Someone commented on your post: "${postTitle.substring(0, 50)}..."`,
+      ref_id: postId,
+    });
+  } catch (error) {
+    console.error("Error notifying post author:", error);
+  }
+}
+
+// Update community post status (for moderation)
+export async function updateCommunityPostStatus(
+  postId: string,
+  status: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from("community_posts")
+      .update({ status })
       .eq("id", postId);
 
     if (error) {
       console.error("Error updating post status:", error);
       return { success: false, error: error.message };
-    }
-
-    // If transitioning from under_review to another status, notify watchers
-    if (oldStatus === "under_review" && newStatus !== "under_review" && postBefore) {
-      await notifyWatchersPostResolved(postId, postBefore.title, newStatus);
     }
 
     return { success: true };
