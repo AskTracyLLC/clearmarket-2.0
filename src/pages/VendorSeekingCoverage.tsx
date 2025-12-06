@@ -10,6 +10,9 @@ import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCir
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { PageHeader } from "@/components/PageHeader";
+import AdminViewBanner from "@/components/AdminViewBanner";
 import {
   Dialog,
   DialogContent,
@@ -495,27 +498,8 @@ Thank you again for your interest!`;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-                ClearMarket
-              </Link>
-            </div>
-            <Link to="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-12 max-w-6xl">
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Admin View Banner */}
         {profile?.is_admin && (
           <div className="mb-3 rounded-md bg-amber-900/40 border border-amber-500/40 px-3 py-2 text-xs text-amber-100 flex items-center gap-2">
@@ -533,14 +517,13 @@ Thank you again for your interest!`;
         )}
         
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Seeking Coverage</h1>
-          <p className="text-muted-foreground">
-            {isAdminViewingOther 
-              ? `Viewing Seeking Coverage posts for ${targetVendorName || 'this vendor'}.`
-              : "Post where you need Field Reps. Requests auto-expire after 30 days."}
-          </p>
-        </div>
+        <PageHeader
+          title="Seeking Coverage"
+          subtitle={isAdminViewingOther 
+            ? `Viewing Seeking Coverage posts for ${targetVendorName || 'this vendor'}.`
+            : "Post where you need Field Reps. Requests auto-expire after 30 days."}
+          showBackToDashboard
+        />
 
         {/* Create New Button */}
         <div className="mb-8">
@@ -808,7 +791,7 @@ Thank you again for your interest!`;
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 
