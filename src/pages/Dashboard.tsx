@@ -540,13 +540,15 @@ const Dashboard = () => {
               </div>
             )}
 
+            {/* Quick Actions - Always on top */}
+            <div className="max-w-5xl mb-6">
+              <QuickActions isRep={isRep} isVendor={isVendor} />
+            </div>
+
             {/* Main Content Grid */}
             <div className="grid lg:grid-cols-3 gap-6 max-w-5xl">
               {/* Main Column - Today Feed */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Quick Actions */}
-                <QuickActions isRep={isRep} isVendor={isVendor} />
-
+              <div className="lg:col-span-2 space-y-6 order-1 lg:order-1">
                 {/* Today Feed */}
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -560,9 +562,9 @@ const Dashboard = () => {
                   />
                 </div>
 
-                {/* Setup Section - Collapsible */}
+                {/* Setup Section - Collapsible, hidden on mobile (shown in At a Glance instead) */}
                 {checklistData.items.length > 0 && (
-                  <Collapsible open={showSetupSection} onOpenChange={setShowSetupSection}>
+                  <Collapsible open={showSetupSection} onOpenChange={setShowSetupSection} className="hidden lg:block">
                     <Card className="bg-card border-border">
                       <CollapsibleTrigger className="w-full">
                         <CardHeader className="py-3 px-4">
@@ -601,8 +603,8 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Right Sidebar - At a Glance */}
-              <div>
+              {/* Right Sidebar - At a Glance (stacks below on mobile) */}
+              <div className="order-2 lg:order-2">
                 <h2 className="text-lg font-semibold text-foreground mb-3">At a Glance</h2>
                 <AtAGlanceSidebar
                   isRep={isRep}
