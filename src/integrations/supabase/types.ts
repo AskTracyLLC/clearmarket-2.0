@@ -2324,7 +2324,6 @@ export type Database = {
           status: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at: string
           vendor_id: string
-          working_terms: Json | null
         }
         Insert: {
           base_rate?: number | null
@@ -2338,7 +2337,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id: string
-          working_terms?: Json | null
         }
         Update: {
           base_rate?: number | null
@@ -2352,7 +2350,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id?: string
-          working_terms?: Json | null
         }
         Relationships: [
           {
@@ -2367,6 +2364,130 @@ export type Database = {
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      working_terms_requests: {
+        Row: {
+          created_at: string
+          decline_reason: string | null
+          id: string
+          message_from_vendor: string | null
+          rep_id: string
+          requested_counties: string[] | null
+          requested_states: string[]
+          status: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          message_from_vendor?: string | null
+          rep_id: string
+          requested_counties?: string[] | null
+          requested_states?: string[]
+          status?: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          message_from_vendor?: string | null
+          rep_id?: string
+          requested_counties?: string[] | null
+          requested_states?: string[]
+          status?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "working_terms_requests_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_terms_requests_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      working_terms_rows: {
+        Row: {
+          county_name: string | null
+          created_at: string
+          id: string
+          included: boolean
+          inspection_type: string
+          rate: number | null
+          rep_id: string
+          source: string
+          state_code: string
+          turnaround_days: number | null
+          updated_at: string
+          vendor_id: string
+          working_terms_request_id: string
+        }
+        Insert: {
+          county_name?: string | null
+          created_at?: string
+          id?: string
+          included?: boolean
+          inspection_type: string
+          rate?: number | null
+          rep_id: string
+          source?: string
+          state_code: string
+          turnaround_days?: number | null
+          updated_at?: string
+          vendor_id: string
+          working_terms_request_id: string
+        }
+        Update: {
+          county_name?: string | null
+          created_at?: string
+          id?: string
+          included?: boolean
+          inspection_type?: string
+          rate?: number | null
+          rep_id?: string
+          source?: string
+          state_code?: string
+          turnaround_days?: number | null
+          updated_at?: string
+          vendor_id?: string
+          working_terms_request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "working_terms_rows_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_terms_rows_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_terms_rows_working_terms_request_id_fkey"
+            columns: ["working_terms_request_id"]
+            isOneToOne: false
+            referencedRelation: "working_terms_requests"
             referencedColumns: ["id"]
           },
         ]
