@@ -9,6 +9,7 @@ export const US_STATES = [
   { value: "CA", label: "California" },
   { value: "CO", label: "Colorado" },
   { value: "CT", label: "Connecticut" },
+  { value: "DC", label: "District of Columbia" },
   { value: "DE", label: "Delaware" },
   { value: "FL", label: "Florida" },
   { value: "GA", label: "Georgia" },
