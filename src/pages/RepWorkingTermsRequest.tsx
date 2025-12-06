@@ -132,6 +132,13 @@ const RepWorkingTermsRequest = () => {
       return;
     }
 
+    // Check if request is in a valid state for this page
+    if (!["pending_rep", "pending_vendor", "pending_rep_confirm", "active"].includes(req.status)) {
+      toast({ title: "Request unavailable", description: "This request has been declined or is no longer accessible.", variant: "destructive" });
+      navigate("/rep/my-vendors");
+      return;
+    }
+
     setRequest(req);
 
     // Get vendor name
@@ -143,8 +150,8 @@ const RepWorkingTermsRequest = () => {
 
     setVendorName(vendorProfile?.company_name || "Vendor");
 
-    // If pending_rep_confirm, load existing rows
-    if (req.status === "pending_rep_confirm") {
+    // If pending_rep_confirm or active, load existing rows
+    if (req.status === "pending_rep_confirm" || req.status === "active" || req.status === "pending_vendor") {
       const { data: rows } = await supabase
         .from("working_terms_rows")
         .select("*")
@@ -159,7 +166,7 @@ const RepWorkingTermsRequest = () => {
           inspection_type: r.inspection_type,
           rate: r.rate,
           turnaround_days: r.turnaround_days,
-          selected: true,
+          selected: r.included ?? true,
           source: r.source,
         }))
       );
@@ -308,6 +315,16 @@ const RepWorkingTermsRequest = () => {
 
   const isPendingRep = request?.status === "pending_rep";
   const isPendingRepConfirm = request?.status === "pending_rep_confirm";
+  const isPendingVendor = request?.status === "pending_vendor";
+  const isActive = request?.status === "active";
+  const isReadOnly = isPendingVendor || isActive;
+
+  const getPageTitle = () => {
+    if (isActive) return "Working Terms";
+    if (isPendingRepConfirm) return "Review Working Terms";
+    if (isPendingVendor) return "Working Terms (Sent)";
+    return "Respond to Coverage Request";
+  };
 
   return (
     <AuthenticatedLayout>
@@ -317,11 +334,20 @@ const RepWorkingTermsRequest = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/rep/my-vendors")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold">
-              {isPendingRepConfirm ? "Review Working Terms" : "Respond to Coverage Request"}
-            </h1>
-            <p className="text-muted-foreground">From {vendorName}</p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
+              {isActive && (
+                <Badge variant="default" className="bg-green-600">Active</Badge>
+              )}
+              {isPendingVendor && (
+                <Badge variant="outline">Waiting for vendor</Badge>
+              )}
+              {isPendingRepConfirm && (
+                <Badge variant="default">Action required</Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground">With {vendorName}</p>
           </div>
         </div>
 
@@ -424,10 +450,12 @@ const RepWorkingTermsRequest = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Coverage & Pricing</CardTitle>
-                <Button variant="outline" size="sm" onClick={handleAddRow}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add row
-                </Button>
+                {!isReadOnly && (
+                  <Button variant="outline" size="sm" onClick={handleAddRow}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add row
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -435,85 +463,107 @@ const RepWorkingTermsRequest = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium w-12">Select</th>
+                      {!isReadOnly && <th className="px-3 py-2 text-left font-medium w-12">Select</th>}
                       <th className="px-3 py-2 text-left font-medium">State</th>
                       <th className="px-3 py-2 text-left font-medium">County</th>
                       <th className="px-3 py-2 text-left font-medium">Inspection Type</th>
                       <th className="px-3 py-2 text-left font-medium w-24">Rate ($)</th>
                       <th className="px-3 py-2 text-left font-medium w-28">Turnaround</th>
-                      {isPendingRepConfirm && <th className="px-3 py-2 text-left font-medium">Source</th>}
-                      <th className="px-3 py-2 w-12"></th>
+                      {(isPendingRepConfirm || isReadOnly) && <th className="px-3 py-2 text-left font-medium">Source</th>}
+                      {!isReadOnly && <th className="px-3 py-2 w-12"></th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {coverageRows.map(row => (
                       <tr key={row.id} className={row.source === 'added_by_vendor' ? 'bg-amber-500/5' : ''}>
+                        {!isReadOnly && (
+                          <td className="px-3 py-2">
+                            <Checkbox
+                              checked={row.selected}
+                              onCheckedChange={(checked) => handleRowChange(row.id, 'selected', !!checked)}
+                            />
+                          </td>
+                        )}
                         <td className="px-3 py-2">
-                          <Checkbox
-                            checked={row.selected}
-                            onCheckedChange={(checked) => handleRowChange(row.id, 'selected', !!checked)}
-                          />
+                          {isReadOnly ? (
+                            <span className="text-sm">{row.state_code}</span>
+                          ) : (
+                            <Select
+                              value={row.state_code}
+                              onValueChange={(v) => handleRowChange(row.id, 'state_code', v)}
+                            >
+                              <SelectTrigger className="h-8 w-20">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {US_STATES.map(s => (
+                                  <SelectItem key={s.code} value={s.code}>{s.code}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </td>
                         <td className="px-3 py-2">
-                          <Select
-                            value={row.state_code}
-                            onValueChange={(v) => handleRowChange(row.id, 'state_code', v)}
-                          >
-                            <SelectTrigger className="h-8 w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {US_STATES.map(s => (
-                                <SelectItem key={s.code} value={s.code}>{s.code}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {isReadOnly ? (
+                            <span className="text-sm">{row.county_name || "All"}</span>
+                          ) : (
+                            <Input
+                              value={row.county_name || ""}
+                              onChange={(e) => handleRowChange(row.id, 'county_name', e.target.value || null)}
+                              placeholder="All"
+                              className="h-8 w-32"
+                            />
+                          )}
                         </td>
                         <td className="px-3 py-2">
-                          <Input
-                            value={row.county_name || ""}
-                            onChange={(e) => handleRowChange(row.id, 'county_name', e.target.value || null)}
-                            placeholder="All"
-                            className="h-8 w-32"
-                          />
+                          {isReadOnly ? (
+                            <span className="text-sm">{INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type}</span>
+                          ) : (
+                            <Select
+                              value={row.inspection_type}
+                              onValueChange={(v) => handleRowChange(row.id, 'inspection_type', v)}
+                            >
+                              <SelectTrigger className="h-8 w-40">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {INSPECTION_TYPES.map(t => (
+                                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         </td>
                         <td className="px-3 py-2">
-                          <Select
-                            value={row.inspection_type}
-                            onValueChange={(v) => handleRowChange(row.id, 'inspection_type', v)}
-                          >
-                            <SelectTrigger className="h-8 w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {INSPECTION_TYPES.map(t => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            value={row.rate ?? ""}
-                            onChange={(e) => handleRowChange(row.id, 'rate', e.target.value ? parseFloat(e.target.value) : null)}
-                            placeholder="—"
-                            className="h-8 w-20"
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-1">
+                          {isReadOnly ? (
+                            <span className="text-sm">{row.rate != null ? `$${row.rate}` : "—"}</span>
+                          ) : (
                             <Input
                               type="number"
-                              value={row.turnaround_days ?? ""}
-                              onChange={(e) => handleRowChange(row.id, 'turnaround_days', e.target.value ? parseInt(e.target.value) : null)}
+                              value={row.rate ?? ""}
+                              onChange={(e) => handleRowChange(row.id, 'rate', e.target.value ? parseFloat(e.target.value) : null)}
                               placeholder="—"
-                              className="h-8 w-16"
+                              className="h-8 w-20"
                             />
-                            <span className="text-xs text-muted-foreground">days</span>
-                          </div>
+                          )}
                         </td>
-                        {isPendingRepConfirm && (
+                        <td className="px-3 py-2">
+                          {isReadOnly ? (
+                            <span className="text-sm">{row.turnaround_days != null ? `${row.turnaround_days} days` : "—"}</span>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                value={row.turnaround_days ?? ""}
+                                onChange={(e) => handleRowChange(row.id, 'turnaround_days', e.target.value ? parseInt(e.target.value) : null)}
+                                placeholder="—"
+                                className="h-8 w-16"
+                              />
+                              <span className="text-xs text-muted-foreground">days</span>
+                            </div>
+                          )}
+                        </td>
+                        {(isPendingRepConfirm || isReadOnly) && (
                           <td className="px-3 py-2">
                             {row.source === 'added_by_vendor' && (
                               <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
@@ -523,18 +573,23 @@ const RepWorkingTermsRequest = () => {
                             {row.source === 'from_profile' && (
                               <Badge variant="secondary" className="text-xs">From profile</Badge>
                             )}
+                            {row.source === 'added_by_rep' && (
+                              <Badge variant="secondary" className="text-xs">Added by you</Badge>
+                            )}
                           </td>
                         )}
-                        <td className="px-3 py-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleRemoveRow(row.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
+                        {!isReadOnly && (
+                          <td className="px-3 py-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveRow(row.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -593,7 +648,7 @@ const RepWorkingTermsRequest = () => {
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => navigate("/rep/my-vendors")}>
-                  Cancel
+                  {isReadOnly ? "Back to My Vendors" : "Cancel"}
                 </Button>
                 {isPendingRep && (
                   <Button

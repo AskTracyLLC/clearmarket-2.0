@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +15,24 @@ import {
   Calendar, 
   ChevronDown,
   ChevronUp,
-  Star
+  Star,
+  FileText,
+  Clock,
+  CheckCircle2,
+  Info
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface VendorNote {
   id: string;
   note: string;
+  created_at: string;
+}
+
+interface WorkingTermsStatus {
+  id: string;
+  status: string;
   created_at: string;
 }
 
@@ -85,8 +98,92 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
   onViewTrustScore,
   onWorkingTermsSaved,
 }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [notesOpen, setNotesOpen] = useState(false);
+  const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
   const notesCount = vendor.notes?.length || 0;
+
+  // Load working terms status
+  useEffect(() => {
+    if (user) {
+      loadWorkingTermsStatus();
+    }
+  }, [vendor.vendorUserId, user]);
+
+  const loadWorkingTermsStatus = async () => {
+    if (!user) return;
+    setLoadingStatus(true);
+    try {
+      // Get most recent working terms request for this vendor-rep pair
+      const { data } = await supabase
+        .from("working_terms_requests")
+        .select("id, status, created_at")
+        .eq("vendor_id", vendor.vendorUserId)
+        .eq("rep_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setWorkingTermsStatus(data);
+    } catch (error) {
+      console.error("Error loading working terms status:", error);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  const getStatusDisplay = () => {
+    if (!workingTermsStatus) return null;
+
+    switch (workingTermsStatus.status) {
+      case "pending_rep":
+        return (
+          <Badge 
+            variant="default" 
+            className="text-xs gap-1 cursor-pointer" 
+            onClick={() => navigate(`/rep/working-terms-request/${workingTermsStatus.id}`)}
+          >
+            <FileText className="w-3 h-3" />
+            Review request
+          </Badge>
+        );
+      case "pending_vendor":
+        return (
+          <Badge variant="outline" className="text-xs gap-1">
+            <Clock className="w-3 h-3" />
+            Sent to vendor
+          </Badge>
+        );
+      case "pending_rep_confirm":
+        return (
+          <Badge 
+            variant="default" 
+            className="text-xs gap-1 cursor-pointer" 
+            onClick={() => navigate(`/rep/working-terms-request/${workingTermsStatus.id}`)}
+          >
+            <FileText className="w-3 h-3" />
+            Review changes
+          </Badge>
+        );
+      case "active":
+        return (
+          <Badge variant="default" className="text-xs gap-1 bg-green-600">
+            <CheckCircle2 className="w-3 h-3" />
+            Working terms active
+          </Badge>
+        );
+      case "declined":
+        return (
+          <Badge variant="destructive" className="text-xs">
+            Declined
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
 
   // Build coverage display from statesCovered
   const coverageDisplay = vendor.statesCovered?.length
@@ -230,37 +327,66 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
           </Button>
         </div>
 
-        {/* Coverage & Pricing Summary */}
+        {/* Working Terms Status */}
         <div className="bg-muted/50 rounded-lg p-3 space-y-3">
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Coverage & Pricing</span>
-              {!vendor.agreementId && (
-                <Badge variant="secondary" className="text-xs">Agreement pending</Badge>
-              )}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                Working terms (for reference)
+                <Info className="w-3 h-3" />
+              </span>
+              {!loadingStatus && getStatusDisplay()}
             </div>
-            {vendor.agreementId ? (
-              <div className="text-sm space-y-1">
-                <p className="text-foreground">
-                  <span className="text-muted-foreground">Coverage:</span> {vendor.coverageSummary || "Not specified"}
+            
+            {workingTermsStatus?.status === "active" ? (
+              <div className="text-sm space-y-2">
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-primary"
+                  onClick={() => navigate(`/rep/working-terms-request/${workingTermsStatus.id}`)}
+                >
+                  View working terms details →
+                </Button>
+                <p className="text-xs text-muted-foreground italic">
+                  Informational only — not a contract, guarantee of work, or employment agreement.
                 </p>
-                <p className="text-foreground">
-                  <span className="text-muted-foreground">Pricing:</span> {vendor.pricingSummary || "Not specified"}
-                </p>
-                {vendor.statesCovered && vendor.statesCovered.length > 0 && (
-                  <p className="text-foreground hidden md:block">
-                    <span className="text-muted-foreground">States:</span> {vendor.statesCovered.join(", ")}
-                  </p>
-                )}
               </div>
+            ) : workingTermsStatus?.status === "pending_rep" ? (
+              <div className="text-sm space-y-2">
+                <p className="text-foreground">
+                  {vendor.companyName} has requested your coverage & pricing.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/rep/working-terms-request/${workingTermsStatus.id}`)}
+                >
+                  Review & respond
+                </Button>
+              </div>
+            ) : workingTermsStatus?.status === "pending_rep_confirm" ? (
+              <div className="text-sm space-y-2">
+                <p className="text-foreground">
+                  {vendor.companyName} has updated working terms. Please review and confirm.
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/rep/working-terms-request/${workingTermsStatus.id}`)}
+                >
+                  Review changes
+                </Button>
+              </div>
+            ) : workingTermsStatus?.status === "pending_vendor" ? (
+              <p className="text-sm text-muted-foreground">
+                Your terms have been sent. Waiting for {vendor.companyName} to review.
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Coverage and pricing details not yet set in ClearMarket.
+                No working terms set with this vendor.
               </p>
             )}
           </div>
-
-          </div>
+        </div>
 
         {/* Connection Notes - Collapsible on Mobile, Always visible on Desktop */}
         <div className="border-t border-border pt-4">
