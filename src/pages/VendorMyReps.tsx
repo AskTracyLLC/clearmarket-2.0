@@ -27,6 +27,7 @@ import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface ConnectedRep {
   repUserId: string;
@@ -640,7 +641,7 @@ const VendorMyReps = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* Admin View Banner */}
         {profile?.is_admin && <AdminViewBanner />}
@@ -1000,7 +1001,7 @@ const VendorMyReps = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

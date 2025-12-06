@@ -13,6 +13,7 @@ import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
 import { ReputationSharePanel } from "@/components/ReputationSharePanel";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface ReviewData {
   id: string;
@@ -315,25 +316,18 @@ export default function RepReviews() {
   const sortedGiven = sortReviews(givenReviews);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Reviews</h1>
-              <p className="text-muted-foreground mt-1">
-                View reviews you've received and given
-              </p>
-            </div>
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Reviews</h1>
+            <p className="text-muted-foreground mt-1">View reviews you've received and given</p>
+          </div>
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+        </div>
         {/* Reputation Snapshot */}
         <RepReputationSnapshotNew
           trustScore={trustScore || 3.0}
@@ -462,6 +456,6 @@ export default function RepReviews() {
           targetUserId={profileDialogUserId}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 }

@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 // Validation schema for vendor profile (MVP)
 const vendorProfileSchema = z.object({
@@ -312,27 +313,20 @@ const VendorProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-12 max-w-3xl">
+        <div className="mb-6 flex items-center gap-4">
+          <Link to="/dashboard">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </Link>
+        </div>
+        
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Vendor Profile</h1>
-          <p className="text-muted-foreground">
-            Complete your profile to connect with field reps
-          </p>
+          <p className="text-muted-foreground">Complete your profile to connect with field reps</p>
         </div>
 
         {/* Share Profile Panel */}
@@ -911,7 +905,7 @@ const VendorProfile = () => {
           }}
         />
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

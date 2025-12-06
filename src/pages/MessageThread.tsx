@@ -802,17 +802,26 @@ export default function MessageThread() {
         {/* Message input */}
         <form onSubmit={handleSendMessage} className="space-y-4">
           <div className="flex gap-2">
-            {isRep && currentUserProfile && (
+            {isRep && user && (
               <TemplateSelector
-                roleType="rep"
-                onSelect={(body) => setMessageText(body)}
-                userProfile={currentUserProfile}
+                userId={user.id}
+                userRole="rep"
+                onTemplateSelect={(body) => setMessageText(body)}
+                context={currentUserProfile ? {
+                  profile: {
+                    rep_anonymous_id: currentUserProfile.anonymous_id,
+                    rep_state: currentUserProfile.state,
+                    rep_systems: currentUserProfile.systems_used,
+                    rep_inspection_types: currentUserProfile.inspection_types
+                  }
+                } : undefined}
               />
             )}
-            {isVendor && (
+            {isVendor && user && (
               <TemplateSelector
-                roleType="vendor"
-                onSelect={(body) => setMessageText(body)}
+                userId={user.id}
+                userRole="vendor"
+                onTemplateSelect={(body) => setMessageText(body)}
               />
             )}
           </div>
@@ -865,17 +874,19 @@ export default function MessageThread() {
       <ReportUserDialog
         open={showReportDialog}
         onOpenChange={setShowReportDialog}
+        reporterUserId={user?.id || ""}
         reportedUserId={otherParticipantId}
         conversationId={conversationId}
-        context="message_thread"
+        contextLabel="Message Thread"
       />
 
       <CreateAgreementDialog
         open={showAgreementDialog}
         onOpenChange={setShowAgreementDialog}
-        onSubmit={handleCreateAgreement}
-        loading={creatingAgreement}
-        seekingPost={conversationData?.seeking_post}
+        repUserId={otherParticipantId}
+        repName={otherParticipantName}
+        onSave={handleCreateAgreement}
+        saving={creatingAgreement}
       />
     </AuthenticatedLayout>
   );
