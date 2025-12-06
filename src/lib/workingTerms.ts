@@ -789,3 +789,78 @@ export async function fetchPendingChangeRequest(
 
   return data as WorkingTermsChangeRequest | null;
 }
+
+/**
+ * Fetch all pending change requests for a vendor-rep pair where the vendor needs to respond
+ * (i.e., changes initiated by the rep)
+ */
+export async function fetchPendingChangeRequestsForVendor(
+  vendorId: string,
+  repId: string
+): Promise<WorkingTermsChangeRequest[]> {
+  // First get active working terms request for this pair
+  const { data: request } = await supabase
+    .from("working_terms_requests")
+    .select("id")
+    .eq("vendor_id", vendorId)
+    .eq("rep_id", repId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!request) {
+    return [];
+  }
+
+  // Get all pending change requests from rep for rows in this request
+  const { data: changes, error } = await supabase
+    .from("working_terms_change_requests")
+    .select("*, working_terms_rows!inner(working_terms_request_id)")
+    .eq("working_terms_rows.working_terms_request_id", request.id)
+    .eq("status", "pending")
+    .eq("requested_by_role", "rep");
+
+  if (error) {
+    console.error("Error fetching pending change requests for vendor:", error);
+    return [];
+  }
+
+  return (changes || []) as WorkingTermsChangeRequest[];
+}
+
+/**
+ * Fetch all pending change requests for all rows in a working terms request
+ */
+export async function fetchAllPendingChangesForRequest(
+  requestId: string
+): Promise<Map<string, WorkingTermsChangeRequest>> {
+  const { data: rows } = await supabase
+    .from("working_terms_rows")
+    .select("id")
+    .eq("working_terms_request_id", requestId);
+
+  if (!rows || rows.length === 0) {
+    return new Map();
+  }
+
+  const rowIds = rows.map(r => r.id);
+  
+  const { data: changes, error } = await supabase
+    .from("working_terms_change_requests")
+    .select("*")
+    .in("working_terms_row_id", rowIds)
+    .eq("status", "pending");
+
+  if (error) {
+    console.error("Error fetching pending changes:", error);
+    return new Map();
+  }
+
+  const map = new Map<string, WorkingTermsChangeRequest>();
+  for (const change of changes || []) {
+    map.set(change.working_terms_row_id, change as WorkingTermsChangeRequest);
+  }
+  
+  return map;
+}
