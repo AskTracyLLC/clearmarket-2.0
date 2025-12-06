@@ -13,7 +13,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { 
-  ArrowLeft, 
   Search, 
   Coins, 
   User, 
@@ -24,6 +23,7 @@ import {
   RefreshCw,
   ExternalLink
 } from "lucide-react";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface UserSearchResult {
   id: string;
@@ -408,27 +408,7 @@ const AdminCredits = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-                ClearMarket
-              </Link>
-              <Badge variant="outline" className="text-xs">Admin</Badge>
-            </div>
-            <Link to="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">Credit Management</h1>

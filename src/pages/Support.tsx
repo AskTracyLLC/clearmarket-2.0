@@ -31,6 +31,7 @@ import {
 } from "@/lib/support";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 export default function Support() {
   const { user, loading } = useAuth();
@@ -149,18 +150,15 @@ export default function Support() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Support</h1>
             <p className="text-muted-foreground">Submit requests and view your support history</p>
           </div>
-          <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate("/help")}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/help")}>
             <HelpCircle className="h-4 w-4 mr-2" />
             Help Center
           </Button>
@@ -399,6 +397,6 @@ export default function Support() {
           </SheetContent>
         </Sheet>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 }

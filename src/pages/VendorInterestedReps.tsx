@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, XCircle, User, MessageSquare } from "lucide-react";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface InterestedRep {
   id: string; // rep_interest.id
@@ -279,28 +280,23 @@ export default function VendorInterestedReps() {
     : post.pay_min;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-                ClearMarket
-              </Link>
-            </div>
-            <Link to="/vendor/seeking-coverage">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Seeking Coverage
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         {/* Page Header */}
+        <div className="mb-8">
+          <Button variant="outline" size="sm" className="mb-4" onClick={() => navigate("/vendor/seeking-coverage")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Seeking Coverage
+          </Button>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Interested Field Reps</h1>
+          <p className="text-muted-foreground mb-4">
+            For: <span className="font-semibold">{post.title}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            These reps expressed interest in this request. You can message them or decline if not a fit. 
+            To connect with a rep, start a conversation and use the "Connect on this post" button in the message thread.
+          </p>
+        </div>
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Interested Field Reps</h1>
           <p className="text-muted-foreground mb-4">
@@ -638,6 +634,6 @@ export default function VendorInterestedReps() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AuthenticatedLayout>
   );
 }

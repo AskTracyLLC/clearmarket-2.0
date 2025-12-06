@@ -32,7 +32,7 @@ import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
-import { NavLink } from "@/components/NavLink";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import {
   MessageSquare,
   Bell,
@@ -226,47 +226,12 @@ const CommunityPostDetail = () => {
   const isAuthor = post.author_id === user.id;
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-                ClearMarket
-              </Link>
-              <nav className="hidden md:flex gap-6">
-                <NavLink to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Briefcase className="w-4 h-4" />
-                  Dashboard
-                </NavLink>
-                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Users className="w-4 h-4" />
-                  Community
-                </NavLink>
-                <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <MessageSquare className="w-4 h-4" />
-                  Messages
-                </NavLink>
-                <NavLink to="/notifications" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Bell className="w-4 h-4" />
-                  Notifications
-                </NavLink>
-                <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <ShieldAlert className="w-4 h-4" />
-                  Safety
-                </NavLink>
-              </nav>
-            </div>
-            <Button variant="outline" onClick={() => navigate("/community")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <main className="container mx-auto px-4 py-8 max-w-3xl">
+        <Button variant="outline" onClick={() => navigate("/community")} className="mb-6">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Community
+        </Button>
         {/* Post Header */}
         <Card className="mb-6">
           <CardContent className="p-6">
@@ -526,7 +491,7 @@ const CommunityPostDetail = () => {
           targetUserId={profileTargetUserId}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

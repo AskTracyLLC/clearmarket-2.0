@@ -32,11 +32,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { logAdminAction } from "@/lib/adminAudit";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface UserProfile {
   id: string;
@@ -430,14 +431,11 @@ export default function AdminUsers() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
+        <div className="flex items-center justify-between mb-8">
+          <div>
             <h1 className="text-3xl font-bold text-foreground">User Management</h1>
             <p className="text-muted-foreground">Search, reset passwords, and manage account status.</p>
           </div>

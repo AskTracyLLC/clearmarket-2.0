@@ -11,6 +11,7 @@ import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import AdminViewBanner from "@/components/AdminViewBanner";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface Transaction {
   id: string;
@@ -162,26 +163,7 @@ const VendorCredits = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors">
-                ClearMarket
-              </Link>
-            </div>
-            <Link to="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-12 max-w-5xl">
         {/* Admin View Banner */}
         {profile?.is_admin && <AdminViewBanner />}
@@ -369,7 +351,7 @@ const VendorCredits = () => {
           </ul>
         </div>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

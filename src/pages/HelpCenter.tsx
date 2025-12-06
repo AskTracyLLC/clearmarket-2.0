@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ArrowLeft, Search, HelpCircle, CreditCard, Shield, MessageCircle, Rocket, UserCog } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 // Static FAQ content
 const STATIC_FAQ = {

@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface VendorTemplate {
   id: string;
@@ -226,21 +227,15 @@ export default function VendorMessageTemplates() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Message Templates</h1>
-              <p className="text-muted-foreground mt-1">
-                Manage your message templates for Seeking Coverage conversations
-              </p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Message Templates</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your message templates for Seeking Coverage conversations
+            </p>
           </div>
           <Button onClick={openCreateDialog}>
             <Plus className="w-4 h-4 mr-2" />
@@ -441,6 +436,6 @@ export default function VendorMessageTemplates() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 }

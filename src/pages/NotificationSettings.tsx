@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { toast } from "sonner";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 type NotificationPreferences = {
   user_id: string;
@@ -120,18 +121,9 @@ export default function NotificationSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <AuthenticatedLayout>
+      <div className="max-w-4xl mx-auto p-8 space-y-6">
         <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/dashboard")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Bell className="h-8 w-8" />
             Notification Settings

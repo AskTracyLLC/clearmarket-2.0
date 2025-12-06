@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3, X, ShieldAlert, SearchX } from "lucide-react";
+import { Flag, MessageSquare, User, FileText, AlertTriangle, BarChart3, X, ShieldAlert, SearchX } from "lucide-react";
 import { fetchReportStats, fetchReportsByType, ReportWithDetails } from "@/lib/adminReports";
 import { ReportDetailPanel } from "@/components/admin/ReportDetailPanel";
 import { ReportsDataTable } from "@/components/admin/ReportsDataTable";
@@ -25,6 +25,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { toast } from "sonner";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 export default function AdminModeration() {
   const { user, loading: authLoading } = useAuth();
@@ -214,23 +215,18 @@ export default function AdminModeration() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-foreground">Admin Moderation Dashboard</h1>
-              <CountBadge count={sectionCounts.adminOpenReports} />
-            </div>
-            <p className="text-muted-foreground">
-              Review and manage flagged content and user reports
-              {sectionCounts.adminOpenReports > 0 && ` · ${sectionCounts.adminOpenReports} items need review`}
-            </p>
+        <div className="mb-8">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-foreground">Admin Moderation Dashboard</h1>
+            <CountBadge count={sectionCounts.adminOpenReports} />
           </div>
+          <p className="text-muted-foreground">
+            Review and manage flagged content and user reports
+            {sectionCounts.adminOpenReports > 0 && ` · ${sectionCounts.adminOpenReports} items need review`}
+          </p>
         </div>
 
         {/* Summary Cards */}

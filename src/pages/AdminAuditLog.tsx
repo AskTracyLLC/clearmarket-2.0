@@ -28,10 +28,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw } from "lucide-react";
+import { Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, subHours } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface AuditLogEntry {
   id: string;
@@ -256,7 +257,7 @@ export default function AdminAuditLog() {
   if (!hasAccess) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
