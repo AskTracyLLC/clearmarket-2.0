@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Star, MapPin, Calendar, Shield, Key, Wrench, CheckCircle, ExternalLink, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchPublicProfileShare } from "@/lib/reputationSharing";
 
 interface RepProfileData {
   role: "rep";
@@ -53,29 +53,7 @@ export default function RepShareProfile() {
 
   async function loadProfile() {
     try {
-      const { data, error: fetchError } = await supabase.functions.invoke('public-profile-share', {
-        body: null,
-        method: 'GET',
-        headers: {},
-      });
-
-      // Use query params approach for GET
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-profile-share?slug=${slug}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to load profile');
-      }
-
-      const profileData = await response.json();
+      const profileData = await fetchPublicProfileShare(slug!);
       
       if (profileData.role !== 'rep') {
         setError("This is not a Field Rep profile");

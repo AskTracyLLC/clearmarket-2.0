@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Star, MapPin, Calendar, CheckCircle, ExternalLink, Users, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { fetchPublicProfileShare } from "@/lib/reputationSharing";
 
 interface VendorProfileData {
   role: "vendor";
@@ -49,22 +50,7 @@ export default function VendorShareProfile() {
 
   async function loadProfile() {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/public-profile-share?slug=${slug}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to load profile');
-      }
-
-      const profileData = await response.json();
+      const profileData = await fetchPublicProfileShare(slug!);
       
       if (profileData.role !== 'vendor') {
         setError("This is not a Vendor profile");
