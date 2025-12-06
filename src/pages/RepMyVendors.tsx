@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Eye, MessageSquare, Building2, StickyNote, Edit2, X, Check, Info, Calendar, Clock, DollarSign } from "lucide-react";
+import { ArrowLeft, Eye, Building2, Info, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { getOrCreateConversation } from "@/lib/conversations";
@@ -26,8 +26,8 @@ import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
-import { VendorCalendarDialog, useVendorCalendarSummary } from "@/components/VendorCalendarDialog";
-import { format, parseISO } from "date-fns";
+import { VendorCalendarDialog } from "@/components/VendorCalendarDialog";
+import VendorConnectionCard from "@/components/VendorConnectionCard";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -54,16 +54,13 @@ interface ConnectedVendor {
     created_at: string;
   }>;
   review?: Review | null;
-  // Agreement data (optional overlay)
   agreementId?: string | null;
   coverageSummary?: string | null;
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
-  // Trust Score
   trustScore?: number | null;
   trustScoreCount?: number;
-  // Community Score
   communityScore?: number;
 }
 
@@ -149,7 +146,6 @@ const RepMyVendors = () => {
       return;
     }
 
-    // Get rep_profile.id for querying rep_interest
     const { data: repProfile } = await supabase
       .from("rep_profile")
       .select("id")
@@ -217,7 +213,6 @@ const RepMyVendors = () => {
         });
       }
 
-      // Fetch vendor profiles
       if (vendorIds.size > 0) {
         const { data: vendorProfiles, error: vendorError } = await supabase
           .from("vendor_profile")
@@ -240,7 +235,6 @@ const RepMyVendors = () => {
             const firstName = nameParts[0] || "";
             const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
 
-            // Update all requests for this vendor
             requests.forEach(req => {
               if (req.vendorUserId === vendorProfile.user_id) {
                 req.anonymousId = vendorProfile.anonymous_id || req.anonymousId;
@@ -265,7 +259,6 @@ const RepMyVendors = () => {
     if (!user) return;
 
     try {
-      // Query vendor_connections as primary source
       const { data: connections, error } = await supabase
         .from("vendor_connections")
         .select("id, vendor_id, field_rep_id, requested_at")
@@ -288,10 +281,8 @@ const RepMyVendors = () => {
         return;
       }
 
-      // Get vendor IDs
       const vendorUserIds = connections.map(c => c.vendor_id);
 
-      // LEFT JOIN vendor_rep_agreements
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
         .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
@@ -299,13 +290,11 @@ const RepMyVendors = () => {
         .eq("status", "active")
         .in("vendor_id", vendorUserIds);
 
-      // Build agreement map
       const agreementMap = new Map();
       (agreements || []).forEach(a => {
         agreementMap.set(a.vendor_id, a);
       });
 
-      // Fetch vendor profiles
       const { data: vendorProfiles } = await supabase
         .from("vendor_profile")
         .select(`
@@ -323,7 +312,6 @@ const RepMyVendors = () => {
         `)
         .in("user_id", vendorUserIds);
 
-      // Build vendors array
       const vendorsArray: ConnectedVendor[] = [];
 
       for (const connection of connections) {
@@ -351,7 +339,6 @@ const RepMyVendors = () => {
           isAcceptingNewReps: vendorProfile.is_accepting_new_reps ?? true,
           connectedAt: agreement?.created_at || connection.requested_at,
           connectedPosts: [],
-          // Agreement data (optional)
           agreementId: agreement?.id || null,
           coverageSummary: agreement?.coverage_summary || null,
           pricingSummary: agreement?.pricing_summary || null,
@@ -360,7 +347,6 @@ const RepMyVendors = () => {
         });
       }
 
-      // For each vendor, check if conversation exists
       for (const vendor of vendorsArray) {
         const [p1, p2] = [user.id, vendor.vendorUserId].sort();
         const { data: conv } = await supabase
@@ -375,7 +361,6 @@ const RepMyVendors = () => {
         }
       }
 
-      // Fetch notes for all vendors
       if (vendorUserIds.length > 0) {
         const { data: notesData, error: notesError } = await supabase
           .from("connection_notes")
@@ -402,7 +387,6 @@ const RepMyVendors = () => {
           setHasNotesByVendor(hasNotesMap);
         }
 
-        // Fetch reviews for all vendors
         const { data: reviewsData } = await supabase
           .from("reviews")
           .select("*")
@@ -414,7 +398,6 @@ const RepMyVendors = () => {
         if (reviewsData) {
           const reviewsByVendor: Record<string, Review> = {};
           for (const review of reviewsData) {
-            // Keep only the most recent review per vendor
             if (!reviewsByVendor[review.reviewee_id]) {
               reviewsByVendor[review.reviewee_id] = review as Review;
             }
@@ -426,17 +409,14 @@ const RepMyVendors = () => {
         }
       }
 
-      // Sort by connectedAt (newest first)
       vendorsArray.sort((a, b) => {
         const aDate = a.connectedAt ?? '';
         const bDate = b.connectedAt ?? '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
 
-      // Fetch trust scores for all connected vendors
       const trustScores = await fetchTrustScoresForUsers(vendorUserIds);
 
-      // Fetch community scores for all connected vendors
       const { data: communityScoreData } = await supabase
         .from("profiles")
         .select("id, community_score")
@@ -445,7 +425,6 @@ const RepMyVendors = () => {
       const communityScoreMap = new Map<string, number>();
       communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
 
-      // Assign trust scores and community scores to vendors
       vendorsArray.forEach(vendor => {
         const trust = trustScores[vendor.vendorUserId];
         vendor.trustScore = trust ? trust.average : null;
@@ -453,10 +432,7 @@ const RepMyVendors = () => {
         vendor.communityScore = communityScoreMap.get(vendor.vendorUserId) ?? 0;
       });
 
-      // Fetch blocked user IDs
       const blockedUserIds = await fetchBlockedUserIds();
-
-      // Filter out blocked vendors
       const filteredVendors = vendorsArray.filter(vendor => !blockedUserIds.includes(vendor.vendorUserId));
 
       setConnectedVendors(filteredVendors);
@@ -478,7 +454,6 @@ const RepMyVendors = () => {
       return;
     }
 
-    // Create conversation with origin if available
     const origin = originPostId
       ? { type: "seeking_coverage" as const, postId: originPostId }
       : null;
@@ -517,7 +492,6 @@ const RepMyVendors = () => {
       return;
     }
 
-    // Optimistically update local state
     setConnectedVendors(prev =>
       prev.map(v =>
         v.vendorUserId === vendorUserId
@@ -557,7 +531,6 @@ const RepMyVendors = () => {
       return;
     }
 
-    // Update local state
     setConnectedVendors(prev =>
       prev.map(v =>
         v.vendorUserId === vendorUserId
@@ -583,10 +556,8 @@ const RepMyVendors = () => {
 
     setDisconnecting(true);
     try {
-      // Find the vendor being disconnected
       const disconnectingVendor = connectedVendors.find(v => v.vendorUserId === disconnectingVendorUserId);
 
-      // Update vendor_connections status to 'ended'
       const { error: connError } = await supabase
         .from("vendor_connections")
         .update({ status: "ended" })
@@ -595,7 +566,6 @@ const RepMyVendors = () => {
 
       if (connError) throw connError;
 
-      // If agreement exists, update its status to 'ended'
       if (disconnectingVendor?.agreementId) {
         const { error: agreementError } = await supabase
           .from("vendor_rep_agreements")
@@ -605,7 +575,6 @@ const RepMyVendors = () => {
         if (agreementError) throw agreementError;
       }
 
-      // Remove from list
       setConnectedVendors(prev => prev.filter(v => v.vendorUserId !== disconnectingVendorUserId));
 
       setShowDisconnectDialog(false);
@@ -615,7 +584,6 @@ const RepMyVendors = () => {
         description: "This Vendor has been removed from your active list.",
       });
 
-      // Show exit review dialog
       setExitReviewVendorUserId(disconnectingVendorUserId);
       setShowExitReviewDialog(true);
 
@@ -632,7 +600,6 @@ const RepMyVendors = () => {
     }
   };
 
-  // Extract unique states from all agreements for filter
   const availableStates = React.useMemo(() => {
     const statesSet = new Set<string>();
     connectedVendors.forEach(vendor => {
@@ -643,7 +610,6 @@ const RepMyVendors = () => {
     return Array.from(statesSet).sort();
   }, [connectedVendors]);
 
-  // Filter vendors by selected state
   const filteredVendors = React.useMemo(() => {
     if (stateFilter === "all") {
       return connectedVendors;
@@ -664,7 +630,6 @@ const RepMyVendors = () => {
   };
 
   function handleReviewSaved() {
-    // Reload vendors to get updated review
     if (repProfileId) {
       loadConnectedVendors(repProfileId);
     }
@@ -689,7 +654,6 @@ const RepMyVendors = () => {
         description: "This vendor is now in your My Vendors list.",
       });
 
-      // Reload both lists
       if (repProfileId) {
         loadPendingRequests(repProfileId);
         loadConnectedVendors(repProfileId);
@@ -724,7 +688,6 @@ const RepMyVendors = () => {
         description: "Connection request has been declined.",
       });
 
-      // Reload pending requests
       if (repProfileId) {
         loadPendingRequests(repProfileId);
       }
@@ -752,17 +715,17 @@ const RepMyVendors = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        {/* Admin View Banner */}
+      <div className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
         {profile?.is_admin && <AdminViewBanner />}
         
-        <div className="mb-6 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+        {/* Header */}
+        <div className="mb-6 flex items-start gap-3 md:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="flex-shrink-0 mt-1">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold text-foreground">My Vendors</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Vendors</h1>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -774,36 +737,34 @@ const RepMyVendors = () => {
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-muted-foreground mt-1">
-              These are the vendors you currently have active agreements with, including your coverage and pricing.
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Your active vendor connections and agreements.
             </p>
           </div>
         </div>
 
         {/* Connection Requests Section */}
         {pendingRequests.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Connection Requests</h2>
+          <div className="mb-6 md:mb-8">
+            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">Connection Requests</h2>
             <div className="space-y-3">
               {pendingRequests.map((request) => (
                 <Card key={request.interestId} className="bg-amber-500/5 border-amber-500/30">
-                  <CardContent className="py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 md:gap-4">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <button
                             onClick={() => handleViewProfile(request.vendorUserId)}
-                            className="text-primary hover:underline font-semibold flex items-center gap-2"
+                            className="text-primary hover:underline font-semibold flex items-center gap-1.5 text-sm"
                           >
                             {request.anonymousId}
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {request.companyName}
-                        </p>
+                        <p className="text-sm font-medium text-foreground">{request.companyName}</p>
                         {(request.city || request.state) && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {request.city && request.state ? `${request.city}, ${request.state}` : request.city || request.state}
                           </p>
                         )}
@@ -811,13 +772,15 @@ const RepMyVendors = () => {
                           Wants to connect via: {request.postTitle} ({request.postStateCode})
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 self-end md:self-start">
                         <Button
                           onClick={() => handleAcceptRequest(request.interestId)}
                           disabled={acceptingRequest === request.interestId}
                           size="sm"
                           variant="default"
+                          className="flex-1 md:flex-none"
                         >
+                          <Check className="w-4 h-4 mr-1.5 md:hidden" />
                           {acceptingRequest === request.interestId ? "Accepting..." : "Accept"}
                         </Button>
                         <Button
@@ -825,9 +788,10 @@ const RepMyVendors = () => {
                           disabled={decliningRequest === request.interestId}
                           size="sm"
                           variant="outline"
-                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground flex-1 md:flex-none"
                         >
-                          {decliningRequest === request.interestId ? "Declining..." : "Decline"}
+                          <X className="w-4 h-4 mr-1.5 md:hidden" />
+                          {decliningRequest === request.interestId ? "..." : "Decline"}
                         </Button>
                       </div>
                     </div>
@@ -838,12 +802,13 @@ const RepMyVendors = () => {
           </div>
         )}
 
+        {/* Empty State */}
         {connectedVendors.length === 0 && pendingRequests.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
               <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-4 text-sm md:text-base">
                 When you express interest and accept vendor connection requests, they'll appear here.
               </p>
               <Button onClick={() => navigate("/rep/find-work")}>
@@ -855,8 +820,8 @@ const RepMyVendors = () => {
           <>
             {/* State Filter */}
             {availableStates.length > 0 && (
-              <div className="mb-4">
-                <label className="text-sm font-medium mr-2">Filter by state:</label>
+              <div className="mb-4 flex items-center gap-2 flex-wrap">
+                <label className="text-sm font-medium">Filter by state:</label>
                 <select
                   value={stateFilter}
                   onChange={(e) => setStateFilter(e.target.value)}
@@ -870,7 +835,10 @@ const RepMyVendors = () => {
               </div>
             )}
 
-            <h2 className="text-xl font-semibold text-foreground mb-4">Active Agreements</h2>
+            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4">
+              Active Agreements ({filteredVendors.length})
+            </h2>
+
             {filteredVendors.length === 0 && stateFilter !== "all" ? (
               <Card className="p-8 text-center">
                 <p className="text-muted-foreground">
@@ -878,292 +846,41 @@ const RepMyVendors = () => {
                 </p>
               </Card>
             ) : (
-              <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Vendor</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Coverage & Pricing</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">States Covered</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredVendors.map((vendor) => (
-                    <tr key={vendor.vendorUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => handleViewProfile(vendor.vendorUserId)}
-                            className="text-primary hover:underline font-semibold flex items-center gap-2 w-fit"
-                          >
-                            {vendor.anonymousId}
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <p className="text-sm font-medium">{vendor.companyName}</p>
-                          {(vendor.firstName || vendor.lastInitial) && (
-                            <p className="text-xs text-muted-foreground">
-                              {vendor.firstName} {vendor.lastInitial}.
-                            </p>
-                          )}
-                          {/* Status line */}
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <span>Status: Connected</span>
-                            <span>·</span>
-                            <span>
-                              {vendor.agreementId ? "Agreement on file" : "Details not set in ClearMarket"}
-                            </span>
-                            <span>·</span>
-                            <button
-                              onClick={() => handleDisconnectClick(vendor.vendorUserId)}
-                              className="text-destructive hover:underline"
-                            >
-                              Disconnect
-                            </button>
-                          </div>
-                          {hasNotesByVendor[vendor.vendorUserId] && (
-                            <span 
-                              className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"
-                              title="You have private notes on this connection"
-                            >
-                              <StickyNote className="w-3 h-3" />
-                              Notes
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-col gap-1 text-sm">
-                          {vendor.agreementId ? (
-                            <>
-                              <p className="text-muted-foreground">
-                                Coverage: {vendor.coverageSummary || "Not specified"}
-                              </p>
-                              <p className="text-muted-foreground">
-                                Pricing: {vendor.pricingSummary || "Not specified"}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-muted-foreground">Coverage: Not set yet</p>
-                              <p className="text-muted-foreground">Pricing: Not set yet</p>
-                              <Badge variant="secondary" className="w-fit mt-1">Agreement pending</Badge>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-muted-foreground">
-                        {vendor.trustScoreCount && vendor.trustScoreCount > 0 ? (
-                          <button
-                            onClick={() => {
-                              setReviewsDialogUserId(vendor.vendorUserId);
-                              setShowReviewsDialog(true);
-                            }}
-                            className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
-                          >
-                            <span className="font-semibold text-foreground underline decoration-dotted">{vendor.trustScore?.toFixed(1)}</span>
-                            <span className="text-xs">({vendor.trustScoreCount} {vendor.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setReviewsDialogUserId(vendor.vendorUserId);
-                              setShowReviewsDialog(true);
-                            }}
-                            className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
-                          >
-                            <span className="font-semibold text-muted-foreground">3.0</span>
-                            <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
-                          </button>
-                        )}
-                        {/* Community Score */}
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <span>Community:</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0">
-                            {(vendor.communityScore ?? 0) >= 0 ? `+${vendor.communityScore ?? 0}` : vendor.communityScore}
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-muted-foreground">
-                        {vendor.statesCovered && vendor.statesCovered.length > 0
-                          ? vendor.statesCovered.join(", ")
-                          : <span className="text-muted-foreground/60">Not set in ClearMarket</span>
-                        }
-                      </td>
-                      <td className="py-4 px-4 text-sm text-muted-foreground">
-                        {vendor.connectedAt && new Date(vendor.connectedAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex gap-2 justify-end flex-wrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleViewProfile(vendor.vendorUserId)}
-                          >
-                            View Profile
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setCalendarVendorId(vendor.vendorUserId);
-                              setCalendarVendorName(vendor.companyName);
-                              setShowCalendarDialog(true);
-                            }}
-                          >
-                            <Calendar className="h-4 w-4 mr-1" />
-                            Calendar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReviewVendor(vendor)}
-                          >
-                            {vendor.review ? "Edit Review" : "Leave Review"}
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => 
-                              handleMessage(
-                                vendor.vendorUserId, 
-                                vendor.conversationId,
-                                vendor.connectedPosts[0]?.id
-                              )
-                            }
-                          >
-                            View Messages
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDisconnectClick(vendor.vendorUserId)}
-                            className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          >
-                            Disconnect
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              {/* Notes Section - Below Table */}
-              <div className="mt-8 space-y-6">
-                <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
+              <div className="space-y-4">
                 {filteredVendors.map((vendor) => (
-                  <Card key={`notes-${vendor.vendorUserId}`}>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        {vendor.anonymousId} - {vendor.companyName}
-                        {hasNotesByVendor[vendor.vendorUserId] && (
-                          <Badge variant="secondary" className="text-xs">
-                            <StickyNote className="w-3 h-3 mr-1" />
-                            Has Notes
-                          </Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Existing Notes */}
-                      {vendor.notes && vendor.notes.length > 0 ? (
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {vendor.notes.slice(0, 3).map((n) => (
-                            <div key={n.id} className="space-y-1">
-                              {editingNoteId === n.id ? (
-                                <div className="space-y-1">
-                                  <textarea
-                                    className="w-full text-xs rounded-md border bg-background px-2 py-1"
-                                    rows={2}
-                                    value={editedNoteText}
-                                    onChange={(e) => setEditedNoteText(e.target.value)}
-                                    autoFocus
-                                  />
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      className="h-6 text-xs"
-                                      onClick={() => handleSaveEditedNote(n.id, vendor.vendorUserId)}
-                                    >
-                                      <Check className="w-3 h-3 mr-1" />
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-6 text-xs"
-                                      onClick={handleCancelEdit}
-                                    >
-                                      <X className="w-3 h-3 mr-1" />
-                                      Cancel
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-xs text-muted-foreground flex-1">
-                                    <span className="font-medium">
-                                      {new Date(n.created_at).toLocaleDateString()}
-                                      {": "}
-                                    </span>
-                                    {n.note}
-                                  </p>
-                                  <button
-                                    onClick={() => handleEditNote(n.id, n.note)}
-                                    className="text-muted-foreground hover:text-foreground"
-                                    title="Edit note"
-                                  >
-                                    <Edit2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">No notes yet for this vendor.</p>
-                      )}
-
-                      {/* Add New Note */}
-                      <div className="flex gap-2 pt-2 border-t border-border">
-                        <textarea
-                          className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
-                          rows={2}
-                          placeholder="Add a quick note about this vendor..."
-                          value={noteDrafts[vendor.vendorUserId] || ""}
-                          onChange={(e) =>
-                            setNoteDrafts((prev) => ({ ...prev, [vendor.vendorUserId]: e.target.value }))
-                          }
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddNote(vendor.vendorUserId)}
-                        >
-                          Save
-                        </Button>
-                      </div>
-
-                      {/* Disconnect Button */}
-                      <div className="pt-2 border-t border-border">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDisconnectClick(vendor.vendorUserId)}
-                          className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                        >
-                          Disconnect from {vendor.companyName}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <VendorConnectionCard
+                    key={vendor.vendorUserId}
+                    vendor={vendor}
+                    hasNotes={hasNotesByVendor[vendor.vendorUserId] || false}
+                    noteDraft={noteDrafts[vendor.vendorUserId] || ""}
+                    onNoteDraftChange={(value) => setNoteDrafts(prev => ({ ...prev, [vendor.vendorUserId]: value }))}
+                    onAddNote={() => handleAddNote(vendor.vendorUserId)}
+                    editingNoteId={editingNoteId}
+                    editedNoteText={editedNoteText}
+                    onEditNote={handleEditNote}
+                    onCancelEdit={handleCancelEdit}
+                    onSaveEditedNote={(noteId) => handleSaveEditedNote(noteId, vendor.vendorUserId)}
+                    onEditedNoteTextChange={setEditedNoteText}
+                    onViewProfile={() => handleViewProfile(vendor.vendorUserId)}
+                    onViewCalendar={() => {
+                      setCalendarVendorId(vendor.vendorUserId);
+                      setCalendarVendorName(vendor.companyName);
+                      setShowCalendarDialog(true);
+                    }}
+                    onReviewVendor={() => handleReviewVendor(vendor)}
+                    onViewMessages={() => handleMessage(
+                      vendor.vendorUserId, 
+                      vendor.conversationId,
+                      vendor.connectedPosts[0]?.id
+                    )}
+                    onDisconnect={() => handleDisconnectClick(vendor.vendorUserId)}
+                    onViewTrustScore={() => {
+                      setReviewsDialogUserId(vendor.vendorUserId);
+                      setShowReviewsDialog(true);
+                    }}
+                  />
                 ))}
               </div>
-            </div>
             )}
           </>
         ) : null}
