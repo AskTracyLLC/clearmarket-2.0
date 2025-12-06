@@ -64,13 +64,7 @@ export function AtAGlanceSidebar({
                 </span>
                 <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
               </div>
-              <Progress value={profileCompletion} className="h-2 mb-3" />
-              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                <Button variant="default" size="sm" className="w-full text-xs">
-                  <Edit className="h-3 w-3 mr-1.5" />
-                  {isRep ? "Edit Profile & Coverage" : "Edit Company Profile & Coverage"}
-                </Button>
-              </Link>
+              <Progress value={profileCompletion} className="h-2" />
             </div>
 
             {/* Divider */}
