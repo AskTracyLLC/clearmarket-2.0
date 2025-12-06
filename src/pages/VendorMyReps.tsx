@@ -25,7 +25,6 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
 import { VendorExitReviewDialog } from "@/components/VendorExitReviewDialog";
 import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
-import { CreateAgreementDialog } from "@/components/CreateAgreementDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
@@ -102,9 +101,6 @@ const VendorMyReps = () => {
     isExitReview: boolean;
     existingReview?: Review | null;
   } | null>(null);
-  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
-  const [editingAgreementRep, setEditingAgreementRep] = useState<ConnectedRep | null>(null);
-  const [savingAgreement, setSavingAgreement] = useState(false);
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
@@ -543,11 +539,6 @@ const VendorMyReps = () => {
     setReviewDialogData(null);
   }
 
-  const handleOpenAgreementDialog = (rep: ConnectedRep) => {
-    setEditingAgreementRep(rep);
-    setShowAgreementDialog(true);
-  };
-
   // Extract unique states from all agreements for filter
   const availableStates = React.useMemo(() => {
     const statesSet = new Set<string>();
@@ -569,72 +560,7 @@ const VendorMyReps = () => {
     );
   }, [connectedReps, stateFilter]);
 
-  const handleSaveAgreement = async (data: {
-    coverageSummary: string;
-    pricingSummary: string;
-    baseRate?: number;
-    markPostFilled: boolean;
-    statesCovered: string[];
-  }) => {
-    if (!editingAgreementRep || !user) return;
-
-    setSavingAgreement(true);
-    try {
-      if (editingAgreementRep.agreementId) {
-        // Update existing agreement
-        const { error } = await supabase
-          .from("vendor_rep_agreements")
-          .update({
-            coverage_summary: data.coverageSummary,
-            pricing_summary: data.pricingSummary,
-            base_rate: data.baseRate,
-            states_covered: data.statesCovered,
-          })
-          .eq("id", editingAgreementRep.agreementId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Agreement updated",
-          description: "Agreement details have been saved.",
-        });
-      } else {
-        // Create new agreement
-        const { error } = await supabase
-          .from("vendor_rep_agreements")
-          .insert([{
-            vendor_id: user.id,
-            field_rep_id: editingAgreementRep.repUserId,
-            coverage_summary: data.coverageSummary,
-            pricing_summary: data.pricingSummary,
-            base_rate: data.baseRate,
-            states_covered: data.statesCovered,
-            status: "active",
-          }]);
-
-        if (error) throw error;
-
-        toast({
-          title: "Agreement created",
-          description: "Agreement details have been saved.",
-        });
-      }
-
-      // Reload reps to show updated agreement
-      await loadConnectedReps();
-      setShowAgreementDialog(false);
-      setEditingAgreementRep(null);
-    } catch (error: any) {
-      console.error("Error saving agreement:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save agreement details.",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingAgreement(false);
-    }
-  };
+  // handleSaveAgreement removed - using new working terms flow
 
   if (loading || authLoading) {
     return (
@@ -725,6 +651,7 @@ const VendorMyReps = () => {
                   <RepConnectionCard
                     key={rep.repUserId}
                     rep={rep}
+                    vendorId={user!.id}
                     hasNotes={hasNotesByRep[rep.repUserId] || false}
                     noteDraft={noteDrafts[rep.repUserId] || ""}
                     onNoteDraftChange={(value) => setNoteDrafts(prev => ({ ...prev, [rep.repUserId]: value }))}
@@ -736,7 +663,6 @@ const VendorMyReps = () => {
                     onSaveEditedNote={(noteId) => handleSaveEditedNote(noteId, rep.repUserId)}
                     onEditedNoteTextChange={setEditedNoteText}
                     onViewProfile={() => handleViewProfile(rep.repUserId)}
-                    onEditAgreement={() => handleOpenAgreementDialog(rep)}
                     onReviewRep={() => handleReviewRep(rep)}
                     onViewMessages={() => handleMessage(rep.repUserId, rep.conversationId)}
                     onDisconnect={() => handleDisconnectClick(rep.repUserId)}
@@ -764,7 +690,6 @@ const VendorMyReps = () => {
             actions: {
               onMessage: (repUserId: string, conversationId?: string) => handleMessage(repUserId, conversationId),
               onReview: (rep: ConnectedRep) => handleReviewRep(rep),
-              onAgreement: (rep: ConnectedRep) => handleOpenAgreementDialog(rep),
               onDisconnect: (repUserId: string) => handleDisconnectClick(repUserId),
             }
           }}
@@ -805,19 +730,7 @@ const VendorMyReps = () => {
         </>
       )}
 
-      {editingAgreementRep && (
-        <CreateAgreementDialog
-          open={showAgreementDialog}
-          onOpenChange={setShowAgreementDialog}
-          repUserId={editingAgreementRep.repUserId}
-          repName={editingAgreementRep.anonymousId}
-          defaultCoverage={editingAgreementRep.coverageSummary || ""}
-          defaultPricing={editingAgreementRep.pricingSummary || ""}
-          defaultBaseRate={editingAgreementRep.baseRate || undefined}
-          onSave={handleSaveAgreement}
-          saving={savingAgreement}
-        />
-      )}
+      {/* CreateAgreementDialog removed - using new working terms flow */}
 
       <ReviewsDetailDialog
         open={showReviewsDialog}
