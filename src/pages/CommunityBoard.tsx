@@ -5,10 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { CommunityTab } from "@/components/CommunityTab";
 import { NetworkAlertsFeed } from "@/components/NetworkAlertsFeed";
+import { SavedPostsTab } from "@/components/SavedPostsTab";
 import { CountBadge } from "@/components/CountBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
-import { Users, Megaphone, Newspaper } from "lucide-react";
+import { Users, Megaphone, Newspaper, Bookmark } from "lucide-react";
+import { getSavedPostsCount } from "@/lib/postSaves";
 
 const CommunityBoard = () => {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ const CommunityBoard = () => {
   const [communityUnread, setCommunityUnread] = useState(0);
   const [networkUnread, setNetworkUnread] = useState(0);
   const [announcementsUnread, setAnnouncementsUnread] = useState(0);
+  const [savedCount, setSavedCount] = useState(0);
 
   // Get tab from URL or default to "community"
   const activeTab = searchParams.get("tab") || "community";
@@ -87,6 +90,10 @@ const CommunityBoard = () => {
         .in("type", ["clearmarket_announcement"]);
 
       setAnnouncementsUnread(announcementsCount || 0);
+
+      // Saved posts count
+      const savedPostsCount = await getSavedPostsCount(user.id);
+      setSavedCount(savedPostsCount);
     } catch (error) {
       console.error("Error loading unread counts:", error);
     }
@@ -132,6 +139,11 @@ const CommunityBoard = () => {
               ClearMarket Announcements
               {announcementsUnread > 0 && <CountBadge count={announcementsUnread} />}
             </TabsTrigger>
+            <TabsTrigger value="saved" className="gap-2">
+              <Bookmark className="w-4 h-4" />
+              Saved
+              {savedCount > 0 && <CountBadge count={savedCount} />}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="community">
@@ -152,6 +164,10 @@ const CommunityBoard = () => {
               channel="announcements" 
               canCreate={isAdmin} 
             />
+          </TabsContent>
+
+          <TabsContent value="saved">
+            <SavedPostsTab userId={user.id} />
           </TabsContent>
         </Tabs>
       </div>
