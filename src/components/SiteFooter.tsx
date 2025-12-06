@@ -39,7 +39,7 @@ export function SiteFooter() {
               © 2025 ClearMarket. All rights reserved.
             </p>
             <p className="text-xs text-muted-foreground/70">
-              Questions? support@clearmarket.io
+              Questions? hello@useclearmarket.io
             </p>
           </div>
         </div>
