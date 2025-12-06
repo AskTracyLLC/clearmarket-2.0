@@ -16,6 +16,8 @@ import {
   Star,
   FileText
 } from "lucide-react";
+import WorkingTermsDisplay from "./WorkingTermsDisplay";
+import WorkingTermsDialog, { type WorkingTerms } from "./WorkingTermsDialog";
 
 interface RepNote {
   id: string;
@@ -42,6 +44,7 @@ interface RepConnectionCardProps {
     notes?: RepNote[];
     review?: any;
     conversationId?: string;
+    workingTerms?: WorkingTerms | null;
   };
   hasNotes: boolean;
   noteDraft: string;
@@ -59,6 +62,7 @@ interface RepConnectionCardProps {
   onViewMessages: () => void;
   onDisconnect: () => void;
   onViewTrustScore: () => void;
+  onWorkingTermsSaved?: () => void;
 }
 
 const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
@@ -79,9 +83,16 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   onViewMessages,
   onDisconnect,
   onViewTrustScore,
+  onWorkingTermsSaved,
 }) => {
   const [notesOpen, setNotesOpen] = useState(false);
+  const [workingTermsOpen, setWorkingTermsOpen] = useState(false);
   const notesCount = rep.notes?.length || 0;
+
+  // Build coverage display from statesCovered
+  const coverageDisplay = rep.statesCovered?.length
+    ? rep.statesCovered.join(", ")
+    : rep.coverageSummary || "Coverage not specified";
 
   return (
     <Card className="w-full">
@@ -220,33 +231,58 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
         </div>
 
         {/* Coverage & Pricing Summary */}
-        <div className="bg-muted/50 rounded-lg p-3 space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Coverage & Pricing</span>
-            {!rep.agreementId && (
-              <Badge variant="secondary" className="text-xs">Agreement pending</Badge>
-            )}
-          </div>
-          {rep.agreementId ? (
-            <div className="text-sm space-y-1">
-              <p className="text-foreground">
-                <span className="text-muted-foreground">Coverage:</span> {rep.coverageSummary || "Not specified"}
-              </p>
-              <p className="text-foreground">
-                <span className="text-muted-foreground">Pricing:</span> {rep.pricingSummary || "Not specified"}
-              </p>
-              {rep.statesCovered && rep.statesCovered.length > 0 && (
-                <p className="text-foreground hidden md:block">
-                  <span className="text-muted-foreground">States:</span> {rep.statesCovered.join(", ")}
-                </p>
+        <div className="bg-muted/50 rounded-lg p-3 space-y-3">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Coverage & Pricing</span>
+              {!rep.agreementId && (
+                <Badge variant="secondary" className="text-xs">Agreement pending</Badge>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Coverage and pricing details not yet set in ClearMarket.
-            </p>
+            {rep.agreementId ? (
+              <div className="text-sm space-y-1">
+                <p className="text-foreground">
+                  <span className="text-muted-foreground">Coverage:</span> {rep.coverageSummary || "Not specified"}
+                </p>
+                <p className="text-foreground">
+                  <span className="text-muted-foreground">Pricing:</span> {rep.pricingSummary || "Not specified"}
+                </p>
+                {rep.statesCovered && rep.statesCovered.length > 0 && (
+                  <p className="text-foreground hidden md:block">
+                    <span className="text-muted-foreground">States:</span> {rep.statesCovered.join(", ")}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Coverage and pricing details not yet set in ClearMarket.
+              </p>
+            )}
+          </div>
+
+          {/* Working Terms Section */}
+          {rep.agreementId && (
+            <div className="border-t border-border/50 pt-3">
+              <WorkingTermsDisplay
+                workingTerms={rep.workingTerms}
+                onEditClick={() => setWorkingTermsOpen(true)}
+                canEdit={true}
+              />
+            </div>
           )}
         </div>
+
+        {/* Working Terms Dialog */}
+        {rep.agreementId && (
+          <WorkingTermsDialog
+            open={workingTermsOpen}
+            onOpenChange={setWorkingTermsOpen}
+            agreementId={rep.agreementId}
+            coverageDisplay={coverageDisplay}
+            existingTerms={rep.workingTerms}
+            onSaved={() => onWorkingTermsSaved?.()}
+          />
+        )}
 
         {/* Connection Notes - Collapsible on Mobile, Always visible on Desktop */}
         <div className="border-t border-border pt-4">
