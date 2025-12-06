@@ -77,7 +77,7 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
   if (actions.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
       {actions.map((action) => (
         <Card 
           key={action.link}
@@ -89,7 +89,7 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
               {action.icon}
             </div>
             <p className="text-sm font-medium text-foreground">{action.label}</p>
-            <p className="text-xs text-muted-foreground">{action.description}</p>
+            <p className="text-xs text-muted-foreground hidden sm:block">{action.description}</p>
           </CardContent>
         </Card>
       ))}
