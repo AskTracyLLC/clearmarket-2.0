@@ -327,7 +327,7 @@ const AdminInviteCodes = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

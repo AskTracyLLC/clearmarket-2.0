@@ -701,6 +701,6 @@ export default function AdminUsers() {
           targetUserId={profileDialog.userId}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 }

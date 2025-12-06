@@ -694,7 +694,7 @@ const AdminCredits = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

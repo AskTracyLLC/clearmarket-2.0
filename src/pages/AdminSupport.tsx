@@ -608,6 +608,6 @@ export default function AdminSupport() {
           targetUserId={profileUserId}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 }

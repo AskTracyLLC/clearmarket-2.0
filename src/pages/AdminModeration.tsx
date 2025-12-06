@@ -422,6 +422,6 @@ export default function AdminModeration() {
           targetUserId={profileDialogUserId}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 }
