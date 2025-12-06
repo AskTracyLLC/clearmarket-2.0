@@ -55,29 +55,6 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
   const [otherInspectionType, setOtherInspectionType] = useState("");
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
-  const [availableStates, setAvailableStates] = useState<Array<{ state_code: string; state_name: string }>>([]);
-
-  // Fetch available states from us_counties on mount
-  useEffect(() => {
-    const fetchAvailableStates = async () => {
-      const { data, error } = await supabase
-        .from("us_counties")
-        .select("state_code, state_name")
-        .order("state_code");
-
-      if (error) {
-        console.error("Error fetching available states:", error);
-      } else {
-        // Deduplicate states
-        const uniqueStates = Array.from(
-          new Map(data?.map(item => [item.state_code, item]) || []).values()
-        );
-        setAvailableStates(uniqueStates);
-      }
-    };
-
-    fetchAvailableStates();
-  }, []);
 
   useEffect(() => {
     if (editData) {
@@ -221,14 +198,11 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
                 <SelectValue placeholder="Select state..." />
               </SelectTrigger>
               <SelectContent>
-                {availableStates.map(state => {
-                  const stateLabel = US_STATES.find(s => s.value === state.state_code)?.label || state.state_name;
-                  return (
-                    <SelectItem key={state.state_code} value={state.state_code}>
-                      {state.state_code} - {stateLabel}
-                    </SelectItem>
-                  );
-                })}
+                {US_STATES.map(state => (
+                  <SelectItem key={state.value} value={state.value}>
+                    {state.value} - {state.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
