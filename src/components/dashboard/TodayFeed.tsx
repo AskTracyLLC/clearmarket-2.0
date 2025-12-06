@@ -89,18 +89,32 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         // Skip if already processed as message
         if (notif.type === 'new_message') continue;
         
+        // Determine the correct link based on notification type
+        let link = '/notifications';
+        if (notif.type === 'working_terms_request' && notif.ref_id) {
+          link = `/rep/working-terms-request/${notif.ref_id}`;
+        } else if (notif.type === 'working_terms_submitted' && notif.ref_id) {
+          link = `/vendor/working-terms-review/${notif.ref_id}`;
+        } else if (notif.type === 'working_terms_confirmed') {
+          link = isRep ? '/rep/my-vendors' : '/vendor/my-reps';
+        } else if (notif.type.includes('review')) {
+          link = isRep ? '/rep/reviews' : '/vendor/reviews';
+        } else if (notif.type.includes('connection')) {
+          link = '/messages';
+        } else if (notif.type.includes('coverage')) {
+          link = '/rep/find-work';
+        }
+        
         items.push({
           id: `notif-${notif.id}`,
           type: notif.type.includes('review') ? 'review' : 
                 notif.type.includes('connection') ? 'connection_request' :
-                notif.type.includes('alert') ? 'alert' : 'notification',
+                notif.type.includes('alert') || notif.type.includes('working_terms') ? 'alert' : 'notification',
           title: notif.title,
           description: notif.body || '',
           timestamp: notif.created_at,
           isUnread: !notif.is_read,
-          link: notif.type.includes('review') ? (isRep ? '/rep/reviews' : '/vendor/reviews') :
-                notif.type.includes('connection') ? '/messages' :
-                notif.type.includes('coverage') ? '/rep/find-work' : '/notifications',
+          link,
         });
       }
 
