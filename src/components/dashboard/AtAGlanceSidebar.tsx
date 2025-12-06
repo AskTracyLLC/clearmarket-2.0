@@ -326,23 +326,22 @@ export function AtAGlanceSidebar({
           </CardContent>
         </Card>
 
-        {/* Vendor Credits */}
-        {isVendor && vendorCredits !== undefined && vendorCredits !== null && (
+        {/* Vendor Availability Summary */}
+        {isVendor && (
           <Card className="bg-card border-border">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Coins className="h-4 w-4 text-primary" />
-                Credits
+                <Calendar className="h-4 w-4 text-primary" />
+                Availability
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-2xl font-bold text-foreground">{vendorCredits}</span>
-                <span className="text-xs text-muted-foreground">available</span>
-              </div>
-              <Link to="/vendor/credits">
+              <p className="text-sm text-muted-foreground mb-3">
+                Set office hours and pay schedules for your Field Reps.
+              </p>
+              <Link to="/vendor/availability" className="block">
                 <Button variant="outline" size="sm" className="w-full text-xs">
-                  Buy More Credits
+                  Manage Availability
                 </Button>
               </Link>
             </CardContent>
@@ -371,22 +370,23 @@ export function AtAGlanceSidebar({
           </Card>
         )}
 
-        {/* Vendor Availability Summary */}
-        {isVendor && (
+        {/* Vendor Credits */}
+        {isVendor && vendorCredits !== undefined && vendorCredits !== null && (
           <Card className="bg-card border-border">
             <CardHeader className="py-3 px-4">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                Availability
+                <Coins className="h-4 w-4 text-primary" />
+                Credits
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-sm text-muted-foreground mb-3">
-                Set office hours and pay schedules for your Field Reps.
-              </p>
-              <Link to="/vendor/availability" className="block">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl font-bold text-foreground">{vendorCredits}</span>
+                <span className="text-xs text-muted-foreground">available</span>
+              </div>
+              <Link to="/vendor/credits">
                 <Button variant="outline" size="sm" className="w-full text-xs">
-                  Manage Availability
+                  Buy More Credits
                 </Button>
               </Link>
             </CardContent>
