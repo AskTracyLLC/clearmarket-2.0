@@ -6,13 +6,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { ComingSoonCard } from "@/components/ComingSoonCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, CheckCircle2, Circle, Calendar, Headphones, Coins, LifeBuoy } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Headphones, Coins, LifeBuoy, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
-import { Progress } from "@/components/ui/progress";
-import { computeRepProfileCompleteness, computeVendorProfileCompleteness, getCompletionMessage, ProfileCompletenessResult } from "@/lib/profileCompleteness";
+import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult } from "@/lib/profileCompleteness";
 import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
@@ -20,6 +18,10 @@ import { format, parseISO } from "date-fns";
 import { BetaBadge } from "@/components/BetaBadge";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
+import { TodayFeed } from "@/components/dashboard/TodayFeed";
+import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -55,7 +57,8 @@ const Dashboard = () => {
     end_date: string;
     auto_reply_enabled: boolean;
   } | null>(null);
-  const [activeSavedSearchCount, setActiveSavedSearchCount] = useState(0);
+  const [newOpportunityCount, setNewOpportunityCount] = useState(0);
+  const [showSetupSection, setShowSetupSection] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -89,7 +92,6 @@ const Dashboard = () => {
         navigate("/onboarding/terms");
         return;
       }
-      // Admins don't need a rep/vendor role to access the dashboard
       if (!isAdmin && !data.is_fieldrep && !data.is_vendor_admin) {
         navigate("/onboarding/role");
         return;
@@ -103,7 +105,6 @@ const Dashboard = () => {
           .eq("user_id", user.id)
           .maybeSingle();
         
-        // Get coverage areas count for completion calculation
         if (repData) {
           const { count } = await supabase
             .from("rep_coverage_areas")
@@ -144,6 +145,18 @@ const Dashboard = () => {
           .eq("status", "pending");
         
         setPendingConnectionCount(pendingCount || 0);
+
+        // Count new opportunities (last 7 days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const { count: oppCount } = await supabase
+          .from("seeking_coverage_posts")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "active")
+          .is("deleted_at", null)
+          .gte("created_at", sevenDaysAgo.toISOString());
+        
+        setNewOpportunityCount(oppCount || 0);
       }
 
       // Load unread notification count
@@ -173,10 +186,13 @@ const Dashboard = () => {
       if (data.is_fieldrep) {
         const repResult = await computeRepProfileCompleteness(supabase, user.id);
         setRepCompleteness(repResult);
+        // Show setup section if profile incomplete
+        setShowSetupSection(repResult.percent < 100);
       }
       if (data.is_vendor_admin) {
         const vendorResult = await computeVendorProfileCompleteness(supabase, user.id);
         setVendorCompleteness(vendorResult);
+        setShowSetupSection(vendorResult.percent < 100);
       }
 
       // Check for soft warnings
@@ -200,24 +216,6 @@ const Dashboard = () => {
         
         setUpcomingTimeOff(upcomingAvailability);
       }
-
-      // Load active saved searches count
-      const roleContext = data.is_fieldrep 
-        ? (data.is_vendor_admin ? null : "rep_find_vendors") 
-        : data.is_vendor_admin 
-        ? "vendor_find_reps" 
-        : null;
-      
-      if (roleContext) {
-        const { count: searchCount } = await supabase
-          .from("saved_searches")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("role_context", roleContext)
-          .eq("is_active", true);
-        
-        setActiveSavedSearchCount(searchCount || 0);
-      }
     }
 
     setLoading(false);
@@ -228,7 +226,6 @@ const Dashboard = () => {
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-      // Query connections that are ≥14 days old
       let query = supabase
         .from("vendor_connections")
         .select("vendor_id, field_rep_id, requested_at")
@@ -236,7 +233,6 @@ const Dashboard = () => {
         .lte("requested_at", fourteenDaysAgo.toISOString())
         .limit(5);
 
-      // Filter by user role
       if (isRep) {
         query = query.eq("field_rep_id", userId);
       } else if (isVendor) {
@@ -254,7 +250,6 @@ const Dashboard = () => {
         const reviewerRole = isRep ? 'rep' : 'vendor';
         const direction = isRep ? 'rep_to_vendor' : 'vendor_to_rep';
 
-        // Check if user has already reviewed this person
         const { data: existingReview } = await supabase
           .from("reviews")
           .select("id")
@@ -263,9 +258,8 @@ const Dashboard = () => {
           .eq("direction", direction)
           .maybeSingle();
 
-        if (existingReview) continue; // Already reviewed
+        if (existingReview) continue;
 
-        // Check if there's at least one message exchanged
         const { count: messageCount } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
@@ -273,9 +267,8 @@ const Dashboard = () => {
           .or(`sender_id.eq.${otherUserId},recipient_id.eq.${otherUserId}`)
           .limit(1);
 
-        if (!messageCount || messageCount === 0) continue; // No messages
+        if (!messageCount || messageCount === 0) continue;
 
-        // Fetch anonymous ID
         const profileTable = isRep ? 'vendor_profile' : 'rep_profile';
         const { data: profile } = await supabase
           .from(profileTable)
@@ -308,15 +301,6 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  // TODO: Implement feature when ready
-  const handleComingSoonClick = (featureName: string) => {
-    toast({
-      title: "Coming Soon",
-      description: `${featureName} is not available yet in ClearMarket 2.0. Stay tuned!`,
-      variant: "default",
-    });
-  };
-
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -330,88 +314,15 @@ const Dashboard = () => {
   const isAdmin = profile?.is_admin === true;
   const isAdminOnly = isAdmin && !isRep && !isVendor;
 
-  // Calculate profile completion for Reps (MVP version + coverage areas)
-  const calculateRepCompletion = () => {
-    if (!repProfile) return 0;
-    let completed = 0;
-    let total = 6; // city, state, zip, at least one system, at least one inspection type, at least one coverage area
-    
-    if (repProfile.city) completed++;
-    if (repProfile.state) completed++;
-    if (repProfile.zip_code) completed++;
-    if (repProfile.systems_used && repProfile.systems_used.length > 0) completed++;
-    if (repProfile.inspection_types && repProfile.inspection_types.length > 0) completed++;
-    if (repProfile.coverage_count > 0) completed++;
-    
-    return Math.round((completed / total) * 100);
-  };
+  const profileCompletion = isRep 
+    ? (repCompleteness?.percent ?? 0) 
+    : (vendorCompleteness?.percent ?? 0);
 
-  // Get missing items for rep profile
-  const getRepMissingItems = () => {
-    if (!repProfile) return [];
-    const missing = [];
-    if (!repProfile.city) missing.push("City");
-    if (!repProfile.state) missing.push("State");
-    if (!repProfile.zip_code) missing.push("ZIP Code");
-    if (!repProfile.systems_used || repProfile.systems_used.length === 0) missing.push("At least one System Used");
-    if (!repProfile.inspection_types || repProfile.inspection_types.length === 0) missing.push("At least one Inspection Type");
-    if (!repProfile.coverage_count || repProfile.coverage_count === 0) missing.push("At least one Coverage Area");
-    return missing;
-  };
-
-  // Calculate profile completion for Vendors (MVP version)
-  const calculateVendorCompletion = () => {
-    if (!vendorProfile) return 0;
-    let completed = 0;
-    let total = 4; // company_name, city+state, at least one system, at least one inspection type
-    
-    if (vendorProfile.company_name) completed++;
-    if (vendorProfile.city && vendorProfile.state) completed++;
-    if (vendorProfile.systems_used && vendorProfile.systems_used.length > 0) completed++;
-    if (vendorProfile.primary_inspection_types && vendorProfile.primary_inspection_types.length > 0) completed++;
-    
-    return Math.round((completed / total) * 100);
-  };
-
-  // Get missing items for vendor profile
-  const getVendorMissingItems = () => {
-    if (!vendorProfile) return [];
-    const missing = [];
-    if (!vendorProfile.company_name) missing.push("Company Name");
-    if (!vendorProfile.city || !vendorProfile.state) missing.push("City and State");
-    if (!vendorProfile.systems_used || vendorProfile.systems_used.length === 0) missing.push("At least one System Used");
-    if (!vendorProfile.primary_inspection_types || vendorProfile.primary_inspection_types.length === 0) missing.push("At least one Inspection Type");
-    return missing;
-  };
-
-  // Use computed profile completeness for checklist items
-  const getChecklistData = () => {
-    if (isRep && repCompleteness) {
-      return {
-        title: "Rep Onboarding",
-        items: repCompleteness.checklist,
-        completedCount: repCompleteness.completedCount,
-        totalCount: repCompleteness.totalCount,
-      };
-    }
-    if (isVendor && vendorCompleteness) {
-      return {
-        title: "Vendor Onboarding",
-        items: vendorCompleteness.checklist,
-        completedCount: vendorCompleteness.completedCount,
-        totalCount: vendorCompleteness.totalCount,
-      };
-    }
-    // Fallback for loading state
-    return {
-      title: isRep ? "Rep Onboarding" : "Vendor Onboarding",
-      items: [],
-      completedCount: 0,
-      totalCount: 0,
-    };
-  };
-
-  const checklistData = getChecklistData();
+  const checklistData = isRep && repCompleteness 
+    ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount }
+    : isVendor && vendorCompleteness 
+    ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount }
+    : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0 };
 
   return (
     <div className="min-h-screen">
@@ -483,688 +394,229 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            {isAdminOnly ? "Admin Dashboard" : isRep ? "Field Rep Dashboard" : "Vendor Dashboard"}
-          </h1>
-          <p className="text-muted-foreground">
-            Welcome back, {profile?.full_name || user?.email}
-            {!isAdminOnly && isRep && repProfile?.anonymous_id && ` (${repProfile.anonymous_id})`}
-            {!isAdminOnly && isVendor && vendorProfile?.anonymous_id && ` (${vendorProfile.anonymous_id})`}
-          </p>
-        </div>
-
+      <div className="container mx-auto px-4 py-8">
         {/* Admin Dashboard Content */}
         {isAdminOnly && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl">
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/users")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  User Management
-                </CardTitle>
-                <CardDescription>
-                  Search users, manage accounts, reset passwords
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/moderation")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-primary" />
-                  Moderation
-                </CardTitle>
-                <CardDescription>
-                  Review flagged content and moderate posts
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/reports")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Reports
-                </CardTitle>
-                <CardDescription>
-                  View and manage user reports
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/invites")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PlusCircle className="w-5 h-5 text-primary" />
-                  Invite Codes
-                </CardTitle>
-                <CardDescription>
-                  Create and manage beta invite codes
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/support")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Headphones className="w-5 h-5 text-primary" />
-                  Support Queue
-                </CardTitle>
-                <CardDescription>
-                  Manage and respond to support tickets
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/staff")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
-                  Staff & Roles
-                </CardTitle>
-                <CardDescription>
-                  Manage admin, moderator, and support staff
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/audit")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-primary" />
-                  Activity Log
-                </CardTitle>
-                <CardDescription>
-                  View admin actions and audit history
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/metrics")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="w-5 h-5 text-primary" />
-                  System Metrics
-                </CardTitle>
-                <CardDescription>
-                  High-level system stats and activity overview
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/credits")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Coins className="w-5 h-5 text-primary" />
-                  Credit Management
-                </CardTitle>
-                <CardDescription>
-                  Manually adjust user credit balances
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+          <>
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-foreground mb-1">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Welcome back, {profile?.full_name || user?.email}</p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl">
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/users")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="w-5 h-5 text-primary" />
+                    User Management
+                  </CardTitle>
+                  <CardDescription className="text-sm">Search users, manage accounts</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/moderation")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldAlert className="w-5 h-5 text-primary" />
+                    Moderation
+                  </CardTitle>
+                  <CardDescription className="text-sm">Review flagged content</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/reports")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Reports
+                  </CardTitle>
+                  <CardDescription className="text-sm">View user reports</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/invites")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <PlusCircle className="w-5 h-5 text-primary" />
+                    Invite Codes
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage beta invites</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/support")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Headphones className="w-5 h-5 text-primary" />
+                    Support Queue
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage support tickets</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/staff")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="w-5 h-5 text-primary" />
+                    Staff & Roles
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage staff access</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/audit")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Activity Log
+                  </CardTitle>
+                  <CardDescription className="text-sm">Admin audit history</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/metrics")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Search className="w-5 h-5 text-primary" />
+                    System Metrics
+                  </CardTitle>
+                  <CardDescription className="text-sm">System overview</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/credits")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Coins className="w-5 h-5 text-primary" />
+                    Credit Management
+                  </CardTitle>
+                  <CardDescription className="text-sm">Adjust user credits</CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          </>
         )}
 
         {/* Rep/Vendor Dashboard Content */}
         {!isAdminOnly && (
           <>
-        {/* Review Prompts */}
-        {reviewPrompts.length > 0 && (
-          <div className="mb-6 space-y-3 max-w-7xl">
-            {reviewPrompts.map((prompt) => (
-              <Card key={prompt.userId} className="bg-secondary/10 border-secondary/30">
-                <CardContent className="py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <Star className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground mb-1">
-                          Leave a review for {prompt.anonymousId}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          You've been connected for over 2 weeks. Share your experience to help build trust in the network.
-                        </p>
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-foreground mb-1">
+                Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {isRep ? "Field Rep" : "Vendor"} Dashboard
+                {isRep && repProfile?.anonymous_id && ` · ${repProfile.anonymous_id}`}
+                {isVendor && vendorProfile?.anonymous_id && ` · ${vendorProfile.anonymous_id}`}
+              </p>
+            </div>
+
+            {/* Soft Warning Banner */}
+            {softWarning.showWarning && softWarning.warningType && (
+              <div className="mb-6 max-w-5xl">
+                <SoftWarningBanner message={softWarning.warningMessage} type={softWarning.warningType} />
+              </div>
+            )}
+
+            {/* Review Prompts */}
+            {reviewPrompts.length > 0 && (
+              <div className="mb-6 max-w-5xl">
+                <Card className="bg-secondary/10 border-secondary/30">
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <Star className="w-5 h-5 text-secondary flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            You have {reviewPrompts.length} connection{reviewPrompts.length > 1 ? 's' : ''} to review
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Share your experience to help build trust in the network
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => navigate(isRep ? "/rep/my-vendors" : "/vendor/my-reps")}
-                    >
-                      Leave Review
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Time Off Banner for Reps */}
-        {isRep && upcomingTimeOff && (
-          <Card className="mb-6 bg-secondary/10 border-secondary/30 max-w-7xl">
-            <CardContent className="py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <Calendar className="w-5 h-5 text-secondary flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      You have time off scheduled from {format(parseISO(upcomingTimeOff.start_date), "MM/dd/yyyy")} to {format(parseISO(upcomingTimeOff.end_date), "MM/dd/yyyy")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Auto-reply: {upcomingTimeOff.auto_reply_enabled ? "ON" : "OFF"}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => navigate("/rep/availability")}
-                >
-                  Manage Availability
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Soft Warning Banner */}
-        {softWarning.showWarning && softWarning.warningType && (
-          <SoftWarningBanner message={softWarning.warningMessage} type={softWarning.warningType} />
-        )}
-
-        <div className="grid lg:grid-cols-3 gap-6 max-w-7xl">
-          {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Profile Setup Cards */}
-            {isRep && repCompleteness && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Field Rep Profile Setup</CardTitle>
-                  <CardDescription>
-                    You're {repCompleteness.percent}% set up. {getCompletionMessage(repCompleteness.percent)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Progress value={repCompleteness.percent} />
-                  <ul className="space-y-3">
-                    {repCompleteness.checklist.map((item) => (
-                      <li key={item.id} className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2 flex-1">
-                          {item.done ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          )}
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.label}</p>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground">{item.description}</p>
-                            )}
-                          </div>
-                        </div>
-                        {!item.done && item.link && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(item.link)}
-                            className="flex-shrink-0"
-                          >
-                            Complete
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-
-            {isVendor && vendorCompleteness && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vendor Profile Setup</CardTitle>
-                  <CardDescription>
-                    You're {vendorCompleteness.percent}% set up. {getCompletionMessage(vendorCompleteness.percent)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Progress value={vendorCompleteness.percent} />
-                  <ul className="space-y-3">
-                    {vendorCompleteness.checklist.map((item) => (
-                      <li key={item.id} className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-2 flex-1">
-                          {item.done ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                          ) : (
-                            <Circle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          )}
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">{item.label}</p>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground">{item.description}</p>
-                            )}
-                          </div>
-                        </div>
-                        {!item.done && item.link && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(item.link)}
-                            className="flex-shrink-0"
-                          >
-                            Complete
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            )}
-            {/* Profile Status Card */}
-            <Card className="p-6 bg-card-elevated border border-border">
-              <div className="flex items-start gap-4">
-                {isRep ? (
-                  <User className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                ) : (
-                  <Building2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                )}
-                <div className="flex-1">
-                  <h2 className="text-xl font-semibold text-foreground mb-4">
-                    {isRep ? "My Profile" : "My Company Profile"}
-                  </h2>
-                  
-                  {/* Completion percentage */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Profile Completion</span>
-                      <span className="text-sm font-semibold text-foreground">
-                        {isRep ? calculateRepCompletion() : calculateVendorCompletion()}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="bg-secondary h-2 rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${isRep ? calculateRepCompletion() : calculateVendorCompletion()}%` 
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Missing items */}
-                  {isRep && getRepMissingItems().length > 0 && (
-                    <div className="mb-4 p-3 bg-muted/30 rounded-md border border-border">
-                      <p className="text-sm font-medium text-foreground mb-2">Still needed:</p>
-                      <ul className="space-y-1">
-                        {getRepMissingItems().map((item, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
-                            <span className="text-secondary">•</span> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {isVendor && getVendorMissingItems().length > 0 && (
-                    <div className="mb-4 p-3 bg-muted/30 rounded-md border border-border">
-                      <p className="text-sm font-medium text-foreground mb-2">Still needed:</p>
-                      <ul className="space-y-1">
-                        {getVendorMissingItems().map((item, idx) => (
-                          <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
-                            <span className="text-secondary">•</span> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {isRep && calculateRepCompletion() === 100 && (
-                    <p className="text-sm text-secondary mb-4">✓ Your profile is complete!</p>
-                  )}
-
-                  {isVendor && calculateVendorCompletion() === 100 && (
-                    <p className="text-sm text-secondary mb-4">✓ Your profile is complete!</p>
-                  )}
-
-                  <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                    <Button size="sm" variant="secondary">
-                      <Edit className="h-4 w-4 mr-2" />
-                      {isRep 
-                        ? (calculateRepCompletion() === 100 ? "View My Profile" : "Complete My Profile")
-                        : (calculateVendorCompletion() === 100 ? "View Company Profile" : "Complete Company Profile")
-                      }
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </Card>
-
-            {/* Messages Card - Available to all users */}
-            <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/messages")}>
-              <div className="flex items-start gap-4">
-                <MessageSquare className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-lg font-semibold text-foreground">Messages</h3>
-                    {unreadMessageCount > 0 && (
-                      <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">
-                        {unreadMessageCount}
-                      </Badge>
-                    )}
-                    {isRep && pendingConnectionCount > 0 && (
-                      <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 hover:bg-amber-500/30">
-                        {pendingConnectionCount} pending
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {unreadMessageCount > 0 
-                      ? `You have ${unreadMessageCount} unread message${unreadMessageCount === 1 ? '' : 's'}`
-                      : pendingConnectionCount > 0 
-                      ? `${pendingConnectionCount} pending connection request${pendingConnectionCount === 1 ? '' : 's'}`
-                      : `View and respond to conversations with ${isRep ? "vendors" : "field reps"}`
-                    }
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <Button size="sm" variant="secondary">
-                      Open Inbox →
-                    </Button>
-                    {(isVendor || isRep) && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(isVendor ? "/vendor/message-templates" : "/rep/message-templates");
-                        }}
+                        variant="secondary"
+                        onClick={() => navigate(isRep ? "/rep/my-vendors" : "/vendor/my-reps")}
                       >
-                        <FileText className="h-3 w-3 mr-1" />
-                        Templates
+                        Leave Review
                       </Button>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </Card>
-
-            {/* My Network Card - Role-specific */}
-            {isRep && (
-              <>
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/my-vendors")}>
-                  <div className="flex items-start gap-4">
-                    <Building2 className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">My Vendors</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        View vendors you've connected with through Seeking Coverage posts. Message them and track your connections.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        View My Vendors →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/reviews")}>
-                  <div className="flex items-start gap-4">
-                    <Star className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Reviews</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        View your Trust Score, reviews you've received, and reviews you've given to vendors.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        View Reviews →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/availability")}>
-                  <div className="flex items-start gap-4">
-                    <Calendar className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Availability & Alerts</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Manage your time off, set auto-replies, and send availability updates to your vendor network.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        Manage Availability →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </>
             )}
 
-            {isVendor && (
-              <>
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/my-reps")}>
-                  <div className="flex items-start gap-4">
-                    <Users className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">My Reps</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        View field reps you've marked as Connected. Message them and manage your network.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        View My Reps →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+            {/* Main Content Grid */}
+            <div className="grid lg:grid-cols-3 gap-6 max-w-5xl">
+              {/* Main Column - Today Feed */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Quick Actions */}
+                <QuickActions isRep={isRep} isVendor={isVendor} />
 
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/reviews")}>
-                  <div className="flex items-start gap-4">
-                    <Star className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Reviews</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        View your Trust Score, reviews you've received, and reviews you've given to field reps.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        View Reviews →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/credits")}>
-                  <div className="flex items-start gap-4">
-                    <div className="h-6 w-6 text-primary flex-shrink-0 mt-1">💳</div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Credits</h3>
-                        {vendorCredits !== null && (
-                          <Badge variant="secondary" className="bg-secondary/20 text-secondary">
-                            {vendorCredits}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Manage your credits for posting Seeking Coverage and other premium features.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        View Details →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/availability")}>
-                  <div className="flex items-start gap-4">
-                    <Calendar className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Office & Pay Calendar</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          New
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Keep reps informed about when your office is open and when they get paid.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        Manage Calendar →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </>
-            )}
-
-            {/* Coming Soon Cards - Role-specific */}
-            {isRep && (
-              <>
-                {/* MVP READY - Find Work */}
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/rep/find-work")}>
-                  <div className="flex items-start gap-4">
-                    <Search className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Find Work</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          MVP Ready
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Browse Seeking Coverage posts from verified vendors in your area. Matched to your coverage, inspection types, and systems.
-                      </p>
-                      {activeSavedSearchCount > 0 && (
-                        <p className="text-xs text-muted-foreground mb-4">
-                          <Bell className="h-3 w-3 inline mr-1" />
-                          {activeSavedSearchCount} active saved search{activeSavedSearchCount !== 1 ? 'es' : ''} monitoring new posts
-                        </p>
-                      )}
-                      <Button size="sm" variant="secondary">
-                        Browse Opportunities →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* COMING SOON - Find Vendors */}
-                <div onClick={() => handleComingSoonClick("Find Vendors")}>
-                  <ComingSoonCard
-                    icon={<Building2 className="h-6 w-6" />}
-                    title="Find Vendors"
-                    description="Discover and connect with vendors in your coverage areas. View trust scores, reviews, and vendor expectations."
+                {/* Today Feed */}
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" />
+                    Today
+                  </h2>
+                  <TodayFeed 
+                    userId={user?.id || ''} 
+                    isRep={isRep} 
+                    isVendor={isVendor} 
                   />
                 </div>
 
-                {/* TODO: COMING SOON - Looking for Work posts */}
-                <div onClick={() => handleComingSoonClick("Looking for Work")}>
-                  <ComingSoonCard
-                    icon={<FileText className="h-6 w-6" />}
-                    title="Looking for Work"
-                    description="Post your availability and let vendors know you're seeking work. Specify your coverage areas, rates, and availability."
-                  />
-                </div>
-              </>
-            )}
-
-            {isVendor && (
-              <>
-                {/* COMING SOON - Find Reps */}
-                <div onClick={() => handleComingSoonClick("Find Reps")}>
-                  <ComingSoonCard
-                    icon={<Users className="h-6 w-6" />}
-                    title="Find Reps"
-                    description="Search and filter field representatives by location, systems used, and inspection types."
-                  />
-                </div>
-
-                {/* MVP READY - Seeking Coverage */}
-                <Card className="p-6 bg-card-elevated border border-border hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate("/vendor/seeking-coverage")}>
-                  <div className="flex items-start gap-4">
-                    <PlusCircle className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">Seeking Coverage</h3>
-                        <span className="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full">
-                          MVP Ready
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Create posts to find qualified field reps for your coverage needs. Specify location, inspection types, and required systems.
-                      </p>
-                      <Button size="sm" variant="secondary">
-                        Manage Posts →
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </>
-            )}
-          </div>
-
-          {/* Sidebar - Onboarding Checklist */}
-          <div className="space-y-6">
-            <OnboardingChecklist
-              title={checklistData.title}
-              items={checklistData.items}
-              completedCount={checklistData.completedCount}
-              totalCount={checklistData.totalCount}
-            />
-
-            {/* Quick Stats Card */}
-            <Card className="p-6 bg-card-elevated border border-border">
-              <h3 className="text-lg font-semibold mb-4 text-foreground">Quick Stats</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Onboarding Complete</span>
-                  <span className="font-medium text-foreground">
-                    {isRep ? (repCompleteness?.percent ?? 0) : (vendorCompleteness?.percent ?? 0)}%
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Unread Messages</span>
-                  <span className="font-medium text-foreground">{unreadMessageCount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Notifications</span>
-                  <span className="font-medium text-foreground">{unreadNotificationCount}</span>
-                </div>
-                {isVendor && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Credits</span>
-                    <span className="font-medium text-foreground">{vendorCredits ?? 0}</span>
-                  </div>
+                {/* Setup Section - Collapsible */}
+                {checklistData.items.length > 0 && (
+                  <Collapsible open={showSetupSection} onOpenChange={setShowSetupSection}>
+                    <Card className="bg-card border-border">
+                      <CollapsibleTrigger className="w-full">
+                        <CardHeader className="py-3 px-4">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              {profileCompletion === 100 ? (
+                                <span className="text-emerald-500">✓</span>
+                              ) : null}
+                              Profile Setup
+                            </CardTitle>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">
+                                {checklistData.completedCount}/{checklistData.totalCount} complete
+                              </span>
+                              {showSetupSection ? (
+                                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <CardContent className="pt-0 px-4 pb-4">
+                          <OnboardingChecklist
+                            title=""
+                            items={checklistData.items}
+                            completedCount={checklistData.completedCount}
+                            totalCount={checklistData.totalCount}
+                          />
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
                 )}
               </div>
-            </Card>
-          </div>
-        </div>
+
+              {/* Right Sidebar - At a Glance */}
+              <div>
+                <h2 className="text-lg font-semibold text-foreground mb-3">At a Glance</h2>
+                <AtAGlanceSidebar
+                  isRep={isRep}
+                  isVendor={isVendor}
+                  profileCompletion={profileCompletion}
+                  unreadMessages={unreadMessageCount}
+                  unreadNotifications={unreadNotificationCount}
+                  vendorCredits={vendorCredits}
+                  upcomingTimeOff={upcomingTimeOff}
+                  pendingConnections={pendingConnectionCount}
+                  newOpportunities={newOpportunityCount}
+                />
+              </div>
+            </div>
           </>
         )}
       </div>
