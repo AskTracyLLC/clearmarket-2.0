@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +7,8 @@ import { CommunityTab } from "@/components/CommunityTab";
 import { NetworkAlertsFeed } from "@/components/NetworkAlertsFeed";
 import { NavLink } from "@/components/NavLink";
 import { CountBadge } from "@/components/CountBadge";
+import { PageHeader } from "@/components/PageHeader";
+import { AppLayout } from "@/components/AppLayout";
 import {
   MessageSquare,
   Bell,
@@ -99,7 +100,7 @@ const CommunityBoard = () => {
   }
 
   return (
-    <div className="min-h-screen">
+    <AppLayout>
       {/* Header with navigation */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -115,7 +116,7 @@ const CommunityBoard = () => {
                 </NavLink>
                 <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <Users className="w-4 h-4" />
-                  Updates
+                  Community
                 </NavLink>
                 <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <MessageSquare className="w-4 h-4" />
@@ -131,21 +132,17 @@ const CommunityBoard = () => {
                 </NavLink>
               </nav>
             </div>
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
-            </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Updates</h1>
-          <p className="text-muted-foreground mt-1">
-            Community posts from the industry, plus alerts from your own network.
-          </p>
-        </div>
+        <PageHeader
+          title="Community"
+          subtitle="Community posts from the industry, plus alerts from your own network."
+          showBackToDashboard
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -175,7 +172,7 @@ const CommunityBoard = () => {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
+    </AppLayout>
   );
 };
 

@@ -7,12 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, ShieldAlert, ArrowLeft, MessageSquare, HelpCircle } from "lucide-react";
+import { Eye, ShieldAlert, MessageSquare, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { KnownIssuesPanel } from "@/components/KnownIssuesPanel";
+import { PageHeader } from "@/components/PageHeader";
+import { AppLayout } from "@/components/AppLayout";
 
 interface BlockedUser {
   id: string;
@@ -196,21 +198,6 @@ export default function SafetyCenter() {
     }
   }
 
-  function getStatusBadgeVariant(status: string) {
-    switch (status) {
-      case "open":
-        return "default";
-      case "reviewed":
-        return "secondary";
-      case "dismissed":
-        return "outline";
-      case "action_taken":
-        return "default";
-      default:
-        return "secondary";
-    }
-  }
-
   function getStatusColor(status: string) {
     switch (status) {
       case "open":
@@ -233,216 +220,207 @@ export default function SafetyCenter() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-muted-foreground">Loading...</p>
+      <AppLayout>
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/dashboard")}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <ShieldAlert className="h-8 w-8" />
-            Safety Center
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your blocked users and view reports you've submitted
-          </p>
-        </div>
+    <AppLayout>
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <PageHeader
+            title="Safety Center"
+            subtitle="Manage your blocked users and view reports you've submitted"
+            showBackToDashboard
+          />
 
-        <Tabs defaultValue="blocked" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
-            <TabsTrigger value="reports">Your Reports</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="blocked" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
+              <TabsTrigger value="reports">Your Reports</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="blocked" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Blocked Users</CardTitle>
-                <CardDescription>
-                  You won't receive messages or new connection requests from blocked users. You can unblock them at any time.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {blockedUsers.length === 0 ? (
-                  <Alert>
-                    <AlertDescription>
-                      You haven't blocked any users yet.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-3">
-                    {blockedUsers.map((blocked) => (
-                      <div
-                        key={blocked.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4 flex-1">
-                          <button
-                            onClick={() => openProfile(blocked.blocked_user_id)}
-                            className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
-                          >
-                            <span className="font-semibold">
-                              {blocked.anonymous_id || "User"}
-                            </span>
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          {blocked.role_type && (
-                            <Badge variant="outline">
-                              {blocked.role_type === "rep" ? "Field Rep" : "Vendor"}
-                            </Badge>
-                          )}
-                          <span className="text-sm text-muted-foreground">
-                            Blocked since {format(new Date(blocked.created_at), "MM/dd/yyyy")}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUnblock(blocked.blocked_user_id, blocked.id)}
-                          disabled={unblocking === blocked.id}
+            <TabsContent value="blocked" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Blocked Users</CardTitle>
+                  <CardDescription>
+                    You won't receive messages or new connection requests from blocked users. You can unblock them at any time.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {blockedUsers.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>
+                        You haven't blocked any users yet.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-3">
+                      {blockedUsers.map((blocked) => (
+                        <div
+                          key={blocked.id}
+                          className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-accent/50 transition-colors"
                         >
-                          {unblocking === blocked.id ? "Unblocking..." : "Unblock"}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                          <div className="flex items-center gap-4 flex-1">
+                            <button
+                              onClick={() => openProfile(blocked.blocked_user_id)}
+                              className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+                            >
+                              <span className="font-semibold">
+                                {blocked.anonymous_id || "User"}
+                              </span>
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {blocked.role_type && (
+                              <Badge variant="outline">
+                                {blocked.role_type === "rep" ? "Field Rep" : "Vendor"}
+                              </Badge>
+                            )}
+                            <span className="text-sm text-muted-foreground">
+                              Blocked since {format(new Date(blocked.created_at), "MM/dd/yyyy")}
+                            </span>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUnblock(blocked.blocked_user_id, blocked.id)}
+                            disabled={unblocking === blocked.id}
+                          >
+                            {unblocking === blocked.id ? "Unblocking..." : "Unblock"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          <TabsContent value="reports" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Reports</CardTitle>
-                <CardDescription>
-                  These are reports you have submitted to ClearMarket. Our team may take action based on our community guidelines. You won't always receive a direct follow-up for every report.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {userReports.length === 0 ? (
-                  <Alert>
-                    <AlertDescription>
-                      You haven't submitted any reports yet.
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <div className="space-y-3">
-                    {userReports.map((report) => (
-                      <div
-                        key={report.id}
-                        className="p-4 border border-border rounded-lg bg-card space-y-3"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                onClick={() => openProfile(report.reported_user_id)}
-                                className="font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
-                              >
-                                {report.reported_user_anonymous_id || "User"}
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              {report.reported_user_role && (
-                                <Badge variant="outline" className="text-xs">
-                                  {report.reported_user_role === "rep" ? "Field Rep" : "Vendor"}
+            <TabsContent value="reports" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Reports</CardTitle>
+                  <CardDescription>
+                    These are reports you have submitted to ClearMarket. Our team may take action based on our community guidelines. You won't always receive a direct follow-up for every report.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {userReports.length === 0 ? (
+                    <Alert>
+                      <AlertDescription>
+                        You haven't submitted any reports yet.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <div className="space-y-3">
+                      {userReports.map((report) => (
+                        <div
+                          key={report.id}
+                          className="p-4 border border-border rounded-lg bg-card space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                  onClick={() => openProfile(report.reported_user_id)}
+                                  className="font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+                                >
+                                  {report.reported_user_anonymous_id || "User"}
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                {report.reported_user_role && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {report.reported_user_role === "rep" ? "Field Rep" : "Vendor"}
+                                  </Badge>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="secondary" className="text-xs">
+                                  {report.reason_category.replace(/_/g, " ")}
                                 </Badge>
+                                <Badge className={`text-xs ${getStatusColor(report.status)}`}>
+                                  {report.status.replace(/_/g, " ")}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(report.created_at), "MMM dd, yyyy")}
+                                </span>
+                              </div>
+
+                              {report.reason_details && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {report.reason_details}
+                                </p>
                               )}
                             </div>
-                            
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="secondary" className="text-xs">
-                                {report.reason_category.replace(/_/g, " ")}
-                              </Badge>
-                              <Badge className={`text-xs ${getStatusColor(report.status)}`}>
-                                {report.status.replace(/_/g, " ")}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(report.created_at), "MMM dd, yyyy")}
-                              </span>
-                            </div>
 
-                            {report.reason_details && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {report.reason_details}
-                              </p>
+                            {report.conversation_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/messages/${report.conversation_id}`)}
+                              >
+                                View Conversation
+                              </Button>
                             )}
                           </div>
-
-                          {report.conversation_id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/messages/${report.conversation_id}`)}
-                            >
-                              View Conversation
-                            </Button>
-                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-        </Tabs>
+          </Tabs>
 
-        {/* Need Help Card */}
-        <Card className="mt-6">
-          <CardContent className="py-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-primary/10">
-                <MessageSquare className="h-6 w-6 text-primary" />
+          {/* Need Help Card */}
+          <Card className="mt-6">
+            <CardContent className="py-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-primary/10">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Need more help?</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Contact our support team or browse help articles
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold">Need more help?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Contact our support team or browse help articles
-                </p>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => navigate("/help")}>
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Help Center
+                </Button>
+                <Button onClick={() => navigate("/support")}>
+                  Contact Support
+                </Button>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => navigate("/help")}>
-                <HelpCircle className="h-4 w-4 mr-2" />
-                Help Center
-              </Button>
-              <Button onClick={() => navigate("/support")}>
-                Contact Support
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Known Issues Panel */}
-        <div className="mt-6">
-          <KnownIssuesPanel />
+          {/* Known Issues Panel */}
+          <div className="mt-6">
+            <KnownIssuesPanel />
+          </div>
         </div>
-      </div>
 
-      {selectedUserId && (
-        <PublicProfileDialog
-          open={profileDialogOpen}
-          onOpenChange={setProfileDialogOpen}
-          targetUserId={selectedUserId}
-        />
-      )}
-    </div>
+        {selectedUserId && (
+          <PublicProfileDialog
+            open={profileDialogOpen}
+            onOpenChange={setProfileDialogOpen}
+            targetUserId={selectedUserId}
+          />
+        )}
+      </div>
+    </AppLayout>
   );
 }
