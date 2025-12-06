@@ -29,6 +29,8 @@ import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { VendorCalendarDialog } from "@/components/VendorCalendarDialog";
 import VendorConnectionCard from "@/components/VendorConnectionCard";
+import WorkingTermsPendingCard from "@/components/WorkingTermsPendingCard";
+import { fetchPendingWorkingTermsRequests, WorkingTermsRequest } from "@/lib/workingTerms";
 
 
 
@@ -117,6 +119,8 @@ const RepMyVendors = () => {
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [calendarVendorId, setCalendarVendorId] = useState<string | null>(null);
   const [calendarVendorName, setCalendarVendorName] = useState<string>("");
+  const [pendingWorkingTerms, setPendingWorkingTerms] = useState<WorkingTermsRequest[]>([]);
+  const [workingTermsVendorNames, setWorkingTermsVendorNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -169,6 +173,29 @@ const RepMyVendors = () => {
     setRepProfileId(repProfile.id);
     loadPendingRequests(repProfile.id);
     loadConnectedVendors(repProfile.id);
+    loadPendingWorkingTerms();
+  };
+
+  const loadPendingWorkingTerms = async () => {
+    if (!user) return;
+    
+    const requests = await fetchPendingWorkingTermsRequests(user.id, 'rep');
+    setPendingWorkingTerms(requests);
+    
+    // Load vendor names for these requests
+    if (requests.length > 0) {
+      const vendorIds = [...new Set(requests.map(r => r.vendor_id))];
+      const { data: vendors } = await supabase
+        .from("vendor_profile")
+        .select("user_id, company_name, anonymous_id")
+        .in("user_id", vendorIds);
+      
+      const names: Record<string, string> = {};
+      vendors?.forEach(v => {
+        names[v.user_id] = v.company_name || v.anonymous_id || 'Vendor';
+      });
+      setWorkingTermsVendorNames(names);
+    }
   };
 
   const loadPendingRequests = async (repId: string) => {
@@ -807,8 +834,27 @@ const RepMyVendors = () => {
           </div>
         )}
 
+        {/* Pending Working Terms Requests Section */}
+        {pendingWorkingTerms.length > 0 && (
+          <div className="mb-6 md:mb-8">
+            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
+              Coverage & Pricing Requests ({pendingWorkingTerms.length})
+            </h2>
+            <div className="space-y-3">
+              {pendingWorkingTerms.map((request) => (
+                <WorkingTermsPendingCard
+                  key={request.id}
+                  request={request}
+                  vendorName={workingTermsVendorNames[request.vendor_id]}
+                  role="rep"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
-        {connectedVendors.length === 0 && pendingRequests.length === 0 ? (
+        {connectedVendors.length === 0 && pendingRequests.length === 0 && pendingWorkingTerms.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
               <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
