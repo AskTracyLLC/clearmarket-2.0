@@ -27,6 +27,7 @@ interface ReviewData {
   rating_communication: number | null;
   comment: string | null;
   created_at: string;
+  is_feedback?: boolean;
   reviewerAnonymousId?: string;
 }
 
@@ -88,7 +89,7 @@ export function ReviewsDetailDialog({
         // Fetch reviews where this user is the reviewee
         const { data: reviewsData, error } = await supabase
           .from("reviews")
-          .select("*")
+          .select("*, is_feedback")
           .eq("reviewee_id", targetUserId)
           .order("created_at", { ascending: false });
 
@@ -97,6 +98,9 @@ export function ReviewsDetailDialog({
           setReviews([]);
           return;
         }
+
+        // Filter out feedback reviews for scoring calculations
+        const scoredReviews = (reviewsData || []).filter(r => !r.is_feedback);
 
         // Fetch reviewer anonymous IDs
         const reviewerIds = [...new Set(reviewsData?.map(r => r.reviewer_id) || [])];
@@ -132,12 +136,12 @@ export function ReviewsDetailDialog({
 
         setReviews(enrichedReviews);
 
-        // Calculate category averages
-        if (enrichedReviews.length > 0) {
+        // Calculate category averages (excluding feedback reviews)
+        if (scoredReviews.length > 0) {
           const totals = { onTime: 0, quality: 0, communication: 0 };
           const counts = { onTime: 0, quality: 0, communication: 0 };
 
-          enrichedReviews.forEach(review => {
+          scoredReviews.forEach(review => {
             if (review.rating_on_time !== null) {
               totals.onTime += review.rating_on_time;
               counts.onTime++;
@@ -158,9 +162,9 @@ export function ReviewsDetailDialog({
             communication: counts.communication > 0 ? totals.communication / counts.communication : 0,
           });
 
-          // Calculate overall Trust Score (average of all three ratings across all reviews)
+          // Calculate overall Trust Score (average of all three ratings across scored reviews)
           const allRatings: number[] = [];
-          enrichedReviews.forEach(review => {
+          scoredReviews.forEach(review => {
             if (review.rating_on_time !== null) allRatings.push(review.rating_on_time);
             if (review.rating_quality !== null) allRatings.push(review.rating_quality);
             if (review.rating_communication !== null) allRatings.push(review.rating_communication);
@@ -304,13 +308,18 @@ export function ReviewsDetailDialog({
                   {reviews.slice(0, 10).map((review) => (
                     <Card key={review.id} className="p-4 bg-card-elevated">
                       <div className="flex items-start justify-between mb-2">
-                        <div>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-medium text-foreground">
                             {review.reviewerAnonymousId}
                           </span>
-                          <span className="text-xs text-muted-foreground ml-2">
+                          <span className="text-xs text-muted-foreground">
                             {new Date(review.created_at).toLocaleDateString()}
                           </span>
+                          {review.is_feedback && (
+                            <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                              Feedback – Not scored
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">

@@ -1384,8 +1384,11 @@ export type Database = {
           created_at: string
           direction: string
           exclude_from_trust_score: boolean
+          feedback_marked_at: string | null
+          feedback_marked_by_user_id: string | null
           id: string
           is_exit_review: boolean
+          is_feedback: boolean
           is_hidden: boolean
           is_verified: boolean
           moderation_notes: string | null
@@ -1404,8 +1407,11 @@ export type Database = {
           created_at?: string
           direction: string
           exclude_from_trust_score?: boolean
+          feedback_marked_at?: string | null
+          feedback_marked_by_user_id?: string | null
           id?: string
           is_exit_review?: boolean
+          is_feedback?: boolean
           is_hidden?: boolean
           is_verified?: boolean
           moderation_notes?: string | null
@@ -1424,8 +1430,11 @@ export type Database = {
           created_at?: string
           direction?: string
           exclude_from_trust_score?: boolean
+          feedback_marked_at?: string | null
+          feedback_marked_by_user_id?: string | null
           id?: string
           is_exit_review?: boolean
+          is_feedback?: boolean
           is_hidden?: boolean
           is_verified?: boolean
           moderation_notes?: string | null
@@ -1440,6 +1449,13 @@ export type Database = {
           would_work_again?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reviews_feedback_marked_by_user_id_fkey"
+            columns: ["feedback_marked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reviews_rep_interest_id_fkey"
             columns: ["rep_interest_id"]

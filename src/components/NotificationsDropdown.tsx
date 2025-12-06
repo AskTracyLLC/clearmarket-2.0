@@ -112,6 +112,8 @@ export function NotificationsDropdown() {
       case "working_terms_submitted":
       case "working_terms_confirmed":
         return <FileText className="h-3.5 w-3.5" />;
+      case "review_marked_feedback":
+        return <Star className="h-3.5 w-3.5" />;
       default:
         return <Bell className="h-3.5 w-3.5" />;
     }
