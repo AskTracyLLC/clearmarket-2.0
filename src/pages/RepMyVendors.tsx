@@ -30,6 +30,8 @@ import { fetchBlockedUserIds } from "@/lib/blocks";
 import { VendorCalendarDialog } from "@/components/VendorCalendarDialog";
 import VendorConnectionCard from "@/components/VendorConnectionCard";
 
+import { WorkingTerms } from "@/components/WorkingTermsDialog";
+
 interface ConnectedVendor {
   vendorUserId: string;
   anonymousId: string;
@@ -60,6 +62,7 @@ interface ConnectedVendor {
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
+  workingTerms?: WorkingTerms | null;
   trustScore?: number | null;
   trustScoreCount?: number;
   communityScore?: number;
@@ -286,7 +289,7 @@ const RepMyVendors = () => {
 
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
-        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, working_terms, created_at")
         .eq("field_rep_id", user.id)
         .eq("status", "active")
         .in("vendor_id", vendorUserIds);
@@ -345,6 +348,7 @@ const RepMyVendors = () => {
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
           statesCovered: agreement?.states_covered || null,
+          workingTerms: agreement?.working_terms as WorkingTerms | null,
         });
       }
 
@@ -879,6 +883,7 @@ const RepMyVendors = () => {
                       setReviewsDialogUserId(vendor.vendorUserId);
                       setShowReviewsDialog(true);
                     }}
+                    onWorkingTermsSaved={() => repProfileId && loadConnectedVendors(repProfileId)}
                   />
                 ))}
               </div>

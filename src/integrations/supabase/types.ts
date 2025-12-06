@@ -2324,6 +2324,7 @@ export type Database = {
           status: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at: string
           vendor_id: string
+          working_terms: Json | null
         }
         Insert: {
           base_rate?: number | null
@@ -2337,6 +2338,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id: string
+          working_terms?: Json | null
         }
         Update: {
           base_rate?: number | null
@@ -2350,6 +2352,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id?: string
+          working_terms?: Json | null
         }
         Relationships: [
           {

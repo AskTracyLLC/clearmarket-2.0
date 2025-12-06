@@ -31,6 +31,8 @@ import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
+import { WorkingTerms } from "@/components/WorkingTermsDialog";
+
 interface ConnectedRep {
   repUserId: string;
   anonymousId: string;
@@ -62,6 +64,7 @@ interface ConnectedRep {
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
+  workingTerms?: WorkingTerms | null;
   // Trust Score
   trustScore?: number | null;
   trustScoreCount?: number;
@@ -174,7 +177,7 @@ const VendorMyReps = () => {
       // LEFT JOIN vendor_rep_agreements
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
-        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, working_terms, created_at")
         .eq("vendor_id", user.id)
         .eq("status", "active")
         .in("field_rep_id", repUserIds);
@@ -236,6 +239,7 @@ const VendorMyReps = () => {
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
           statesCovered: agreement?.states_covered || null,
+          workingTerms: agreement?.working_terms as WorkingTerms | null,
         });
       }
 
@@ -740,6 +744,7 @@ const VendorMyReps = () => {
                       setReviewsDialogUserId(rep.repUserId);
                       setShowReviewsDialog(true);
                     }}
+                    onWorkingTermsSaved={loadConnectedReps}
                   />
                 ))}
               </div>
