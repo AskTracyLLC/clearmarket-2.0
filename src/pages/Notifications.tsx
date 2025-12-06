@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ReviewDialog } from "@/components/ReviewDialog";
 import { PageHeader } from "@/components/PageHeader";
-import { AppLayout } from "@/components/AppLayout";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface Notification {
   id: string;
@@ -278,7 +278,7 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AuthenticatedLayout>
         <div className="bg-background p-8">
           <div className="max-w-3xl mx-auto">
             <PageHeader
@@ -288,12 +288,12 @@ export default function Notifications() {
             <p className="text-muted-foreground">Loading notifications...</p>
           </div>
         </div>
-      </AppLayout>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <AuthenticatedLayout>
       <div className="bg-background p-8">
         <div className="max-w-3xl mx-auto">
           <PageHeader
@@ -384,6 +384,6 @@ export default function Notifications() {
           />
         )}
       </div>
-    </AppLayout>
+    </AuthenticatedLayout>
   );
 }

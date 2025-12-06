@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
-import { AppLayout } from "@/components/AppLayout";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 type NotificationPreferences = {
   user_id: string;
@@ -113,7 +113,7 @@ export default function Settings() {
 
   if (authLoading || loading) {
     return (
-      <AppLayout>
+      <AuthenticatedLayout>
         <div className="bg-background p-8">
           <div className="max-w-4xl mx-auto">
             <PageHeader
@@ -124,12 +124,12 @@ export default function Settings() {
             <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
-      </AppLayout>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <AuthenticatedLayout>
       <div className="bg-background p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <PageHeader
@@ -418,6 +418,6 @@ export default function Settings() {
           </Tabs>
         </div>
       </div>
-    </AppLayout>
+    </AuthenticatedLayout>
   );
 }
