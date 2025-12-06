@@ -167,22 +167,61 @@ export function AtAGlanceSidebar({
               </>
             )}
 
-            {/* Vendor: Credits */}
-            {isVendor && vendorCredits !== undefined && vendorCredits !== null && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Credits</span>
+            {/* Vendor: Reputation + Availability + Credits */}
+            {isVendor && (
+              <>
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Star className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Your Reputation</span>
                   </div>
-                  <span className="text-lg font-bold text-foreground">{vendorCredits}</span>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Build your trust score by earning reviews from Field Reps.
+                  </p>
+                  <Link to="/vendor/reviews">
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      View Reviews & Trust Score
+                    </Button>
+                  </Link>
                 </div>
-                <Link to="/vendor/credits">
-                  <Button variant="outline" size="sm" className="w-full text-xs">
-                    Manage Credits
-                  </Button>
-                </Link>
-              </div>
+
+                <div className="border-t border-border" />
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Availability</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Set office hours and pay schedules
+                  </p>
+                  <Link to="/vendor/availability">
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      Manage Availability
+                    </Button>
+                  </Link>
+                </div>
+
+                {vendorCredits !== undefined && vendorCredits !== null && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Coins className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium">Credits</span>
+                        </div>
+                        <span className="text-lg font-bold text-foreground">{vendorCredits}</span>
+                      </div>
+                      <Link to="/vendor/credits">
+                        <Button variant="outline" size="sm" className="w-full text-xs">
+                          Manage Credits
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -310,7 +349,49 @@ export function AtAGlanceSidebar({
           </Card>
         )}
 
-        {/* Rep Reputation Summary */}
+        {/* Vendor Reputation Summary */}
+        {isVendor && (
+          <Card className="bg-card border-border">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Star className="h-4 w-4 text-primary" />
+                Your Reputation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <p className="text-sm text-muted-foreground mb-3">
+                Build your trust score by earning reviews from Field Reps.
+              </p>
+              <Link to="/vendor/reviews" className="block">
+                <Button variant="outline" size="sm" className="w-full text-xs">
+                  View Reviews & Trust Score
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Vendor Availability Summary */}
+        {isVendor && (
+          <Card className="bg-card border-border">
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                Availability
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <p className="text-sm text-muted-foreground mb-3">
+                Set office hours and pay schedules for your Field Reps.
+              </p>
+              <Link to="/vendor/availability" className="block">
+                <Button variant="outline" size="sm" className="w-full text-xs">
+                  Manage Availability
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
         {isRep && (
           <Card className="bg-card border-border">
             <CardHeader className="py-3 px-4">
