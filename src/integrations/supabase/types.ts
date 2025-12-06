@@ -2368,6 +2368,85 @@ export type Database = {
           },
         ]
       }
+      working_terms_change_requests: {
+        Row: {
+          created_at: string
+          decline_reason: string | null
+          effective_from: string
+          id: string
+          new_rate: number | null
+          new_turnaround_days: number | null
+          old_rate: number | null
+          old_turnaround_days: number | null
+          reason: string
+          requested_by_role: string
+          requested_by_user_id: string
+          responded_at: string | null
+          responded_by_user_id: string | null
+          status: string
+          updated_at: string
+          working_terms_row_id: string
+        }
+        Insert: {
+          created_at?: string
+          decline_reason?: string | null
+          effective_from?: string
+          id?: string
+          new_rate?: number | null
+          new_turnaround_days?: number | null
+          old_rate?: number | null
+          old_turnaround_days?: number | null
+          reason: string
+          requested_by_role: string
+          requested_by_user_id: string
+          responded_at?: string | null
+          responded_by_user_id?: string | null
+          status?: string
+          updated_at?: string
+          working_terms_row_id: string
+        }
+        Update: {
+          created_at?: string
+          decline_reason?: string | null
+          effective_from?: string
+          id?: string
+          new_rate?: number | null
+          new_turnaround_days?: number | null
+          old_rate?: number | null
+          old_turnaround_days?: number | null
+          reason?: string
+          requested_by_role?: string
+          requested_by_user_id?: string
+          responded_at?: string | null
+          responded_by_user_id?: string | null
+          status?: string
+          updated_at?: string
+          working_terms_row_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "working_terms_change_requests_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_terms_change_requests_responded_by_user_id_fkey"
+            columns: ["responded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "working_terms_change_requests_working_terms_row_id_fkey"
+            columns: ["working_terms_row_id"]
+            isOneToOne: false
+            referencedRelation: "working_terms_rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       working_terms_requests: {
         Row: {
           created_at: string
@@ -2426,13 +2505,18 @@ export type Database = {
         Row: {
           county_name: string | null
           created_at: string
+          effective_from: string
           id: string
+          inactivated_at: string | null
+          inactivated_by: string | null
+          inactivated_reason: string | null
           included: boolean
           inspection_type: string
           rate: number | null
           rep_id: string
           source: string
           state_code: string
+          status: string
           turnaround_days: number | null
           updated_at: string
           vendor_id: string
@@ -2441,13 +2525,18 @@ export type Database = {
         Insert: {
           county_name?: string | null
           created_at?: string
+          effective_from?: string
           id?: string
+          inactivated_at?: string | null
+          inactivated_by?: string | null
+          inactivated_reason?: string | null
           included?: boolean
           inspection_type: string
           rate?: number | null
           rep_id: string
           source?: string
           state_code: string
+          status?: string
           turnaround_days?: number | null
           updated_at?: string
           vendor_id: string
@@ -2456,19 +2545,31 @@ export type Database = {
         Update: {
           county_name?: string | null
           created_at?: string
+          effective_from?: string
           id?: string
+          inactivated_at?: string | null
+          inactivated_by?: string | null
+          inactivated_reason?: string | null
           included?: boolean
           inspection_type?: string
           rate?: number | null
           rep_id?: string
           source?: string
           state_code?: string
+          status?: string
           turnaround_days?: number | null
           updated_at?: string
           vendor_id?: string
           working_terms_request_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "working_terms_rows_inactivated_by_fkey"
+            columns: ["inactivated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "working_terms_rows_rep_id_fkey"
             columns: ["rep_id"]

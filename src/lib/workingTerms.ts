@@ -25,6 +25,30 @@ export interface WorkingTermsRow {
   turnaround_days: number | null;
   source: 'from_profile' | 'added_by_vendor' | 'added_by_rep';
   included: boolean;
+  effective_from: string;
+  status: 'active' | 'inactive' | 'pending_change_vendor' | 'pending_change_rep';
+  inactivated_at: string | null;
+  inactivated_reason: string | null;
+  inactivated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkingTermsChangeRequest {
+  id: string;
+  working_terms_row_id: string;
+  requested_by_role: 'vendor' | 'rep';
+  requested_by_user_id: string;
+  old_rate: number | null;
+  new_rate: number | null;
+  old_turnaround_days: number | null;
+  new_turnaround_days: number | null;
+  effective_from: string;
+  reason: string;
+  status: 'pending' | 'accepted' | 'declined' | 'withdrawn';
+  decline_reason: string | null;
+  responded_by_user_id: string | null;
+  responded_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -478,4 +502,290 @@ export async function fetchPendingWorkingTermsRequests(
   }
 
   return (data || []) as WorkingTermsRequest[];
+}
+
+/**
+ * Inactivate a working terms row
+ */
+export async function inactivateWorkingTermsRow(
+  rowId: string,
+  reason: string,
+  inactivatedByUserId: string,
+  role: 'vendor' | 'rep'
+): Promise<{ error: string | null }> {
+  // Get the row to find the other party
+  const { data: row, error: fetchError } = await supabase
+    .from("working_terms_rows")
+    .select("*, working_terms_requests!inner(vendor_id, rep_id)")
+    .eq("id", rowId)
+    .single();
+
+  if (fetchError || !row) {
+    return { error: "Row not found" };
+  }
+
+  // Update the row
+  const { error: updateError } = await supabase
+    .from("working_terms_rows")
+    .update({
+      status: "inactive",
+      inactivated_at: new Date().toISOString(),
+      inactivated_reason: reason,
+      inactivated_by: inactivatedByUserId,
+    })
+    .eq("id", rowId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  // Get names for notification
+  const otherUserId = role === 'rep' 
+    ? (row.working_terms_requests as any).vendor_id 
+    : (row.working_terms_requests as any).rep_id;
+
+  const areaDesc = `${row.state_code}${row.county_name ? ` – ${row.county_name}` : ""} (${INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type})`;
+
+  // Notify the other party
+  const notificationTitle = role === 'rep' 
+    ? "Coverage area inactivated" 
+    : "Working terms area inactivated";
+  
+  const notificationBody = role === 'rep'
+    ? `A field rep removed coverage for ${areaDesc}. Reason: ${reason}. Please reassign any open work.`
+    : `A vendor inactivated ${areaDesc}. Reason: ${reason}`;
+
+  await supabase.from("notifications").insert({
+    user_id: otherUserId,
+    type: "working_terms_area_inactivated",
+    title: notificationTitle,
+    body: notificationBody,
+    ref_id: rowId,
+  });
+
+  return { error: null };
+}
+
+/**
+ * Propose a change to working terms (rate/turnaround)
+ */
+export async function proposeWorkingTermsChange(
+  rowId: string,
+  requestedByUserId: string,
+  requestedByRole: 'vendor' | 'rep',
+  data: {
+    newRate: number | null;
+    newTurnaround: number | null;
+    effectiveFrom: string;
+    reason: string;
+  }
+): Promise<{ id: string | null; error: string | null }> {
+  // Get current row values
+  const { data: row, error: fetchError } = await supabase
+    .from("working_terms_rows")
+    .select("*, working_terms_requests!inner(vendor_id, rep_id)")
+    .eq("id", rowId)
+    .single();
+
+  if (fetchError || !row) {
+    return { id: null, error: "Row not found" };
+  }
+
+  // Create change request
+  const { data: changeRequest, error: insertError } = await supabase
+    .from("working_terms_change_requests")
+    .insert({
+      working_terms_row_id: rowId,
+      requested_by_role: requestedByRole,
+      requested_by_user_id: requestedByUserId,
+      old_rate: row.rate,
+      new_rate: data.newRate,
+      old_turnaround_days: row.turnaround_days,
+      new_turnaround_days: data.newTurnaround,
+      effective_from: data.effectiveFrom,
+      reason: data.reason,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    return { id: null, error: insertError.message };
+  }
+
+  // Update row status
+  const newRowStatus = requestedByRole === 'rep' ? 'pending_change_rep' : 'pending_change_vendor';
+  await supabase
+    .from("working_terms_rows")
+    .update({ status: newRowStatus })
+    .eq("id", rowId);
+
+  // Notify the other party
+  const otherUserId = requestedByRole === 'rep' 
+    ? (row.working_terms_requests as any).vendor_id 
+    : (row.working_terms_requests as any).rep_id;
+
+  const areaDesc = `${row.state_code}${row.county_name ? ` – ${row.county_name}` : ""} (${INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type})`;
+
+  const rateChange = data.newRate !== row.rate 
+    ? `Base rate from $${row.rate || 0} → $${data.newRate || 0}` 
+    : null;
+
+  await supabase.from("notifications").insert({
+    user_id: otherUserId,
+    type: "working_terms_change_proposed",
+    title: "Working terms change proposed",
+    body: `Proposed updated terms for ${areaDesc}: ${rateChange || "Turnaround change"}, effective ${data.effectiveFrom}. Reason: ${data.reason}`,
+    ref_id: changeRequest.id,
+  });
+
+  return { id: changeRequest.id, error: null };
+}
+
+/**
+ * Accept a working terms change request
+ */
+export async function acceptWorkingTermsChange(
+  changeRequestId: string,
+  respondedByUserId: string
+): Promise<{ error: string | null }> {
+  // Get the change request
+  const { data: changeRequest, error: fetchError } = await supabase
+    .from("working_terms_change_requests")
+    .select("*, working_terms_rows!inner(*, working_terms_requests!inner(vendor_id, rep_id))")
+    .eq("id", changeRequestId)
+    .single();
+
+  if (fetchError || !changeRequest) {
+    return { error: "Change request not found" };
+  }
+
+  // Update the working terms row
+  const { error: updateRowError } = await supabase
+    .from("working_terms_rows")
+    .update({
+      rate: changeRequest.new_rate,
+      turnaround_days: changeRequest.new_turnaround_days,
+      effective_from: changeRequest.effective_from,
+      status: "active",
+    })
+    .eq("id", changeRequest.working_terms_row_id);
+
+  if (updateRowError) {
+    return { error: updateRowError.message };
+  }
+
+  // Update the change request
+  const { error: updateError } = await supabase
+    .from("working_terms_change_requests")
+    .update({
+      status: "accepted",
+      responded_by_user_id: respondedByUserId,
+      responded_at: new Date().toISOString(),
+    })
+    .eq("id", changeRequestId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  // Notify the requester
+  const row = changeRequest.working_terms_rows as any;
+  const areaDesc = `${row.state_code}${row.county_name ? ` – ${row.county_name}` : ""}`;
+
+  await supabase.from("notifications").insert({
+    user_id: changeRequest.requested_by_user_id,
+    type: "working_terms_change_accepted",
+    title: "Terms change accepted",
+    body: `Your updated terms for ${areaDesc} were accepted, effective ${changeRequest.effective_from}.`,
+    ref_id: changeRequestId,
+  });
+
+  return { error: null };
+}
+
+/**
+ * Decline a working terms change request
+ */
+export async function declineWorkingTermsChange(
+  changeRequestId: string,
+  respondedByUserId: string,
+  declineReason: string | null
+): Promise<{ error: string | null }> {
+  // Get the change request
+  const { data: changeRequest, error: fetchError } = await supabase
+    .from("working_terms_change_requests")
+    .select("*, working_terms_rows!inner(*, working_terms_requests!inner(vendor_id, rep_id))")
+    .eq("id", changeRequestId)
+    .single();
+
+  if (fetchError || !changeRequest) {
+    return { error: "Change request not found" };
+  }
+
+  // Reset the working terms row status to active
+  const { error: updateRowError } = await supabase
+    .from("working_terms_rows")
+    .update({ status: "active" })
+    .eq("id", changeRequest.working_terms_row_id);
+
+  if (updateRowError) {
+    return { error: updateRowError.message };
+  }
+
+  // Update the change request
+  const { error: updateError } = await supabase
+    .from("working_terms_change_requests")
+    .update({
+      status: "declined",
+      decline_reason: declineReason,
+      responded_by_user_id: respondedByUserId,
+      responded_at: new Date().toISOString(),
+    })
+    .eq("id", changeRequestId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  // Notify the requester
+  const row = changeRequest.working_terms_rows as any;
+  const areaDesc = `${row.state_code}${row.county_name ? ` – ${row.county_name}` : ""}`;
+
+  const body = declineReason 
+    ? `Your requested change for ${areaDesc} was declined. Current terms remain: $${row.rate || 0}, ${row.turnaround_days || "N/A"} days. Note: ${declineReason}`
+    : `Your requested change for ${areaDesc} was declined. Current terms remain unchanged.`;
+
+  await supabase.from("notifications").insert({
+    user_id: changeRequest.requested_by_user_id,
+    type: "working_terms_change_declined",
+    title: "Terms change declined",
+    body,
+    ref_id: changeRequestId,
+  });
+
+  return { error: null };
+}
+
+/**
+ * Fetch pending change requests for a working terms row
+ */
+export async function fetchPendingChangeRequest(
+  rowId: string
+): Promise<WorkingTermsChangeRequest | null> {
+  const { data, error } = await supabase
+    .from("working_terms_change_requests")
+    .select("*")
+    .eq("working_terms_row_id", rowId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching pending change request:", error);
+    return null;
+  }
+
+  return data as WorkingTermsChangeRequest | null;
 }
