@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw } from "lucide-react";
+import { Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { format, subDays, subHours } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -471,6 +471,6 @@ export default function AdminAuditLog() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AuthenticatedLayout>
   );
 }

@@ -401,6 +401,6 @@ export default function NotificationSettings() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 }

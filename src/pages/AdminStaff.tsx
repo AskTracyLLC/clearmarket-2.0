@@ -615,6 +615,6 @@ export default function AdminStaff() {
         onOpenChange={(open) => !open && setProfileDialog({ open: false, userId: null })}
         targetUserId={profileDialog.userId || ""}
       />
-    </div>
+    </AuthenticatedLayout>
   );
 }
