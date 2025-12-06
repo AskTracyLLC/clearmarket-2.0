@@ -37,6 +37,7 @@ import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
 import { useBlockStatus } from "@/hooks/useBlockStatus";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface Message {
   id: string;
@@ -397,6 +398,32 @@ export default function MessageThread() {
     }
   }
 
+  async function loadVendorConnection(otherId: string, userIsVendor: boolean, userIsRep: boolean) {
+    if (!user) return;
+    
+    setLoadingVendorConnection(true);
+    try {
+      // Determine vendor and rep IDs based on current user's role
+      const vendorId = userIsVendor ? user.id : otherId;
+      const repId = userIsRep ? user.id : otherId;
+
+      const { data, error } = await supabase
+        .from("vendor_connections")
+        .select("*")
+        .eq("vendor_id", vendorId)
+        .eq("field_rep_id", repId)
+        .maybeSingle();
+
+      if (!error) {
+        setVendorConnection(data);
+      }
+    } catch (error) {
+      console.error("Error loading vendor connection:", error);
+    } finally {
+      setLoadingVendorConnection(false);
+    }
+  }
+
   async function handleCreateAgreement(data: {
     coverageSummary: string;
     pricingSummary: string;
@@ -500,48 +527,15 @@ export default function MessageThread() {
     }
   }
 
-  async function handleArchiveConversation() {
-    if (!user || !conversationData) return;
+  async function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !conversationId || !messageText.trim() || !otherParticipantId) return;
 
-    const isParticipantOne = conversationData.participant_one === user.id;
-    
-    setArchiving(true);
-    try {
-      const { error } = await supabase
-        .from("conversations")
-        .update(
-          isParticipantOne ? { hidden_for_one: true } : { hidden_for_two: true }
-        )
-        .eq("id", conversationId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Conversation archived",
-        description: "The conversation has been hidden from your inbox.",
-      });
-
-      navigate("/messages");
-    } catch (error) {
-      console.error("Error archiving conversation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to archive conversation.",
-        variant: "destructive",
-      });
-    } finally {
-      setArchiving(false);
-    }
-  }
-
-  async function handleSendMessage() {
-    if (!messageText.trim() || !user || !conversationId || !otherParticipantId) return;
-
-    // Check if current user has blocked the recipient
+    // Block check
     if (isBlocked) {
       toast({
         title: "Cannot send message",
-        description: "You've blocked this user and can't send further messages.",
+        description: "You have blocked this user. Unblock them to send messages.",
         variant: "destructive",
       });
       return;
@@ -549,104 +543,44 @@ export default function MessageThread() {
 
     setSending(true);
     try {
-      // First, unarchive conversation for both participants
-      await supabase
-        .from("conversations")
-        .update({
-          hidden_for_one: false,
-          hidden_for_two: false,
-        })
-        .eq("id", conversationId);
-      // Insert message
-      const { data: newMessage, error: insertError } = await supabase
+      const { error } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
           recipient_id: otherParticipantId,
           body: messageText.trim(),
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error("Error sending message:", insertError);
-        toast({
-          title: "Error",
-          description: "Failed to send message",
-          variant: "destructive",
         });
-        return;
-      }
 
-      // Create notification for recipient
-      if (newMessage) {
-        await supabase.from("notifications").insert({
-          user_id: otherParticipantId,
-          type: "message",
-          ref_id: newMessage.id,
-          title: "New message",
-          body: `You have a new message from ${otherParticipantName}`,
-        });
-      }
+      if (error) throw error;
 
-      // Check if recipient has active auto-reply
-      const today = new Date().toISOString().split("T")[0];
-      const { data: activeRanges } = await supabase
-        .from("rep_availability")
-        .select("*")
-        .eq("rep_user_id", otherParticipantId)
-        .eq("auto_reply_enabled", true)
-        .lte("start_date", today)
-        .gte("end_date", today)
-        .limit(1);
-
-      if (activeRanges && activeRanges.length > 0) {
-        const activeRange = activeRanges[0];
-        
-        // Check if we already sent an auto-reply recently (last 24 hours)
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const { data: recentAutoReplies } = await supabase
-          .from("messages")
-          .select("id")
-          .eq("conversation_id", conversationId)
-          .eq("sender_id", otherParticipantId)
-          .gte("created_at", twentyFourHoursAgo)
-          .ilike("body", "[AUTO-REPLY]%")
-          .limit(1);
-
-        if (!recentAutoReplies || recentAutoReplies.length === 0) {
-          // Send auto-reply
-          const autoReplyText = `[AUTO-REPLY] ${activeRange.auto_reply_message || 
-            `I'm currently unavailable from ${format(parseISO(activeRange.start_date), "MM/dd/yyyy")} to ${format(parseISO(activeRange.end_date), "MM/dd/yyyy")}. I'll follow up when I'm back.`}`;
-          
-          await supabase.from("messages").insert({
-            conversation_id: conversationId,
-            sender_id: otherParticipantId,
-            recipient_id: user.id,
-            body: autoReplyText,
-          });
-        }
-      }
-
-      // Update conversation metadata
-      const preview = messageText.trim().substring(0, 100);
+      // Update conversation's last_message_at and preview
       await supabase
         .from("conversations")
         .update({
           last_message_at: new Date().toISOString(),
-          last_message_preview: preview,
+          last_message_preview: messageText.trim().substring(0, 100),
         })
         .eq("id", conversationId);
 
-      // Clear input and reload messages
+      // Create notification for recipient
+      await supabase
+        .from("notifications")
+        .insert({
+          user_id: otherParticipantId,
+          type: "new_message",
+          title: "New message",
+          body: messageText.trim().substring(0, 100),
+          ref_id: conversationId,
+        });
+
       setMessageText("");
       await loadMessages();
     } catch (error) {
-      console.error("Unexpected error sending message:", error);
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "Failed to send message",
         variant: "destructive",
       });
     } finally {
@@ -654,1153 +588,295 @@ export default function MessageThread() {
     }
   }
 
-  function handleTemplateInsert(templateBody: string) {
-    setMessageText(templateBody);
-  }
-
-  async function handleConnect() {
-    if (!repInterest || !user) return;
-
-    setConnectingStatus(true);
+  async function handleBlockUser() {
+    if (!otherParticipantId) return;
+    
+    setBlocking(true);
     try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ status: "pending_rep_confirm" })
-        .eq("id", repInterest.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setRepInterest({ ...repInterest, status: "pending_rep_confirm" });
-      toast({
-        title: "Connection Request Sent",
-        description: "The rep will need to confirm before they appear in your My Reps list.",
-      });
-    } catch (error: any) {
-      console.error("Error requesting connection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send connection request",
-        variant: "destructive",
-      });
-    } finally {
-      setConnectingStatus(false);
-    }
-  }
-
-  async function handleAcceptConnection() {
-    if (!repInterest || !user) return;
-
-    setConnectingStatus(true);
-    try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ 
-          status: "connected",
-          connected_at: new Date().toISOString()
-        })
-        .eq("id", repInterest.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setRepInterest({ ...repInterest, status: "connected" });
-      toast({
-        title: "Connection Accepted",
-        description: "This vendor is now in your My Vendors list.",
-      });
-    } catch (error: any) {
-      console.error("Error accepting connection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to accept connection",
-        variant: "destructive",
-      });
-    } finally {
-      setConnectingStatus(false);
-    }
-  }
-
-  async function handleDeclineConnection() {
-    if (!repInterest || !user) return;
-
-    setConnectingStatus(true);
-    try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ 
-          status: "declined",
-          connected_at: null
-        })
-        .eq("id", repInterest.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setRepInterest({ ...repInterest, status: "declined" });
-      toast({
-        title: "Connection Declined",
-        description: "Connection request has been declined.",
-      });
-    } catch (error: any) {
-      console.error("Error declining connection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to decline connection",
-        variant: "destructive",
-      });
-    } finally {
-      setConnectingStatus(false);
-    }
-  }
-
-  async function handleDisconnect() {
-    if (!repInterest || !user) return;
-
-    setDisconnecting(true);
-    try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .update({ 
-          status: "disconnected",
-          connected_at: null
-        })
-        .eq("id", repInterest.id);
-
-      if (error) throw error;
-
-      // Update local state
-      setRepInterest({ ...repInterest, status: "disconnected" });
-      setShowDisconnectDialog(false);
-
-      // Determine rep and vendor user IDs based on user roles
-      // isRep means current user is the rep, otherParticipantId is the vendor
-      // isVendor means current user is the vendor, otherParticipantId is the rep
-      const repUserId = isRep ? user.id : otherParticipantId;
-      const vendorUserId = isVendor ? user.id : otherParticipantId;
-
-      // Trigger Exit Review flow
-      setPendingDisconnectData({
-        repInterestId: repInterest.id,
-        repUserId,
-        vendorUserId,
-        postId: conversationData?.seeking_post?.id || null,
-      });
-      setShowExitReviewDialog(true);
-    } catch (error: any) {
-      console.error("Error disconnecting:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update connection status",
-        variant: "destructive",
-      });
-    } finally {
-      setDisconnecting(false);
-    }
-  }
-
-  function handleExitReviewComplete() {
-    // Exit review completed or skipped
-    setPendingDisconnectData(null);
-  }
-
-  async function loadVendorConnection(otherId: string, currentIsVendor?: boolean, currentIsRep?: boolean) {
-    if (!user) return;
-
-    try {
-      const effectiveIsVendor = currentIsVendor ?? isVendor;
-      const effectiveIsRep = currentIsRep ?? isRep;
-
-      // Try loading vendor connection based on roles, independent of conversation
-      let connection = null;
+      const { error } = await blockUser(otherParticipantId, blockReason.trim() || undefined);
+      if (error) throw new Error(error);
       
-      if (effectiveIsVendor) {
-        // Current user is vendor, other is field rep
-        const { data } = await supabase
-          .from("vendor_connections")
-          .select("*")
-          .eq("vendor_id", user.id)
-          .eq("field_rep_id", otherId)
-          .maybeSingle();
-        
-        connection = data;
-      } else if (effectiveIsRep) {
-        // Current user is field rep, other is vendor
-        const { data } = await supabase
-          .from("vendor_connections")
-          .select("*")
-          .eq("vendor_id", otherId)
-          .eq("field_rep_id", user.id)
-          .maybeSingle();
-        
-        connection = data;
-      }
-
-      setVendorConnection(connection);
-    } catch (error) {
-      console.error("Error loading vendor connection:", error);
-    }
-  }
-
-  async function handleVendorConnectRequest() {
-    if (!user || !otherParticipantId || !conversationId) return;
-
-    // Verify current user is vendor using already-loaded flags
-    if (!isVendor) {
+      setIsBlocked(true);
+      setShowBlockDialog(false);
+      setBlockReason("");
       toast({
-        title: "Error",
-        description: "Only vendors can send connection requests",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoadingVendorConnection(true);
-    try {
-      const vendorId = user.id;
-      const fieldRepId = otherParticipantId;
-
-      // Check if connection already exists
-      const { data: existingConnection } = await supabase
-        .from("vendor_connections")
-        .select("*")
-        .eq("vendor_id", vendorId)
-        .eq("field_rep_id", fieldRepId)
-        .maybeSingle();
-
-      if (existingConnection) {
-        // Connection already exists, update local state
-        setVendorConnection(existingConnection);
-        toast({
-          title: "Connection Already Exists",
-          description: `This connection is currently ${existingConnection.status}.`,
-        });
-        setLoadingVendorConnection(false);
-        return;
-      }
-
-      // Insert vendor connection request
-      const { data: newConnection, error } = await supabase
-        .from("vendor_connections")
-        .insert({
-          vendor_id: vendorId,
-          field_rep_id: fieldRepId,
-          status: "pending",
-          requested_by: "vendor",
-          conversation_id: conversationId
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setVendorConnection(newConnection);
-
-      // Send system message
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: user.id,
-        recipient_id: otherParticipantId,
-        body: `${otherParticipantName} has requested to connect with you. You can accept or decline this request.`,
-      });
-
-      // Create notification for rep
-      const { data: vendorProfile } = await supabase
-        .from("vendor_profile")
-        .select("anonymous_id")
-        .eq("user_id", vendorId)
-        .single();
-
-      await supabase.from("notifications").insert({
-        user_id: fieldRepId,
-        type: "connection_request",
-        ref_id: newConnection.id,
-        title: "New connection request",
-        body: `${vendorProfile?.anonymous_id || "A vendor"} wants to add you to their network.`,
-      });
-
-      // Reload messages
-      await loadMessages();
-
-      toast({
-        title: "Connection Request Sent",
-        description: "The rep will be notified of your request.",
+        title: "User blocked",
+        description: "You will no longer see messages from this user.",
       });
     } catch (error: any) {
-      console.error("Error creating vendor connection:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to block user",
+        variant: "destructive",
+      });
+    } finally {
+      setBlocking(false);
+    }
+  }
+
+  async function handleUnblockUser() {
+    if (!otherParticipantId) return;
+    
+    setBlocking(true);
+    try {
+      const { error } = await unblockUser(otherParticipantId);
+      if (error) throw new Error(error);
       
-      // Handle duplicate key error gracefully
-      if (error.code === '23505') {
-        // Reload the connection state for this vendor/rep pair
-        await loadVendorConnection(otherParticipantId, isVendor, isRep);
-        toast({
-          title: "Connection Already Exists",
-          description: "A connection request was already sent to this rep.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to send connection request",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      setLoadingVendorConnection(false);
-    }
-  }
-
-  async function handleAcceptVendorConnection() {
-    if (!vendorConnection || !user || !conversationId) return;
-
-    setLoadingVendorConnection(true);
-    try {
-      const { error } = await supabase
-        .from("vendor_connections")
-        .update({
-          status: "connected",
-          responded_at: new Date().toISOString()
-        })
-        .eq("id", vendorConnection.id);
-
-      if (error) throw error;
-
-      setVendorConnection({ ...vendorConnection, status: "connected" });
-
-      // Send system message
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: user.id,
-        recipient_id: otherParticipantId,
-        body: `You are now connected with ${otherParticipantName}.`,
-      });
-
-      // Reload messages
-      await loadMessages();
-
+      setIsBlocked(false);
       toast({
-        title: "Connection Accepted",
-        description: "You are now connected with this vendor.",
+        title: "User unblocked",
+        description: "You can now send and receive messages from this user.",
       });
-    } catch (error) {
-      console.error("Error accepting vendor connection:", error);
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to accept connection",
+        description: error.message || "Failed to unblock user",
         variant: "destructive",
       });
     } finally {
-      setLoadingVendorConnection(false);
-    }
-  }
-
-  async function handleDeclineVendorConnection() {
-    if (!vendorConnection || !user || !conversationId) return;
-
-    setLoadingVendorConnection(true);
-    try {
-      const { error } = await supabase
-        .from("vendor_connections")
-        .update({
-          status: "declined",
-          responded_at: new Date().toISOString()
-        })
-        .eq("id", vendorConnection.id);
-
-      if (error) throw error;
-
-      setVendorConnection({ ...vendorConnection, status: "declined" });
-
-      // Send system message
-      await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: user.id,
-        recipient_id: otherParticipantId,
-        body: `You declined the connection request from ${otherParticipantName}.`,
-      });
-
-      // Reload messages
-      await loadMessages();
-
-      toast({
-        title: "Connection Declined",
-        description: "Connection request has been declined.",
-      });
-    } catch (error) {
-      console.error("Error declining vendor connection:", error);
-      toast({
-        title: "Error",
-        description: "Failed to decline connection",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingVendorConnection(false);
+      setBlocking(false);
     }
   }
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-muted-foreground">Loading conversation...</p>
+      <AuthenticatedLayout>
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-      </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/messages")}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        {/* Back button and header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/messages")}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Messages
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleArchiveConversation}
-              disabled={archiving}
-            >
-              {archiving ? "Archiving..." : "Archive Conversation"}
-            </Button>
-            <ReportFlagButton
-              onClick={() => setShowReportDialog(true)}
-              alreadyReported={alreadyReported}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => setShowBlockDialog(true)}
-                  className={isBlocked ? "text-foreground" : "text-destructive"}
-                >
-                  {isBlocked ? "Unblock this user" : "Block this user"}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setProfileDialogOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                <span className="font-medium">{otherParticipantName}</span>
+              </Button>
+            </div>
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isBlocked ? (
+                <DropdownMenuItem onClick={handleUnblockUser} disabled={blocking}>
+                  Unblock User
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div>
-            {(() => {
-              const isSeekingCoverage = conversationData?.origin_type === "seeking_coverage";
-              const headerTitle = isSeekingCoverage
-                ? (conversationData.post_title_snapshot || conversationData.seeking_post?.title || "Seeking Coverage Conversation")
-                : `Conversation with ${otherParticipantName}`;
-              const headerSubtitle = isSeekingCoverage
-                ? `Conversation with ${otherParticipantName}`
-                : undefined;
-
-              return (
-                <>
-                  <button
-                    onClick={() => setProfileDialogOpen(true)}
-                    className="text-2xl font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
-                  >
-                    {headerTitle}
-                    <Eye className="h-5 w-5" />
-                  </button>
-                  {headerSubtitle && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {headerSubtitle}
-                    </p>
-                  )}
-                  {/* Connection Status Chip */}
-                  {vendorConnection && (
-                    <div className="mt-2">
-                      {vendorConnection.status === 'pending' && (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-xs">
-                          Status: Pending connection
-                        </Badge>
-                      )}
-                      {vendorConnection.status === 'connected' && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 text-xs">
-                          Status: Connected {agreement ? '· Agreement on file' : '· Agreement pending'}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
+              ) : (
+                <DropdownMenuItem onClick={() => setShowBlockDialog(true)}>
+                  Block User
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem 
+                onClick={() => setShowReportDialog(true)}
+                disabled={alreadyReported}
+              >
+                {alreadyReported ? "Already Reported" : "Report User"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Pinned Seeking Coverage Header with Other Party Snapshot */}
+        {/* Block warning */}
+        {isBlocked && (
+          <Alert className="mb-4 border-orange-500/50 bg-orange-500/10">
+            <AlertDescription>
+              You have blocked this user. You can still view the conversation history, but cannot send new messages until you unblock them.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Seeking Coverage Context Header */}
         {conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post && (
-          <Card className="bg-card border-primary/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between text-base">
+          <Card className="mb-4 bg-secondary/20 border-secondary/30">
+            <CardHeader className="py-3">
+              <CardTitle className="text-sm flex items-center justify-between">
                 <span>Connected via Seeking Coverage</span>
-                <Badge variant="outline" className="text-xs">Post Context</Badge>
+                {isVendor && (
+                  <Button variant="ghost" size="sm" onClick={() => navigate("/vendor/seeking-coverage")}>
+                    View Seeking Coverage
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pb-4">
-              {/* Connection Status & Connect Button */}
-              {repInterest && (
-                <div className="mb-4 pb-4 border-b border-border">
-                  {repInterest.status === "connected" ? (
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-sm text-green-500">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>✓ Status: Connected on this Seeking Coverage post</span>
-                      </div>
-                      <Button
-                        onClick={() => setShowDisconnectDialog(true)}
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        Disconnect
-                      </Button>
-                    </div>
-                  ) : repInterest.status === "disconnected" ? (
-                    <div className="text-sm text-muted-foreground">
-                      Status: Disconnected on this Seeking Coverage post
-                    </div>
-                  ) : repInterest.status === "pending_rep_confirm" ? (
-                    <div className="space-y-2">
-                      <div className="text-sm text-amber-500">
-                        Status: Pending rep confirmation
-                      </div>
-                      {isRep && (
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={handleAcceptConnection}
-                            disabled={connectingStatus}
-                            size="sm"
-                            variant="default"
-                          >
-                            {connectingStatus ? "Accepting..." : "Accept Connection"}
-                          </Button>
-                          <Button
-                            onClick={handleDeclineConnection}
-                            disabled={connectingStatus}
-                            size="sm"
-                            variant="outline"
-                            className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          >
-                            {connectingStatus ? "Declining..." : "Decline"}
-                          </Button>
-                        </div>
-                      )}
-                      {isVendor && (
-                        <p className="text-xs text-muted-foreground">Waiting for rep to confirm...</p>
-                      )}
-                    </div>
-                  ) : repInterest.status === "declined" ? (
-                    <div className="text-sm text-muted-foreground">
-                      Status: Declined
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Status: Not connected yet</span>
-                      {isVendor && !blockStatus.anyBlock && (
-                        <Button
-                          onClick={handleConnect}
-                          disabled={connectingStatus}
-                          size="sm"
-                        >
-                          {connectingStatus ? "Requesting..." : "Request Connection"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Create Agreement Button for Vendors (only when connected) */}
-              {isVendor && repInterest?.status === "connected" && !agreement && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          onClick={() => setShowAgreementDialog(true)}
-                          disabled={creatingAgreement}
-                          className="w-full"
-                        >
-                          Add to My Field Reps
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Create an agreement with this Field Rep, including coverage and pricing.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              )}
-
-              {agreement && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span>Active agreement established</span>
-                  </div>
-                  {agreement.coverage_summary && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Coverage: {agreement.coverage_summary}
-                    </p>
-                  )}
-                  {agreement.pricing_summary && (
-                    <p className="text-xs text-muted-foreground">
-                      Pricing: {agreement.pricing_summary}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Left: Post Context */}
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Post Title</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold">{conversationData.seeking_post.title}</p>
-                      {conversationData.seeking_post.status !== "active" && (
-                        <Badge variant="outline" className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">
-                          Post closed
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Location</p>
-                    <p>
-                      {conversationData.seeking_post.us_counties?.county_name && 
-                        `${conversationData.seeking_post.us_counties.county_name}, `}
-                      {conversationData.seeking_post.us_counties?.state_code || 
-                       conversationData.seeking_post.state_code}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Offered Pricing</p>
-                    <p className="font-semibold text-primary">
-                      {conversationData.seeking_post.pay_type === "fixed"
-                        ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
-                        : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`}
-                    </p>
-                    {conversationData.seeking_post.pay_notes && (
-                      <p className="text-xs text-muted-foreground italic mt-1">
-                        {conversationData.seeking_post.pay_notes}
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-                    This conversation was started from this Seeking Coverage request.
-                  </p>
-                </div>
-
-                {/* Right: Other Party Snapshot */}
-                <div className="space-y-3 text-sm border-l border-border pl-6">
-                  {otherPartyProfile ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <button
-                          onClick={() => setProfileDialogOpen(true)}
-                          className="text-base font-semibold text-foreground hover:text-primary transition-colors inline-flex items-center gap-2"
-                        >
-                          {otherPartyProfile.anonymous_id}
-                          <Eye className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      {otherPartyProfile.type === "rep" ? (
-                        <>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Field Rep</p>
-                            <p className="font-medium">
-                              {otherPartyProfile.full_name?.split(' ')[0]} {otherPartyProfile.full_name?.split(' ')[1]?.[0]}.
-                            </p>
-                            <p className="text-muted-foreground">
-                              {otherPartyProfile.city}, {otherPartyProfile.state}
-                            </p>
-                          </div>
-                          
-                          {otherPartyProfile.systems_used?.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Systems</p>
-                              <div className="flex flex-wrap gap-1">
-                                {otherPartyProfile.systems_used.slice(0, 3).map((system: string) => (
-                                  <Badge key={system} variant="secondary" className="text-xs">
-                                    {system}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {otherPartyProfile.inspection_types?.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Types</p>
-                              <div className="flex flex-wrap gap-1">
-                                {otherPartyProfile.inspection_types.slice(0, 3).map((type: string) => (
-                                  <Badge key={type} variant="outline" className="text-xs">
-                                    {type}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <p className="text-xs text-muted-foreground">
-                            Accepting new vendors: {otherPartyProfile.is_accepting_new_vendors ? "Yes" : "No"}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <p className="text-xs text-muted-foreground mb-1">Vendor</p>
-                            <p className="font-medium">{otherPartyProfile.company_name}</p>
-                            <p className="text-muted-foreground">
-                              {otherPartyProfile.city}, {otherPartyProfile.state}
-                            </p>
-                          </div>
-
-                          {otherPartyProfile.systems_used?.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Systems</p>
-                              <div className="flex flex-wrap gap-1">
-                                {otherPartyProfile.systems_used.slice(0, 3).map((system: string) => (
-                                  <Badge key={system} variant="secondary" className="text-xs">
-                                    {system}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {otherPartyProfile.primary_inspection_types?.length > 0 && (
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Types</p>
-                              <div className="flex flex-wrap gap-1">
-                                {otherPartyProfile.primary_inspection_types.slice(0, 3).map((type: string) => (
-                                  <Badge key={type} variant="outline" className="text-xs">
-                                    {type}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          <p className="text-xs text-muted-foreground">
-                            Accepting new reps: {otherPartyProfile.is_accepting_new_reps ? "Yes" : "No"}
-                          </p>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">
-                      Public profile not completed yet
-                    </p>
-                  )}
-                </div>
+            <CardContent className="py-2 space-y-2">
+              <div className="text-sm">
+                <span className="font-medium">{conversationData.seeking_post.title}</span>
+                {conversationData.seeking_post.state_code && (
+                  <Badge variant="outline" className="ml-2">{conversationData.seeking_post.state_code}</Badge>
+                )}
               </div>
+              {(conversationData.seeking_post.pay_min || conversationData.seeking_post.pay_max) && (
+                <div className="text-sm text-muted-foreground">
+                  Pay: {conversationData.seeking_post.pay_type === "fixed" 
+                    ? `$${conversationData.seeking_post.pay_min} / order`
+                    : `$${conversationData.seeking_post.pay_min}–$${conversationData.seeking_post.pay_max} / order`
+                  }
+                </div>
+              )}
+              {conversationData.seeking_post.pay_notes && (
+                <div className="text-xs text-muted-foreground">{conversationData.seeking_post.pay_notes}</div>
+              )}
+              
+              {/* Connection Status */}
+              {vendorConnection && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border mt-2">
+                  {vendorConnection.status === "connected" && (
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Connected
+                    </Badge>
+                  )}
+                  {vendorConnection.status === "pending" && (
+                    <Badge variant="outline">
+                      Pending connection
+                    </Badge>
+                  )}
+                  {agreement && (
+                    <Badge variant="outline" className="text-xs">
+                      Agreement on file
+                    </Badge>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Vendor Connection State (works for all vendor-rep conversations) */}
-        {isVendor && otherParticipantId && !blockStatus.anyBlock && (
-          <>
-            {/* Show button only when no connection or declined */}
-            {(!vendorConnection || vendorConnection.status === 'declined') && (
-              <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
-                <div>
-                  <p className="font-semibold">Connect with this Field Rep</p>
-                  <p className="text-sm text-muted-foreground">
-                    Send a connection request to add them to your network
-                  </p>
+        {/* Messages list */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <div className="h-[400px] overflow-y-auto space-y-4">
+              {messages.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  No messages yet. Send the first message to start the conversation.
                 </div>
-                <Button 
-                  onClick={handleVendorConnectRequest}
-                  disabled={loadingVendorConnection}
-                >
-                  {loadingVendorConnection ? "Sending..." : "Send Connection Request"}
-                </Button>
-              </div>
-            )}
-
-            {/* Show additional info when pending (header chip shows status) */}
-            {vendorConnection?.status === 'pending' && (
-              <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
-                <p className="text-sm text-muted-foreground">
-                  Waiting for Field Rep to respond · Request sent {format(new Date(vendorConnection.requested_at), 'MMM d, yyyy')}
-                </p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Rep-side Pending Vendor Connection Request Banner */}
-        {isRep && 
-         vendorConnection?.status === "pending" && !blockStatus.anyBlock && (
-          <Alert className="border-amber-500/40 bg-amber-500/10">
-            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm">
-                <span className="font-semibold">{otherParticipantName}</span> has requested to connect with you.
-                {" "}You can accept or decline this request.
-              </span>
-              <div className="flex gap-2 shrink-0">
-                <Button 
-                  size="sm" 
-                  onClick={handleAcceptVendorConnection}
-                  disabled={loadingVendorConnection}
-                >
-                  {loadingVendorConnection ? "Accepting..." : "Accept"}
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={handleDeclineVendorConnection}
-                  disabled={loadingVendorConnection}
-                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  {loadingVendorConnection ? "Declining..." : "Decline"}
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Rep-side Pending Connection Request Banner (for Seeking Coverage) */}
-        {isRep && 
-         conversationData?.origin_type === "seeking_coverage" && 
-         repInterest?.status === "pending_rep_confirm" && 
-         otherPartyProfile?.type === "vendor" && !blockStatus.anyBlock && (
-          <Alert className="border-amber-500/40 bg-amber-500/10">
-            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-sm">
-                <span className="font-semibold">{otherPartyProfile.anonymous_id}</span> has requested to add you to their network
-                for <span className="font-medium">{conversationData.seeking_post?.title}</span>.
-                {" "}If you work well together, you can accept this connection so they appear in your "My Vendors" list.
-              </span>
-              <div className="flex gap-2 shrink-0">
-                <Button 
-                  size="sm" 
-                  onClick={handleAcceptConnection}
-                  disabled={connectingStatus}
-                >
-                  {connectingStatus ? "Accepting..." : "Accept"}
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={handleDeclineConnection}
-                  disabled={connectingStatus}
-                  className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  {connectingStatus ? "Declining..." : "Decline"}
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Messages Area */}
-        <Card className="p-6 min-h-[500px] max-h-[600px] overflow-y-auto flex flex-col">
-          <div className="flex-1 space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                No messages yet. Start the conversation!
-              </div>
-            ) : (
-              messages.map((message) => {
-                const isCurrentUser = message.sender_id === user?.id;
-                const senderLabel = isCurrentUser ? "You" : otherParticipantName;
-                
-                return (
+              ) : (
+                messages.map((msg) => (
                   <div
-                    key={message.id}
-                    className={`flex flex-col ${isCurrentUser ? "items-end" : "items-start"}`}
+                    key={msg.id}
+                    className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}
                   >
-                    <p className="text-[10px] text-muted-foreground mb-1 px-1">
-                      {senderLabel}
-                    </p>
                     <div
-                      className={`max-w-[70%] rounded-lg p-3 ${
-                        isCurrentUser
+                      className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                        msg.sender_id === user?.id
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
+                          : "bg-secondary"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {message.body}
+                      <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                      <p className={`text-xs mt-1 ${
+                        msg.sender_id === user?.id ? "text-primary-foreground/70" : "text-muted-foreground"
+                      }`}>
+                        {formatDistanceToNow(parseISO(msg.created_at), { addSuffix: true })}
                       </p>
-                      <span className="text-xs opacity-70 mt-1 block">
-                        {new Date(message.created_at).toLocaleString('en-US', {
-                          timeZone: 'America/Chicago',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true
-                        })} CST
-                      </span>
                     </div>
                   </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </Card>
-
-        {/* Compose Area */}
-        <Card className="p-4">
-          <div className="space-y-3">
-            {/* Template Selector - show for both vendors and reps in Seeking Coverage conversations */}
-            {conversationData?.origin_type === "seeking_coverage" && (isVendor || isRep) && (
-              <div className="flex items-center gap-2">
-                <TemplateSelector
-                  userId={user!.id}
-                  userRole={isVendor ? "vendor" : "rep"}
-                  onTemplateSelect={handleTemplateInsert}
-                  context={
-                    isVendor
-                      ? {
-                          post: {
-                            title: conversationData?.seeking_post?.title,
-                            state_code: conversationData?.seeking_post?.state_code,
-                            county_name: conversationData?.seeking_post?.us_counties?.county_name,
-                            pay_type: conversationData?.seeking_post?.pay_type,
-                            pay_min: conversationData?.seeking_post?.pay_min,
-                            pay_max: conversationData?.seeking_post?.pay_max,
-                          },
-                          profile: otherPartyProfile?.type === "rep" ? {
-                            rep_anonymous_id: otherPartyProfile?.anonymous_id,
-                            rep_full_name: otherPartyProfile?.full_name,
-                            rep_city: otherPartyProfile?.city,
-                            rep_state: otherPartyProfile?.state,
-                            rep_systems: otherPartyProfile?.systems_used,
-                            rep_inspection_types: otherPartyProfile?.inspection_types,
-                          } : undefined,
-                        }
-                      : {
-                          post: {
-                            title: conversationData?.seeking_post?.title,
-                            state_code: conversationData?.seeking_post?.state_code,
-                            county_name: conversationData?.seeking_post?.us_counties?.county_name,
-                            pay_type: conversationData?.seeking_post?.pay_type,
-                            pay_min: conversationData?.seeking_post?.pay_min,
-                            pay_max: conversationData?.seeking_post?.pay_max,
-                          },
-                          profile: {
-                            // Rep's own profile for rep templates
-                            rep_anonymous_id: currentUserProfile?.anonymous_id,
-                            rep_state: currentUserProfile?.state,
-                            rep_systems: currentUserProfile?.systems_used,
-                            rep_inspection_types: currentUserProfile?.inspection_types,
-                            // Vendor info (the other party)
-                            vendor_anonymous_id: otherPartyProfile?.anonymous_id,
-                            vendor_company_name: otherPartyProfile?.company_name,
-                            vendor_full_name: otherPartyProfile?.full_name,
-                            vendor_city: otherPartyProfile?.city,
-                            vendor_state: otherPartyProfile?.state,
-                            vendor_systems: otherPartyProfile?.systems_used,
-                            vendor_inspection_types: otherPartyProfile?.primary_inspection_types,
-                          },
-                        }
-                  }
-                />
-                <span className="text-xs text-muted-foreground">
-                  Insert a template to speed up your response
-                </span>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Textarea
-                placeholder="Type your message..."
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="min-h-[80px] resize-none"
-                disabled={sending}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!messageText.trim() || sending}
-                size="lg"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
+                ))
+              )}
+              <div ref={messagesEndRef} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Press Enter to send, Shift+Enter for new line
-            </p>
-          </div>
+          </CardContent>
         </Card>
 
-        <PublicProfileDialog
-          open={profileDialogOpen}
-          onOpenChange={setProfileDialogOpen}
-          targetUserId={otherParticipantId}
-        />
-
-        <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>End Connection?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will remove this connection from your My Reps / My Vendors list, but your message history will remain. You can reconnect again later if you both agree.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {disconnecting ? "Disconnecting..." : "Yes, disconnect"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {pendingDisconnectData && (
-          <ExitReviewDialog
-            open={showExitReviewDialog}
-            onOpenChange={setShowExitReviewDialog}
-            repInterestId={pendingDisconnectData.repInterestId}
-            repUserId={pendingDisconnectData.repUserId}
-            vendorUserId={pendingDisconnectData.vendorUserId}
-            reviewerRole={isVendor ? "vendor" : "rep"}
-            source="disconnect"
-            onComplete={handleExitReviewComplete}
-          />
-        )}
-
-        {/* Create Agreement Dialog */}
-        {conversationData?.seeking_post && otherPartyProfile && (
-          <CreateAgreementDialog
-            open={showAgreementDialog}
-            onOpenChange={setShowAgreementDialog}
-            repUserId={otherParticipantId}
-            repName={`${otherPartyProfile.full_name?.split(' ')[0]} ${otherPartyProfile.full_name?.split(' ')[1]?.[0]}.`}
-            defaultCoverage={
-              conversationData.seeking_post.us_counties?.county_name
-                ? `${conversationData.seeking_post.us_counties.state_code} – ${conversationData.seeking_post.us_counties.county_name}`
-                : conversationData.seeking_post.state_code || ""
-            }
-            defaultPricing={
-              conversationData.seeking_post.pay_type === "fixed"
-                ? `$${conversationData.seeking_post.pay_min?.toFixed(2)} / order`
-                : `$${conversationData.seeking_post.pay_min?.toFixed(2)} – $${conversationData.seeking_post.pay_max?.toFixed(2)} / order`
-            }
-            defaultBaseRate={conversationData.seeking_post.pay_max || conversationData.seeking_post.pay_min}
-            onSave={handleCreateAgreement}
-            saving={creatingAgreement}
-          />
-        )}
-
-        {/* Block/Unblock Dialog */}
-        <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{isBlocked ? "Unblock this user?" : "Block this user?"}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {isBlocked ? (
-                  "Do you want to unblock this user? You'll be able to see them again in discovery and receive new messages."
-                ) : (
-                  <>
-                    You won't see this user in Find Reps / Find Vendors, My Network, or Messages, and you won't be able to send new messages. You can unblock them later if needed.
-                    <Textarea
-                      placeholder="Reason (optional, for your records)"
-                      value={blockReason}
-                      onChange={(e) => setBlockReason(e.target.value)}
-                      className="mt-4"
-                    />
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setBlockReason("")}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => {
-                  setBlocking(true);
-                  try {
-                    if (isBlocked) {
-                      const { error } = await unblockUser(otherParticipantId);
-                      if (error) {
-                        toast({
-                          title: "Error",
-                          description: error,
-                          variant: "destructive",
-                        });
-                      } else {
-                        setIsBlocked(false);
-                        toast({
-                          title: "User unblocked",
-                          description: "You can now see this user and communicate with them.",
-                        });
-                        setShowBlockDialog(false);
-                      }
-                    } else {
-                      const { error } = await blockUser(otherParticipantId, blockReason || undefined);
-                      if (error) {
-                        toast({
-                          title: "Error",
-                          description: error,
-                          variant: "destructive",
-                        });
-                      } else {
-                        setIsBlocked(true);
-                        toast({
-                          title: "User blocked",
-                          description: "This conversation has been hidden from your inbox.",
-                        });
-                        setBlockReason("");
-                        setShowBlockDialog(false);
-                        // Navigate back to messages
-                        navigate("/messages");
-                      }
-                    }
-                  } catch (error) {
-                    console.error("Error blocking/unblocking:", error);
-                    toast({
-                      title: "Error",
-                      description: "An unexpected error occurred",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setBlocking(false);
-                  }
-                }}
-                disabled={blocking}
-                className={isBlocked ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
-              >
-                {blocking ? (isBlocked ? "Unblocking..." : "Blocking...") : (isBlocked ? "Unblock" : "Block")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* Report User Dialog */}
-        <ReportUserDialog
-          open={showReportDialog}
-          onOpenChange={setShowReportDialog}
-          reporterUserId={user?.id || ""}
-          reportedUserId={otherParticipantId}
-          conversationId={conversationId}
-          targetAnonId={otherParticipantName}
-          alreadyReported={alreadyReported}
-        />
+        {/* Message input */}
+        <form onSubmit={handleSendMessage} className="space-y-4">
+          <div className="flex gap-2">
+            {isRep && currentUserProfile && (
+              <TemplateSelector
+                roleType="rep"
+                onSelect={(body) => setMessageText(body)}
+                userProfile={currentUserProfile}
+              />
+            )}
+            {isVendor && (
+              <TemplateSelector
+                roleType="vendor"
+                onSelect={(body) => setMessageText(body)}
+              />
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Textarea
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder={isBlocked ? "Unblock this user to send messages..." : "Type your message..."}
+              className="flex-1 min-h-[80px]"
+              disabled={isBlocked}
+            />
+            <Button type="submit" disabled={sending || !messageText.trim() || isBlocked}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </form>
       </div>
-    </div>
+
+      {/* Dialogs */}
+      <PublicProfileDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        targetUserId={otherParticipantId}
+      />
+
+      <AlertDialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Blocking this user will hide their messages and prevent them from contacting you. You can unblock them later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Textarea
+              placeholder="Reason (optional)"
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlockUser} disabled={blocking}>
+              {blocking ? "Blocking..." : "Block User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <ReportUserDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        reportedUserId={otherParticipantId}
+        conversationId={conversationId}
+        context="message_thread"
+      />
+
+      <CreateAgreementDialog
+        open={showAgreementDialog}
+        onOpenChange={setShowAgreementDialog}
+        onSubmit={handleCreateAgreement}
+        loading={creatingAgreement}
+        seekingPost={conversationData?.seeking_post}
+      />
+    </AuthenticatedLayout>
   );
 }

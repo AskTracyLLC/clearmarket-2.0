@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format, parseISO } from "date-fns";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface AvailabilityEntry {
   id: string;
@@ -413,20 +414,15 @@ export default function RepAvailability() {
   const pastEntries = availabilityEntries.filter(e => e.end_date < today);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <h1 className="text-xl font-bold text-foreground">Availability & Vendor Alerts</h1>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-xl font-bold text-foreground">Availability & Vendor Alerts</h1>
+        </div>
         {/* Section 1: Time Off / Availability */}
         <Card className="mb-8">
           <CardHeader>

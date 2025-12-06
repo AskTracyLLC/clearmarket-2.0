@@ -23,7 +23,7 @@ import { TodayFeed } from "@/components/dashboard/TodayFeed";
 import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -328,49 +328,11 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header with navigation */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-8">
-              <Link to="/" className="text-xl font-bold text-foreground hover:text-primary transition-colors flex items-center gap-2">
-                ClearMarket
-                <BetaBadge />
-              </Link>
-              <nav className="hidden md:flex gap-6">
-                <NavLink to="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Briefcase className="w-4 h-4" />
-                  Dashboard
-                </NavLink>
-                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Users className="w-4 h-4" />
-                  Community
-                </NavLink>
-                <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <ShieldAlert className="w-4 h-4" />
-                  Safety
-                </NavLink>
-                {profile?.is_admin && (
-                  <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                    <ShieldAlert className="w-4 h-4" />
-                    Admin
-                    <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
-                  </NavLink>
-                )}
-              </nav>
-            </div>
-            <div className="flex items-center gap-3">
-              <NavIconCluster 
-                vendorCredits={vendorCredits} 
-                showCredits={isVendor} 
-              />
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AuthenticatedNav 
+        isAdmin={profile?.is_admin}
+        isVendor={isVendor}
+        vendorCredits={vendorCredits}
+      />
 
       <div className="container mx-auto px-4 py-8">
         {/* Admin Dashboard Content */}
