@@ -19,6 +19,7 @@ import { checkContactUnlockedBatch } from "@/lib/credits";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -531,25 +532,14 @@ export default function VendorFindReps() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Find Reps</h1>
-              <p className="text-muted-foreground mt-1">
-                MVP Preview - Browse field reps (unlock coming soon)
-              </p>
-            </div>
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground">Find Reps</h1>
+          <p className="text-muted-foreground mt-1">
+            MVP Preview - Browse field reps (unlock coming soon)
+          </p>
+        </div>
         {/* Search Filters */}
         <Card className="mb-8">
           <CardHeader>
@@ -1202,6 +1192,6 @@ export default function VendorFindReps() {
         onOpenChange={setShowProfileDialog}
         targetUserId={profileDialogUserId}
       />
-    </div>
+    </AuthenticatedLayout>
   );
 }

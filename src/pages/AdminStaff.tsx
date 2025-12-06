@@ -34,11 +34,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowLeft, Users, Eye, ExternalLink, Crown, UserPlus, ShieldCheck, MessageSquare, Gavel, Mail, RefreshCw, Info } from "lucide-react";
+import { Users, Eye, ExternalLink, Crown, UserPlus, ShieldCheck, MessageSquare, Gavel, Mail, RefreshCw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { logAdminAction } from "@/lib/adminAudit";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface StaffUser {
   id: string;
@@ -321,14 +322,11 @@ export default function AdminStaff() {
   if (!hasAccess) return null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
+        <div className="flex items-center justify-between mb-8">
+          <div>
             <h1 className="text-3xl font-bold text-foreground">Staff & Roles</h1>
             <p className="text-muted-foreground">Manage admin, moderator, and support staff</p>
           </div>

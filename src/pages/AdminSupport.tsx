@@ -15,7 +15,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import {
-  ArrowLeft,
   Send,
   Search,
   User,
@@ -26,6 +25,7 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import {
@@ -279,23 +279,18 @@ export default function AdminSupport() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">Support Queue</h1>
-              <CountBadge count={sectionCounts.adminOpenTickets} />
-            </div>
-            <p className="text-muted-foreground">
-              Manage support tickets from users
-              {sectionCounts.adminOpenTickets > 0 && ` · ${sectionCounts.adminOpenTickets} open`}
-            </p>
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Support Queue</h1>
+            <CountBadge count={sectionCounts.adminOpenTickets} />
           </div>
+          <p className="text-muted-foreground">
+            Manage support tickets from users
+            {sectionCounts.adminOpenTickets > 0 && ` · ${sectionCounts.adminOpenTickets} open`}
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">

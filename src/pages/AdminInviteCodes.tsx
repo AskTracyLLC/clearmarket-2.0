@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Copy, RefreshCw, ArrowLeft } from "lucide-react";
+import { Plus, Copy, RefreshCw } from "lucide-react";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface InviteCode {
   id: string;
@@ -190,13 +191,9 @@ const AdminInviteCodes = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+    <AuthenticatedLayout>
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Beta Invite Codes</h1>
         </div>
 

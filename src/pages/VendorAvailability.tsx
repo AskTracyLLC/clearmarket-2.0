@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RecurrenceType, getRecurrenceDescription, getUpcomingPayDatesForSchedule } from "@/lib/recurringEvents";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 const WEEKDAYS = [
   { value: 0, label: "Sunday" },
@@ -448,18 +449,10 @@ const VendorAvailability = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       {isAdminViewing && <AdminViewBanner />}
       
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/dashboard")}
-          className="mb-6"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
-        </Button>
 
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground mb-2">Office & Pay Calendar</h1>
@@ -779,7 +772,7 @@ const VendorAvailability = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 
