@@ -8,11 +8,13 @@ import {
   Briefcase, 
   Star, 
   Coins,
+  Calendar,
   ChevronDown,
   ChevronUp,
   CheckCircle2
 } from "lucide-react";
 import { useState } from "react";
+import { format, parseISO } from "date-fns";
 
 interface AtAGlanceSidebarProps {
   isRep: boolean;
@@ -21,6 +23,11 @@ interface AtAGlanceSidebarProps {
   unreadMessages: number;
   unreadNotifications: number;
   vendorCredits?: number | null;
+  upcomingTimeOff?: {
+    start_date: string;
+    end_date: string;
+    auto_reply_enabled: boolean;
+  } | null;
   pendingConnections?: number;
   newOpportunities?: number;
 }
@@ -31,6 +38,7 @@ export function AtAGlanceSidebar({
   profileCompletion,
   unreadMessages,
   vendorCredits,
+  upcomingTimeOff,
   pendingConnections = 0,
   newOpportunities = 0,
 }: AtAGlanceSidebarProps) {
@@ -174,6 +182,40 @@ export function AtAGlanceSidebar({
             <Link to="/rep/reviews" className="block">
               <Button variant="outline" size="sm" className="w-full text-xs">
                 View Reviews & Trust Score
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Rep Availability Summary */}
+      {isRep && (
+        <Card className="bg-card border-border">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Availability
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 pt-0">
+            {upcomingTimeOff ? (
+              <div className="text-sm">
+                <p className="text-muted-foreground mb-1">Time off scheduled:</p>
+                <p className="font-medium text-foreground">
+                  {format(parseISO(upcomingTimeOff.start_date), "MMM d")} – {format(parseISO(upcomingTimeOff.end_date), "MMM d")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Auto-reply: {upcomingTimeOff.auto_reply_enabled ? "ON" : "OFF"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No upcoming time off
+              </p>
+            )}
+            <Link to="/rep/availability" className="block mt-3">
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                Manage Availability
               </Button>
             </Link>
           </CardContent>
