@@ -1,60 +1,34 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import {
-  fetchCommunityPosts,
-  fetchUserVotes,
-  getCategoryConfig,
-  getStatusConfig,
-  POST_CATEGORIES,
-  CommunityPost,
-} from "@/lib/community";
-import { formatCommunityScore } from "@/lib/communityScore";
-import { CommunityPostDialog } from "@/components/CommunityPostDialog";
-import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
-import { ReportFlagButton } from "@/components/ReportFlagButton";
-import { ReportUserDialog } from "@/components/ReportUserDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { CommunityTab } from "@/components/CommunityTab";
+import { NetworkAlertsFeed } from "@/components/NetworkAlertsFeed";
 import { NavLink } from "@/components/NavLink";
+import { CountBadge } from "@/components/CountBadge";
 import {
   MessageSquare,
   Bell,
   ShieldAlert,
   Briefcase,
-  Plus,
-  MessageCircle,
   Users,
-  Award,
-  HelpCircle,
+  Megaphone,
 } from "lucide-react";
-import { format } from "date-fns";
-
-const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
 
 const CommunityBoard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
 
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"newest" | "helpful" | "comments" | "author_score">("newest");
-  const [myPostsOnly, setMyPostsOnly] = useState(false);
-  const [userVotes, setUserVotes] = useState<Record<string, string>>({});
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [reportTargetPost, setReportTargetPost] = useState<CommunityPost | null>(null);
+  const [isVendor, setIsVendor] = useState(false);
+  const [isRep, setIsRep] = useState(false);
+  const [communityUnread, setCommunityUnread] = useState(0);
+  const [networkUnread, setNetworkUnread] = useState(0);
+
+  // Get tab from URL or default to "community"
+  const activeTab = searchParams.get("tab") || "community";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -64,35 +38,56 @@ const CommunityBoard = () => {
 
   useEffect(() => {
     if (user) {
-      loadPosts();
+      loadUserProfile();
+      loadUnreadCounts();
     }
-  }, [user, categoryFilter, sortBy, myPostsOnly]);
+  }, [user]);
 
-  const loadPosts = async () => {
+  const loadUserProfile = async () => {
     if (!user) return;
-    setLoading(true);
 
-    const data = await fetchCommunityPosts({
-      category: categoryFilter,
-      authorId: myPostsOnly ? user.id : undefined,
-      sortBy,
-      limit: 50,
-    });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_vendor_admin, is_fieldrep")
+      .eq("id", user.id)
+      .single();
 
-    setPosts(data);
-
-    // Load user votes
-    if (data.length > 0) {
-      const votes = await fetchUserVotes(user.id, "post", data.map((p) => p.id));
-      setUserVotes(votes);
+    if (profile) {
+      setIsVendor(profile.is_vendor_admin);
+      setIsRep(profile.is_fieldrep);
     }
-
-    setLoading(false);
   };
 
-  const handleReportPost = (post: CommunityPost) => {
-    setReportTargetPost(post);
-    setReportDialogOpen(true);
+  const loadUnreadCounts = async () => {
+    if (!user) return;
+
+    try {
+      // Community-related unread notifications
+      const { count: communityCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .in("type", ["community_comment_on_post", "community_post_resolved"]);
+
+      setCommunityUnread(communityCount || 0);
+
+      // Network-related unread notifications
+      const { count: networkCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .in("type", ["vendor_network_alert", "vendor_alert", "new_coverage_opportunity"]);
+
+      setNetworkUnread(networkCount || 0);
+    } catch (error) {
+      console.error("Error loading unread counts:", error);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
   };
 
   if (authLoading || !user) {
@@ -120,7 +115,7 @@ const CommunityBoard = () => {
                 </NavLink>
                 <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <Users className="w-4 h-4" />
-                  Community
+                  Updates
                 </NavLink>
                 <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <MessageSquare className="w-4 h-4" />
@@ -145,182 +140,41 @@ const CommunityBoard = () => {
 
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Community Board</h1>
-            <p className="text-muted-foreground mt-1">
-              Share questions, experiences, and tips with other Vendors and Field Reps.
-            </p>
-          </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Post
-          </Button>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground">Updates</h1>
+          <p className="text-muted-foreground mt-1">
+            Community posts from the industry, plus alerts from your own network.
+          </p>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {POST_CATEGORIES.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="community" className="gap-2">
+              <Users className="w-4 h-4" />
+              Community
+              {communityUnread > 0 && <CountBadge count={communityUnread} />}
+            </TabsTrigger>
+            <TabsTrigger value="network" className="gap-2">
+              <Megaphone className="w-4 h-4" />
+              Network & Alerts
+              {networkUnread > 0 && <CountBadge count={networkUnread} />}
+            </TabsTrigger>
+          </TabsList>
 
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="helpful">Most Helpful</SelectItem>
-              <SelectItem value="comments">Most Commented</SelectItem>
-              <SelectItem value="author_score">Author Community Score (High → Low)</SelectItem>
-            </SelectContent>
-          </Select>
+          <TabsContent value="community">
+            <CommunityTab userId={user.id} />
+          </TabsContent>
 
-          <Button
-            variant={myPostsOnly ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setMyPostsOnly(!myPostsOnly)}
-          >
-            My Posts
-          </Button>
-        </div>
-
-        {/* Posts List */}
-        {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading posts...</div>
-        ) : posts.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                {myPostsOnly
-                  ? "You haven't created any posts yet."
-                  : "No posts found. Be the first to share something!"}
-              </p>
-              <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                Create a Post
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {posts.map((post) => {
-              const categoryConfig = getCategoryConfig(post.category);
-              const statusConfig = getStatusConfig(post.status);
-
-              return (
-                <Card
-                  key={post.id}
-                  className="hover:border-primary/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/community/${post.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <Badge className={categoryConfig.color}>{categoryConfig.label}</Badge>
-                          {post.status !== "active" && (
-                            <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            {post.author_anonymous_id || "User"} · {post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : ""}
-                          </span>
-                          {post.author_community_score !== null && post.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
-                            <Badge variant="secondary" className="text-[11px] gap-1">
-                              <Award className="w-3 h-3" />
-                              Trusted Contributor
-                            </Badge>
-                          )}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
-                                  <HelpCircle className="w-3 h-3" />
-                                  {post.author_community_score !== null
-                                    ? `Score: ${formatCommunityScore(post.author_community_score)}`
-                                    : "Score: N/A"}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-[200px]">
-                                <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-
-                        <h3 className="font-semibold text-foreground line-clamp-1 mb-1">
-                          {post.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {post.body}
-                        </p>
-
-                        <div className="flex items-center gap-4 mt-3">
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <CommunityVoteButtons
-                              targetType="post"
-                              targetId={post.id}
-                              userId={user.id}
-                              helpfulCount={post.helpful_count}
-                              notHelpfulCount={post.not_helpful_count}
-                              currentVote={userVotes[post.id]}
-                              onVoteChange={loadPosts}
-                              size="sm"
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MessageCircle className="w-3 h-3" />
-                            {post.comments_count} comments
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(post.created_at), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <ReportFlagButton
-                          onClick={() => handleReportPost(post)}
-                          disabled={post.author_id === user.id}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+          <TabsContent value="network">
+            <NetworkAlertsFeed 
+              userId={user.id} 
+              isVendor={isVendor} 
+              isRep={isRep} 
+            />
+          </TabsContent>
+        </Tabs>
       </main>
-
-      {/* Dialogs */}
-      <CommunityPostDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        userId={user.id}
-        onSuccess={loadPosts}
-      />
-
-      {reportTargetPost && (
-        <ReportUserDialog
-          open={reportDialogOpen}
-          onOpenChange={setReportDialogOpen}
-          reportedUserId={reportTargetPost.author_id}
-          reporterUserId={user.id}
-          targetType="community_post"
-          targetId={reportTargetPost.id}
-          contextLabel={`Post: ${reportTargetPost.title.substring(0, 50)}...`}
-        />
-      )}
     </div>
   );
 };
