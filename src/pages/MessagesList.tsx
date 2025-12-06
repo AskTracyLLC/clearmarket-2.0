@@ -654,7 +654,6 @@ export default function MessagesList() {
           targetUserId={selectedProfileUserId}
         />
       </div>
-      </div>
     </AppLayout>
   );
 }
