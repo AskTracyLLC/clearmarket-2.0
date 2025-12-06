@@ -140,6 +140,30 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
   const activeRows = rows.filter(r => r.status !== "inactive");
   const inactiveRows = rows.filter(r => r.status === "inactive");
 
+  const getSourceBadge = (source: string) => {
+    switch (source) {
+      case "added_by_vendor":
+        return (
+          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+            Added by vendor
+          </Badge>
+        );
+      case "added_by_rep":
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Added by rep
+          </Badge>
+        );
+      case "from_profile":
+      default:
+        return (
+          <Badge variant="secondary" className="text-xs">
+            From profile
+          </Badge>
+        );
+    }
+  };
+
   return (
     <>
       <div className="border rounded-lg overflow-x-auto">
@@ -151,6 +175,7 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Rate</TableHead>
               <TableHead className="text-right">Turnaround</TableHead>
+              <TableHead>Source</TableHead>
               <TableHead>Effective since</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-12"></TableHead>
@@ -177,6 +202,7 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
                   <TableCell className="text-right">
                     {row.turnaround_days !== null ? `${row.turnaround_days} days` : "—"}
                   </TableCell>
+                  <TableCell>{getSourceBadge(row.source)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(row.effective_from), "MMM d, yyyy")}
                   </TableCell>
@@ -218,7 +244,7 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
             })}
             {activeRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   No active working terms.
                 </TableCell>
               </TableRow>
@@ -244,7 +270,7 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
                     <TableCell className="text-sm">
                       {INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type}
                     </TableCell>
-                    <TableCell colSpan={5} className="text-sm text-muted-foreground">
+                    <TableCell colSpan={6} className="text-sm text-muted-foreground">
                       Inactivated {row.inactivated_at ? format(new Date(row.inactivated_at), "MMM d, yyyy") : ""} 
                       {row.inactivated_reason && ` — ${row.inactivated_reason}`}
                     </TableCell>
