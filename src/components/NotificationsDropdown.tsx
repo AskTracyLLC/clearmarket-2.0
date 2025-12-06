@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, MessageSquare, UserPlus, Star, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
+import { Bell, MessageSquare, UserPlus, Star, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Notification {
@@ -108,6 +108,10 @@ export function NotificationsDropdown() {
       case "vendor_network_alert":
       case "vendor_alert":
         return <Megaphone className="h-3.5 w-3.5" />;
+      case "working_terms_request":
+      case "working_terms_submitted":
+      case "working_terms_confirmed":
+        return <FileText className="h-3.5 w-3.5" />;
       default:
         return <Bell className="h-3.5 w-3.5" />;
     }
@@ -144,6 +148,12 @@ export function NotificationsDropdown() {
       navigate("/rep/my-vendors");
     } else if (notification.type === "vendor_alert") {
       navigate("/vendor/my-reps");
+    } else if (notification.type === "working_terms_request" && notification.ref_id) {
+      navigate(`/rep/working-terms-request/${notification.ref_id}`);
+    } else if (notification.type === "working_terms_submitted" && notification.ref_id) {
+      navigate(`/vendor/working-terms-review/${notification.ref_id}`);
+    } else if (notification.type === "working_terms_confirmed") {
+      navigate("/rep/my-vendors");
     } else {
       navigate("/notifications");
     }
