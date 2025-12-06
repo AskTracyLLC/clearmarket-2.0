@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
+import { MessageSquare, UserPlus, Star, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ReviewDialog } from "@/components/ReviewDialog";
@@ -283,19 +282,9 @@ export default function Notifications() {
         <div className="bg-background p-8">
           <div className="max-w-3xl mx-auto">
             <PageHeader
-              title="Notifications"
-              showBackToDashboard
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/notifications/settings")}
-                className="gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                Settings
-              </Button>
-            </PageHeader>
+              title="All Notifications"
+              subtitle="View your complete notification history"
+            />
             <p className="text-muted-foreground">Loading notifications...</p>
           </div>
         </div>
@@ -308,19 +297,9 @@ export default function Notifications() {
       <div className="bg-background p-8">
         <div className="max-w-3xl mx-auto">
           <PageHeader
-            title="Notifications"
-            showBackToDashboard
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/notifications/settings")}
-              className="gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Button>
-          </PageHeader>
+            title="All Notifications"
+            subtitle="View your complete notification history"
+          />
 
           {notifications.length === 0 ? (
             <Card>

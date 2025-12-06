@@ -36,6 +36,7 @@ import VendorShareProfile from "./pages/VendorShareProfile";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
+import Settings from "./pages/Settings";
 import VendorCredits from "./pages/VendorCredits";
 import AdminReports from "./pages/AdminReports";
 import AdminModeration from "./pages/AdminModeration";
@@ -95,6 +96,7 @@ const App = () => (
             <Route path="/vendor/credits" element={<VendorCredits />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/notifications/settings" element={<NotificationSettings />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/admin/reports" element={<AdminReports />} />
             <Route path="/admin/moderation" element={<AdminModeration />} />
             <Route path="/admin/invites" element={<AdminInviteCodes />} />
