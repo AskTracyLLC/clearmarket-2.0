@@ -326,7 +326,7 @@ const Dashboard = () => {
     : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0 };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       {/* Header with navigation */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -615,7 +615,9 @@ const Dashboard = () => {
         )}
       </div>
 
-      <SiteFooter />
+      <div className="mt-auto">
+        <SiteFooter />
+      </div>
     </div>
   );
 };

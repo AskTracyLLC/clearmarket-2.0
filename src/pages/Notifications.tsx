@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
+import { MessageSquare, UserPlus, Star, Settings, Briefcase, Users, CheckCircle, ClipboardCheck, Megaphone } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { PageHeader } from "@/components/PageHeader";
+import { AppLayout } from "@/components/AppLayout";
 
 interface Notification {
   id: string;
@@ -277,15 +279,38 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                <ArrowLeft className="h-5 w-5" />
+      <AppLayout>
+        <div className="bg-background p-8">
+          <div className="max-w-3xl mx-auto">
+            <PageHeader
+              title="Notifications"
+              showBackToDashboard
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/notifications/settings")}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
               </Button>
-              <h1 className="text-3xl font-bold">Notifications</h1>
-            </div>
+            </PageHeader>
+            <p className="text-muted-foreground">Loading notifications...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="bg-background p-8">
+        <div className="max-w-3xl mx-auto">
+          <PageHeader
+            title="Notifications"
+            showBackToDashboard
+          >
             <Button
               variant="outline"
               size="sm"
@@ -295,116 +320,91 @@ export default function Notifications() {
               <Settings className="h-4 w-4" />
               Settings
             </Button>
-          </div>
-          <p className="text-muted-foreground">Loading notifications...</p>
-        </div>
-      </div>
-    );
-  }
+          </PageHeader>
 
-  return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-3xl font-bold">Notifications</h1>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/notifications/settings")}
-            className="gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
-        </div>
-
-        {notifications.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">No notifications yet.</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                You'll be notified here when you receive messages, connection requests, or reviews.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {notifications.map((notification) => (
-              <Card
-                key={notification.id}
-                className={`cursor-pointer transition-colors hover:bg-accent/50 ${
-                  !notification.is_read ? "border-primary" : ""
-                }`}
-                onClick={() => handleNotificationClick(notification)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {getNotificationBadgeLabel(notification.type)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                        </span>
-                        {!notification.is_read && (
-                          <div className="h-2 w-2 rounded-full bg-primary" />
+          {notifications.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">No notifications yet.</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  You'll be notified here when you receive messages, connection requests, or reviews.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {notifications.map((notification) => (
+                <Card
+                  key={notification.id}
+                  className={`cursor-pointer transition-colors hover:bg-accent/50 ${
+                    !notification.is_read ? "border-primary" : ""
+                  }`}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1">
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {getNotificationBadgeLabel(notification.type)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          </span>
+                          {!notification.is_read && (
+                            <div className="h-2 w-2 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <p className={`text-sm ${!notification.is_read ? "font-semibold" : "font-medium"}`}>
+                          {notification.title}
+                        </p>
+                        {notification.body && (
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {notification.body}
+                          </p>
                         )}
                       </div>
-                      <p className={`text-sm ${!notification.is_read ? "font-semibold" : "font-medium"}`}>
-                        {notification.title}
-                      </p>
-                      {notification.body && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {notification.body}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* Review Dialog for review_reminder deep-linking */}
-      {reviewTargetUserId && reviewDirection && user && (
-        <ReviewDialog
-          open={reviewDialogOpen}
-          onOpenChange={(open) => {
-            setReviewDialogOpen(open);
-            if (!open) {
+        {/* Review Dialog for review_reminder deep-linking */}
+        {reviewTargetUserId && reviewDirection && user && (
+          <ReviewDialog
+            open={reviewDialogOpen}
+            onOpenChange={(open) => {
+              setReviewDialogOpen(open);
+              if (!open) {
+                setReviewTargetUserId(null);
+                setReviewRepInterestId(null);
+                setReviewDirection(null);
+              }
+            }}
+            reviewerId={user.id}
+            revieweeId={reviewTargetUserId}
+            direction={reviewDirection}
+            repInterestId={reviewRepInterestId}
+            isExitReview={false}
+            onSaved={() => {
+              setReviewDialogOpen(false);
               setReviewTargetUserId(null);
               setReviewRepInterestId(null);
               setReviewDirection(null);
-            }
-          }}
-          reviewerId={user.id}
-          revieweeId={reviewTargetUserId}
-          direction={reviewDirection}
-          repInterestId={reviewRepInterestId}
-          isExitReview={false}
-          onSaved={() => {
-            setReviewDialogOpen(false);
-            setReviewTargetUserId(null);
-            setReviewRepInterestId(null);
-            setReviewDirection(null);
-            toast({
-              title: "Review submitted",
-              description: "Thank you for your feedback!",
-            });
-          }}
-        />
-      )}
-    </div>
+              toast({
+                title: "Review submitted",
+                description: "Thank you for your feedback!",
+              });
+            }}
+          />
+        )}
+      </div>
+    </AppLayout>
   );
 }

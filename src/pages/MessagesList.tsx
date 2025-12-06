@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, MessageSquare, Eye } from "lucide-react";
+import { MessageSquare, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getUserDisplayName } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { PageHeader } from "@/components/PageHeader";
+import { AppLayout } from "@/components/AppLayout";
 
 interface ConversationWithParticipant {
   id: string;
@@ -400,36 +402,32 @@ export default function MessagesList() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-muted-foreground">Loading messages...</p>
+      <AppLayout>
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-muted-foreground">Loading messages...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-foreground">Messages</h1>
-              {sectionCounts.unreadMessages > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  ({sectionCounts.unreadMessages} conversation{sectionCounts.unreadMessages !== 1 ? "s" : ""} with unread messages)
-                </span>
-              )}
-            </div>
-          </div>
+    <AppLayout>
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header */}
+          <PageHeader
+            title="Messages"
+            subtitle={sectionCounts.unreadMessages > 0 
+              ? `${sectionCounts.unreadMessages} conversation${sectionCounts.unreadMessages !== 1 ? "s" : ""} with unread messages`
+              : undefined
+            }
+            showBackToDashboard
+          />
           
           {/* Primary Filter */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex gap-2">
               <Button
                 variant={filterMode === "all" ? "default" : "outline"}
@@ -656,6 +654,7 @@ export default function MessagesList() {
           targetUserId={selectedProfileUserId}
         />
       </div>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
