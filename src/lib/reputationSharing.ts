@@ -80,12 +80,55 @@ export async function deleteShareLink(linkId: string) {
 
 /**
  * Fetch public reputation snapshot from edge function
+ * This uses a direct fetch without auth headers for public access
  */
 export async function fetchPublicSnapshot(slug: string) {
-  const { data, error } = await supabase.functions.invoke('get_public_reputation_snapshot', {
-    body: { slug }
-  });
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/get_public_reputation_snapshot`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+      },
+      body: JSON.stringify({ slug }),
+    }
+  );
 
-  if (error) throw error;
-  return data;
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ error: 'Failed to load snapshot' }));
+    throw errData;
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch public profile share data (for /share/rep/:slug and /share/vendor/:slug)
+ * This uses a direct fetch without auth headers for public access
+ */
+export async function fetchPublicProfileShare(slug: string) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  
+  const response = await fetch(
+    `${supabaseUrl}/functions/v1/public-profile-share?slug=${slug}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ error: 'Failed to load profile' }));
+    throw new Error(errData.error || 'Failed to load profile');
+  }
+
+  return response.json();
 }
