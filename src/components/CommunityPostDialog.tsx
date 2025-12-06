@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { createCommunityPost, updateCommunityPost, POST_CATEGORIES, CommunityPost } from "@/lib/community";
+import { 
+  createCommunityPost, 
+  updateCommunityPost, 
+  getCategoriesForChannel,
+  CommunityPost,
+  CommunityChannel,
+} from "@/lib/community";
 
 interface CommunityPostDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  channel?: CommunityChannel;
   existingPost?: CommunityPost | null;
   onSuccess?: () => void;
 }
@@ -26,16 +33,53 @@ export function CommunityPostDialog({
   open,
   onOpenChange,
   userId,
+  channel = "community",
   existingPost,
   onSuccess,
 }: CommunityPostDialogProps) {
   const { toast } = useToast();
-  const [category, setCategory] = useState(existingPost?.category || "question");
+  const categories = getCategoriesForChannel(channel);
+  const [category, setCategory] = useState(existingPost?.category || categories[0]?.value || "question");
   const [title, setTitle] = useState(existingPost?.title || "");
   const [body, setBody] = useState(existingPost?.body || "");
   const [submitting, setSubmitting] = useState(false);
 
   const isEditing = !!existingPost;
+
+  // Reset category when channel changes
+  useEffect(() => {
+    if (!existingPost) {
+      setCategory(categories[0]?.value || "question");
+    }
+  }, [channel, categories, existingPost]);
+
+  const getDialogTitle = () => {
+    if (isEditing) return "Edit Post";
+    switch (channel) {
+      case "community":
+        return "New Community Post";
+      case "network":
+        return "New Network Alert";
+      case "announcements":
+        return "New Announcement";
+      default:
+        return "New Post";
+    }
+  };
+
+  const getDialogDescription = () => {
+    if (isEditing) return "Update your post details below.";
+    switch (channel) {
+      case "community":
+        return "Share a question, discussion topic, or safety information with the community.";
+      case "network":
+        return "Send an alert to your network about availability, schedule changes, or important updates.";
+      case "announcements":
+        return "Post an official ClearMarket announcement for all users.";
+      default:
+        return "Share something with the community.";
+    }
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -77,13 +121,13 @@ export function CommunityPostDialog({
         });
       }
     } else {
-      const result = await createCommunityPost(userId, category, title.trim(), body.trim());
+      const result = await createCommunityPost(userId, category, title.trim(), body.trim(), channel);
 
       if (result.success) {
         toast({ title: "Post created" });
         setTitle("");
         setBody("");
-        setCategory("question");
+        setCategory(categories[0]?.value || "question");
         onOpenChange(false);
         onSuccess?.();
       } else {
@@ -102,19 +146,15 @@ export function CommunityPostDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Post" : "New Community Post"}</DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? "Update your post details below."
-              : "Share a question, experience, warning, or helpful info with the community."}
-          </DialogDescription>
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
+          <DialogDescription>{getDialogDescription()}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label>Category</Label>
             <RadioGroup value={category} onValueChange={setCategory} className="flex flex-wrap gap-4">
-              {POST_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <div key={cat.value} className="flex items-center space-x-2">
                   <RadioGroupItem value={cat.value} id={cat.value} />
                   <Label htmlFor={cat.value} className="cursor-pointer">
@@ -142,7 +182,7 @@ export function CommunityPostDialog({
               id="body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Share your thoughts, questions, or experiences..."
+              placeholder="Share your thoughts, questions, or updates..."
               rows={6}
               maxLength={5000}
             />

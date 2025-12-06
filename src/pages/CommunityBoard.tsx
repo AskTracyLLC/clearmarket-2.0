@@ -8,7 +8,7 @@ import { NetworkAlertsFeed } from "@/components/NetworkAlertsFeed";
 import { CountBadge } from "@/components/CountBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
-import { Users, Megaphone } from "lucide-react";
+import { Users, Megaphone, Newspaper } from "lucide-react";
 
 const CommunityBoard = () => {
   const navigate = useNavigate();
@@ -17,8 +17,10 @@ const CommunityBoard = () => {
 
   const [isVendor, setIsVendor] = useState(false);
   const [isRep, setIsRep] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [communityUnread, setCommunityUnread] = useState(0);
   const [networkUnread, setNetworkUnread] = useState(0);
+  const [announcementsUnread, setAnnouncementsUnread] = useState(0);
 
   // Get tab from URL or default to "community"
   const activeTab = searchParams.get("tab") || "community";
@@ -41,13 +43,14 @@ const CommunityBoard = () => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin, is_fieldrep")
+      .select("is_vendor_admin, is_fieldrep, is_admin")
       .eq("id", user.id)
       .single();
 
     if (profile) {
       setIsVendor(profile.is_vendor_admin);
       setIsRep(profile.is_fieldrep);
+      setIsAdmin(profile.is_admin);
     }
   };
 
@@ -74,6 +77,16 @@ const CommunityBoard = () => {
         .in("type", ["vendor_network_alert", "vendor_alert", "new_coverage_opportunity"]);
 
       setNetworkUnread(networkCount || 0);
+
+      // Announcements-related unread notifications
+      const { count: announcementsCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .in("type", ["clearmarket_announcement"]);
+
+      setAnnouncementsUnread(announcementsCount || 0);
     } catch (error) {
       console.error("Error loading unread counts:", error);
     }
@@ -97,13 +110,13 @@ const CommunityBoard = () => {
         {/* Page Header */}
         <PageHeader
           title="Community"
-          subtitle="Community posts from the industry, plus alerts from your own network."
+          subtitle="Community posts, network alerts, and official ClearMarket announcements."
           showBackToDashboard
         />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap h-auto gap-2">
             <TabsTrigger value="community" className="gap-2">
               <Users className="w-4 h-4" />
               Community
@@ -114,10 +127,15 @@ const CommunityBoard = () => {
               Network & Alerts
               {networkUnread > 0 && <CountBadge count={networkUnread} />}
             </TabsTrigger>
+            <TabsTrigger value="announcements" className="gap-2">
+              <Newspaper className="w-4 h-4" />
+              ClearMarket Announcements
+              {announcementsUnread > 0 && <CountBadge count={announcementsUnread} />}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="community">
-            <CommunityTab userId={user.id} />
+            <CommunityTab userId={user.id} channel="community" canCreate={true} />
           </TabsContent>
 
           <TabsContent value="network">
@@ -125,6 +143,14 @@ const CommunityBoard = () => {
               userId={user.id} 
               isVendor={isVendor} 
               isRep={isRep} 
+            />
+          </TabsContent>
+
+          <TabsContent value="announcements">
+            <CommunityTab 
+              userId={user.id} 
+              channel="announcements" 
+              canCreate={isAdmin} 
             />
           </TabsContent>
         </Tabs>

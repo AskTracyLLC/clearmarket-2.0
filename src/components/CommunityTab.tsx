@@ -15,8 +15,9 @@ import {
   fetchUserVotes,
   getCategoryConfig,
   getStatusConfig,
-  POST_CATEGORIES,
+  getCategoriesForChannel,
   CommunityPost,
+  CommunityChannel,
 } from "@/lib/community";
 import { formatCommunityScore } from "@/lib/communityScore";
 import { CommunityPostDialog } from "@/components/CommunityPostDialog";
@@ -35,9 +36,11 @@ const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
 
 interface Props {
   userId: string;
+  channel?: CommunityChannel;
+  canCreate?: boolean;
 }
 
-export function CommunityTab({ userId }: Props) {
+export function CommunityTab({ userId, channel = "community", canCreate = true }: Props) {
   const navigate = useNavigate();
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -50,14 +53,17 @@ export function CommunityTab({ userId }: Props) {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTargetPost, setReportTargetPost] = useState<CommunityPost | null>(null);
 
+  const categories = getCategoriesForChannel(channel);
+
   useEffect(() => {
     loadPosts();
-  }, [userId, categoryFilter, sortBy, myPostsOnly]);
+  }, [userId, channel, categoryFilter, sortBy, myPostsOnly]);
 
   const loadPosts = async () => {
     setLoading(true);
 
     const data = await fetchCommunityPosts({
+      channel,
       category: categoryFilter,
       authorId: myPostsOnly ? userId : undefined,
       sortBy,
@@ -79,18 +85,48 @@ export function CommunityTab({ userId }: Props) {
     setReportDialogOpen(true);
   };
 
+  const getEmptyMessage = () => {
+    switch (channel) {
+      case "community":
+        return myPostsOnly
+          ? "You haven't created any community posts yet."
+          : "No community posts found. Be the first to share something!";
+      case "network":
+        return myPostsOnly
+          ? "You haven't sent any network alerts yet."
+          : "No network alerts found.";
+      case "announcements":
+        return "No announcements yet. Check back later for updates from ClearMarket.";
+      default:
+        return "No posts found.";
+    }
+  };
+
+  const getNewPostLabel = () => {
+    switch (channel) {
+      case "community":
+        return "New Post";
+      case "network":
+        return "New Alert";
+      case "announcements":
+        return "New Announcement";
+      default:
+        return "New Post";
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Actions & Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {POST_CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <SelectItem key={cat.value} value={cat.value}>
                   {cat.label}
                 </SelectItem>
@@ -110,19 +146,23 @@ export function CommunityTab({ userId }: Props) {
             </SelectContent>
           </Select>
 
-          <Button
-            variant={myPostsOnly ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setMyPostsOnly(!myPostsOnly)}
-          >
-            My Posts
-          </Button>
+          {channel !== "announcements" && (
+            <Button
+              variant={myPostsOnly ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setMyPostsOnly(!myPostsOnly)}
+            >
+              My Posts
+            </Button>
+          )}
         </div>
 
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New Post
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            {getNewPostLabel()}
+          </Button>
+        )}
       </div>
 
       {/* Posts List */}
@@ -131,20 +171,18 @@ export function CommunityTab({ userId }: Props) {
       ) : posts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              {myPostsOnly
-                ? "You haven't created any posts yet."
-                : "No posts found. Be the first to share something!"}
-            </p>
-            <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-              Create a Post
-            </Button>
+            <p className="text-muted-foreground">{getEmptyMessage()}</p>
+            {canCreate && channel !== "announcements" && (
+              <Button className="mt-4" onClick={() => setDialogOpen(true)}>
+                Create a Post
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {posts.map((post) => {
-            const categoryConfig = getCategoryConfig(post.category);
+            const categoryConfig = getCategoryConfig(post.category, channel);
             const statusConfig = getStatusConfig(post.status);
 
             return (
@@ -236,6 +274,7 @@ export function CommunityTab({ userId }: Props) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         userId={userId}
+        channel={channel}
         onSuccess={loadPosts}
       />
 
