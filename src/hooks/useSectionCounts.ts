@@ -9,6 +9,8 @@ interface SectionCounts {
   openSupportTickets: number;
   adminOpenTickets: number;
   adminOpenReports: number;
+  communityUnread: number;
+  networkUnread: number;
 }
 
 export function useSectionCounts(): SectionCounts {
@@ -19,6 +21,8 @@ export function useSectionCounts(): SectionCounts {
   const [openSupportTickets, setOpenSupportTickets] = useState(0);
   const [adminOpenTickets, setAdminOpenTickets] = useState(0);
   const [adminOpenReports, setAdminOpenReports] = useState(0);
+  const [communityUnread, setCommunityUnread] = useState(0);
+  const [networkUnread, setNetworkUnread] = useState(0);
 
   useEffect(() => {
     if (authLoading || permsLoading) return;
@@ -78,6 +82,26 @@ export function useSectionCounts(): SectionCounts {
       } else {
         setAdminOpenReports(0);
       }
+
+      // Community-related unread notifications
+      const { count: communityCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .in("type", ["community_comment_on_post", "community_post_resolved"]);
+
+      setCommunityUnread(communityCount || 0);
+
+      // Network-related unread notifications
+      const { count: networkCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false)
+        .in("type", ["vendor_network_alert", "vendor_alert", "new_coverage_opportunity"]);
+
+      setNetworkUnread(networkCount || 0);
     } catch (error) {
       console.error("Error loading section counts:", error);
     } finally {
@@ -91,5 +115,7 @@ export function useSectionCounts(): SectionCounts {
     openSupportTickets,
     adminOpenTickets,
     adminOpenReports,
+    communityUnread,
+    networkUnread,
   };
 }
