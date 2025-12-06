@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -16,7 +16,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, MessageSquare, Users, StickyNote, Edit2, X, Check } from "lucide-react";
+import { ArrowLeft, Users, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import RepConnectionCard from "@/components/RepConnectionCard";
 import { getOrCreateConversation } from "@/lib/conversations";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -642,51 +644,41 @@ const VendorMyReps = () => {
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        {/* Admin View Banner */}
+      <div className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
         {profile?.is_admin && <AdminViewBanner />}
         
-        <div className="mb-6 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+        {/* Header */}
+        <div className="mb-6 flex items-start gap-3 md:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="flex-shrink-0 mt-1">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">My Reps</h1>
-            <p className="text-muted-foreground mt-1">
-              Field reps you've marked as Connected across your Seeking Coverage posts.
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Field Reps</h1>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="w-4 h-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>Create agreements to capture coverage areas and pricing for each field rep. This helps you track your network.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Your active field rep connections and agreements.
             </p>
           </div>
         </div>
 
-        {/* State Filter */}
-        {availableStates.length > 0 && (
-          <div className="mb-4">
-            <label className="text-sm font-medium mr-2">Filter by state:</label>
-            <select
-              value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value)}
-              className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-            >
-              <option value="all">All States</option>
-              {availableStates.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {filteredReps.length === 0 && stateFilter !== "all" ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">
-              No field reps found covering {stateFilter}.
-            </p>
-          </Card>
-        ) : connectedReps.length === 0 ? (
+        {/* Empty State */}
+        {connectedReps.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-12 text-center">
               <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-4 text-sm md:text-base">
                 When you mark interested reps as Connected, they'll appear here.
               </p>
               <Button onClick={() => navigate("/vendor/seeking-coverage")}>
@@ -695,217 +687,64 @@ const VendorMyReps = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Field Rep</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Trust Score</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">States Covered</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-foreground">Connected Since</th>
-                </tr>
-              </thead>
-              <tbody>
+          <>
+            {/* State Filter */}
+            {availableStates.length > 0 && (
+              <div className="mb-4 flex items-center gap-2 flex-wrap">
+                <label className="text-sm font-medium">Filter by state:</label>
+                <select
+                  value={stateFilter}
+                  onChange={(e) => setStateFilter(e.target.value)}
+                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                >
+                  <option value="all">All States</option>
+                  {availableStates.map(state => (
+                    <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4">
+              Active Agreements ({filteredReps.length})
+            </h2>
+
+            {filteredReps.length === 0 && stateFilter !== "all" ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  No field reps found covering {stateFilter}.
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
                 {filteredReps.map((rep) => (
-                  <tr key={rep.repUserId} className="border-b border-border hover:bg-muted/50 transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => handleViewProfile(rep.repUserId)}
-                          className="text-primary hover:underline font-semibold flex items-center gap-2 w-fit"
-                        >
-                          {rep.anonymousId}
-                        </button>
-                        {(rep.firstName || rep.lastInitial) && (
-                          <p className="text-xs text-muted-foreground">
-                            {rep.firstName} {rep.lastInitial}.
-                          </p>
-                        )}
-                        {/* Status line */}
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <span>Status: Connected</span>
-                          <span>·</span>
-                          <span>
-                            {rep.agreementId ? "Agreement on file" : "Agreement pending"}
-                          </span>
-                          <span>·</span>
-                          <button
-                            onClick={() => handleDisconnectClick(rep.repUserId)}
-                            className="text-destructive hover:underline"
-                          >
-                            Disconnect
-                          </button>
-                        </div>
-                        {hasNotesByRep[rep.repUserId] && (
-                          <span 
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground w-fit"
-                            title="You have private notes on this connection"
-                          >
-                            <StickyNote className="w-3 h-3" />
-                            Notes
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {rep.trustScoreCount && rep.trustScoreCount > 0 ? (
-                        <button
-                          onClick={() => {
-                            setReviewsDialogUserId(rep.repUserId);
-                            setShowReviewsDialog(true);
-                          }}
-                          className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
-                        >
-                          <span className="font-semibold text-foreground underline decoration-dotted">{rep.trustScore?.toFixed(1)}</span>
-                          <span className="text-xs">({rep.trustScoreCount} {rep.trustScoreCount === 1 ? 'review' : 'reviews'})</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setReviewsDialogUserId(rep.repUserId);
-                            setShowReviewsDialog(true);
-                          }}
-                          className="flex flex-col gap-0.5 hover:opacity-80 cursor-pointer text-left"
-                        >
-                          <span className="font-semibold text-muted-foreground">3.0</span>
-                          <Badge variant="secondary" className="text-xs w-fit">New – not yet rated</Badge>
-                        </button>
-                      )}
-                      {/* Community Score */}
-                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                        <span>Community:</span>
-                        <Badge variant="outline" className="text-xs px-1 py-0">
-                          {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
-                        </Badge>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {rep.statesCovered && rep.statesCovered.length > 0
-                        ? rep.statesCovered.join(", ")
-                        : <span className="text-muted-foreground/60">Not set in ClearMarket</span>
-                      }
-                    </td>
-                    <td className="py-4 px-4 text-sm text-muted-foreground">
-                      {rep.connectedAt && new Date(rep.connectedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
+                  <RepConnectionCard
+                    key={rep.repUserId}
+                    rep={rep}
+                    hasNotes={hasNotesByRep[rep.repUserId] || false}
+                    noteDraft={noteDrafts[rep.repUserId] || ""}
+                    onNoteDraftChange={(value) => setNoteDrafts(prev => ({ ...prev, [rep.repUserId]: value }))}
+                    onAddNote={() => handleAddNote(rep.repUserId)}
+                    editingNoteId={editingNoteId}
+                    editedNoteText={editedNoteText}
+                    onEditNote={handleEditNote}
+                    onCancelEdit={handleCancelEdit}
+                    onSaveEditedNote={(noteId) => handleSaveEditedNote(noteId, rep.repUserId)}
+                    onEditedNoteTextChange={setEditedNoteText}
+                    onViewProfile={() => handleViewProfile(rep.repUserId)}
+                    onEditAgreement={() => handleOpenAgreementDialog(rep)}
+                    onReviewRep={() => handleReviewRep(rep)}
+                    onViewMessages={() => handleMessage(rep.repUserId, rep.conversationId)}
+                    onDisconnect={() => handleDisconnectClick(rep.repUserId)}
+                    onViewTrustScore={() => {
+                      setReviewsDialogUserId(rep.repUserId);
+                      setShowReviewsDialog(true);
+                    }}
+                  />
                 ))}
-              </tbody>
-            </table>
-
-            {/* Notes Section - Below Table */}
-            <div className="mt-8 space-y-6">
-              <h3 className="text-lg font-semibold text-foreground">Connection Notes</h3>
-              {filteredReps.map((rep) => (
-                <Card key={`notes-${rep.repUserId}`}>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      {rep.anonymousId}
-                      {hasNotesByRep[rep.repUserId] && (
-                        <Badge variant="secondary" className="text-xs">
-                          <StickyNote className="w-3 h-3 mr-1" />
-                          Has Notes
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Existing Notes */}
-                    {rep.notes && rep.notes.length > 0 ? (
-                      <div className="space-y-2 max-h-32 overflow-y-auto">
-                        {rep.notes.slice(0, 3).map((n) => (
-                          <div key={n.id} className="space-y-1">
-                            {editingNoteId === n.id ? (
-                              <div className="space-y-1">
-                                <textarea
-                                  className="w-full text-xs rounded-md border bg-background px-2 py-1"
-                                  rows={2}
-                                  value={editedNoteText}
-                                  onChange={(e) => setEditedNoteText(e.target.value)}
-                                  autoFocus
-                                />
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="h-6 text-xs"
-                                    onClick={() => handleSaveEditedNote(n.id, rep.repUserId)}
-                                  >
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Save
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 text-xs"
-                                    onClick={handleCancelEdit}
-                                  >
-                                    <X className="w-3 h-3 mr-1" />
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-xs text-muted-foreground flex-1">
-                                  <span className="font-medium">
-                                    {new Date(n.created_at).toLocaleDateString()}
-                                    {": "}
-                                  </span>
-                                  {n.note}
-                                </p>
-                                <button
-                                  onClick={() => handleEditNote(n.id, n.note)}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Edit note"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">No notes yet for this rep.</p>
-                    )}
-
-                    {/* Add New Note */}
-                    <div className="flex gap-2 pt-2 border-t border-border">
-                      <textarea
-                        className="flex-1 text-xs rounded-md border bg-background px-2 py-1"
-                        rows={2}
-                        placeholder="Add a quick note about this rep..."
-                        value={noteDrafts[rep.repUserId] || ""}
-                        onChange={(e) =>
-                          setNoteDrafts((prev) => ({ ...prev, [rep.repUserId]: e.target.value }))
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAddNote(rep.repUserId)}
-                      >
-                        Save
-                      </Button>
-                    </div>
-
-                    {/* Disconnect Button */}
-                    <div className="pt-2 border-t border-border">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnectClick(rep.repUserId)}
-                        className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                      >
-                        Disconnect from {rep.anonymousId}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
