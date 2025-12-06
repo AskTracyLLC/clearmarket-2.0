@@ -52,7 +52,11 @@ const WorkingTermsPendingCard: React.FC<WorkingTermsPendingCardProps> = ({
   };
 
   const handleClick = () => {
-    navigate(`/rep/working-terms-request/${request.id}`);
+    if (role === 'rep') {
+      navigate(`/rep/working-terms-request/${request.id}`);
+    } else {
+      navigate(`/vendor/working-terms-review/${request.id}`);
+    }
   };
 
   const otherPartyName = role === 'rep' ? vendorName : repName;

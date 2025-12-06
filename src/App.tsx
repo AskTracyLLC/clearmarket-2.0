@@ -56,6 +56,8 @@ import AdminCredits from "./pages/AdminCredits";
 import HelpCenter from "./pages/HelpCenter";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import RepWorkingTermsRequest from "./pages/RepWorkingTermsRequest";
+import VendorWorkingTermsReview from "./pages/VendorWorkingTermsReview";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +120,8 @@ const App = () => (
             <Route path="/vendor/reviews/:id" element={<PublicVendorReviews />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/rep/working-terms-request/:requestId" element={<RepWorkingTermsRequest />} />
+            <Route path="/vendor/working-terms-review/:requestId" element={<VendorWorkingTermsReview />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
