@@ -70,18 +70,24 @@ export function AtAGlanceSidebar({
         </CardHeader>
         {(showProfileSection || profileCompletion < 100) && (
           <CardContent className="pt-0 px-4 pb-4">
-            <Progress value={profileCompletion} className="h-2 mb-2" />
-            {profileCompletion < 100 ? (
-              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                <Button variant="outline" size="sm" className="w-full text-xs">
-                  Complete Profile
-                </Button>
-              </Link>
-            ) : (
-              <p className="text-xs text-muted-foreground text-center">
-                Your profile is complete!
+            <Progress value={profileCompletion} className="h-2 mb-3" />
+            {profileCompletion < 100 && (
+              <p className="text-xs text-muted-foreground text-center mb-3">
+                Complete your profile to be discoverable
               </p>
             )}
+            <div className="space-y-2">
+              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                <Button variant="default" size="sm" className="w-full text-xs">
+                  {isRep ? "View / Edit Profile" : "View / Edit Company Profile"}
+                </Button>
+              </Link>
+              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                <Button variant="outline" size="sm" className="w-full text-xs">
+                  {isRep ? "Manage Coverage & Rates" : "Manage Coverage & Pricing"}
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         )}
       </Card>
