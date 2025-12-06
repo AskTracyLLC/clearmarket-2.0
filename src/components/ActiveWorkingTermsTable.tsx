@@ -140,28 +140,8 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
   const activeRows = rows.filter(r => r.status !== "inactive");
   const inactiveRows = rows.filter(r => r.status === "inactive");
 
-  const getSourceBadge = (source: string) => {
-    switch (source) {
-      case "added_by_vendor":
-        return (
-          <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
-            Added by vendor
-          </Badge>
-        );
-      case "added_by_rep":
-        return (
-          <Badge variant="secondary" className="text-xs">
-            Added by rep
-          </Badge>
-        );
-      case "from_profile":
-      default:
-        return (
-          <Badge variant="secondary" className="text-xs">
-            From profile
-          </Badge>
-        );
-    }
+  const getSourceLabel = (source: string) => {
+    return source === "added_by_vendor" ? "Vendor" : "You";
   };
 
   return (
@@ -202,7 +182,7 @@ const ActiveWorkingTermsTable: React.FC<ActiveWorkingTermsTableProps> = ({
                   <TableCell className="text-right">
                     {row.turnaround_days !== null ? `${row.turnaround_days} days` : "—"}
                   </TableCell>
-                  <TableCell>{getSourceBadge(row.source)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{getSourceLabel(row.source)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {format(new Date(row.effective_from), "MMM d, yyyy")}
                   </TableCell>
