@@ -33,10 +33,24 @@ interface TodayFeedProps {
   isVendor: boolean;
 }
 
+type ActivityFilter = 'all' | 'alerts' | 'opportunities' | 'updates';
+
 export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+
+  const getFilterCategory = (type: FeedItem['type']): ActivityFilter => {
+    if (type === 'alert') return 'alerts';
+    if (type === 'opportunity') return 'opportunities';
+    return 'updates';
+  };
+
+  const filteredItems = feedItems.filter(item => {
+    if (activityFilter === 'all') return true;
+    return getFilterCategory(item.type) === activityFilter;
+  });
 
   useEffect(() => {
     loadFeed();
@@ -260,6 +274,13 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     );
   }
 
+  const filterOptions: { value: ActivityFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'alerts', label: 'Alerts' },
+    { value: 'opportunities', label: 'Opportunities' },
+    { value: 'updates', label: 'Updates' },
+  ];
+
   if (feedItems.length === 0) {
     return (
       <Card className="bg-card border-border">
@@ -277,45 +298,75 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   }
 
   return (
-    <div className="space-y-2">
-      {feedItems.map((item) => (
-        <Card 
-          key={item.id} 
-          className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
-            item.isUnread ? 'border-l-2 border-l-primary' : ''
-          }`}
-          onClick={() => item.link && navigate(item.link)}
-        >
-          <CardContent className="py-3 px-4">
-            <div className="flex items-start gap-3">
-              <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
-                {getIcon(item.type)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    {item.title}
-                  </span>
-                  <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
-                    {getTypeLabel(item.type)}
-                  </Badge>
-                  {item.isUnread && (
-                    <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {item.description}
-                </p>
-                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            </div>
+    <div className="space-y-3">
+      {/* Filter pills */}
+      <div className="flex flex-wrap gap-2">
+        {filterOptions.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setActivityFilter(option.value)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+              activityFilter === option.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtered items */}
+      {filteredItems.length === 0 ? (
+        <Card className="bg-card border-border">
+          <CardContent className="py-6 text-center">
+            <p className="text-muted-foreground text-sm">
+              No {activityFilter === 'all' ? 'activity' : activityFilter} to show.
+            </p>
           </CardContent>
         </Card>
-      ))}
+      ) : (
+        <div className="space-y-2">
+          {filteredItems.map((item) => (
+            <Card 
+              key={item.id} 
+              className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
+                item.isUnread ? 'border-l-2 border-l-primary' : ''
+              }`}
+              onClick={() => item.link && navigate(item.link)}
+            >
+              <CardContent className="py-3 px-4">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
+                    {getIcon(item.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {item.title}
+                      </span>
+                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
+                        {getTypeLabel(item.type)}
+                      </Badge>
+                      {item.isUnread && (
+                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {item.description}
+                    </p>
+                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
       
       <div className="pt-2 text-center">
         <Button variant="ghost" size="sm" onClick={() => navigate('/notifications')}>
