@@ -18,6 +18,7 @@ import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
 import { getRepMatchSettings } from "@/lib/matchAlerts";
 import AdminViewBanner from "@/components/AdminViewBanner";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -533,7 +534,7 @@ export default function RepFindWork() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-6">
@@ -1099,6 +1100,6 @@ export default function RepFindWork() {
         onOpenChange={setMatchSettingsOpen}
         userId={user?.id || ""}
       />
-    </div>
+    </AuthenticatedLayout>
   );
 }

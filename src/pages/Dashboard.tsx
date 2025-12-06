@@ -24,6 +24,7 @@ import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const Dashboard = () => {
   const navigate = useNavigate();

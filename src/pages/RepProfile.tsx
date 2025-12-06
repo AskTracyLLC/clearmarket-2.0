@@ -1424,7 +1424,7 @@ const RepProfile = () => {
           }}
         />
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

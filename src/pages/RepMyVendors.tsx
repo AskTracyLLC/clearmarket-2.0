@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, Building2, Info, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AdminViewBanner from "@/components/AdminViewBanner";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
@@ -714,7 +715,7 @@ const RepMyVendors = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
         {profile?.is_admin && <AdminViewBanner />}
         
@@ -950,7 +951,7 @@ const RepMyVendors = () => {
           onSaved={handleReviewSaved}
         />
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 };
 

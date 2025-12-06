@@ -766,6 +766,6 @@ export default function RepAvailability() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </AuthenticatedLayout>
   );
 }

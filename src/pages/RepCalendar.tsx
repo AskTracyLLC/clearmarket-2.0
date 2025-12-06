@@ -10,6 +10,7 @@ import { CalendarMonthView, CalendarEventPreview } from "@/components/CalendarMo
 import { CalendarDayDialog } from "@/components/CalendarDayDialog";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface AvailabilityEntry {
   id: string;
@@ -177,25 +178,18 @@ export default function RepCalendar() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <h1 className="text-xl font-bold text-foreground">My Calendar</h1>
-          </div>
-        </div>
-      </header>
-
+    <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <div className="mb-6">
-          <p className="text-muted-foreground">
-            View and manage your time off, alerts, and availability. Click on any day to add an event.
-          </p>
+        <div className="mb-6 flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-xl font-bold text-foreground">My Calendar</h1>
         </div>
+        <p className="text-muted-foreground mb-6">
+          View and manage your time off, alerts, and availability. Click on any day to add an event.
+        </p>
 
         {/* Calendar */}
         <CalendarMonthView
@@ -273,6 +267,6 @@ export default function RepCalendar() {
         existingEvents={selectedDateEvents}
         onEventSaved={handleEventSaved}
       />
-    </div>
+    </AuthenticatedLayout>
   );
 }
