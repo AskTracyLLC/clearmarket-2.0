@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -11,26 +10,26 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  fetchCommunityPosts,
   fetchUserVotes,
   getCategoryConfig,
   getStatusConfig,
-  getCategoriesForChannel,
   CommunityPost,
   CommunityChannel,
+  COMMUNITY_CATEGORIES,
+  NETWORK_CATEGORIES,
+  ANNOUNCEMENT_CATEGORIES,
 } from "@/lib/community";
-import { getSavedPostIds } from "@/lib/postSaves";
+import { fetchSavedPosts } from "@/lib/postSaves";
 import { formatCommunityScore } from "@/lib/communityScore";
-import { CommunityPostDialog } from "@/components/CommunityPostDialog";
 import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PostBookmarkButton } from "@/components/PostBookmarkButton";
 import {
-  Plus,
   MessageCircle,
   Award,
   HelpCircle,
+  BookmarkX,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -38,39 +37,50 @@ const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
 
 interface Props {
   userId: string;
-  channel?: CommunityChannel;
-  canCreate?: boolean;
 }
 
-export function CommunityTab({ userId, channel = "community", canCreate = true }: Props) {
+export function SavedPostsTab({ userId }: Props) {
   const navigate = useNavigate();
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [channelFilter, setChannelFilter] = useState<"all" | CommunityChannel>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [sortBy, setSortBy] = useState<"newest" | "helpful" | "comments" | "author_score">("newest");
-  const [myPostsOnly, setMyPostsOnly] = useState(false);
   const [userVotes, setUserVotes] = useState<Record<string, string>>({});
-  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTargetPost, setReportTargetPost] = useState<CommunityPost | null>(null);
 
-  const categories = getCategoriesForChannel(channel);
+  // Get available categories based on channel filter
+  const getAvailableCategories = () => {
+    if (channelFilter === "all") {
+      return [
+        ...COMMUNITY_CATEGORIES,
+        ...NETWORK_CATEGORIES,
+        ...ANNOUNCEMENT_CATEGORIES,
+      ];
+    }
+    switch (channelFilter) {
+      case "community":
+        return COMMUNITY_CATEGORIES;
+      case "network":
+        return NETWORK_CATEGORIES;
+      case "announcements":
+        return ANNOUNCEMENT_CATEGORIES;
+      default:
+        return [];
+    }
+  };
 
   useEffect(() => {
-    loadPosts();
-  }, [userId, channel, categoryFilter, sortBy, myPostsOnly]);
+    loadSavedPosts();
+  }, [userId, channelFilter, categoryFilter]);
 
-  const loadPosts = async () => {
+  const loadSavedPosts = async () => {
     setLoading(true);
 
-    const data = await fetchCommunityPosts({
-      channel,
-      category: categoryFilter,
-      authorId: myPostsOnly ? userId : undefined,
-      sortBy,
-      limit: 50,
+    const data = await fetchSavedPosts(userId, {
+      channel: channelFilter !== "all" ? channelFilter : undefined,
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
     });
 
     setPosts(data);
@@ -80,10 +90,6 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
       setUserVotes(votes);
     }
 
-    // Load saved status for all posts
-    const savedIds = await getSavedPostIds(userId);
-    setSavedPostIds(savedIds);
-
     setLoading(false);
   };
 
@@ -92,104 +98,77 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
     setReportDialogOpen(true);
   };
 
-  const getEmptyMessage = () => {
-    switch (channel) {
-      case "community":
-        return myPostsOnly
-          ? "You haven't created any community posts yet."
-          : "No community posts found. Be the first to share something!";
-      case "network":
-        return myPostsOnly
-          ? "You haven't sent any network alerts yet."
-          : "No network alerts found.";
-      case "announcements":
-        return "No announcements yet. Check back later for updates from ClearMarket.";
-      default:
-        return "No posts found.";
-    }
+  const handleUnsave = () => {
+    // Reload the list after unsaving
+    loadSavedPosts();
   };
 
-  const getNewPostLabel = () => {
+  const getChannelLabel = (channel: CommunityChannel) => {
     switch (channel) {
       case "community":
-        return "New Post";
+        return "Community";
       case "network":
-        return "New Alert";
+        return "Network & Alerts";
       case "announcements":
-        return "New Announcement";
+        return "Announcements";
       default:
-        return "New Post";
+        return channel;
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Actions & Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((cat) => (
-                <SelectItem key={cat.value} value={cat.value}>
-                  {cat.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        <Select 
+          value={channelFilter} 
+          onValueChange={(v) => {
+            setChannelFilter(v as "all" | CommunityChannel);
+            setCategoryFilter("all"); // Reset category when channel changes
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Channel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Channels</SelectItem>
+            <SelectItem value="community">Community</SelectItem>
+            <SelectItem value="network">Network & Alerts</SelectItem>
+            <SelectItem value="announcements">Announcements</SelectItem>
+          </SelectContent>
+        </Select>
 
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="helpful">Most Helpful</SelectItem>
-              <SelectItem value="comments">Most Commented</SelectItem>
-              <SelectItem value="author_score">Author Community Score (High → Low)</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {channel !== "announcements" && (
-            <Button
-              variant={myPostsOnly ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setMyPostsOnly(!myPostsOnly)}
-            >
-              My Posts
-            </Button>
-          )}
-        </div>
-
-        {canCreate && (
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            {getNewPostLabel()}
-          </Button>
-        )}
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {getAvailableCategories().map((cat) => (
+              <SelectItem key={cat.value} value={cat.value}>
+                {cat.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Posts List */}
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading posts...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading saved posts...</div>
       ) : posts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">{getEmptyMessage()}</p>
-            {canCreate && channel !== "announcements" && (
-              <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-                Create a Post
-              </Button>
-            )}
+            <BookmarkX className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              You haven't saved any posts yet. Tap the bookmark icon on a post to save it for later.
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {posts.map((post) => {
-            const categoryConfig = getCategoryConfig(post.category, channel);
+            const categoryConfig = getCategoryConfig(post.category, post.channel);
             const statusConfig = getStatusConfig(post.status);
 
             return (
@@ -202,6 +181,9 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {getChannelLabel(post.channel)}
+                        </Badge>
                         <Badge className={categoryConfig.color}>{categoryConfig.label}</Badge>
                         {post.status !== "active" && (
                           <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
@@ -248,7 +230,7 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                             helpfulCount={post.helpful_count}
                             notHelpfulCount={post.not_helpful_count}
                             currentVote={userVotes[post.id]}
-                            onVoteChange={loadPosts}
+                            onVoteChange={loadSavedPosts}
                             size="sm"
                           />
                         </div>
@@ -266,18 +248,8 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                       <PostBookmarkButton
                         postId={post.id}
                         userId={userId}
-                        initialSaved={savedPostIds.has(post.id)}
-                        onToggle={(saved) => {
-                          setSavedPostIds(prev => {
-                            const newSet = new Set(prev);
-                            if (saved) {
-                              newSet.add(post.id);
-                            } else {
-                              newSet.delete(post.id);
-                            }
-                            return newSet;
-                          });
-                        }}
+                        initialSaved={true}
+                        onToggle={handleUnsave}
                       />
                       <ReportFlagButton
                         onClick={() => handleReportPost(post)}
@@ -291,15 +263,6 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
           })}
         </div>
       )}
-
-      {/* Dialogs */}
-      <CommunityPostDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        userId={userId}
-        channel={channel}
-        onSuccess={loadPosts}
-      />
 
       {reportTargetPost && (
         <ReportUserDialog
