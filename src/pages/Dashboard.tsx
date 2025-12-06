@@ -611,7 +611,6 @@ const Dashboard = () => {
                   unreadMessages={unreadMessageCount}
                   unreadNotifications={unreadNotificationCount}
                   vendorCredits={vendorCredits}
-                  upcomingTimeOff={upcomingTimeOff}
                   pendingConnections={pendingConnectionCount}
                   newOpportunities={newOpportunityCount}
                 />
