@@ -84,19 +84,19 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
   if (actions.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
       {actions.map((action) => (
         <Card 
           key={action.link}
           className={`bg-card border-border cursor-pointer transition-all ${action.color}`}
           onClick={() => navigate(action.link)}
         >
-          <CardContent className="p-4 text-center">
-            <div className="flex justify-center mb-2">
+          <CardContent className="p-3 text-center">
+            <div className="flex justify-center mb-1">
               {action.icon}
             </div>
-            <p className="text-sm font-medium text-foreground">{action.label}</p>
-            <p className="text-xs text-muted-foreground hidden sm:block">{action.description}</p>
+            <p className="text-xs sm:text-sm font-medium text-foreground">{action.label}</p>
+            <p className="text-xs text-muted-foreground hidden lg:block">{action.description}</p>
           </CardContent>
         </Card>
       ))}
