@@ -18,11 +18,13 @@ import {
   Send,
   Clock,
   CheckCircle2,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react";
 import RequestCoverageDialog from "@/components/RequestCoverageDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { fetchPendingChangeRequestsForVendor, WorkingTermsChangeRequest } from "@/lib/workingTerms";
 
 interface RepNote {
   id: string;
@@ -34,6 +36,11 @@ interface WorkingTermsStatus {
   id: string;
   status: string;
   created_at: string;
+}
+
+interface PendingChangeInfo {
+  count: number;
+  requestId: string;
 }
 
 interface RepConnectionCardProps {
@@ -99,10 +106,11 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   const [notesOpen, setNotesOpen] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<PendingChangeInfo | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const notesCount = rep.notes?.length || 0;
 
-  // Load working terms status
+  // Load working terms status and pending changes
   useEffect(() => {
     loadWorkingTermsStatus();
   }, [vendorId, rep.repUserId]);
@@ -121,6 +129,18 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
         .maybeSingle();
 
       setWorkingTermsStatus(data);
+
+      // If active, check for pending change requests
+      if (data?.status === "active") {
+        const changes = await fetchPendingChangeRequestsForVendor(vendorId, rep.repUserId);
+        if (changes.length > 0) {
+          setPendingChanges({ count: changes.length, requestId: data.id });
+        } else {
+          setPendingChanges(null);
+        }
+      } else {
+        setPendingChanges(null);
+      }
     } catch (error) {
       console.error("Error loading working terms status:", error);
     } finally {
@@ -324,7 +344,29 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
                 {!loadingStatus && getStatusDisplay()}
               </div>
               
-              {workingTermsStatus?.status === "active" ? (
+              {/* Pending rate change notice */}
+              {pendingChanges && pendingChanges.count > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span className="text-sm font-medium text-amber-600">
+                      {pendingChanges.count === 1 ? "Rate change requested" : `${pendingChanges.count} rate changes requested`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This rep has proposed changes to their working terms. Please review and accept or decline.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => navigate(`/vendor/working-terms-review/${pendingChanges.requestId}`)}
+                  >
+                    Review changes
+                  </Button>
+                </div>
+              )}
+              
+              {workingTermsStatus?.status === "active" && !pendingChanges ? (
                 <div className="text-sm space-y-2">
                   <Button
                     variant="link"
@@ -334,6 +376,12 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
                   >
                     View working terms details →
                   </Button>
+                  <p className="text-xs text-muted-foreground italic">
+                    Informational only — not a contract, guarantee of work, or employment agreement.
+                  </p>
+                </div>
+              ) : workingTermsStatus?.status === "active" && pendingChanges ? (
+                <div className="text-sm">
                   <p className="text-xs text-muted-foreground italic">
                     Informational only — not a contract, guarantee of work, or employment agreement.
                   </p>

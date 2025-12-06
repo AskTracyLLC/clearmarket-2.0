@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,9 +19,17 @@ import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ArrowLeft, Plus, Trash2, Check, Edit2 } from "lucide-react";
 import {
   vendorUpdateWorkingTerms,
+  inactivateWorkingTermsRow,
+  proposeWorkingTermsChange,
+  acceptWorkingTermsChange,
+  declineWorkingTermsChange,
+  fetchAllPendingChangesForRequest,
   INSPECTION_TYPES,
   INSPECTION_TYPE_LABELS,
+  WorkingTermsRow,
+  WorkingTermsChangeRequest,
 } from "@/lib/workingTerms";
+import ActiveWorkingTermsTable from "@/components/ActiveWorkingTermsTable";
 
 const US_STATES = [
   { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
@@ -65,6 +72,8 @@ const VendorWorkingTermsReview = () => {
   const [request, setRequest] = useState<any>(null);
   const [repName, setRepName] = useState("");
   const [coverageRows, setCoverageRows] = useState<CoverageRow[]>([]);
+  const [activeRows, setActiveRows] = useState<WorkingTermsRow[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<Map<string, WorkingTermsChangeRequest>>(new Map());
   const [isEditing, setIsEditing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -117,18 +126,28 @@ const VendorWorkingTermsReview = () => {
       .select("*")
       .eq("working_terms_request_id", requestId);
 
-    setCoverageRows(
-      (rows || []).map((r: any) => ({
-        id: r.id,
-        state_code: r.state_code,
-        county_name: r.county_name,
-        inspection_type: r.inspection_type,
-        rate: r.rate,
-        turnaround_days: r.turnaround_days,
-        included: true,
-        source: r.source,
-      }))
-    );
+    if (req.status === "active") {
+      // For active status, use the full WorkingTermsRow interface
+      setActiveRows((rows || []) as WorkingTermsRow[]);
+      
+      // Load pending change requests
+      const changes = await fetchAllPendingChangesForRequest(requestId);
+      setPendingChanges(changes);
+    } else {
+      // For pending status, use the editable CoverageRow interface
+      setCoverageRows(
+        (rows || []).map((r: any) => ({
+          id: r.id,
+          state_code: r.state_code,
+          county_name: r.county_name,
+          inspection_type: r.inspection_type,
+          rate: r.rate,
+          turnaround_days: r.turnaround_days,
+          included: true,
+          source: r.source,
+        }))
+      );
+    }
 
     setLoading(false);
   };
@@ -234,6 +253,56 @@ const VendorWorkingTermsReview = () => {
     navigate("/vendor/my-reps");
   };
 
+  // Handlers for active working terms table
+  const handleInactivate = async (rowId: string, reason: string) => {
+    if (!user) return;
+    const { error } = await inactivateWorkingTermsRow(rowId, reason, user.id, "vendor");
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+    } else {
+      toast({ title: "Area inactivated" });
+      loadRequest();
+    }
+  };
+
+  const handleProposeChange = async (rowId: string, data: {
+    newRate: number | null;
+    newTurnaround: number | null;
+    effectiveFrom: string;
+    reason: string;
+  }) => {
+    if (!user) return;
+    const { error } = await proposeWorkingTermsChange(rowId, user.id, "vendor", data);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+    } else {
+      toast({ title: "Change proposed", description: `${repName} will review your proposed changes.` });
+      loadRequest();
+    }
+  };
+
+  const handleAcceptChange = async (changeRequestId: string) => {
+    if (!user) return;
+    const { error } = await acceptWorkingTermsChange(changeRequestId, user.id);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+    } else {
+      toast({ title: "Terms updated", description: "The new terms are now active." });
+      loadRequest();
+    }
+  };
+
+  const handleDeclineChange = async (changeRequestId: string, reason: string) => {
+    if (!user) return;
+    const { error } = await declineWorkingTermsChange(changeRequestId, user.id, reason);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+    } else {
+      toast({ title: "Change declined", description: "The previous terms remain in effect." });
+      loadRequest();
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <AuthenticatedLayout>
@@ -244,9 +313,12 @@ const VendorWorkingTermsReview = () => {
     );
   }
 
+  const isActive = request?.status === "active";
+
   // Calculate summary
-  const states = [...new Set(coverageRows.map(r => r.state_code))];
-  const inspectionTypes = [...new Set(coverageRows.map(r => r.inspection_type))];
+  const rowsForSummary = isActive ? activeRows : coverageRows;
+  const states = [...new Set(rowsForSummary.map(r => r.state_code))];
+  const inspectionTypes = [...new Set(rowsForSummary.map(r => r.inspection_type))];
 
   return (
     <AuthenticatedLayout>
@@ -257,9 +329,16 @@ const VendorWorkingTermsReview = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Review Working Terms</h1>
-            <p className="text-muted-foreground">From {repName}</p>
+            <h1 className="text-2xl font-bold">
+              {isActive ? "Working Terms" : "Review Working Terms"}
+            </h1>
+            <p className="text-muted-foreground">With {repName}</p>
           </div>
+          {isActive && (
+            <Badge variant="secondary" className="ml-auto bg-green-600/20 text-green-600">
+              Active
+            </Badge>
+          )}
         </div>
 
         {/* Summary */}
@@ -269,7 +348,7 @@ const VendorWorkingTermsReview = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm">
-              <span className="text-muted-foreground">Rows shared:</span> {coverageRows.length}
+              <span className="text-muted-foreground">Rows:</span> {rowsForSummary.length}
             </p>
             <p className="text-sm">
               <span className="text-muted-foreground">States:</span> {states.join(", ")}
@@ -281,192 +360,228 @@ const VendorWorkingTermsReview = () => {
           </CardContent>
         </Card>
 
-        {/* Coverage Table */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        {/* Active Working Terms Table - with review/edit/inactivate actions */}
+        {isActive ? (
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Coverage & Pricing</CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  variant={isEditing ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
-                >
-                  <Edit2 className="w-4 h-4 mr-1" />
-                  {isEditing ? "Done editing" : "Add or edit coverage"}
-                </Button>
-                {isEditing && (
-                  <Button variant="outline" size="sm" onClick={handleAddRow}>
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add row
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium w-12">Include</th>
-                    <th className="px-3 py-2 text-left font-medium">State</th>
-                    <th className="px-3 py-2 text-left font-medium">County</th>
-                    <th className="px-3 py-2 text-left font-medium">Inspection Type</th>
-                    <th className="px-3 py-2 text-left font-medium w-24">Rate ($)</th>
-                    <th className="px-3 py-2 text-left font-medium w-28">Turnaround</th>
-                    <th className="px-3 py-2 text-left font-medium">Source</th>
-                    {isEditing && <th className="px-3 py-2 w-12"></th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {coverageRows.map(row => (
-                    <tr key={row.id} className={row.source === 'added_by_vendor' ? 'bg-primary/5' : ''}>
-                      <td className="px-3 py-2">
-                        <Checkbox
-                          checked={row.included}
-                          onCheckedChange={(checked) => handleRowChange(row.id, 'included', !!checked)}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        {isEditing ? (
-                          <Select
-                            value={row.state_code}
-                            onValueChange={(v) => handleRowChange(row.id, 'state_code', v)}
-                          >
-                            <SelectTrigger className="h-8 w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {US_STATES.map(s => (
-                                <SelectItem key={s.code} value={s.code}>{s.code}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          row.state_code
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {isEditing ? (
-                          <Input
-                            value={row.county_name || ""}
-                            onChange={(e) => handleRowChange(row.id, 'county_name', e.target.value || null)}
-                            placeholder="All"
-                            className="h-8 w-32"
-                          />
-                        ) : (
-                          row.county_name || "All"
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {isEditing ? (
-                          <Select
-                            value={row.inspection_type}
-                            onValueChange={(v) => handleRowChange(row.id, 'inspection_type', v)}
-                          >
-                            <SelectTrigger className="h-8 w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {INSPECTION_TYPES.map(t => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            value={row.rate ?? ""}
-                            onChange={(e) => handleRowChange(row.id, 'rate', e.target.value ? parseFloat(e.target.value) : null)}
-                            placeholder="—"
-                            className="h-8 w-20"
-                          />
-                        ) : (
-                          row.rate !== null ? `$${row.rate}` : "—"
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              value={row.turnaround_days ?? ""}
-                              onChange={(e) => handleRowChange(row.id, 'turnaround_days', e.target.value ? parseInt(e.target.value) : null)}
-                              placeholder="—"
-                              className="h-8 w-16"
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ActiveWorkingTermsTable
+                rows={activeRows}
+                pendingChanges={pendingChanges}
+                role="vendor"
+                otherPartyName={repName}
+                onInactivate={handleInactivate}
+                onProposeChange={handleProposeChange}
+                onAcceptChange={handleAcceptChange}
+                onDeclineChange={handleDeclineChange}
+              />
+              <p className="text-xs text-muted-foreground/80 italic">
+                Informational only — not a contract, guarantee of work, or employment agreement.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Editable Coverage Table for pending status */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Coverage & Pricing</CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={isEditing ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsEditing(!isEditing)}
+                    >
+                      <Edit2 className="w-4 h-4 mr-1" />
+                      {isEditing ? "Done editing" : "Add or edit coverage"}
+                    </Button>
+                    {isEditing && (
+                      <Button variant="outline" size="sm" onClick={handleAddRow}>
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add row
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium w-12">Include</th>
+                        <th className="px-3 py-2 text-left font-medium">State</th>
+                        <th className="px-3 py-2 text-left font-medium">County</th>
+                        <th className="px-3 py-2 text-left font-medium">Inspection Type</th>
+                        <th className="px-3 py-2 text-left font-medium w-24">Rate ($)</th>
+                        <th className="px-3 py-2 text-left font-medium w-28">Turnaround</th>
+                        <th className="px-3 py-2 text-left font-medium">Source</th>
+                        {isEditing && <th className="px-3 py-2 w-12"></th>}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {coverageRows.map(row => (
+                        <tr key={row.id} className={row.source === 'added_by_vendor' ? 'bg-primary/5' : ''}>
+                          <td className="px-3 py-2">
+                            <Checkbox
+                              checked={row.included}
+                              onCheckedChange={(checked) => handleRowChange(row.id, 'included', !!checked)}
                             />
-                            <span className="text-xs text-muted-foreground">days</span>
-                          </div>
-                        ) : (
-                          row.turnaround_days !== null ? `${row.turnaround_days} days` : "—"
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {row.source === 'from_profile' && (
-                          <Badge variant="secondary" className="text-xs">From rep profile</Badge>
-                        )}
-                        {row.source === 'added_by_vendor' && (
-                          <Badge variant="outline" className="text-xs">Added by you</Badge>
-                        )}
-                        {row.source === 'added_by_rep' && (
-                          <Badge variant="secondary" className="text-xs">Added by rep</Badge>
-                        )}
-                      </td>
-                      {isEditing && (
-                        <td className="px-3 py-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleRemoveRow(row.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                          </td>
+                          <td className="px-3 py-2">
+                            {isEditing ? (
+                              <Select
+                                value={row.state_code}
+                                onValueChange={(v) => handleRowChange(row.id, 'state_code', v)}
+                              >
+                                <SelectTrigger className="h-8 w-20">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {US_STATES.map(s => (
+                                    <SelectItem key={s.code} value={s.code}>{s.code}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              row.state_code
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isEditing ? (
+                              <Input
+                                value={row.county_name || ""}
+                                onChange={(e) => handleRowChange(row.id, 'county_name', e.target.value || null)}
+                                placeholder="All"
+                                className="h-8 w-32"
+                              />
+                            ) : (
+                              row.county_name || "All"
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isEditing ? (
+                              <Select
+                                value={row.inspection_type}
+                                onValueChange={(v) => handleRowChange(row.id, 'inspection_type', v)}
+                              >
+                                <SelectTrigger className="h-8 w-40">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {INSPECTION_TYPES.map(t => (
+                                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              INSPECTION_TYPE_LABELS[row.inspection_type] || row.inspection_type
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isEditing ? (
+                              <Input
+                                type="number"
+                                value={row.rate ?? ""}
+                                onChange={(e) => handleRowChange(row.id, 'rate', e.target.value ? parseFloat(e.target.value) : null)}
+                                placeholder="—"
+                                className="h-8 w-20"
+                              />
+                            ) : (
+                              row.rate !== null ? `$${row.rate}` : "—"
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isEditing ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  value={row.turnaround_days ?? ""}
+                                  onChange={(e) => handleRowChange(row.id, 'turnaround_days', e.target.value ? parseInt(e.target.value) : null)}
+                                  placeholder="—"
+                                  className="h-8 w-16"
+                                />
+                                <span className="text-xs text-muted-foreground">days</span>
+                              </div>
+                            ) : (
+                              row.turnaround_days !== null ? `${row.turnaround_days} days` : "—"
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {row.source === 'from_profile' && (
+                              <Badge variant="secondary" className="text-xs">From rep profile</Badge>
+                            )}
+                            {row.source === 'added_by_vendor' && (
+                              <Badge variant="outline" className="text-xs">Added by you</Badge>
+                            )}
+                            {row.source === 'added_by_rep' && (
+                              <Badge variant="secondary" className="text-xs">Added by rep</Badge>
+                            )}
+                          </td>
+                          {isEditing && (
+                            <td className="px-3 py-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => handleRemoveRow(row.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Disclaimer & Actions */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            <p className="text-xs text-muted-foreground/80 italic">
-              These working terms are shared for reference only and do not create an employment relationship, contract, or guarantee of work.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={() => navigate("/vendor/my-reps")}>
-                Cancel
-              </Button>
-              {isEditing && (
-                <Button
-                  variant="outline"
-                  onClick={handleSendBack}
-                  disabled={submitting || coverageRows.filter(r => r.included).length === 0}
-                >
-                  Send back to rep for approval
-                </Button>
-              )}
-              <Button
-                onClick={handleConfirm}
-                disabled={submitting || coverageRows.filter(r => r.included).length === 0}
-              >
-                <Check className="w-4 h-4 mr-1" />
-                {submitting ? "Confirming..." : "Confirm working terms"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Disclaimer & Actions for pending status */}
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <p className="text-xs text-muted-foreground/80 italic">
+                  These working terms are shared for reference only and do not create an employment relationship, contract, or guarantee of work.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="outline" onClick={() => navigate("/vendor/my-reps")}>
+                    Cancel
+                  </Button>
+                  {isEditing && (
+                    <Button
+                      variant="outline"
+                      onClick={handleSendBack}
+                      disabled={submitting || coverageRows.filter(r => r.included).length === 0}
+                    >
+                      Send back to rep for approval
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleConfirm}
+                    disabled={submitting || coverageRows.filter(r => r.included).length === 0}
+                  >
+                    <Check className="w-4 h-4 mr-1" />
+                    {submitting ? "Confirming..." : "Confirm working terms"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Back button for active status */}
+        {isActive && (
+          <div className="flex justify-start">
+            <Button variant="outline" onClick={() => navigate("/vendor/my-reps")}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to My Field Reps
+            </Button>
+          </div>
+        )}
       </div>
     </AuthenticatedLayout>
   );
