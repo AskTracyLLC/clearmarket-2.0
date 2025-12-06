@@ -53,6 +53,8 @@ import AdminAuditLog from "./pages/AdminAuditLog";
 import AdminMetrics from "./pages/AdminMetrics";
 import AdminCredits from "./pages/AdminCredits";
 import HelpCenter from "./pages/HelpCenter";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 const queryClient = new QueryClient();
 
@@ -112,6 +114,8 @@ const App = () => (
             <Route path="/share/vendor/:slug" element={<VendorShareProfile />} />
             <Route path="/rep/reviews/:id" element={<PublicRepReviews />} />
             <Route path="/vendor/reviews/:id" element={<PublicVendorReviews />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

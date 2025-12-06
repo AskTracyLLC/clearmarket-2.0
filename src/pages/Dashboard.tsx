@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Headphones, Coins, LifeBuoy, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult } from "@/lib/profileCompleteness";
@@ -22,6 +22,7 @@ import { TodayFeed } from "@/components/dashboard/TodayFeed";
 import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -354,11 +355,6 @@ const Dashboard = () => {
                     </Badge>
                   )}
                 </NavLink>
-                <NavLink to="/support" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <LifeBuoy className="w-4 h-4" />
-                  Support
-                  <CountBadge count={sectionCounts.openSupportTickets} className="ml-1" />
-                </NavLink>
                 <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <ShieldAlert className="w-4 h-4" />
                   Safety
@@ -366,10 +362,6 @@ const Dashboard = () => {
                 <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <Users className="w-4 h-4" />
                   Community
-                </NavLink>
-                <NavLink to="/help" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Headphones className="w-4 h-4" />
-                  Help
                 </NavLink>
                 {profile?.is_admin && (
                   <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
@@ -622,6 +614,8 @@ const Dashboard = () => {
           </>
         )}
       </div>
+
+      <SiteFooter />
     </div>
   );
 };
