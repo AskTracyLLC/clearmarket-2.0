@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { createNotification } from "./notifications";
 
 export interface WorkingTermsRequest {
   id: string;
@@ -73,12 +72,12 @@ export async function createWorkingTermsRequest(
   }
 
   // Send notification to rep
-  await createNotification({
-    userId: repId,
+  await supabase.from("notifications").insert({
+    user_id: repId,
     type: "working_terms_request",
     title: "Coverage & pricing request",
     body: `A vendor requested your coverage & pricing for ${requestedStates.join(", ")}.`,
-    refId: data.id,
+    ref_id: data.id,
   });
 
   return { id: data.id, error: null };
@@ -115,12 +114,12 @@ export async function declineWorkingTermsRequest(
   }
 
   // Notify vendor
-  await createNotification({
-    userId: request.vendor_id,
+  await supabase.from("notifications").insert({
+    user_id: request.vendor_id,
     type: "working_terms_declined",
     title: "Coverage request declined",
     body: reason ? `Your request was declined: "${reason}"` : "Your coverage request was declined.",
-    refId: requestId,
+    ref_id: requestId,
   });
 
   return { error: null };
@@ -274,12 +273,12 @@ export async function submitWorkingTermsRows(
   }
 
   // Notify vendor
-  await createNotification({
-    userId: request.vendor_id,
+  await supabase.from("notifications").insert({
+    user_id: request.vendor_id,
     type: "working_terms_submitted",
     title: "Coverage & pricing received",
     body: `Coverage details were shared for ${request.requested_states.join(", ")}.`,
-    refId: requestId,
+    ref_id: requestId,
   });
 
   return { error: null };
@@ -297,7 +296,7 @@ export async function vendorUpdateWorkingTerms(
     inspection_type: string;
     rate: number | null;
     turnaround_days: number | null;
-    source: 'from_profile' | 'added_by_vendor';
+    source: 'from_profile' | 'added_by_vendor' | 'added_by_rep';
     included: boolean;
   }>,
   confirm: boolean
@@ -351,14 +350,14 @@ export async function vendorUpdateWorkingTerms(
   }
 
   // Notify rep
-  await createNotification({
-    userId: request.rep_id,
+  await supabase.from("notifications").insert({
+    user_id: request.rep_id,
     type: confirm ? "working_terms_confirmed" : "working_terms_updated",
     title: confirm ? "Working terms confirmed" : "Working terms updated",
     body: confirm
       ? "Your working terms have been confirmed."
       : "The vendor made changes to your working terms. Please review.",
-    refId: requestId,
+    ref_id: requestId,
   });
 
   return { error: null };
@@ -407,12 +406,12 @@ export async function repConfirmWorkingTerms(
   }
 
   // Notify vendor
-  await createNotification({
-    userId: request.vendor_id,
+  await supabase.from("notifications").insert({
+    user_id: request.vendor_id,
     type: "working_terms_confirmed",
     title: "Working terms confirmed",
     body: "Your working terms have been confirmed by the field rep.",
-    refId: requestId,
+    ref_id: requestId,
   });
 
   return { error: null };

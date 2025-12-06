@@ -16,8 +16,6 @@ import {
   Star,
   FileText
 } from "lucide-react";
-import WorkingTermsDisplay from "./WorkingTermsDisplay";
-import WorkingTermsDialog, { type WorkingTerms } from "./WorkingTermsDialog";
 
 interface RepNote {
   id: string;
@@ -44,7 +42,7 @@ interface RepConnectionCardProps {
     notes?: RepNote[];
     review?: any;
     conversationId?: string;
-    workingTerms?: WorkingTerms | null;
+    
   };
   hasNotes: boolean;
   noteDraft: string;
@@ -86,7 +84,6 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   onWorkingTermsSaved,
 }) => {
   const [notesOpen, setNotesOpen] = useState(false);
-  const [workingTermsOpen, setWorkingTermsOpen] = useState(false);
   const notesCount = rep.notes?.length || 0;
 
   // Build coverage display from statesCovered
@@ -260,29 +257,7 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
             )}
           </div>
 
-          {/* Working Terms Section */}
-          {rep.agreementId && (
-            <div className="border-t border-border/50 pt-3">
-              <WorkingTermsDisplay
-                workingTerms={rep.workingTerms}
-                onEditClick={() => setWorkingTermsOpen(true)}
-                canEdit={true}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Working Terms Dialog */}
-        {rep.agreementId && (
-          <WorkingTermsDialog
-            open={workingTermsOpen}
-            onOpenChange={setWorkingTermsOpen}
-            agreementId={rep.agreementId}
-            coverageDisplay={coverageDisplay}
-            existingTerms={rep.workingTerms}
-            onSaved={() => onWorkingTermsSaved?.()}
-          />
-        )}
+          </div>
 
         {/* Connection Notes - Collapsible on Mobile, Always visible on Desktop */}
         <div className="border-t border-border pt-4">
