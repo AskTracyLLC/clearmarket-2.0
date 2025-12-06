@@ -40,6 +40,13 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
       color: "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
     },
     {
+      icon: <Users className="h-5 w-5" />,
+      label: "My Vendors",
+      description: "Your connections",
+      link: "/rep/my-vendors",
+      color: "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
+    },
+    {
       icon: <User className="h-5 w-5" />,
       label: "Profile",
       description: "Edit your profile",
