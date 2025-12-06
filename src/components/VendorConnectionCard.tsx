@@ -16,8 +16,6 @@ import {
   ChevronUp,
   Star
 } from "lucide-react";
-import WorkingTermsDisplay from "./WorkingTermsDisplay";
-import WorkingTermsDialog, { type WorkingTerms } from "./WorkingTermsDialog";
 
 interface VendorNote {
   id: string;
@@ -46,7 +44,7 @@ interface VendorConnectionCardProps {
     review?: any;
     conversationId?: string;
     connectedPosts?: Array<{ id: string; title: string; stateCode: string | null; interestId: string; }>;
-    workingTerms?: WorkingTerms | null;
+    
   };
   hasNotes: boolean;
   noteDraft: string;
@@ -88,7 +86,6 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
   onWorkingTermsSaved,
 }) => {
   const [notesOpen, setNotesOpen] = useState(false);
-  const [workingTermsOpen, setWorkingTermsOpen] = useState(false);
   const notesCount = vendor.notes?.length || 0;
 
   // Build coverage display from statesCovered
@@ -263,29 +260,7 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
             )}
           </div>
 
-          {/* Working Terms Section */}
-          {vendor.agreementId && (
-            <div className="border-t border-border/50 pt-3">
-              <WorkingTermsDisplay
-                workingTerms={vendor.workingTerms}
-                onEditClick={() => setWorkingTermsOpen(true)}
-                canEdit={true}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Working Terms Dialog */}
-        {vendor.agreementId && (
-          <WorkingTermsDialog
-            open={workingTermsOpen}
-            onOpenChange={setWorkingTermsOpen}
-            agreementId={vendor.agreementId}
-            coverageDisplay={coverageDisplay}
-            existingTerms={vendor.workingTerms}
-            onSaved={() => onWorkingTermsSaved?.()}
-          />
-        )}
+          </div>
 
         {/* Connection Notes - Collapsible on Mobile, Always visible on Desktop */}
         <div className="border-t border-border pt-4">
