@@ -8,6 +8,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones } from "lucide-react";
+import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult } from "@/lib/profileCompleteness";
@@ -341,27 +342,13 @@ const Dashboard = () => {
                   <Briefcase className="w-4 h-4" />
                   Dashboard
                 </NavLink>
-                <NavLink to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <MessageSquare className="w-4 h-4" />
-                  Messages
-                  <CountBadge count={sectionCounts.unreadMessages} className="ml-1" />
-                </NavLink>
-                <NavLink to="/notifications" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Bell className="w-4 h-4" />
-                  Notifications
-                  {unreadNotificationCount > 0 && (
-                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-500 hover:bg-orange-500/30 ml-1">
-                      {unreadNotificationCount}
-                    </Badge>
-                  )}
+                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
+                  <Users className="w-4 h-4" />
+                  Community
                 </NavLink>
                 <NavLink to="/safety" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
                   <ShieldAlert className="w-4 h-4" />
                   Safety
-                </NavLink>
-                <NavLink to="/community" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
-                  <Users className="w-4 h-4" />
-                  Community
                 </NavLink>
                 {profile?.is_admin && (
                   <NavLink to="/admin/moderation" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" activeClassName="text-primary">
@@ -370,18 +357,17 @@ const Dashboard = () => {
                     <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
                   </NavLink>
                 )}
-                {isVendor && vendorCredits !== null && (
-                  <Link to="/vendor/credits" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-secondary/20 text-secondary hover:bg-secondary/30">
-                      Credits: {vendorCredits}
-                    </Badge>
-                  </Link>
-                )}
               </nav>
             </div>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              Sign Out
-            </Button>
+            <div className="flex items-center gap-3">
+              <NavIconCluster 
+                vendorCredits={vendorCredits} 
+                showCredits={isVendor} 
+              />
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </header>
