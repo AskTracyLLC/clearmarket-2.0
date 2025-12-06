@@ -7,9 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
-import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, MessageSquare } from "lucide-react";
+import { fetchTrustScoresForUsers, canMarkFeedback, markReviewAsFeedback } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
 import { ReputationSharePanel } from "@/components/ReputationSharePanel";
@@ -26,6 +36,7 @@ interface ReviewData {
   created_at: string;
   is_exit_review: boolean;
   direction: string;
+  is_feedback?: boolean;
   // Enriched data
   reviewerAnonymousId?: string;
   revieweeAnonymousId?: string;
@@ -54,6 +65,13 @@ export default function RepReviews() {
   // Dialog state
   const [showProfileDialog, setShowProfileDialog] = useState(false);
   const [profileDialogUserId, setProfileDialogUserId] = useState<string | null>(null);
+
+  // Feedback reset state
+  const [canUseFeedbackReset, setCanUseFeedbackReset] = useState(true);
+  const [feedbackDaysRemaining, setFeedbackDaysRemaining] = useState<number | null>(null);
+  const [feedbackNextDate, setFeedbackNextDate] = useState<Date | null>(null);
+  const [feedbackConfirmReviewId, setFeedbackConfirmReviewId] = useState<string | null>(null);
+  const [markingFeedback, setMarkingFeedback] = useState(false);
 
   // Recent reviews (90 days)
   const [recentReviewCount, setRecentReviewCount] = useState(0);
@@ -98,12 +116,18 @@ export default function RepReviews() {
       // Fetch received reviews (vendor_to_rep)
       const { data: received, error: receivedError } = await supabase
         .from("reviews")
-        .select("*")
+        .select("*, is_feedback")
         .eq("reviewee_id", user.id)
         .eq("direction", "vendor_to_rep")
         .order("created_at", { ascending: false });
 
       if (receivedError) throw receivedError;
+
+      // Check feedback reset eligibility
+      const feedbackResult = await canMarkFeedback(user.id);
+      setCanUseFeedbackReset(feedbackResult.canMark);
+      setFeedbackDaysRemaining(feedbackResult.daysRemaining);
+      setFeedbackNextDate(feedbackResult.nextAvailableDate);
 
       // Fetch given reviews (rep_to_vendor)
       const { data: given, error: givenError } = await supabase
@@ -228,17 +252,36 @@ export default function RepReviews() {
     return { icon: Minus, color: "text-muted-foreground", label: "Neutral" };
   };
 
+  const handleMarkAsFeedback = async () => {
+    if (!feedbackConfirmReviewId || !user) return;
+    
+    setMarkingFeedback(true);
+    const result = await markReviewAsFeedback(feedbackConfirmReviewId, user.id);
+    setMarkingFeedback(false);
+    setFeedbackConfirmReviewId(null);
+
+    if (result.success) {
+      toast.success("Review marked as Feedback. It will no longer count against your score.");
+      // Reload data
+      loadReviewsData();
+    } else {
+      toast.error(result.error || "Failed to mark review as feedback");
+    }
+  };
+
   const renderReviewCard = (review: ReviewData, isReceived: boolean) => {
     const trend = getReviewTrend(review);
     const TrendIcon = trend.icon;
     const displayUserId = isReceived ? review.reviewer_id : review.reviewee_id;
     const displayAnonymousId = isReceived ? review.reviewerAnonymousId : review.revieweeAnonymousId;
 
+    const showFeedbackButton = isReceived && !review.is_feedback && canUseFeedbackReset;
+
     return (
       <Card key={review.id} className="mb-3">
         <CardContent className="pt-6">
           <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-foreground">
                 {displayAnonymousId || `Vendor#${displayUserId.substring(0, 6)}`}
               </span>
@@ -255,6 +298,11 @@ export default function RepReviews() {
               {review.is_exit_review && (
                 <Badge variant="outline" className="text-xs">
                   Exit Review
+                </Badge>
+              )}
+              {review.is_feedback && (
+                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                  Feedback – Not scored
                 </Badge>
               )}
             </div>
@@ -297,7 +345,25 @@ export default function RepReviews() {
           </div>
 
           {review.comment && (
-            <p className="text-sm text-muted-foreground italic">"{review.comment}"</p>
+            <p className="text-sm text-muted-foreground italic mb-3">"{review.comment}"</p>
+          )}
+
+          {/* Mark as Feedback button for received reviews */}
+          {showFeedbackButton && (
+            <div className="pt-3 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFeedbackConfirmReviewId(review.id)}
+                className="text-xs"
+              >
+                <MessageSquare className="h-3 w-3 mr-1.5" />
+                Mark as Feedback
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1">
+                Use your one feedback reset (available every 30 days)
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -456,6 +522,28 @@ export default function RepReviews() {
           targetUserId={profileDialogUserId}
         />
       )}
+
+      {/* Feedback Confirmation Dialog */}
+      <AlertDialog open={!!feedbackConfirmReviewId} onOpenChange={(open) => !open && setFeedbackConfirmReviewId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this review as Feedback?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>This uses your one feedback reset for the next 30 days.</p>
+              <p>The review will still be visible, but it won't count against your Trust Score.</p>
+              <p className="text-muted-foreground text-xs">
+                The vendor who wrote this review will be notified that you chose to treat it as feedback.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markingFeedback}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMarkAsFeedback} disabled={markingFeedback}>
+              {markingFeedback ? "Marking..." : "Mark as Feedback"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthenticatedLayout>
   );
 }

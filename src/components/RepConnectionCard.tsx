@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   Eye, 
   MessageSquare, 
@@ -25,6 +26,7 @@ import RequestCoverageDialog from "@/components/RequestCoverageDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { fetchPendingChangeRequestsForVendor, WorkingTermsChangeRequest } from "@/lib/workingTerms";
+import { canPostReview } from "@/lib/reviews";
 
 interface RepNote {
   id: string;
@@ -108,12 +110,21 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
   const [pendingChanges, setPendingChanges] = useState<PendingChangeInfo | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [canReview, setCanReview] = useState(true);
+  const [reviewDaysRemaining, setReviewDaysRemaining] = useState<number | null>(null);
   const notesCount = rep.notes?.length || 0;
 
   // Load working terms status and pending changes
   useEffect(() => {
     loadWorkingTermsStatus();
+    checkReviewEligibility();
   }, [vendorId, rep.repUserId]);
+
+  const checkReviewEligibility = async () => {
+    const result = await canPostReview(vendorId, rep.repUserId);
+    setCanReview(result.canPost);
+    setReviewDaysRemaining(result.daysRemaining);
+  };
 
   const loadWorkingTermsStatus = async () => {
     setLoadingStatus(true);
@@ -313,15 +324,29 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
               <Send className="w-3.5 h-3.5 mr-1.5" />
               {workingTermsStatus?.status === "active" ? "Request New Terms" : "Request Terms"}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReviewRep}
-              className="w-full md:w-auto text-xs md:text-sm"
-            >
-              <Star className="w-3.5 h-3.5 mr-1.5" />
-              {rep.review ? "Edit Review" : "Review"}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onReviewRep}
+                      disabled={!canReview}
+                      className="w-full md:w-auto text-xs md:text-sm"
+                    >
+                      <Star className="w-3.5 h-3.5 mr-1.5" />
+                      Post Review
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!canReview && reviewDaysRemaining && (
+                  <TooltipContent>
+                    <p>You can post a new review in {reviewDaysRemaining} day{reviewDaysRemaining !== 1 ? 's' : ''}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
             <Button
               variant="default"
               size="sm"

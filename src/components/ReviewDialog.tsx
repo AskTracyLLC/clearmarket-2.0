@@ -76,52 +76,18 @@ export function ReviewDialog({
   const [submitting, setSubmitting] = useState(false);
   const [reviewToEdit, setReviewToEdit] = useState<Review | null>(null);
 
-  // Load existing review on mount
+  // Reset form on open (no edit mode - reviews are immutable)
   useEffect(() => {
     if (!open) return;
 
-    async function loadReview() {
-      // If existing review passed in, use that
-      if (existingReview) {
-        setReviewToEdit(existingReview);
-        setOnTimeRating(existingReview.rating_on_time || 0);
-        setQualityRating(existingReview.rating_quality || 0);
-        setCommunicationRating(existingReview.rating_communication || 0);
-        setWouldWorkAgain(existingReview.would_work_again);
-        setComment(existingReview.comment || "");
-        return;
-      }
-
-      // Otherwise try to fetch existing review
-      const { data } = await supabase
-        .from("reviews")
-        .select("*")
-        .eq("reviewer_id", reviewerId)
-        .eq("reviewee_id", revieweeId)
-        .eq("direction", direction)
-        .eq("is_exit_review", isExitReview)
-        .maybeSingle();
-
-      if (data) {
-        setReviewToEdit(data as Review);
-        setOnTimeRating(data.rating_on_time || 0);
-        setQualityRating(data.rating_quality || 0);
-        setCommunicationRating(data.rating_communication || 0);
-        setWouldWorkAgain(data.would_work_again);
-        setComment(data.comment || "");
-      } else {
-        // Reset for new review
-        setReviewToEdit(null);
-        setOnTimeRating(0);
-        setQualityRating(0);
-        setCommunicationRating(0);
-        setWouldWorkAgain(null);
-        setComment("");
-      }
-    }
-
-    loadReview();
-  }, [open, existingReview, reviewerId, revieweeId, direction, isExitReview]);
+    // Always start with fresh form - no editing existing reviews
+    setReviewToEdit(null);
+    setOnTimeRating(0);
+    setQualityRating(0);
+    setCommunicationRating(0);
+    setWouldWorkAgain(null);
+    setComment("");
+  }, [open]);
 
   const handleSubmit = async () => {
     // Validate at least one rating is provided
@@ -151,48 +117,33 @@ export function ReviewDialog({
         status: 'pending_reviewee',
       };
 
-      let savedReview: Review;
+      // Always insert new review - no editing
+      const { data, error } = await supabase
+        .from("reviews")
+        .insert(reviewData)
+        .select()
+        .single();
 
-      if (reviewToEdit) {
-        // Update existing review
-        const { data, error } = await supabase
-          .from("reviews")
-          .update(reviewData)
-          .eq("id", reviewToEdit.id)
-          .select()
-          .single();
+      if (error) throw error;
+      const savedReview = data as Review;
 
-        if (error) throw error;
-        savedReview = data as Review;
-      } else {
-        // Insert new review
-        const { data, error } = await supabase
-          .from("reviews")
-          .insert(reviewData)
-          .select()
-          .single();
+      // Create notification for reviewee
+      const { data: reviewerProfile } = await supabase
+        .from(direction === 'vendor_to_rep' ? "vendor_profile" : "rep_profile")
+        .select("anonymous_id")
+        .eq("user_id", reviewerId)
+        .single();
 
-        if (error) throw error;
-        savedReview = data as Review;
-
-        // Create notification for reviewee (only for new reviews, not edits)
-        const { data: reviewerProfile } = await supabase
-          .from(direction === 'vendor_to_rep' ? "vendor_profile" : "rep_profile")
-          .select("anonymous_id")
-          .eq("user_id", reviewerId)
-          .single();
-
-        await supabase.from("notifications").insert({
-          user_id: revieweeId,
-          type: "review",
-          ref_id: savedReview.id,
-          title: "New review received",
-          body: `You received a new review from ${reviewerProfile?.anonymous_id || "another user"}.`,
-        });
-      }
+      await supabase.from("notifications").insert({
+        user_id: revieweeId,
+        type: "review",
+        ref_id: savedReview.id,
+        title: "New review received",
+        body: `You received a new review from ${reviewerProfile?.anonymous_id || "another user"}.`,
+      });
 
       toast({
-        title: reviewToEdit ? "Review updated" : isExitReview ? "Exit review saved" : "Review saved",
+        title: isExitReview ? "Exit review saved" : "Review posted",
         description: "Thank you for your feedback.",
       });
 
@@ -259,7 +210,7 @@ export function ReviewDialog({
   };
 
   const isVendorReviewing = direction === 'vendor_to_rep';
-  const titlePrefix = isExitReview ? "Exit Review" : reviewToEdit ? "Edit Review" : "Leave Review";
+  const titlePrefix = isExitReview ? "Exit Review" : "Post Review";
   const titleSuffix = isVendorReviewing ? "Field Rep" : "Vendor";
 
   // Role-aware labels
@@ -365,10 +316,7 @@ export function ReviewDialog({
             onClick={handleSubmit}
             disabled={submitting}
           >
-            {submitting 
-              ? reviewToEdit ? "Updating..." : "Submitting..." 
-              : reviewToEdit ? "Update Review" : "Submit Review"
-            }
+            {submitting ? "Submitting..." : "Submit Review"}
           </Button>
         </DialogFooter>
       </DialogContent>
