@@ -35,9 +35,17 @@ import {
   declineWorkingTermsRequest,
   submitWorkingTermsRows,
   repConfirmWorkingTerms,
+  inactivateWorkingTermsRow,
+  proposeWorkingTermsChange,
+  acceptWorkingTermsChange,
+  declineWorkingTermsChange,
+  fetchPendingChangeRequest,
   INSPECTION_TYPES,
   INSPECTION_TYPE_LABELS,
+  WorkingTermsRow,
+  WorkingTermsChangeRequest,
 } from "@/lib/workingTerms";
+import ActiveWorkingTermsTable from "@/components/ActiveWorkingTermsTable";
 
 const US_STATES = [
   { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
@@ -68,6 +76,10 @@ interface CoverageRow {
   turnaround_days: number | null;
   selected: boolean;
   source: 'from_profile' | 'added_by_vendor' | 'added_by_rep';
+  effective_from?: string;
+  status?: string;
+  inactivated_at?: string | null;
+  inactivated_reason?: string | null;
 }
 
 const RepWorkingTermsRequest = () => {
@@ -88,6 +100,10 @@ const RepWorkingTermsRequest = () => {
   // Coverage rows
   const [coverageRows, setCoverageRows] = useState<CoverageRow[]>([]);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
+
+  // Active terms view
+  const [activeTermsRows, setActiveTermsRows] = useState<WorkingTermsRow[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<Map<string, WorkingTermsChangeRequest>>(new Map());
 
   // Save options
   const [saveOption, setSaveOption] = useState<"vendor_only" | "update_profile">("vendor_only");
@@ -158,21 +174,87 @@ const RepWorkingTermsRequest = () => {
         .eq("working_terms_request_id", requestId);
 
       setExistingRows(rows || []);
-      setCoverageRows(
-        (rows || []).map((r: any) => ({
-          id: r.id,
-          state_code: r.state_code,
-          county_name: r.county_name,
-          inspection_type: r.inspection_type,
-          rate: r.rate,
-          turnaround_days: r.turnaround_days,
-          selected: r.included ?? true,
-          source: r.source,
-        }))
-      );
+      
+      // For active status, set as WorkingTermsRow[] for the new table view
+      if (req.status === "active") {
+        setActiveTermsRows((rows || []) as WorkingTermsRow[]);
+        
+        // Load pending change requests for each row
+        const changesMap = new Map<string, WorkingTermsChangeRequest>();
+        for (const row of rows || []) {
+          const change = await fetchPendingChangeRequest(row.id);
+          if (change) {
+            changesMap.set(row.id, change);
+          }
+        }
+        setPendingChanges(changesMap);
+      } else {
+        setCoverageRows(
+          (rows || []).map((r: any) => ({
+            id: r.id,
+            state_code: r.state_code,
+            county_name: r.county_name,
+            inspection_type: r.inspection_type,
+            rate: r.rate,
+            turnaround_days: r.turnaround_days,
+            selected: r.included ?? true,
+            source: r.source,
+            effective_from: r.effective_from,
+            status: r.status,
+            inactivated_at: r.inactivated_at,
+            inactivated_reason: r.inactivated_reason,
+          }))
+        );
+      }
     }
 
     setLoading(false);
+  };
+
+  // Handlers for active terms management
+  const handleInactivateRow = async (rowId: string, reason: string) => {
+    const { error } = await inactivateWorkingTermsRow(rowId, reason, user!.id, "rep");
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Area inactivated", description: "The vendor has been notified." });
+    loadRequest();
+  };
+
+  const handleProposeChange = async (rowId: string, data: {
+    newRate: number | null;
+    newTurnaround: number | null;
+    effectiveFrom: string;
+    reason: string;
+  }) => {
+    const { error } = await proposeWorkingTermsChange(rowId, user!.id, "rep", data);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Change proposed", description: "The vendor will review your proposal." });
+    loadRequest();
+  };
+
+  const handleAcceptChange = async (changeRequestId: string) => {
+    const { error } = await acceptWorkingTermsChange(changeRequestId, user!.id);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Terms updated", description: "The new terms are now active." });
+    loadRequest();
+  };
+
+  const handleDeclineChange = async (changeRequestId: string, reason: string) => {
+    const { error } = await declineWorkingTermsChange(changeRequestId, user!.id, reason);
+    if (error) {
+      toast({ title: "Error", description: error, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Change declined", description: "The requester has been notified." });
+    loadRequest();
   };
 
   const handleLoadCoverage = async () => {
@@ -351,27 +433,53 @@ const RepWorkingTermsRequest = () => {
           </div>
         </div>
 
-        {/* Vendor Request Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Vendor Request</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {request?.message_from_vendor && (
-              <p className="text-sm italic text-foreground">"{request.message_from_vendor}"</p>
-            )}
-            <p className="text-sm">
-              <span className="text-muted-foreground">Requested states:</span>{" "}
-              {request?.requested_states?.join(", ")}
-            </p>
-            {request?.requested_counties?.length > 0 && (
-              <p className="text-sm">
-                <span className="text-muted-foreground">Requested counties:</span>{" "}
-                {request.requested_counties.join(", ")}
+        {/* Active Terms View (for active status) */}
+        {isActive && activeTermsRows.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Coverage & Pricing</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ActiveWorkingTermsTable
+                rows={activeTermsRows}
+                pendingChanges={pendingChanges}
+                role="rep"
+                otherPartyName={vendorName}
+                onInactivate={handleInactivateRow}
+                onProposeChange={handleProposeChange}
+                onAcceptChange={handleAcceptChange}
+                onDeclineChange={handleDeclineChange}
+              />
+              <p className="text-xs text-muted-foreground/80 italic">
+                Informational only — not a contract, guarantee of work, or employment agreement.
               </p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Vendor Request Summary (for non-active states) */}
+        {!isActive && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Vendor Request</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {request?.message_from_vendor && (
+                <p className="text-sm italic text-foreground">"{request.message_from_vendor}"</p>
+              )}
+              <p className="text-sm">
+                <span className="text-muted-foreground">Requested states:</span>{" "}
+                {request?.requested_states?.join(", ")}
+              </p>
+              {request?.requested_counties?.length > 0 && (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Requested counties:</span>{" "}
+                  {request.requested_counties.join(", ")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Decline Option (for pending_rep) */}
         {isPendingRep && (
