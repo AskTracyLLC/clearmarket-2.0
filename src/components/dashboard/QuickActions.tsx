@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
   MessageSquare, 
   Search, 
-  Calendar,
+  User,
   Users,
   PlusCircle
 } from "lucide-react";
@@ -40,10 +40,10 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
       color: "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
     },
     {
-      icon: <Calendar className="h-5 w-5" />,
-      label: "Availability",
-      description: "Manage time off",
-      link: "/rep/availability",
+      icon: <User className="h-5 w-5" />,
+      label: "Profile",
+      description: "Edit your profile",
+      link: "/rep/profile",
       color: "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20",
     },
   ];
