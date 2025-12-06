@@ -75,6 +75,13 @@ export function QuickActions({ isRep, isVendor }: QuickActionsProps) {
       label: "My Reps",
       description: "Manage connections",
       link: "/vendor/my-reps",
+      color: "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
+    },
+    {
+      icon: <User className="h-5 w-5" />,
+      label: "Profile",
+      description: "Edit company profile",
+      link: "/vendor/profile",
       color: "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20",
     },
   ];
