@@ -112,6 +112,7 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [canReview, setCanReview] = useState(true);
   const [reviewDaysRemaining, setReviewDaysRemaining] = useState<number | null>(null);
+  const [nextReviewDate, setNextReviewDate] = useState<Date | null>(null);
   const notesCount = rep.notes?.length || 0;
 
   // Load working terms status and pending changes
@@ -124,6 +125,7 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
     const result = await canPostReview(vendorId, rep.repUserId);
     setCanReview(result.canPost);
     setReviewDaysRemaining(result.daysRemaining);
+    setNextReviewDate(result.nextReviewDate);
   };
 
   const loadWorkingTermsStatus = async () => {
@@ -340,9 +342,15 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
                     </Button>
                   </span>
                 </TooltipTrigger>
-                {!canReview && reviewDaysRemaining && (
-                  <TooltipContent>
-                    <p>You can post a new review in {reviewDaysRemaining} day{reviewDaysRemaining !== 1 ? 's' : ''}</p>
+                {!canReview && reviewDaysRemaining && nextReviewDate && (
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      You can post a new review for this connection every 30 days.{" "}
+                      {reviewDaysRemaining > 1 
+                        ? `Next review available in ${reviewDaysRemaining} days (on ${nextReviewDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`
+                        : `Next review available tomorrow (on ${nextReviewDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}).`
+                      }
+                    </p>
                   </TooltipContent>
                 )}
               </Tooltip>
