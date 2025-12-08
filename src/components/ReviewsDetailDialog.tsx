@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Star } from "lucide-react";
 
 interface ReviewsDetailDialogProps {
@@ -316,9 +317,18 @@ export function ReviewsDetailDialog({
                             {new Date(review.created_at).toLocaleDateString()}
                           </span>
                           {review.is_feedback && (
-                            <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
-                              Feedback – Not scored
-                            </Badge>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30 cursor-help">
+                                    Feedback – Not scored
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p>This review is visible for learning purposes but is excluded from Trust Score calculations.</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </div>

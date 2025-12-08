@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -18,7 +19,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, MessageSquare } from "lucide-react";
+import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, MessageSquare, Info } from "lucide-react";
 import { fetchTrustScoresForUsers, canMarkFeedback, markReviewAsFeedback } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
@@ -301,9 +302,18 @@ export default function RepReviews() {
                 </Badge>
               )}
               {review.is_feedback && (
-                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
-                  Feedback – Not scored
-                </Badge>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30 cursor-help">
+                        Feedback – Not scored
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>This review is visible for learning purposes but is excluded from Trust Score calculations.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -486,6 +496,13 @@ export default function RepReviews() {
           </div>
 
           <TabsContent value="received">
+            {/* Helper text for feedback reset */}
+            <div className="mb-4 p-3 bg-muted/50 rounded-lg flex items-start gap-2">
+              <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Once every 30 days, you can mark one review as Feedback. Feedback reviews stay visible but don't affect your Trust Score.
+              </p>
+            </div>
             {sortedReceived.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -528,18 +545,19 @@ export default function RepReviews() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mark this review as Feedback?</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>This uses your one feedback reset for the next 30 days.</p>
-              <p>The review will still be visible, but it won't count against your Trust Score.</p>
-              <p className="text-muted-foreground text-xs">
-                The vendor who wrote this review will be notified that you chose to treat it as feedback.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>This uses your one Feedback reset for the next 30 days. The review will stay visible, but it won't count against your score.</p>
+                <p className="text-muted-foreground text-xs">
+                  The vendor who wrote this review will be notified that you chose to treat it as feedback.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={markingFeedback}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleMarkAsFeedback} disabled={markingFeedback}>
-              {markingFeedback ? "Marking..." : "Mark as Feedback"}
+              {markingFeedback ? "Marking..." : "Yes, treat as Feedback"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

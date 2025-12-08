@@ -73,7 +73,7 @@ export async function fetchTrustScoresForUsers(
 export async function canPostReview(
   reviewerId: string,
   revieweeId: string
-): Promise<{ canPost: boolean; daysRemaining: number | null }> {
+): Promise<{ canPost: boolean; daysRemaining: number | null; nextReviewDate: Date | null }> {
   const { data, error } = await supabase
     .from("reviews")
     .select("created_at")
@@ -85,24 +85,27 @@ export async function canPostReview(
 
   if (error) {
     console.error("Error checking review eligibility:", error);
-    return { canPost: true, daysRemaining: null };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null };
   }
 
   if (!data) {
-    return { canPost: true, daysRemaining: null };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null };
   }
 
   const lastReviewDate = new Date(data.created_at);
+  const nextReviewDate = new Date(lastReviewDate);
+  nextReviewDate.setDate(nextReviewDate.getDate() + 30);
+  
   const now = new Date();
   const daysSinceLastReview = Math.floor(
     (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   if (daysSinceLastReview >= 30) {
-    return { canPost: true, daysRemaining: null };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null };
   }
 
-  return { canPost: false, daysRemaining: 30 - daysSinceLastReview };
+  return { canPost: false, daysRemaining: 30 - daysSinceLastReview, nextReviewDate };
 }
 
 /**
@@ -199,8 +202,8 @@ export async function markReviewAsFeedback(
       user_id: review.reviewer_id,
       type: "review_marked_feedback",
       ref_id: reviewId,
-      title: "Review marked as Feedback",
-      body: `${repProfile?.anonymous_id || "A field rep"} has marked your review as Feedback in order to improve. This review will remain visible but will not count against their score.`,
+      title: "Your review was marked as Feedback",
+      body: `${repProfile?.anonymous_id || "A field rep"} has chosen to treat your review as Feedback in order to improve. The review remains visible but will not count toward their score.`,
     });
   }
 
