@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
+import { US_STATES, SYSTEMS_LIST } from "@/lib/constants";
+import { InspectionTypeMultiSelect } from "@/components/InspectionTypeMultiSelect";
 import { ArrowLeft, Save, AlertCircle, Plus, Minus, MapPin, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
@@ -594,49 +595,54 @@ const VendorProfile = () => {
               </button>
               
               {expandedSections.inspectionTypes && (
-              <>
-              <div className="space-y-3">
-                {INSPECTION_TYPES_LIST.map((type) => (
-                  <div key={type} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={`vendor-inspection-${type}`}
-                      checked={inspectionTypes.includes(type)}
-                      onCheckedChange={(checked) => {
-                        const current = inspectionTypes;
-                        if (checked) {
-                          setValue("primary_inspection_types", [...current, type]);
-                        } else {
-                          setValue("primary_inspection_types", current.filter((t) => t !== type));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`vendor-inspection-${type}`} className="text-foreground font-normal cursor-pointer">
-                      {type}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-
-              {/* Other inspection type free text */}
-              {inspectionTypes.includes("Other") && (
-                <div className="ml-7">
-                  <Label htmlFor="primary_inspection_types_other" className="text-sm">
-                    Please specify other inspection type
-                  </Label>
-                  <Input
-                    id="primary_inspection_types_other"
-                    {...register("primary_inspection_types_other")}
-                    placeholder="Enter inspection type"
-                    className="mt-1"
-                    maxLength={100}
+                <>
+                  <InspectionTypeMultiSelect
+                    role="vendor"
+                    selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
+                    onChange={(labels) => {
+                      // Preserve any "Other: X" entries
+                      const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
+                      setValue("primary_inspection_types", [...labels, ...otherEntries]);
+                    }}
+                    error={errors.primary_inspection_types?.message}
                   />
-                </div>
-              )}
 
-              {errors.primary_inspection_types && (
-                <p className="text-sm text-destructive">{errors.primary_inspection_types.message}</p>
-              )}
-              </>
+                  {/* Other inspection type checkbox and free text */}
+                  <div className="space-y-3 border-t border-border pt-4 mt-4">
+                    <div className="flex items-center space-x-3">
+                      <Checkbox
+                        id="vendor-inspection-other"
+                        checked={inspectionTypes.includes("Other")}
+                        onCheckedChange={(checked) => {
+                          const current = inspectionTypes;
+                          if (checked) {
+                            setValue("primary_inspection_types", [...current, "Other"]);
+                          } else {
+                            setValue("primary_inspection_types", current.filter((t) => t !== "Other"));
+                          }
+                        }}
+                      />
+                      <Label htmlFor="vendor-inspection-other" className="text-foreground font-normal cursor-pointer">
+                        Other
+                      </Label>
+                    </div>
+
+                    {inspectionTypes.includes("Other") && (
+                      <div className="ml-7">
+                        <Label htmlFor="primary_inspection_types_other" className="text-sm">
+                          Please specify other inspection type
+                        </Label>
+                        <Input
+                          id="primary_inspection_types_other"
+                          {...register("primary_inspection_types_other")}
+                          placeholder="Enter inspection type"
+                          className="mt-1"
+                          maxLength={100}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
 
