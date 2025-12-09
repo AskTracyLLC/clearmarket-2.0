@@ -1,13 +1,21 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FeatureCard } from "@/components/FeatureCard";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Search, Shield, TrendingUp, Users, MapPin, MessageSquare, Star, Award } from "lucide-react";
 
 const Index = () => {
   return (
+    <TooltipProvider>
     <div className="min-h-screen">
+      {/* Theme Toggle - centered above hero */}
+      <div className="flex justify-center pt-4">
+        <ThemeToggle />
+      </div>
+      
       {/* Hero Section */}
-      <header className="container mx-auto px-4 py-20 text-center">
+      <header className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
           Welcome to ClearMarket
         </h1>
@@ -187,6 +195,7 @@ const Index = () => {
         <p>&copy; 2025 ClearMarket. Professional connections for field reps and vendors.</p>
       </footer>
     </div>
+    </TooltipProvider>
   );
 };
 
