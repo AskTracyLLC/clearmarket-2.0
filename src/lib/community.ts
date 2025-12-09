@@ -45,30 +45,32 @@ export interface CommunityVote {
 }
 
 // Category configurations per channel
+// Light mode: light tint bg + dark text for WCAG AA contrast
+// Dark mode: darker tint bg + colored text
 export const COMMUNITY_CATEGORIES = [
-  { value: "question", label: "Question", color: "bg-blue-500/20 text-blue-400" },
-  { value: "general_discussion", label: "General Discussion", color: "bg-purple-500/20 text-purple-400" },
-  { value: "safety", label: "Safety", color: "bg-orange-500/20 text-orange-400" },
+  { value: "question", label: "Question", color: "bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400" },
+  { value: "general_discussion", label: "General Discussion", color: "bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400" },
+  { value: "safety", label: "Safety", color: "bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400" },
 ];
 
 export const NETWORK_CATEGORIES = [
-  { value: "vendor_alert", label: "Vendor Alert", color: "bg-amber-500/20 text-amber-400" },
-  { value: "rep_alert", label: "Rep Alert", color: "bg-cyan-500/20 text-cyan-400" },
+  { value: "vendor_alert", label: "Vendor Alert", color: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400" },
+  { value: "rep_alert", label: "Rep Alert", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-400" },
 ];
 
 export const ANNOUNCEMENT_CATEGORIES = [
-  { value: "system_news", label: "System News", color: "bg-green-500/20 text-green-400" },
-  { value: "release_updates", label: "Release Updates", color: "bg-indigo-500/20 text-indigo-400" },
-  { value: "faq", label: "FAQ", color: "bg-teal-500/20 text-teal-400" },
+  { value: "system_news", label: "System News", color: "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400" },
+  { value: "release_updates", label: "Release Updates", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-400" },
+  { value: "faq", label: "FAQ", color: "bg-teal-100 text-teal-800 dark:bg-teal-500/20 dark:text-teal-400" },
 ];
 
 // Legacy export for backward compatibility
 export const POST_CATEGORIES = COMMUNITY_CATEGORIES;
 
 export const POST_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  active: { label: "Active", color: "bg-green-500/20 text-green-400" },
-  under_review: { label: "Under Review", color: "bg-yellow-500/20 text-yellow-400" },
-  locked: { label: "Locked", color: "bg-red-500/20 text-red-400" },
+  active: { label: "Active", color: "bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400" },
+  under_review: { label: "Under Review", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400" },
+  locked: { label: "Locked", color: "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400" },
   archived: { label: "Archived", color: "bg-muted text-muted-foreground" },
 };
 

@@ -200,16 +200,18 @@ export function NetworkAlertsFeed({ userId, isVendor, isRep }: Props) {
     }
   };
 
+  // Light mode: light tint bg + dark text for WCAG AA contrast
+  // Dark mode: darker tint bg + colored text
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "vendor_network_alert":
-        return <Badge variant="secondary" className="text-xs">Vendor Alert</Badge>;
+        return <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400">Vendor Alert</Badge>;
       case "vendor_alert":
-        return <Badge variant="secondary" className="text-xs">Rep Alert</Badge>;
+        return <Badge variant="secondary" className="text-xs bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-400">Rep Alert</Badge>;
       case "pay_day":
-        return <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-500">Pay Day</Badge>;
+        return <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400">Pay Day</Badge>;
       case "office_closed":
-        return <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-500">Office Closed</Badge>;
+        return <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400">Office Closed</Badge>;
       default:
         return <Badge variant="secondary" className="text-xs">Alert</Badge>;
     }
