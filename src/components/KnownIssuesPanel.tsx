@@ -4,11 +4,6 @@ import { AlertTriangle } from "lucide-react";
 // Hard-coded known issues for beta
 const KNOWN_ISSUES = [
   {
-    id: "county-data",
-    title: "Limited County Data",
-    description: "Vendor and rep coverage search currently only supports US states WI, IL, and MI. More states coming soon.",
-  },
-  {
     id: "credits-purchase",
     title: "Credits Purchase",
     description: "Credits cannot be purchased yet. Contact support if you need additional credits during beta.",
