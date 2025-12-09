@@ -241,22 +241,24 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     }
   };
 
+  // Light mode: light tint bg + dark text for WCAG AA contrast
+  // Dark mode: darker tint bg + lighter text
   const getTypeColor = (type: FeedItem['type']) => {
     switch (type) {
       case 'message':
-        return 'bg-blue-500/20 text-blue-400';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400';
       case 'review':
-        return 'bg-amber-500/20 text-amber-400';
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400';
       case 'opportunity':
-        return 'bg-emerald-500/20 text-emerald-400';
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400';
       case 'connection_request':
-        return 'bg-purple-500/20 text-purple-400';
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400';
       case 'alert':
-        return 'bg-orange-500/20 text-orange-400';
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400';
       case 'announcement':
-        return 'bg-cyan-500/20 text-cyan-400';
+        return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-400';
       default:
-        return 'bg-secondary/20 text-secondary';
+        return 'bg-secondary text-secondary-foreground';
     }
   };
 
@@ -319,16 +321,16 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
   return (
     <div className="space-y-3">
-      {/* Filter pills */}
+      {/* Filter chips - dark text for accessibility, active has tinted bg + underline indicator */}
       <div className="flex flex-wrap gap-2">
         {filterOptions.map((option) => (
           <button
             key={option.value}
             onClick={() => setActivityFilter(option.value)}
-            className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
               activityFilter === option.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                ? 'bg-primary/10 text-foreground font-semibold border-primary/50 underline underline-offset-2 dark:bg-primary/20'
+                : 'bg-background text-foreground border-border hover:bg-muted/50 font-medium'
             }`}
           >
             {option.label}
