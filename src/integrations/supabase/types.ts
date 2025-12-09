@@ -587,6 +587,45 @@ export type Database = {
           },
         ]
       }
+      inspection_type_options: {
+        Row: {
+          applies_to: string
+          category: string
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to?: string
+          category: string
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to?: string
+          category?: string
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
