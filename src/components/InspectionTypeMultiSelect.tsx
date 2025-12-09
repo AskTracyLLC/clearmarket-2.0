@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   InspectionTypeOption,
-  INSPECTION_TYPE_CATEGORIES,
+  InspectionCategory,
   fetchInspectionTypesForRole,
+  fetchInspectionCategories,
 } from "@/lib/inspectionTypes";
 
 interface InspectionTypeMultiSelectProps {
@@ -23,6 +23,7 @@ export function InspectionTypeMultiSelect({
   error,
 }: InspectionTypeMultiSelectProps) {
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<InspectionCategory[]>([]);
   const [grouped, setGrouped] = useState<Record<string, InspectionTypeOption[]>>({});
   const [allOptions, setAllOptions] = useState<InspectionTypeOption[]>([]);
 
@@ -32,7 +33,11 @@ export function InspectionTypeMultiSelect({
 
   const loadOptions = async () => {
     setLoading(true);
-    const data = await fetchInspectionTypesForRole(role);
+    const [cats, data] = await Promise.all([
+      fetchInspectionCategories(),
+      fetchInspectionTypesForRole(role)
+    ]);
+    setCategories(cats);
     setGrouped(data);
     setAllOptions(Object.values(data).flat());
     setLoading(false);
@@ -70,8 +75,8 @@ export function InspectionTypeMultiSelect({
 
   return (
     <div className="space-y-6">
-      {INSPECTION_TYPE_CATEGORIES.map(category => {
-        const options = grouped[category] || [];
+      {categories.map(category => {
+        const options = grouped[category.label] || [];
         
         // Only show category if there are active options or selected ones
         const hasActiveOptions = options.some(opt => opt.is_active);
@@ -82,9 +87,14 @@ export function InspectionTypeMultiSelect({
         }
 
         return (
-          <div key={category} className="space-y-3">
+          <div key={category.id} className="space-y-3">
             <h4 className="font-medium text-sm text-foreground border-b border-border pb-1">
-              {category}
+              {category.label}
+              {category.description && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  — {category.description}
+                </span>
+              )}
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {options.map(opt => {

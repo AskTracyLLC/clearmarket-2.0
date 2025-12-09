@@ -587,10 +587,44 @@ export type Database = {
           },
         ]
       }
+      inspection_categories: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       inspection_type_options: {
         Row: {
           applies_to: string
           category: string
+          category_id: string | null
           code: string
           created_at: string | null
           description: string | null
@@ -603,6 +637,7 @@ export type Database = {
         Insert: {
           applies_to?: string
           category: string
+          category_id?: string | null
           code: string
           created_at?: string | null
           description?: string | null
@@ -615,6 +650,7 @@ export type Database = {
         Update: {
           applies_to?: string
           category?: string
+          category_id?: string | null
           code?: string
           created_at?: string | null
           description?: string | null
@@ -624,7 +660,15 @@ export type Database = {
           sort_order?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inspection_type_options_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
