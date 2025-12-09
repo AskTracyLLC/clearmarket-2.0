@@ -109,7 +109,7 @@ const RepMyVendors = () => {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [reviewDialogData, setReviewDialogData] = useState<{
     vendorUserId: string;
-    repInterestId: string;
+    repInterestId: string | null;
     isExitReview: boolean;
     existingReview?: Review | null;
   } | null>(null);
@@ -654,7 +654,7 @@ const RepMyVendors = () => {
   const handleReviewVendor = (vendor: ConnectedVendor) => {
     setReviewDialogData({
       vendorUserId: vendor.vendorUserId,
-      repInterestId: vendor.connectedPosts[0]?.interestId || "",
+      repInterestId: vendor.connectedPosts[0]?.interestId || null,
       isExitReview: false,
       existingReview: vendor.review || null,
     });
