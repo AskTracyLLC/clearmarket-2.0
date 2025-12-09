@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, ArrowLeft } from "lucide-react";
@@ -25,6 +27,9 @@ import {
   createInspectionType,
   updateInspectionType,
   toggleInspectionTypeActive,
+  createInspectionCategory,
+  updateInspectionCategory,
+  toggleInspectionCategoryActive,
 } from "@/lib/inspectionTypes";
 
 const APPLIES_TO_OPTIONS = [
@@ -39,12 +44,27 @@ const AdminInspectionTypes = () => {
   const { permissions, loading: permissionsLoading } = useStaffPermissions();
   const { toast } = useToast();
 
+  const [activeTab, setActiveTab] = useState("types");
+  
   const [options, setOptions] = useState<InspectionTypeOption[]>([]);
   const [categories, setCategories] = useState<InspectionCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOption, setEditingOption] = useState<InspectionTypeOption | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Category dialog state
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<InspectionCategory | null>(null);
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
+  const [categoryToDeactivate, setCategoryToDeactivate] = useState<InspectionCategory | null>(null);
+
+  // Category form state
+  const [catFormLabel, setCatFormLabel] = useState("");
+  const [catFormDescription, setCatFormDescription] = useState("");
+  const [catFormSortOrder, setCatFormSortOrder] = useState<number>(100);
+  const [catFormActive, setCatFormActive] = useState(true);
 
   // Filters
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -177,6 +197,114 @@ const AdminInspectionTypes = () => {
     }
   };
 
+  // Category CRUD functions
+  const resetCategoryForm = () => {
+    setCatFormLabel("");
+    setCatFormDescription("");
+    setCatFormSortOrder(categories.length > 0 ? Math.max(...categories.map(c => c.sort_order)) + 1 : 1);
+    setCatFormActive(true);
+    setEditingCategory(null);
+  };
+
+  const openAddCategoryDialog = () => {
+    resetCategoryForm();
+    setCategoryDialogOpen(true);
+  };
+
+  const openEditCategoryDialog = (cat: InspectionCategory) => {
+    setEditingCategory(cat);
+    setCatFormLabel(cat.label);
+    setCatFormDescription(cat.description || "");
+    setCatFormSortOrder(cat.sort_order);
+    setCatFormActive(cat.is_active);
+    setCategoryDialogOpen(true);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!catFormLabel.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Label is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCategorySaving(true);
+
+    if (editingCategory) {
+      const result = await updateInspectionCategory(editingCategory.id, {
+        label: catFormLabel.trim(),
+        description: catFormDescription.trim() || null,
+        sort_order: catFormSortOrder,
+        is_active: catFormActive,
+      });
+
+      if (result.success) {
+        toast({ title: "Updated", description: "Category updated successfully." });
+        setCategoryDialogOpen(false);
+        resetCategoryForm();
+        loadOptions();
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
+    } else {
+      const result = await createInspectionCategory({
+        label: catFormLabel.trim(),
+        description: catFormDescription.trim() || null,
+        sort_order: catFormSortOrder,
+        is_active: catFormActive,
+      });
+
+      if (result.success) {
+        toast({ title: "Created", description: "Category created successfully." });
+        setCategoryDialogOpen(false);
+        resetCategoryForm();
+        loadOptions();
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
+    }
+
+    setCategorySaving(false);
+  };
+
+  const handleToggleCategoryActive = async (cat: InspectionCategory) => {
+    if (cat.is_active) {
+      // Show confirmation before deactivating
+      setCategoryToDeactivate(cat);
+      setDeactivateConfirmOpen(true);
+    } else {
+      // Activate directly
+      const result = await toggleInspectionCategoryActive(cat.id, true);
+      if (result.success) {
+        setCategories(prev =>
+          prev.map(c => (c.id === cat.id ? { ...c, is_active: true } : c))
+        );
+        toast({ title: "Activated", description: `"${cat.label}" is now active.` });
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
+    }
+  };
+
+  const confirmDeactivateCategory = async () => {
+    if (!categoryToDeactivate) return;
+    
+    const result = await toggleInspectionCategoryActive(categoryToDeactivate.id, false);
+    if (result.success) {
+      setCategories(prev =>
+        prev.map(c => (c.id === categoryToDeactivate.id ? { ...c, is_active: false } : c))
+      );
+      toast({ title: "Deactivated", description: `"${categoryToDeactivate.label}" is now inactive.` });
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    
+    setDeactivateConfirmOpen(false);
+    setCategoryToDeactivate(null);
+  };
+
   // Apply filters
   const filteredOptions = options.filter(opt => {
     if (filterCategory !== "all" && opt.category !== filterCategory) return false;
@@ -208,122 +336,195 @@ const AdminInspectionTypes = () => {
           </Link>
         </div>
         <PageHeader
-          title="Inspection Types"
-          subtitle="Manage inspection type options available to Field Reps and Vendors"
+          title="Inspection Types & Categories"
+          subtitle="Manage inspection types and categories available to Field Reps and Vendors"
         />
 
-        {/* Filters and Add Button */}
-        <div className="flex flex-wrap gap-4 items-center mb-6">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Category:</Label>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="types">Inspection Types</TabsTrigger>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+          </TabsList>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Applies To:</Label>
-            <Select value={filterAppliesTo} onValueChange={setFilterAppliesTo}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="rep">Reps</SelectItem>
-                <SelectItem value="vendor">Vendors</SelectItem>
-                <SelectItem value="both">Both</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Types Tab */}
+          <TabsContent value="types" className="mt-6">
+            {/* Filters and Add Button */}
+            <div className="flex flex-wrap gap-4 items-center mb-6">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Category:</Label>
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-muted-foreground">Status:</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Applies To:</Label>
+                <Select value={filterAppliesTo} onValueChange={setFilterAppliesTo}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="rep">Reps</SelectItem>
+                    <SelectItem value="vendor">Vendors</SelectItem>
+                    <SelectItem value="both">Both</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="ml-auto">
-            <Button onClick={openAddDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Inspection Type
-            </Button>
-          </div>
-        </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Status:</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {/* Table */}
-        <Card className="border border-border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Label</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Applies To</TableHead>
-                <TableHead className="text-center">Active</TableHead>
-                <TableHead className="text-center">Sort Order</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOptions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No inspection types found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredOptions.map(opt => (
-                  <TableRow key={opt.id} className={!opt.is_active ? "opacity-60" : ""}>
-                    <TableCell className="font-medium">{opt.label}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {opt.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs capitalize">
-                        {opt.applies_to === 'both' ? 'Both' : opt.applies_to === 'rep' ? 'Reps' : 'Vendors'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Switch
-                        checked={opt.is_active}
-                        onCheckedChange={() => handleToggleActive(opt)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">{opt.sort_order}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
-                      {opt.description || "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(opt)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+              <div className="ml-auto">
+                <Button onClick={openAddDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Inspection Type
+                </Button>
+              </div>
+            </div>
+
+            {/* Types Table */}
+            <Card className="border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Applies To</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-center">Sort Order</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredOptions.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No inspection types found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredOptions.map(opt => (
+                      <TableRow key={opt.id} className={!opt.is_active ? "opacity-60" : ""}>
+                        <TableCell className="font-medium">{opt.label}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {opt.category}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            {opt.applies_to === 'both' ? 'Both' : opt.applies_to === 'rep' ? 'Reps' : 'Vendors'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={opt.is_active}
+                            onCheckedChange={() => handleToggleActive(opt)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">{opt.sort_order}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
+                          {opt.description || "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(opt)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
 
-        {/* Add/Edit Dialog */}
+          {/* Categories Tab */}
+          <TabsContent value="categories" className="mt-6">
+            <div className="flex justify-between items-center mb-6">
+              <p className="text-sm text-muted-foreground">
+                Categories group inspection types. Add new categories here and they'll automatically appear in profile creation flows.
+              </p>
+              <Button onClick={openAddCategoryDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Category
+              </Button>
+            </div>
+
+            <Card className="border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-center">Sort Order</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No categories found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    categories.map(cat => (
+                      <TableRow key={cat.id} className={!cat.is_active ? "opacity-60" : ""}>
+                        <TableCell className="font-medium">{cat.label}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {cat.code}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-[250px] truncate">
+                          {cat.description || "—"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={cat.is_active}
+                            onCheckedChange={() => handleToggleCategoryActive(cat)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">{cat.sort_order}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openEditCategoryDialog(cat)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Add/Edit Type Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -350,7 +551,7 @@ const AdminInspectionTypes = () => {
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map(cat => (
+                    {categories.filter(c => c.is_active).map(cat => (
                       <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -406,6 +607,101 @@ const AdminInspectionTypes = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Add/Edit Category Dialog */}
+        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {editingCategory ? "Edit Category" : "Add Category"}
+              </DialogTitle>
+              <DialogDescription>
+                {editingCategory 
+                  ? "Update category details. Code cannot be changed once created."
+                  : "Create a new category. The code will be auto-generated from the label."
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="catLabel">Label <span className="text-destructive">*</span></Label>
+                <Input
+                  id="catLabel"
+                  value={catFormLabel}
+                  onChange={e => setCatFormLabel(e.target.value)}
+                  placeholder="e.g., Property Inspections"
+                />
+                {!editingCategory && catFormLabel && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Code will be: <span className="font-mono">{catFormLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')}</span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="catDescription">Description (optional)</Label>
+                <Textarea
+                  id="catDescription"
+                  value={catFormDescription}
+                  onChange={e => setCatFormDescription(e.target.value)}
+                  placeholder="Helper text shown in profile forms..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="catSortOrder">Sort Order</Label>
+                <Input
+                  id="catSortOrder"
+                  type="number"
+                  value={catFormSortOrder}
+                  onChange={e => setCatFormSortOrder(parseInt(e.target.value) || 1)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Lower numbers appear first in the list.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="catActive"
+                  checked={catFormActive}
+                  onCheckedChange={setCatFormActive}
+                />
+                <Label htmlFor="catActive">Active</Label>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCategory} disabled={categorySaving}>
+                {categorySaving ? "Saving..." : editingCategory ? "Update" : "Create"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Deactivate Confirmation Dialog */}
+        <AlertDialog open={deactivateConfirmOpen} onOpenChange={setDeactivateConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Deactivate Category?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deactivating "{categoryToDeactivate?.label}" will hide it from new profile selections, 
+                but it will remain on any profiles that already use it.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeactivateCategory}>
+                Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AuthenticatedLayout>
   );

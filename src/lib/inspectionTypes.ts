@@ -114,10 +114,76 @@ export async function fetchAllInspectionTypes(): Promise<InspectionTypeOption[]>
  */
 export function generateCodeFromLabel(label: string): string {
   return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
+}
+
+/**
+ * Create a new inspection category
+ */
+export async function createInspectionCategory(
+  data: { label: string; description?: string | null; sort_order: number; is_active?: boolean }
+): Promise<{ success: boolean; error?: string; data?: InspectionCategory }> {
+  let baseCode = generateCodeFromLabel(data.label);
+  let code = baseCode;
+  let suffix = 2;
+
+  // Check for existing code and increment if needed
+  while (true) {
+    const { data: existing } = await supabase
+      .from('inspection_categories')
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (!existing) break;
+    code = `${baseCode}_${suffix}`;
+    suffix++;
+  }
+
+  const { data: result, error } = await supabase
+    .from('inspection_categories')
+    .insert({
+      ...data,
+      code,
+      is_active: data.is_active ?? true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: result as InspectionCategory };
+}
+
+/**
+ * Update an existing inspection category
+ */
+export async function updateInspectionCategory(
+  id: string,
+  data: Partial<Omit<InspectionCategory, 'id' | 'code' | 'created_at' | 'updated_at'>>
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('inspection_categories')
+    .update(data)
+    .eq('id', id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Toggle active status of an inspection category
+ */
+export async function toggleInspectionCategoryActive(id: string, isActive: boolean): Promise<{ success: boolean; error?: string }> {
+  return updateInspectionCategory(id, { is_active: isActive });
 }
 
 /**
