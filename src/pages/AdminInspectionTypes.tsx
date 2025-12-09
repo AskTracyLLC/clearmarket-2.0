@@ -348,6 +348,11 @@ const AdminInspectionTypes = () => {
 
           {/* Types Tab */}
           <TabsContent value="types" className="mt-6">
+            <p className="text-sm text-muted-foreground mb-6">
+              Use this page to control which inspection types reps and vendors can select in their profiles. 
+              Any active type will appear in the profile setup forms. You can add new types, rename existing ones, 
+              or deactivate them without affecting past data.
+            </p>
             {/* Filters and Add Button */}
             <div className="flex flex-wrap gap-4 items-center mb-6">
               <div className="flex items-center gap-2">
@@ -462,6 +467,11 @@ const AdminInspectionTypes = () => {
 
           {/* Categories Tab */}
           <TabsContent value="categories" className="mt-6">
+            <p className="text-sm text-muted-foreground mb-6">
+              Use this page to control which inspection categories reps and vendors can select in their profiles. 
+              Any active category will appear in the profile setup forms. You can add new categories, rename existing ones, 
+              or deactivate them without affecting past data.
+            </p>
             <div className="flex justify-between items-center mb-6">
               <p className="text-sm text-muted-foreground">
                 Categories group inspection types. Add new categories here and they'll automatically appear in profile creation flows.
