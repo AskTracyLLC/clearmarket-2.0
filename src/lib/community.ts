@@ -59,6 +59,7 @@ export const NETWORK_CATEGORIES = [
 export const ANNOUNCEMENT_CATEGORIES = [
   { value: "system_news", label: "System News", color: "bg-green-500/20 text-green-400" },
   { value: "release_updates", label: "Release Updates", color: "bg-indigo-500/20 text-indigo-400" },
+  { value: "faq", label: "FAQ", color: "bg-teal-500/20 text-teal-400" },
 ];
 
 // Legacy export for backward compatibility
