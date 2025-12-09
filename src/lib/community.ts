@@ -98,6 +98,20 @@ export function getStatusConfig(status: string) {
 }
 
 export async function getAuthorInfo(userId: string): Promise<{ anonymousId: string; role: string }> {
+  // Check profiles for role flags including staff roles
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  // Check if user is staff (admin, moderator, or support)
+  if (profile?.is_admin || profile?.is_moderator || profile?.is_support) {
+    const staffRole = profile.is_admin ? "admin" : profile.is_moderator ? "moderator" : "support";
+    const anonymousId = profile.staff_anonymous_id || (profile.is_admin ? "Admin" : profile.is_moderator ? "Moderator" : "Support");
+    return { anonymousId, role: staffRole };
+  }
+
   // Check rep profile
   const { data: repProfile } = await supabase
     .from("rep_profile")
@@ -110,13 +124,6 @@ export async function getAuthorInfo(userId: string): Promise<{ anonymousId: stri
     .from("vendor_profile")
     .select("anonymous_id")
     .eq("user_id", userId)
-    .maybeSingle();
-
-  // Check profiles for role flags
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_fieldrep, is_vendor_admin")
-    .eq("id", userId)
     .maybeSingle();
 
   let role = "unknown";

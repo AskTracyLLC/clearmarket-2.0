@@ -207,7 +207,7 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                           <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
                         )}
                         <span className="text-xs text-muted-foreground">
-                          {post.author_anonymous_id || "User"} · {post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : ""}
+                          {post.author_anonymous_id || "User"} · {post.author_role === "field_rep" ? "Field Rep" : post.author_role === "vendor" ? "Vendor" : post.author_role === "both" ? "Both" : post.author_role === "admin" ? "Admin" : post.author_role === "moderator" ? "Moderator" : post.author_role === "support" ? "Support" : ""}
                         </span>
                         {post.author_community_score !== null && post.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
                           <Badge variant="secondary" className="text-[11px] gap-1">
