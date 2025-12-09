@@ -54,6 +54,12 @@ export default {
           foreground: "hsl(var(--card-foreground))",
           elevated: "hsl(var(--card-elevated))",
         },
+        warning: {
+          bg: "hsl(var(--warning-bg))",
+          border: "hsl(var(--warning-border))",
+          icon: "hsl(var(--warning-icon))",
+          text: "hsl(var(--warning-text))",
+        },
       },
       boxShadow: {
         'sm': 'var(--shadow-sm)',

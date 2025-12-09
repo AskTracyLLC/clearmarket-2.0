@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, ShieldAlert, MessageSquare, HelpCircle } from "lucide-react";
+import { Eye, MessageSquare, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { unblockUser } from "@/lib/blocks";
@@ -201,13 +201,13 @@ export default function SafetyCenter() {
   function getStatusColor(status: string) {
     switch (status) {
       case "open":
-        return "bg-amber-500/10 text-amber-500 border-amber-500/30";
+        return "bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning-text))] border-[hsl(var(--warning-border))]";
       case "reviewed":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/30";
+        return "bg-secondary/10 text-secondary border-secondary/30";
       case "dismissed":
-        return "bg-muted text-muted-foreground";
+        return "bg-muted text-muted-foreground border-border";
       case "action_taken":
-        return "bg-green-500/10 text-green-500 border-green-500/30";
+        return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30";
       default:
         return "";
     }
@@ -221,7 +221,7 @@ export default function SafetyCenter() {
   if (authLoading || loading) {
     return (
       <AuthenticatedLayout>
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+        <div className="min-h-screen bg-background p-8">
           <div className="max-w-4xl mx-auto">
             <p className="text-muted-foreground">Loading...</p>
           </div>
@@ -232,7 +232,7 @@ export default function SafetyCenter() {
 
   return (
     <AuthenticatedLayout>
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+      <div className="min-h-screen bg-background p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <PageHeader
             title="Safety Center"
@@ -241,23 +241,33 @@ export default function SafetyCenter() {
           />
 
           <Tabs defaultValue="blocked" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="blocked">Blocked Users</TabsTrigger>
-              <TabsTrigger value="reports">Your Reports</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 bg-muted p-1">
+              <TabsTrigger 
+                value="blocked" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
+              >
+                Blocked Users
+              </TabsTrigger>
+              <TabsTrigger 
+                value="reports"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
+              >
+                Your Reports
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="blocked" className="space-y-4">
-              <Card>
+              <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Blocked Users</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-foreground">Blocked Users</CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     You won't receive messages or new connection requests from blocked users. You can unblock them at any time.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {blockedUsers.length === 0 ? (
-                    <Alert>
-                      <AlertDescription>
+                    <Alert className="bg-muted border-border">
+                      <AlertDescription className="text-muted-foreground">
                         You haven't blocked any users yet.
                       </AlertDescription>
                     </Alert>
@@ -279,7 +289,7 @@ export default function SafetyCenter() {
                               <Eye className="h-4 w-4" />
                             </button>
                             {blocked.role_type && (
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="border-border text-foreground">
                                 {blocked.role_type === "rep" ? "Field Rep" : "Vendor"}
                               </Badge>
                             )}
@@ -304,17 +314,17 @@ export default function SafetyCenter() {
             </TabsContent>
 
             <TabsContent value="reports" className="space-y-4">
-              <Card>
+              <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Your Reports</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-foreground">Your Reports</CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     These are reports you have submitted to ClearMarket. Our team may take action based on our community guidelines. You won't always receive a direct follow-up for every report.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {userReports.length === 0 ? (
-                    <Alert>
-                      <AlertDescription>
+                    <Alert className="bg-muted border-border">
+                      <AlertDescription className="text-muted-foreground">
                         You haven't submitted any reports yet.
                       </AlertDescription>
                     </Alert>
@@ -336,14 +346,14 @@ export default function SafetyCenter() {
                                   <Eye className="h-4 w-4" />
                                 </button>
                                 {report.reported_user_role && (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs border-border text-foreground">
                                     {report.reported_user_role === "rep" ? "Field Rep" : "Vendor"}
                                   </Badge>
                                 )}
                               </div>
                               
                               <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-xs bg-muted text-muted-foreground">
                                   {report.reason_category.replace(/_/g, " ")}
                                 </Badge>
                                 <Badge className={`text-xs ${getStatusColor(report.status)}`}>
@@ -382,14 +392,14 @@ export default function SafetyCenter() {
           </Tabs>
 
           {/* Need Help Card */}
-          <Card className="mt-6">
-            <CardContent className="py-6 flex items-center justify-between">
+          <Card className="mt-6 bg-card border-border">
+            <CardContent className="py-6 flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-full bg-primary/10">
                   <MessageSquare className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Need more help?</h3>
+                  <h3 className="font-semibold text-foreground">Need more help?</h3>
                   <p className="text-sm text-muted-foreground">
                     Contact our support team or browse help articles
                   </p>

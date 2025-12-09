@@ -51,6 +51,12 @@ Theme system:
     --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
     
+    /* Warning states - light mode */
+    --warning-bg: 40 100% 95%;
+    --warning-border: 30 90% 50%;
+    --warning-icon: 30 90% 40%;
+    --warning-text: 30 60% 25%;
+    
     /* Borders and inputs - light gray for separation */
     --border: 220 15% 85%;
     --input: 220 15% 95%;
@@ -113,6 +119,12 @@ Theme system:
     /* Destructive states */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
+    
+    /* Warning states - dark mode */
+    --warning-bg: 30 30% 15%;
+    --warning-border: 30 80% 50%;
+    --warning-icon: 30 90% 55%;
+    --warning-text: 35 30% 85%;
     
     /* Borders and inputs */
     --border: 220 13% 20%;
