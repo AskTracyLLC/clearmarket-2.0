@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Mail, Settings } from "lucide-react";
 import { NotificationsDropdown } from "./NotificationsDropdown";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface NavIconClusterProps {
   vendorCredits?: number | null;
@@ -17,6 +18,9 @@ export function NavIconCluster({ vendorCredits, showCredits = false }: NavIconCl
 
   return (
     <div className="flex items-center gap-1">
+      {/* Theme Toggle */}
+      <ThemeToggle />
+
       {/* Messages Icon */}
       <Tooltip>
         <TooltipTrigger asChild>

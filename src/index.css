@@ -4,12 +4,80 @@
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
+
+Theme system:
+- Default is dark mode (class="dark" on html)
+- Light mode activated via class="light" on html
+- Theme preference stored in localStorage as "clearmarket-theme"
+- To add a "system" option: next-themes already supports it, just setTheme("system")
 */
 
 @layer base {
+  /* Light mode color tokens */
   :root {
-    /* ClearMarket 2.0 Design System - Dark Mode Professional */
+    /* Page background - very light neutral (off-white) */
+    --background: 220 20% 97%;
+    --background-secondary: 220 15% 94%;
+    --foreground: 220 15% 15%;
     
+    /* Card surfaces - white with subtle elevation */
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+    --card-elevated: 220 15% 98%;
+    
+    /* Popover surfaces */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+    
+    /* ClearMarket Orange - Primary brand color */
+    --primary: 25 95% 50%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 25 95% 55%;
+    
+    /* Teal - Trust/Status indicator */
+    --secondary: 173 80% 35%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-glow: 173 80% 45%;
+    
+    /* Muted elements */
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 10% 45%;
+    
+    /* Accent surfaces */
+    --accent: 220 15% 92%;
+    --accent-foreground: 220 15% 15%;
+    
+    /* Destructive states */
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders and inputs - light gray for separation */
+    --border: 220 15% 85%;
+    --input: 220 15% 95%;
+    --input-border: 220 15% 80%;
+    --ring: 25 95% 50%;
+    
+    /* Border radius */
+    --radius: 0.75rem;
+    
+    /* Gradients - subtle for light mode */
+    --gradient-background: linear-gradient(135deg, hsl(220 20% 97%), hsl(220 15% 95%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 15% 98%));
+    --gradient-primary: linear-gradient(135deg, hsl(25 95% 50%), hsl(25 95% 55%));
+    
+    /* Shadows - softer for light mode */
+    --shadow-sm: 0 2px 8px -2px hsl(220 15% 50% / 0.15);
+    --shadow-md: 0 4px 16px -4px hsl(220 15% 50% / 0.2);
+    --shadow-lg: 0 8px 32px -8px hsl(220 15% 50% / 0.25);
+    --shadow-primary-glow: 0 0 32px -8px hsl(25 95% 50% / 0.2);
+    --shadow-secondary-glow: 0 0 32px -8px hsl(173 80% 35% / 0.15);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Dark mode color tokens */
+  .dark {
     /* Deep charcoal gradient background */
     --background: 220 13% 9%;
     --background-secondary: 220 13% 12%;
@@ -79,7 +147,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(220 13% 9%), hsl(220 15% 12%));
+    background: var(--gradient-background);
     min-height: 100vh;
   }
   
