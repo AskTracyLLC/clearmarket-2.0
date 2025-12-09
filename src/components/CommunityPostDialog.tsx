@@ -38,7 +38,11 @@ export function CommunityPostDialog({
   onSuccess,
 }: CommunityPostDialogProps) {
   const { toast } = useToast();
-  const categories = getCategoriesForChannel(channel);
+  
+  // When editing, use the post's channel; otherwise use the prop
+  const effectiveChannel = existingPost?.channel as CommunityChannel || channel;
+  const categories = getCategoriesForChannel(effectiveChannel);
+  
   const [category, setCategory] = useState(existingPost?.category || categories[0]?.value || "question");
   const [title, setTitle] = useState(existingPost?.title || "");
   const [body, setBody] = useState(existingPost?.body || "");
@@ -46,12 +50,12 @@ export function CommunityPostDialog({
 
   const isEditing = !!existingPost;
 
-  // Reset category when channel changes
+  // Reset category when channel changes (only for new posts)
   useEffect(() => {
     if (!existingPost) {
       setCategory(categories[0]?.value || "question");
     }
-  }, [channel, categories, existingPost]);
+  }, [effectiveChannel, categories, existingPost]);
 
   const getDialogTitle = () => {
     if (isEditing) return "Edit Post";
