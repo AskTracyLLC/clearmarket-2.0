@@ -5,6 +5,7 @@ export interface InspectionTypeOption {
   code: string;
   label: string;
   category: string;
+  category_id: string | null;
   description: string | null;
   applies_to: 'rep' | 'vendor' | 'both';
   is_active: boolean;
@@ -13,14 +14,51 @@ export interface InspectionTypeOption {
   updated_at: string;
 }
 
-export const INSPECTION_TYPE_CATEGORIES = [
-  'Property Inspections',
-  'Loss / Insurance Claims (Appointment-based)',
-  'Commercial',
-  'Other',
-] as const;
+export interface InspectionCategory {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
 
-export type InspectionTypeCategory = typeof INSPECTION_TYPE_CATEGORIES[number];
+/**
+ * Fetch all active inspection categories from database
+ */
+export async function fetchInspectionCategories(): Promise<InspectionCategory[]> {
+  const { data, error } = await supabase
+    .from('inspection_categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+    .order('label', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching inspection categories:', error);
+    return [];
+  }
+
+  return (data || []) as InspectionCategory[];
+}
+
+/**
+ * Fetch all inspection categories (for admin view)
+ */
+export async function fetchAllInspectionCategories(): Promise<InspectionCategory[]> {
+  const { data, error } = await supabase
+    .from('inspection_categories')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('label', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching inspection categories:', error);
+    return [];
+  }
+
+  return (data || []) as InspectionCategory[];
+}
 
 /**
  * Fetch inspection type options for a specific role (rep or vendor)
@@ -86,7 +124,7 @@ export function generateCodeFromLabel(label: string): string {
  * Create a new inspection type option
  */
 export async function createInspectionType(
-  data: Omit<InspectionTypeOption, 'id' | 'code' | 'created_at' | 'updated_at'>
+  data: Omit<InspectionTypeOption, 'id' | 'code' | 'created_at' | 'updated_at' | 'category_id'>
 ): Promise<{ success: boolean; error?: string; data?: InspectionTypeOption }> {
   let baseCode = generateCodeFromLabel(data.label);
   let code = baseCode;

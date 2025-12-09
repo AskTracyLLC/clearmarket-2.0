@@ -19,8 +19,9 @@ import { Plus, Edit, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   InspectionTypeOption,
-  INSPECTION_TYPE_CATEGORIES,
+  InspectionCategory,
   fetchAllInspectionTypes,
+  fetchAllInspectionCategories,
   createInspectionType,
   updateInspectionType,
   toggleInspectionTypeActive,
@@ -39,6 +40,7 @@ const AdminInspectionTypes = () => {
   const { toast } = useToast();
 
   const [options, setOptions] = useState<InspectionTypeOption[]>([]);
+  const [categories, setCategories] = useState<InspectionCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOption, setEditingOption] = useState<InspectionTypeOption | null>(null);
@@ -79,8 +81,12 @@ const AdminInspectionTypes = () => {
 
   const loadOptions = async () => {
     setLoading(true);
-    const data = await fetchAllInspectionTypes();
+    const [data, cats] = await Promise.all([
+      fetchAllInspectionTypes(),
+      fetchAllInspectionCategories()
+    ]);
     setOptions(data);
+    setCategories(cats);
     setLoading(false);
   };
 
@@ -216,8 +222,8 @@ const AdminInspectionTypes = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {INSPECTION_TYPE_CATEGORIES.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -344,8 +350,8 @@ const AdminInspectionTypes = () => {
                     <SelectValue placeholder="Select category..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {INSPECTION_TYPE_CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.label}>{cat.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
