@@ -12,13 +12,14 @@ import {
   Users,
   AlertCircle,
   ChevronRight,
-  Clock
+  Clock,
+  Megaphone
 } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 
 interface FeedItem {
   id: string;
-  type: 'message' | 'notification' | 'review' | 'opportunity' | 'connection_request' | 'alert';
+  type: 'message' | 'notification' | 'review' | 'opportunity' | 'connection_request' | 'alert' | 'announcement';
   title: string;
   description: string;
   timestamp: string;
@@ -44,6 +45,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   const getFilterCategory = (type: FeedItem['type']): ActivityFilter => {
     if (type === 'alert') return 'alerts';
     if (type === 'opportunity') return 'opportunities';
+    // Announcements and notifications fall under 'updates'
     return 'updates';
   };
 
@@ -105,7 +107,9 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         
         // Determine the correct link based on notification type
         let link = '/notifications';
-        if (notif.type === 'working_terms_request' && notif.ref_id) {
+        if (notif.type === 'announcement' && notif.ref_id) {
+          link = `/community?tab=announcements&postId=${notif.ref_id}`;
+        } else if (notif.type === 'working_terms_request' && notif.ref_id) {
           link = `/rep/working-terms-request/${notif.ref_id}`;
         } else if (notif.type === 'working_terms_submitted' && notif.ref_id) {
           link = `/vendor/working-terms-review/${notif.ref_id}`;
@@ -119,11 +123,21 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           link = '/rep/find-work';
         }
         
+        // Determine item type
+        let itemType: FeedItem['type'] = 'notification';
+        if (notif.type === 'announcement') {
+          itemType = 'announcement';
+        } else if (notif.type.includes('review')) {
+          itemType = 'review';
+        } else if (notif.type.includes('connection')) {
+          itemType = 'connection_request';
+        } else if (notif.type.includes('alert') || notif.type.includes('working_terms')) {
+          itemType = 'alert';
+        }
+        
         items.push({
           id: `notif-${notif.id}`,
-          type: notif.type.includes('review') ? 'review' : 
-                notif.type.includes('connection') ? 'connection_request' :
-                notif.type.includes('alert') || notif.type.includes('working_terms') ? 'alert' : 'notification',
+          type: itemType,
           title: notif.title,
           description: notif.body || '',
           timestamp: notif.created_at,
@@ -220,6 +234,8 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         return <Users className="h-4 w-4" />;
       case 'alert':
         return <AlertCircle className="h-4 w-4" />;
+      case 'announcement':
+        return <Megaphone className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -237,6 +253,8 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         return 'bg-purple-500/20 text-purple-400';
       case 'alert':
         return 'bg-orange-500/20 text-orange-400';
+      case 'announcement':
+        return 'bg-cyan-500/20 text-cyan-400';
       default:
         return 'bg-secondary/20 text-secondary';
     }
@@ -254,6 +272,8 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         return 'Connection';
       case 'alert':
         return 'Alert';
+      case 'announcement':
+        return 'Update';
       default:
         return 'Update';
     }
