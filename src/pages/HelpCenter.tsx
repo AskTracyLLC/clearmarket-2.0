@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -129,11 +129,13 @@ type HelpData = Record<string, HelpCategory>;
 
 export default function HelpCenter() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("all");
   const [faqData, setFaqData] = useState<HelpData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedItem, setExpandedItem] = useState<string | undefined>(undefined);
 
   // Load FAQ data from database
   useEffect(() => {
@@ -212,6 +214,28 @@ export default function HelpCenter() {
     // Fallback to static FAQ
     return STATIC_FAQ as unknown as HelpData;
   }, [faqData]);
+
+  // Handle slug parameter to auto-focus article
+  useEffect(() => {
+    if (!slug || loading) return;
+    
+    // Find the article by slug
+    for (const [categoryKey, category] of Object.entries(activeFaqData)) {
+      const matchingItem = category.items.find(item => item.id === slug);
+      if (matchingItem) {
+        setActiveTab(categoryKey);
+        setExpandedItem(matchingItem.id);
+        // Scroll to the article after a short delay to allow render
+        setTimeout(() => {
+          const element = document.getElementById(`faq-${matchingItem.id}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 100);
+        break;
+      }
+    }
+  }, [slug, loading, activeFaqData]);
 
   // Filter FAQ items by search term
   const filteredFAQ = useMemo(() => {
@@ -392,9 +416,9 @@ export default function HelpCenter() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Accordion type="single" collapsible className="w-full">
+                      <Accordion type="single" collapsible className="w-full" value={expandedItem} onValueChange={setExpandedItem}>
                         {category.items.map((item) => (
-                          <AccordionItem key={item.id} value={item.id}>
+                          <AccordionItem key={item.id} value={item.id} id={`faq-${item.id}`}>
                             <AccordionTrigger className="text-left">
                               {item.question}
                             </AccordionTrigger>
@@ -425,9 +449,9 @@ export default function HelpCenter() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Accordion type="single" collapsible className="w-full">
+                      <Accordion type="single" collapsible className="w-full" value={expandedItem} onValueChange={setExpandedItem}>
                         {category.items.map((item) => (
-                          <AccordionItem key={item.id} value={item.id}>
+                          <AccordionItem key={item.id} value={item.id} id={`faq-${item.id}`}>
                             <AccordionTrigger className="text-left">
                               {item.question}
                             </AccordionTrigger>
