@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Briefcase, Building, Shield } from "lucide-react";
+import { Briefcase, Building, Shield, Users } from "lucide-react";
 import { sendWelcomeEmail } from "@/lib/welcomeEmail";
 
 const RoleSelection = () => {
@@ -52,14 +52,23 @@ const RoleSelection = () => {
     }
   }, [user, authLoading]);
 
-  const handleRoleSelect = async (role: 'rep' | 'vendor') => {
+  const handleRoleSelect = async (role: 'rep' | 'vendor' | 'both') => {
     if (!user) return;
 
     setLoading(true);
 
-    const updates = role === 'rep' 
-      ? { is_fieldrep: true }
-      : { is_vendor_admin: true };
+    // Set the appropriate flags based on selection
+    const updates = (() => {
+      switch (role) {
+        case 'rep':
+          return { is_fieldrep: true, active_role: null };
+        case 'vendor':
+          return { is_vendor_admin: true, active_role: null };
+        case 'both':
+          // For hybrid users, default to 'rep' as active role
+          return { is_fieldrep: true, is_vendor_admin: true, active_role: 'rep' };
+      }
+    })();
 
     const { error } = await supabase
       .from('profiles')
@@ -76,9 +85,37 @@ const RoleSelection = () => {
       return;
     }
 
+    // For hybrid users, create both profile records
+    if (role === 'both') {
+      // Create rep_profile if needed
+      const { data: existingRepProfile } = await supabase
+        .from('rep_profile')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingRepProfile) {
+        await supabase.from('rep_profile').insert({ user_id: user.id });
+      }
+
+      // Create vendor_profile if needed
+      const { data: existingVendorProfile } = await supabase
+        .from('vendor_profile')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingVendorProfile) {
+        await supabase.from('vendor_profile').insert({ 
+          user_id: user.id, 
+          company_name: 'My Company' // Required field with default
+        });
+      }
+    }
+
     // Fetch anonymous ID from the appropriate profile table
     let anonymousId = `User`;
-    const profileTable = role === 'rep' ? 'rep_profile' : 'vendor_profile';
+    const profileTable = role === 'vendor' ? 'vendor_profile' : 'rep_profile';
     
     const { data: profileData } = await supabase
       .from(profileTable)
@@ -90,8 +127,9 @@ const RoleSelection = () => {
       anonymousId = profileData.anonymous_id;
     }
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(user.email || '', anonymousId, role)
+    // Send welcome email (non-blocking) - for 'both', send as rep
+    const emailRole = role === 'both' ? 'rep' : role;
+    sendWelcomeEmail(user.email || '', anonymousId, emailRole)
       .then((result) => {
         if (result.ok) {
           console.log("Welcome email sent successfully");
@@ -103,9 +141,13 @@ const RoleSelection = () => {
 
     setLoading(false);
 
+    const roleDescription = role === 'both' 
+      ? "You can now switch between Field Rep and Vendor roles!"
+      : "Proceeding to terms agreement...";
+
     toast({
       title: "Role selected!",
-      description: "Proceeding to terms agreement...",
+      description: roleDescription,
     });
 
     navigate("/onboarding/terms");
@@ -163,21 +205,21 @@ const RoleSelection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card 
-            className="p-8 cursor-pointer hover:border-primary transition-all duration-300 hover:shadow-primary-glow group"
+            className="p-6 cursor-pointer hover:border-primary transition-all duration-300 hover:shadow-primary-glow group"
             onClick={() => !loading && handleRoleSelect('rep')}
           >
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Briefcase className="text-primary" size={40} />
+              <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Briefcase className="text-primary" size={32} />
               </div>
-              <h2 className="text-2xl font-bold mb-4 text-foreground">I'm a Field Rep</h2>
-              <p className="text-muted-foreground mb-6">
-                Find work, build your reputation, and connect with vetted vendors in your coverage areas.
+              <h2 className="text-xl font-bold mb-2 text-foreground">I'm a Field Rep</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                I perform inspections and am looking for work from vendors.
               </p>
               <Button 
-                size="lg" 
+                size="sm" 
                 className="w-full"
                 disabled={loading}
               >
@@ -187,24 +229,47 @@ const RoleSelection = () => {
           </Card>
 
           <Card 
-            className="p-8 cursor-pointer hover:border-secondary transition-all duration-300 hover:shadow-secondary-glow group"
+            className="p-6 cursor-pointer hover:border-secondary transition-all duration-300 hover:shadow-secondary-glow group"
             onClick={() => !loading && handleRoleSelect('vendor')}
           >
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-6 bg-secondary/10 rounded-full flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
-                <Building className="text-secondary" size={40} />
+              <div className="w-16 h-16 mx-auto mb-4 bg-secondary/10 rounded-full flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
+                <Building className="text-secondary" size={32} />
               </div>
-              <h2 className="text-2xl font-bold mb-4 text-foreground">I'm a Vendor</h2>
-              <p className="text-muted-foreground mb-6">
-                Post seeking coverage, find reliable field reps, and build your professional network.
+              <h2 className="text-xl font-bold mb-2 text-foreground">I'm a Vendor</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                I assign work to field reps and seek coverage in my areas.
               </p>
               <Button 
-                size="lg" 
+                size="sm" 
                 variant="secondary"
                 className="w-full"
                 disabled={loading}
               >
                 Continue as Vendor
+              </Button>
+            </div>
+          </Card>
+
+          <Card 
+            className="p-6 cursor-pointer hover:border-primary transition-all duration-300 hover:shadow-primary-glow group border-dashed"
+            onClick={() => !loading && handleRoleSelect('both')}
+          >
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full flex items-center justify-center group-hover:from-primary/20 group-hover:to-secondary/20 transition-colors">
+                <Users className="text-foreground" size={32} />
+              </div>
+              <h2 className="text-xl font-bold mb-2 text-foreground">Both</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                I perform inspections and assign work to other reps.
+              </p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                className="w-full"
+                disabled={loading}
+              >
+                Continue as Both
               </Button>
             </div>
           </Card>

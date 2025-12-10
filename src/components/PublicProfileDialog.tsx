@@ -64,6 +64,9 @@ interface ProfileData {
   unavailableFrom?: string | null;
   unavailableTo?: string | null;
   unavailableNote?: string | null;
+  isHybridUser?: boolean; // True if user has both Field Rep and Vendor profiles
+  otherRole?: "rep" | "vendor"; // The other role if hybrid
+  otherAnonymousId?: string; // Anonymous ID for the other role
   coverageAreas?: Array<{
     stateCode: string;
     stateName: string;
@@ -371,6 +374,9 @@ export function PublicProfileDialog({
           .eq("user_id", targetUserId)
           .maybeSingle();
 
+        // Detect if this is a hybrid user (has both roles)
+        const isHybridUser = Boolean(repProfile && vendorProfile);
+
         // If rep profile exists, use it (priority if user has both roles)
         if (repProfile) {
           // Store rep email for contact unlock feature
@@ -409,6 +415,9 @@ export function PublicProfileDialog({
             unavailableFrom: repProfile.unavailable_from || null,
             unavailableTo: repProfile.unavailable_to || null,
             unavailableNote: repProfile.unavailable_note || null,
+            isHybridUser,
+            otherRole: isHybridUser ? "vendor" : undefined,
+            otherAnonymousId: isHybridUser ? (vendorProfile?.anonymous_id || "Vendor#?") : undefined,
             coverageAreas: (coverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
