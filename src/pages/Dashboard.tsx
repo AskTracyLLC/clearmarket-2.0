@@ -450,20 +450,6 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">System overview</CardDescription>
                 </CardHeader>
               </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/messages")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                    Messages
-                    {unreadMessageCount > 0 && (
-                      <Badge variant="destructive" className="ml-auto text-xs">
-                        {unreadMessageCount}
-                      </Badge>
-                    )}
-                  </CardTitle>
-                  <CardDescription className="text-sm">View user replies</CardDescription>
-                </CardHeader>
-              </Card>
               <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/credits")}>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
