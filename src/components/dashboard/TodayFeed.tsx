@@ -146,38 +146,69 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         });
       }
 
-      // 3. Get new opportunities for reps (recent seeking coverage posts)
+      // 3. Get new opportunities for reps (recent seeking coverage posts matching coverage)
       if (isRep) {
+        // First, get the rep's coverage areas
+        const { data: repCoverage } = await supabase
+          .from("rep_coverage_areas")
+          .select("state_code, county_id, covers_entire_state")
+          .eq("user_id", userId);
+
+        // Get opportunities from last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
         const { data: opportunities } = await supabase
           .from("seeking_coverage_posts")
-          .select("id, title, state_code, created_at, pay_min, pay_max")
+          .select("id, title, state_code, county_id, covers_entire_state, created_at, pay_min, pay_max")
           .eq("status", "active")
           .is("deleted_at", null)
+          .gte("created_at", sevenDaysAgo.toISOString())
           .order("created_at", { ascending: false })
-          .limit(5);
+          .limit(20); // Fetch more, we'll filter client-side
 
-        for (const opp of opportunities || []) {
-          // Only show opportunities from last 7 days
-          const createdAt = new Date(opp.created_at);
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        // Filter opportunities by coverage match
+        const matchedOpportunities = (opportunities || []).filter(opp => {
+          if (!repCoverage || repCoverage.length === 0) return false;
           
-          if (createdAt >= sevenDaysAgo) {
-            const payText = opp.pay_max 
-              ? `$${opp.pay_min}–$${opp.pay_max}` 
-              : opp.pay_min 
-                ? `$${opp.pay_min}` 
-                : '';
-            items.push({
-              id: `opp-${opp.id}`,
-              type: 'opportunity',
-              title: opp.title,
-              description: `${opp.state_code || 'Location TBD'}${payText ? ` · ${payText}` : ''}`,
-              timestamp: opp.created_at,
-              isUnread: false,
-              link: '/rep/find-work',
-            });
-          }
+          // Check if any of the rep's coverage areas match this post
+          return repCoverage.some(coverage => {
+            // Must match state first
+            if (opp.state_code !== coverage.state_code) return false;
+            
+            // If post covers entire state, any rep in that state matches
+            if (opp.covers_entire_state) return true;
+            
+            // If rep covers entire state, they match any post in that state
+            if (coverage.covers_entire_state) return true;
+            
+            // If post is county-specific, rep must have that county
+            if (opp.county_id && coverage.county_id) {
+              return opp.county_id === coverage.county_id;
+            }
+            
+            // If no county specified on post but rep has state coverage, match
+            if (!opp.county_id) return true;
+            
+            return false;
+          });
+        });
+
+        for (const opp of matchedOpportunities.slice(0, 5)) {
+          const payText = opp.pay_max 
+            ? `$${opp.pay_min}–$${opp.pay_max}` 
+            : opp.pay_min 
+              ? `$${opp.pay_min}` 
+              : '';
+          items.push({
+            id: `opp-${opp.id}`,
+            type: 'opportunity',
+            title: opp.title,
+            description: `${opp.state_code || 'Location TBD'}${payText ? ` · ${payText}` : ''}`,
+            timestamp: opp.created_at,
+            isUnread: false,
+            link: '/rep/find-work',
+          });
         }
       }
 
@@ -343,7 +374,10 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         <Card className="bg-card border-border">
           <CardContent className="py-6 text-center">
             <p className="text-muted-foreground text-sm">
-              No {activityFilter === 'all' ? 'activity' : activityFilter} to show.
+              {activityFilter === 'opportunities' 
+                ? "No new opportunities in your coverage area yet. Try expanding your coverage or check back later."
+                : `No ${activityFilter === 'all' ? 'activity' : activityFilter} to show.`
+              }
             </p>
           </CardContent>
         </Card>
