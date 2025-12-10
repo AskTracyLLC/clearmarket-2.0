@@ -42,6 +42,7 @@ const repProfileSchema = z.object({
   // MVP PLACEHOLDER: These arrays will be migrated to normalized tables in Phase 2
   systems_used: z.array(z.string()).min(1, "Please select at least one system"),
   systems_used_other: z.string().trim().max(100).optional().nullable(),
+  open_to_new_systems: z.boolean(),
   inspection_types: z.array(z.string()).min(1, "Please select at least one inspection type"),
   inspection_types_other: z.string().trim().max(100).optional().nullable(),
   is_accepting_new_vendors: z.boolean(),
@@ -197,6 +198,7 @@ const RepProfile = () => {
     resolver: zodResolver(repProfileSchema),
     defaultValues: {
       systems_used: [],
+      open_to_new_systems: false,
       inspection_types: [],
       is_accepting_new_vendors: true,
       willing_to_travel_out_of_state: false,
@@ -308,6 +310,7 @@ const RepProfile = () => {
         
         setValue("systems_used", systemsForCheckboxes);
         setValue("systems_used_other", systemsOtherText);
+        setValue("open_to_new_systems", repData.open_to_new_systems ?? false);
         setValue("inspection_types", inspectionTypesForCheckboxes);
         setValue("inspection_types_other", inspectionTypesOtherText);
         setValue("is_accepting_new_vendors", repData.is_accepting_new_vendors ?? true);
@@ -409,6 +412,7 @@ const RepProfile = () => {
       zip_code: data.zip_code,
       bio: data.bio || null,
       systems_used: systemsUsed,
+      open_to_new_systems: data.open_to_new_systems,
       inspection_types: inspectionTypes,
       is_accepting_new_vendors: data.is_accepting_new_vendors,
       willing_to_travel_out_of_state: data.willing_to_travel_out_of_state,
@@ -677,6 +681,27 @@ const RepProfile = () => {
                   />
                 </div>
               )}
+
+              {/* Open to new systems checkbox */}
+              <Separator className="my-4" />
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="open_to_new_systems"
+                  checked={watch("open_to_new_systems")}
+                  onCheckedChange={(checked) => setValue("open_to_new_systems", !!checked)}
+                  className="mt-0.5"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="open_to_new_systems" className="text-foreground font-normal cursor-pointer">
+                    Open to work in new systems
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Select this if you're comfortable using inspection systems you haven't worked in before. 
+                    This lets vendors match you with jobs even when they use different software, as long as 
+                    they provide the access and instructions needed for their process.
+                  </p>
+                </div>
+              </div>
 
                   {errors.systems_used && (
                     <p className="text-sm text-destructive">{errors.systems_used.message}</p>

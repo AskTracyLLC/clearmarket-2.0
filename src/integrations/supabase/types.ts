@@ -1450,6 +1450,7 @@ export type Database = {
           id: string
           inspection_types: string[] | null
           is_accepting_new_vendors: boolean | null
+          open_to_new_systems: boolean
           state: string | null
           systems_used: string[] | null
           unavailable_from: string | null
@@ -1481,6 +1482,7 @@ export type Database = {
           id?: string
           inspection_types?: string[] | null
           is_accepting_new_vendors?: boolean | null
+          open_to_new_systems?: boolean
           state?: string | null
           systems_used?: string[] | null
           unavailable_from?: string | null
@@ -1512,6 +1514,7 @@ export type Database = {
           id?: string
           inspection_types?: string[] | null
           is_accepting_new_vendors?: boolean | null
+          open_to_new_systems?: boolean
           state?: string | null
           systems_used?: string[] | null
           unavailable_from?: string | null
