@@ -51,11 +51,8 @@ export function InspectionTypeMultiSelect({
     }
   };
 
-  // Find labels that don't match any option (legacy values)
-  const knownLabels = new Set(allOptions.map(opt => opt.label));
-  const legacyValues = selectedLabels.filter(label => 
-    !knownLabels.has(label) && !label.startsWith("Other:")
-  );
+  // NOTE: Legacy inspection type values (old broad categories) are intentionally
+  // ignored and not displayed. Users must reselect from the new detailed options.
 
   if (loading) {
     return (
@@ -127,24 +124,8 @@ export function InspectionTypeMultiSelect({
         );
       })}
 
-      {/* Show legacy values that don't map to any option */}
-      {legacyValues.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-medium text-sm text-muted-foreground border-b border-border pb-1">
-            Legacy Values
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {legacyValues.map((val, idx) => (
-              <Badge key={idx} variant="secondary" className="text-xs">
-                {val}
-              </Badge>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            These values were set before the new inspection types system. They will continue to work.
-          </p>
-        </div>
-      )}
+      {/* Legacy inspection type values are no longer displayed.
+          Users must select from the new categorized options above. */}
 
       {error && (
         <p className="text-sm text-destructive">{error}</p>
