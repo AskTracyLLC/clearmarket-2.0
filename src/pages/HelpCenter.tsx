@@ -5,11 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search, HelpCircle, CreditCard, Shield, MessageCircle, Rocket, UserCog } from "lucide-react";
+import { ArrowLeft, Search, HelpCircle, CreditCard, Shield, MessageCircle, Rocket, UserCog, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { supabase } from "@/integrations/supabase/client";
 
-// Static FAQ content
+// Category configuration with icons and labels
+const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ComponentType<any> }> = {
+  getting_started: { label: "Getting Started", icon: Rocket },
+  accounts_access: { label: "Accounts & Access", icon: UserCog },
+  credits_billing: { label: "Credits & Billing", icon: CreditCard },
+  safety_support: { label: "Safety & Support", icon: Shield },
+};
+
+const CATEGORY_ORDER = ["getting_started", "accounts_access", "credits_billing", "safety_support"] as const;
+
+// Static fallback FAQ content (kept for safety if DB is empty)
 const STATIC_FAQ = {
   getting_started: {
     label: "Getting Started",
@@ -109,22 +119,108 @@ const STATIC_FAQ = {
   }
 } as const;
 
-const CATEGORY_ORDER = ["getting_started", "accounts_access", "credits_billing", "safety_support"] as const;
+type HelpCategory = {
+  label: string;
+  icon: React.ComponentType<any>;
+  items: { id: string; question: string; answer: string }[];
+};
+
+type HelpData = Record<string, HelpCategory>;
 
 export default function HelpCenter() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [faqData, setFaqData] = useState<HelpData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load FAQ data from database
+  useEffect(() => {
+    async function loadFaqFromDatabase() {
+      try {
+        const { data, error } = await supabase
+          .from("help_center_articles")
+          .select("id, title, slug, category, content, display_order")
+          .eq("is_published", true)
+          .order("category")
+          .order("display_order");
+
+        if (error) {
+          console.error("Error loading help articles from DB:", error);
+          setFaqData(null);
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn("No help articles found in database, using static fallback");
+          setFaqData(null);
+          return;
+        }
+
+        // Group by category and build HelpData structure
+        const grouped: HelpData = {};
+        
+        for (const article of data) {
+          const categoryKey = article.category;
+          const config = CATEGORY_CONFIG[categoryKey];
+          
+          if (!config) {
+            // Skip unknown categories
+            continue;
+          }
+
+          if (!grouped[categoryKey]) {
+            grouped[categoryKey] = {
+              label: config.label,
+              icon: config.icon,
+              items: [],
+            };
+          }
+
+          grouped[categoryKey].items.push({
+            id: article.slug || article.id,
+            question: article.title,
+            answer: article.content,
+          });
+        }
+
+        // Check if we got any valid data
+        if (Object.keys(grouped).length === 0) {
+          console.warn("No valid categories found in database, using static fallback");
+          setFaqData(null);
+          return;
+        }
+
+        setFaqData(grouped);
+      } catch (err) {
+        console.error("Failed to load FAQ from database:", err);
+        setFaqData(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFaqFromDatabase();
+  }, []);
+
+  // Use DB data if available, otherwise fallback to static
+  const activeFaqData: HelpData = useMemo(() => {
+    if (faqData && Object.keys(faqData).length > 0) {
+      return faqData;
+    }
+    // Fallback to static FAQ
+    return STATIC_FAQ as unknown as HelpData;
+  }, [faqData]);
 
   // Filter FAQ items by search term
   const filteredFAQ = useMemo(() => {
-    if (!searchTerm) return STATIC_FAQ;
+    if (!searchTerm) return activeFaqData;
     
     const search = searchTerm.toLowerCase();
-    const filtered: Record<string, { label: string; icon: typeof Rocket; items: readonly { id: string; question: string; answer: string }[] }> = {};
+    const filtered: HelpData = {};
     
-    for (const [key, category] of Object.entries(STATIC_FAQ)) {
+    for (const [key, category] of Object.entries(activeFaqData)) {
       const matchingItems = category.items.filter(
         (item) =>
           item.question.toLowerCase().includes(search) ||
@@ -139,7 +235,7 @@ export default function HelpCenter() {
     }
     
     return filtered;
-  }, [searchTerm]);
+  }, [searchTerm, activeFaqData]);
 
   // Get all items for search results display
   const allFilteredItems = useMemo(() => {
@@ -159,7 +255,18 @@ export default function HelpCenter() {
 
   const hasResults = searchTerm 
     ? allFilteredItems.length > 0 
-    : Object.keys(STATIC_FAQ).length > 0;
+    : Object.keys(activeFaqData).length > 0;
+
+  // Get available categories (only those with data)
+  const availableCategories = CATEGORY_ORDER.filter(key => activeFaqData[key]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -257,8 +364,9 @@ export default function HelpCenter() {
                 <HelpCircle className="h-4 w-4" />
                 All Topics
               </TabsTrigger>
-              {CATEGORY_ORDER.map((key) => {
-                const category = STATIC_FAQ[key];
+              {availableCategories.map((key) => {
+                const category = activeFaqData[key];
+                if (!category) return null;
                 const Icon = category.icon;
                 return (
                   <TabsTrigger key={key} value={key} className="flex items-center gap-2">
@@ -271,8 +379,9 @@ export default function HelpCenter() {
 
             {/* All Topics Tab */}
             <TabsContent value="all" className="space-y-6">
-              {CATEGORY_ORDER.map((key) => {
-                const category = STATIC_FAQ[key];
+              {availableCategories.map((key) => {
+                const category = activeFaqData[key];
+                if (!category) return null;
                 const Icon = category.icon;
                 return (
                   <Card key={key}>
@@ -302,8 +411,9 @@ export default function HelpCenter() {
             </TabsContent>
 
             {/* Individual Category Tabs */}
-            {CATEGORY_ORDER.map((key) => {
-              const category = STATIC_FAQ[key];
+            {availableCategories.map((key) => {
+              const category = activeFaqData[key];
+              if (!category) return null;
               const Icon = category.icon;
               return (
                 <TabsContent key={key} value={key}>
