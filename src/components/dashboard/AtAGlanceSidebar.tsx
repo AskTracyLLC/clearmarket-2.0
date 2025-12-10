@@ -9,10 +9,7 @@ import {
   Star, 
   Coins,
   Calendar,
-  ChevronDown,
-  ChevronUp,
   CheckCircle2,
-  Edit,
   Info
 } from "lucide-react";
 import {
@@ -21,7 +18,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useState } from "react";
 import { format, parseISO } from "date-fns";
 
 interface AtAGlanceSidebarProps {
@@ -50,7 +46,6 @@ export function AtAGlanceSidebar({
   pendingConnections = 0,
   newOpportunities = 0,
 }: AtAGlanceSidebarProps) {
-  const [showProfileSection, setShowProfileSection] = useState(profileCompletion < 100);
 
   // Mobile: Single consolidated card view
   // Desktop: Multiple separate cards
@@ -256,49 +251,40 @@ export function AtAGlanceSidebar({
 
       {/* Desktop: Multiple separate cards */}
       <div className="hidden lg:block space-y-4">
-        {/* Profile Completion - Collapsible when 100% */}
+        {/* Profile Setup - Clean static summary card */}
         <Card className="bg-card border-border">
           <CardHeader className="py-3 px-4">
-            <div 
-              className="flex items-center justify-between cursor-pointer"
-              onClick={() => setShowProfileSection(!showProfileSection)}
-            >
+            <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 {profileCompletion === 100 && (
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 )}
                 Profile Setup
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
-                {profileCompletion === 100 ? (
-                  showProfileSection ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                ) : null}
-              </div>
+              <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
             </div>
           </CardHeader>
-          {(showProfileSection || profileCompletion < 100) && (
-            <CardContent className="pt-0 px-4 pb-4">
-              <Progress value={profileCompletion} className="h-2 mb-3" />
-              {profileCompletion < 100 && (
-                <p className="text-xs text-muted-foreground text-center mb-3">
-                  Complete your profile to be discoverable
-                </p>
-              )}
-              <div className="space-y-2">
-                <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                  <Button variant="default" size="sm" className="w-full text-xs">
-                    {isRep ? "View / Edit Profile" : "View / Edit Company Profile"}
-                  </Button>
-                </Link>
-                <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
-                  <Button variant="outline" size="sm" className="w-full text-xs">
-                    {isRep ? "Manage Coverage & Rates" : "Manage Coverage & Pricing"}
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          )}
+          <CardContent className="pt-0 px-4 pb-4">
+            <Progress value={profileCompletion} className="h-2 mb-3" />
+            <p className="text-xs text-muted-foreground mb-3">
+              {profileCompletion < 100 
+                ? "Complete your profile to show up in more searches."
+                : "Your profile is complete and visible to others."
+              }
+            </p>
+            <div className="space-y-2">
+              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                <Button variant="default" size="sm" className="w-full text-xs">
+                  View / Edit Profile
+                </Button>
+              </Link>
+              <Link to={isRep ? "/rep/profile" : "/vendor/profile"}>
+                <Button variant="outline" size="sm" className="w-full text-xs">
+                  Manage Coverage & Rates
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
         </Card>
 
         {/* Quick Stats */}
