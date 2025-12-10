@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { US_STATES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { X, ChevronDown, AlertCircle } from "lucide-react";
+import { X, ChevronDown, AlertCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { fetchInspectionCategories, InspectionCategory } from "@/lib/inspectionTypes";
+import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 
 export type CoverageMode = "entire_state" | "entire_state_except" | "selected_counties";
 
@@ -40,13 +40,16 @@ interface CoverageAreaDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: CoverageArea) => void;
   editData?: CoverageArea | null;
+  /** The rep's profile-level inspection types (labels) to filter available options */
+  profileInspectionTypes?: string[];
 }
 
 /**
  * Dialog for adding/editing rep coverage areas and pricing.
  * Supports: entire state, entire state except counties, or selected counties only.
+ * Shows detailed inspection types filtered by what the rep has selected on their profile.
  */
-export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: CoverageAreaDialogProps) => {
+export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profileInspectionTypes = [] }: CoverageAreaDialogProps) => {
   const [stateCode, setStateCode] = useState("");
   const [coverageMode, setCoverageMode] = useState<CoverageMode>("entire_state");
   const [excludedCountyIds, setExcludedCountyIds] = useState<string[]>([]);
@@ -55,22 +58,52 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
   const [rushPrice, setRushPrice] = useState("");
   const [regionNote, setRegionNote] = useState("");
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
-  const [otherInspectionType, setOtherInspectionType] = useState("");
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
   const [countySearchOpen, setCountySearchOpen] = useState(false);
-  const [inspectionCategories, setInspectionCategories] = useState<InspectionCategory[]>([]);
+  
+  // All inspection type options grouped by category
+  const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
+  // Track removed types that were saved in coverage but no longer in profile
+  const [removedTypes, setRemovedTypes] = useState<string[]>([]);
 
   // For edit mode - single county editing
   const isEditingSingleRow = !!editData?.id;
 
-  // Fetch inspection categories from database
+  // Fetch all inspection type options from database
   useEffect(() => {
-    const loadCategories = async () => {
-      const categories = await fetchInspectionCategories();
-      setInspectionCategories(categories);
+    const loadInspectionTypes = async () => {
+      const grouped = await fetchInspectionTypesForRole('rep');
+      setAllInspectionTypesByCategory(grouped);
     };
-    loadCategories();
+    loadInspectionTypes();
   }, []);
+
+  // Filter inspection types to only show those the rep has selected on their profile
+  const availableInspectionTypesByCategory = useMemo(() => {
+    const result: Record<string, InspectionTypeOption[]> = {};
+    
+    for (const [category, types] of Object.entries(allInspectionTypesByCategory)) {
+      // Filter types that match the rep's profile-level selections (by label)
+      const matchingTypes = types.filter(t => 
+        profileInspectionTypes.some(pt => 
+          pt === t.label || 
+          pt.toLowerCase() === t.label.toLowerCase() ||
+          pt.startsWith("Other:") // Keep "Other:" types for handling later
+        )
+      );
+      
+      if (matchingTypes.length > 0) {
+        result[category] = matchingTypes;
+      }
+    }
+    
+    return result;
+  }, [allInspectionTypesByCategory, profileInspectionTypes]);
+
+  // Check for "Other" types from profile
+  const profileOtherTypes = useMemo(() => {
+    return profileInspectionTypes.filter(t => t.startsWith("Other:"));
+  }, [profileInspectionTypes]);
 
   useEffect(() => {
     if (editData) {
@@ -82,21 +115,26 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       setRushPrice(editData.rush_price || "");
       setRegionNote(editData.region_note || "");
       
-      const types = editData.inspection_types || [];
-      // Filter for standard types (match by label from categories)
-      const categoryLabels = inspectionCategories.map(c => c.label);
-      const standardTypes = types.filter(t => categoryLabels.includes(t));
-      const otherTypes = types.filter(t => t.startsWith("Other: "));
+      const savedTypes = editData.inspection_types || [];
       
-      setInspectionTypes(standardTypes);
-      if (otherTypes.length > 0) {
-        setInspectionTypes([...standardTypes, "Other"]);
-        setOtherInspectionType(otherTypes[0].replace("Other: ", ""));
-      }
+      // Find any saved types that are no longer in the profile
+      const allAvailableLabels = Object.values(availableInspectionTypesByCategory)
+        .flat()
+        .map(t => t.label);
+      const allProfileLabels = [...allAvailableLabels, ...profileOtherTypes];
+      
+      const removed = savedTypes.filter(t => !allProfileLabels.includes(t) && !t.startsWith("Other:"));
+      setRemovedTypes(removed);
+      
+      // Only keep types that are still available
+      const validTypes = savedTypes.filter(t => 
+        allProfileLabels.includes(t) || profileOtherTypes.includes(t)
+      );
+      setInspectionTypes(validTypes);
     } else {
       resetForm();
     }
-  }, [editData, open, inspectionCategories]);
+  }, [editData, open, availableInspectionTypesByCategory, profileOtherTypes]);
 
   // Fetch counties when state changes
   useEffect(() => {
@@ -132,7 +170,7 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
     setRushPrice("");
     setRegionNote("");
     setInspectionTypes([]);
-    setOtherInspectionType("");
+    setRemovedTypes([]);
   };
 
   const handleSave = () => {
@@ -158,11 +196,8 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
     const selectedState = US_STATES.find(s => s.value === stateCode);
     if (!selectedState) return;
 
-    // Build inspection_types array
-    let finalInspectionTypes = inspectionTypes.filter(t => t !== "Other");
-    if (inspectionTypes.includes("Other") && otherInspectionType.trim()) {
-      finalInspectionTypes.push(`Other: ${otherInspectionType.trim()}`);
-    }
+    // Build inspection_types array - use selected types directly (labels)
+    const finalInspectionTypes = [...inspectionTypes];
 
     const data: CoverageArea = {
       id: editData?.id,
@@ -462,43 +497,88 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
           </div>
 
           {/* Inspection Types (optional region-specific override) */}
-          <div className="space-y-2">
-            <Label>Inspection Types for this region (optional)</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Leave blank to use your profile-level inspection types.
-            </p>
-            <div className="space-y-2">
-              {inspectionCategories.map((category) => (
-                <div key={category.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`inspection-${category.code}`}
-                    checked={inspectionTypes.includes(category.label)}
-                    onCheckedChange={() => handleInspectionTypeToggle(category.label)}
-                  />
-                  <Label htmlFor={`inspection-${category.code}`} className="cursor-pointer font-normal">
-                    {category.label}
-                  </Label>
-                </div>
-              ))}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="inspection-Other"
-                  checked={inspectionTypes.includes("Other")}
-                  onCheckedChange={() => handleInspectionTypeToggle("Other")}
-                />
-                <Label htmlFor="inspection-Other" className="cursor-pointer font-normal">
-                  Other
-                </Label>
-              </div>
-              {inspectionTypes.includes("Other") && (
-                <Input
-                  placeholder="Specify other inspection type"
-                  value={otherInspectionType}
-                  onChange={(e) => setOtherInspectionType(e.target.value)}
-                  className="ml-6"
-                />
-              )}
+          <div className="space-y-4">
+            <div>
+              <Label>Inspection Types for this region (optional)</Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Choose the specific inspection types you want to cover in this state/county. 
+                Leave blank to use everything you selected in your main profile.
+              </p>
             </div>
+
+            {/* Warning for removed types */}
+            {removedTypes.length > 0 && (
+              <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <AlertDescription className="text-sm text-muted-foreground">
+                  Some older inspection types linked to this region are no longer in your main profile. 
+                  They've been removed from this list.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* No profile types warning */}
+            {profileInspectionTypes.length === 0 && (
+              <Alert variant="default" className="border-muted">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm text-muted-foreground">
+                  You haven't selected any inspection types in your main profile yet. 
+                  Please save some inspection types on your profile first.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Grouped inspection types from profile */}
+            {Object.keys(availableInspectionTypesByCategory).length > 0 && (
+              <div className="space-y-4">
+                {Object.entries(availableInspectionTypesByCategory).map(([category, types]) => (
+                  <div key={category} className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">{category}</Label>
+                    <div className="ml-1 space-y-1.5">
+                      {types.map((type) => (
+                        <div key={type.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`inspection-${type.id}`}
+                            checked={inspectionTypes.includes(type.label)}
+                            onCheckedChange={() => handleInspectionTypeToggle(type.label)}
+                          />
+                          <Label 
+                            htmlFor={`inspection-${type.id}`} 
+                            className="cursor-pointer font-normal text-sm"
+                          >
+                            {type.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Profile-level "Other" types */}
+            {profileOtherTypes.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-foreground">Other</Label>
+                <div className="ml-1 space-y-1.5">
+                  {profileOtherTypes.map((otherType) => (
+                    <div key={otherType} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`inspection-other-${otherType}`}
+                        checked={inspectionTypes.includes(otherType)}
+                        onCheckedChange={() => handleInspectionTypeToggle(otherType)}
+                      />
+                      <Label 
+                        htmlFor={`inspection-other-${otherType}`} 
+                        className="cursor-pointer font-normal text-sm"
+                      >
+                        {otherType.replace("Other: ", "")}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
