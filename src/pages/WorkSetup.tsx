@@ -794,13 +794,12 @@ const WorkSetup = () => {
         </form>
 
         {/* Coverage Dialogs */}
-        {isRep && (
+{isRep && (
           <CoverageAreaDialog
-            // @ts-ignore - existingInspectionTypes may not exist on all versions
             open={coverageDialogOpen}
             onOpenChange={setCoverageDialogOpen}
             editData={editingCoverage}
-            existingInspectionTypes={repForm.watch("inspection_types") || []}
+            profileInspectionTypes={repForm.watch("inspection_types") || []}
             onSave={async (data) => {
               if (!user) return;
 
