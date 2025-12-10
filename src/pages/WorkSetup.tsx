@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,15 +13,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SYSTEMS_LIST } from "@/lib/constants";
 import { InspectionTypeMultiSelect } from "@/components/InspectionTypeMultiSelect";
-import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { CoverageAreaDialog, CoverageArea, CoverageMode } from "@/components/CoverageAreaDialog";
 import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Validation schema for rep work setup
 const repWorkSetupSchema = z.object({
@@ -408,389 +408,405 @@ const WorkSetup = () => {
         )}
 
         <form onSubmit={isRep ? repForm.handleSubmit(onRepSubmit) : vendorForm.handleSubmit(onVendorSubmit)}>
-          <Card className="p-6 bg-card-elevated border border-border space-y-8">
-            {/* Section: Systems */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">
-                  {isRep ? "Systems I Use" : "Systems We Use"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {isRep 
-                    ? "Select the inspection systems you currently use"
-                    : "Select the inspection systems your company uses"
-                  }
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                {SYSTEMS_LIST.map((system) => (
-                  <div key={system} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={`system-${system}`}
-                      checked={systemsUsed.includes(system)}
-                      onCheckedChange={(checked) => {
-                        const current = systemsUsed;
-                        if (isRep) {
-                          if (checked) {
-                            repForm.setValue("systems_used", [...current, system]);
-                          } else {
-                            repForm.setValue("systems_used", current.filter((s) => s !== system));
-                          }
-                        } else {
-                          if (checked) {
-                            vendorForm.setValue("systems_used", [...current, system]);
-                          } else {
-                            vendorForm.setValue("systems_used", current.filter((s) => s !== system));
-                          }
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`system-${system}`} className="text-foreground font-normal cursor-pointer">
-                      {system}
-                    </Label>
+          <div className="space-y-4">
+            {/* Section 1: Systems */}
+            <Collapsible defaultOpen className="group">
+              <Card className="bg-card-elevated border border-border overflow-hidden">
+                <CollapsibleTrigger className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  <div className="text-left">
+                    <h3 className="text-xl font-semibold text-foreground">
+                      {isRep ? "Systems I Use" : "Systems We Use"}
+                    </h3>
                   </div>
-                ))}
-              </div>
-
-              {/* Other system free text */}
-              {systemsUsed.includes("Other") && (
-                <div className="ml-7">
-                  <Label htmlFor="systems_used_other" className="text-sm">
-                    Please specify other system
-                  </Label>
-                  <Input
-                    id="systems_used_other"
-                    {...(isRep ? repForm.register("systems_used_other") : vendorForm.register("systems_used_other"))}
-                    placeholder="Enter system name"
-                    className="mt-1"
-                    maxLength={100}
-                  />
-                </div>
-              )}
-
-              {/* Open to new systems (Rep only) */}
-              {isRep && (
-                <>
-                  <Separator className="my-4" />
-                  <div className="flex items-start space-x-3">
-                    <Checkbox
-                      id="open_to_new_systems"
-                      checked={repForm.watch("open_to_new_systems")}
-                      onCheckedChange={(checked) => repForm.setValue("open_to_new_systems", !!checked)}
-                      className="mt-0.5"
-                    />
-                    <div className="space-y-1">
-                      <Label htmlFor="open_to_new_systems" className="text-foreground font-normal cursor-pointer">
-                        Open to work in new systems
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Select this if you're comfortable using inspection systems you haven't worked in before. 
-                        This lets vendors match you with jobs even when they use different software, as long as 
-                        they provide the access and instructions needed for their process.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {(isRep ? repForm.formState.errors.systems_used : vendorForm.formState.errors.systems_used) && (
-                <p className="text-sm text-destructive">
-                  {isRep 
-                    ? repForm.formState.errors.systems_used?.message 
-                    : vendorForm.formState.errors.systems_used?.message}
-                </p>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Section: Inspection Types */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1">
-                  {isRep ? "Inspection Types I Perform" : "Inspection Types We Assign"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {isRep 
-                    ? "Select the types of inspections you do"
-                    : "Select the types of inspections you assign to field reps"
-                  }
-                </p>
-              </div>
-
-              <InspectionTypeMultiSelect
-                role={isRep ? "rep" : "vendor"}
-                selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
-                onChange={(labels) => {
-                  const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
-                  if (isRep) {
-                    repForm.setValue("inspection_types", [...labels, ...otherEntries]);
-                  } else {
-                    vendorForm.setValue("primary_inspection_types", [...labels, ...otherEntries]);
-                  }
-                }}
-                error={isRep 
-                  ? repForm.formState.errors.inspection_types?.message 
-                  : vendorForm.formState.errors.primary_inspection_types?.message}
-              />
-
-              {/* Other inspection type */}
-              <div className="space-y-3 border-t border-border pt-4 mt-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="inspection-other"
-                    checked={inspectionTypes.includes("Other")}
-                    onCheckedChange={(checked) => {
-                      const current = inspectionTypes;
-                      if (isRep) {
-                        if (checked) {
-                          repForm.setValue("inspection_types", [...current, "Other"]);
-                        } else {
-                          repForm.setValue("inspection_types", current.filter((t) => t !== "Other"));
-                        }
-                      } else {
-                        if (checked) {
-                          vendorForm.setValue("primary_inspection_types", [...current, "Other"]);
-                        } else {
-                          vendorForm.setValue("primary_inspection_types", current.filter((t) => t !== "Other"));
-                        }
-                      }
-                    }}
-                  />
-                  <Label htmlFor="inspection-other" className="text-foreground font-normal cursor-pointer">
-                    Other
-                  </Label>
-                </div>
-
-                {inspectionTypes.includes("Other") && (
-                  <div className="ml-7">
-                    <Label htmlFor="inspection_types_other" className="text-sm">
-                      Please specify other inspection type
-                    </Label>
-                    <Input
-                      id="inspection_types_other"
-                      {...(isRep
-                        ? repForm.register("inspection_types_other") 
-                        : vendorForm.register("primary_inspection_types_other"))}
-                      placeholder="Enter inspection type"
-                      className="mt-1"
-                      maxLength={100}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Section: Coverage & Rates */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  {isRep ? "Coverage & Pricing" : "Coverage & Focus Areas"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {isRep 
-                    ? "Add the states and counties you're willing to cover, and your typical pricing."
-                    : "Add the states and counties where you actively place work. This helps reps understand your footprint."
-                  }
-                </p>
-              </div>
-
-              {/* Rep coverage warning */}
-              {isRep && coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
-                <Alert className="border-orange-500/50 bg-orange-500/10">
-                  <AlertCircle className="h-4 w-4 text-orange-500" />
-                  <AlertDescription className="text-foreground">
-                    <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {coverageAreas.length === 0 ? (
-                <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {isRep 
-                      ? "You haven't added any coverage yet. Click \"Add Coverage Area\" to set your first state and county."
-                      : "No coverage areas added yet. Reps won't see your footprint until you add at least one state."
-                    }
-                  </p>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setEditingCoverage(null);
-                      setCoverageDialogOpen(true);
-                    }}
-                  >
-                    Add Coverage Area
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {isRep ? (
-                    <RepCoverageTable
-                      coverageAreas={coverageAreas}
-                      onEdit={(row) => {
-                        const editData: CoverageArea = {
-                          id: row.id,
-                          state_code: row.state_code,
-                          state_name: row.state_name,
-                          coverage_mode: (row.coverage_mode as CoverageMode) || "selected_counties",
-                          county_name: row.county_name || undefined,
-                          county_id: row.county_id,
-                          base_price: row.base_price?.toString() || "",
-                          rush_price: row.rush_price?.toString() || "",
-                          region_note: row.region_note || "",
-                          inspection_types: row.inspection_types || [],
-                          covers_entire_state: row.covers_entire_state,
-                        };
-                        setEditingCoverage(editData);
-                        setCoverageDialogOpen(true);
-                      }}
-                      onDelete={async (rowId) => {
-                        const { error } = await supabase
-                          .from("rep_coverage_areas")
-                          .delete()
-                          .eq("id", rowId);
-
-                        if (error) {
-                          toast({
-                            variant: "destructive",
-                            title: "Error",
-                            description: "Failed to delete coverage area.",
-                          });
-                        } else {
-                          toast({
-                            title: "Coverage Area Deleted",
-                            description: "Coverage area removed successfully.",
-                          });
-                          loadRepCoverageAreas();
-                        }
-                      }}
-                    />
-                  ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-6 pb-6 space-y-4 border-t border-border pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Let vendors and reps know which systems you actively use to complete inspection work.
+                    </p>
+                    
                     <div className="space-y-3">
-                      {coverageAreas.map((coverage) => (
-                        <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold text-foreground">
-                                  {coverage.state_code} - {coverage.state_name}
-                                </h4>
-                                {coverage.coverage_mode === "entire_state" && (
-                                  <Badge variant="secondary">Entire State</Badge>
-                                )}
-                              </div>
-                              
-                              <p className="text-sm text-muted-foreground mb-2">
-                                {coverage.coverage_mode === "entire_state" && "All counties"}
-                                {coverage.coverage_mode === "entire_state_except" && (() => {
-                                  const countyIds = coverage.excluded_county_ids || [];
-                                  const names = countyIds
-                                    .map((id: string) => countyNameMap.get(id))
-                                    .filter(Boolean);
-                                  const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
-                                  return countyIds.length > 0 ? `All counties except: ${countiesLabel}` : "All counties (no exclusions)";
-                                })()}
-                                {coverage.coverage_mode === "selected_counties" && (() => {
-                                  const countyIds = coverage.included_county_ids || [];
-                                  const names = countyIds
-                                    .map((id: string) => countyNameMap.get(id))
-                                    .filter(Boolean);
-                                  const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
-                                  return countyIds.length > 0 ? `Selected counties: ${countiesLabel}` : "No counties selected";
-                                })()}
-                              </p>
-
-                              {coverage.region_note && (
-                                <p className="text-xs text-muted-foreground italic mb-2">
-                                  {coverage.region_note}
-                                </p>
-                              )}
-
-                              {coverage.inspection_types && coverage.inspection_types.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {coverage.inspection_types.map((type: string, idx: number) => (
-                                    <Badge key={idx} variant="outline" className="text-xs">
-                                      {type}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2 ml-4">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditingCoverage(coverage);
-                                  setCoverageDialogOpen(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={async () => {
-                                  const { error } = await supabase
-                                    .from("vendor_coverage_areas")
-                                    .delete()
-                                    .eq("id", coverage.id);
-
-                                  if (error) {
-                                    toast({
-                                      variant: "destructive",
-                                      title: "Error",
-                                      description: "Failed to delete coverage area.",
-                                    });
-                                  } else {
-                                    toast({
-                                      title: "Coverage Area Deleted",
-                                      description: "Coverage area removed successfully.",
-                                    });
-                                    loadVendorCoverageAreas();
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        </Card>
+                      {SYSTEMS_LIST.map((system) => (
+                        <div key={system} className="flex items-center space-x-3">
+                          <Checkbox
+                            id={`system-${system}`}
+                            checked={systemsUsed.includes(system)}
+                            onCheckedChange={(checked) => {
+                              const current = systemsUsed;
+                              if (isRep) {
+                                if (checked) {
+                                  repForm.setValue("systems_used", [...current, system]);
+                                } else {
+                                  repForm.setValue("systems_used", current.filter((s) => s !== system));
+                                }
+                              } else {
+                                if (checked) {
+                                  vendorForm.setValue("systems_used", [...current, system]);
+                                } else {
+                                  vendorForm.setValue("systems_used", current.filter((s) => s !== system));
+                                }
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`system-${system}`} className="text-foreground font-normal cursor-pointer">
+                            {system}
+                          </Label>
+                        </div>
                       ))}
                     </div>
-                  )}
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEditingCoverage(null);
-                      setCoverageDialogOpen(true);
-                    }}
-                  >
-                    Add Another Coverage Area
-                  </Button>
-                </>
-              )}
-            </div>
+
+                    {/* Other system free text */}
+                    {systemsUsed.includes("Other") && (
+                      <div className="ml-7">
+                        <Label htmlFor="systems_used_other" className="text-sm">
+                          Please specify other system
+                        </Label>
+                        <Input
+                          id="systems_used_other"
+                          {...(isRep ? repForm.register("systems_used_other") : vendorForm.register("systems_used_other"))}
+                          placeholder="Enter system name"
+                          className="mt-1"
+                          maxLength={100}
+                        />
+                      </div>
+                    )}
+
+                    {/* Open to new systems (Rep only) */}
+                    {isRep && (
+                      <div className="border-t border-border pt-4 mt-4">
+                        <div className="flex items-start space-x-3">
+                          <Checkbox
+                            id="open_to_new_systems"
+                            checked={repForm.watch("open_to_new_systems")}
+                            onCheckedChange={(checked) => repForm.setValue("open_to_new_systems", !!checked)}
+                            className="mt-0.5"
+                          />
+                          <div className="space-y-1">
+                            <Label htmlFor="open_to_new_systems" className="text-foreground font-normal cursor-pointer">
+                              Open to work in new systems
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Select this if you're comfortable using inspection systems you haven't worked in before. 
+                              This lets vendors match you with jobs even when they use different software, as long as 
+                              they provide the access and instructions needed for their process.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {(isRep ? repForm.formState.errors.systems_used : vendorForm.formState.errors.systems_used) && (
+                      <p className="text-sm text-destructive">
+                        {isRep 
+                          ? repForm.formState.errors.systems_used?.message 
+                          : vendorForm.formState.errors.systems_used?.message}
+                      </p>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
+            {/* Section 2: Inspection Types */}
+            <Collapsible defaultOpen className="group">
+              <Card className="bg-card-elevated border border-border overflow-hidden">
+                <CollapsibleTrigger className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  <div className="text-left">
+                    <h3 className="text-xl font-semibold text-foreground">
+                      {isRep ? "Inspection Types I Perform" : "Inspection Types We Handle"}
+                    </h3>
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-6 pb-6 space-y-4 border-t border-border pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      {isRep 
+                        ? "Choose the types of inspections you're set up to perform so vendors can see where you're a fit."
+                        : "Choose the types of inspections your company handles so reps know what kind of work you offer."
+                      }
+                    </p>
+
+                    <InspectionTypeMultiSelect
+                      role={isRep ? "rep" : "vendor"}
+                      selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
+                      onChange={(labels) => {
+                        const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
+                        if (isRep) {
+                          repForm.setValue("inspection_types", [...labels, ...otherEntries]);
+                        } else {
+                          vendorForm.setValue("primary_inspection_types", [...labels, ...otherEntries]);
+                        }
+                      }}
+                      error={isRep 
+                        ? repForm.formState.errors.inspection_types?.message 
+                        : vendorForm.formState.errors.primary_inspection_types?.message}
+                    />
+
+                    {/* Other inspection type */}
+                    <div className="space-y-3 border-t border-border pt-4 mt-4">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          id="inspection-other"
+                          checked={inspectionTypes.includes("Other")}
+                          onCheckedChange={(checked) => {
+                            const current = inspectionTypes;
+                            if (isRep) {
+                              if (checked) {
+                                repForm.setValue("inspection_types", [...current, "Other"]);
+                              } else {
+                                repForm.setValue("inspection_types", current.filter((t) => t !== "Other"));
+                              }
+                            } else {
+                              if (checked) {
+                                vendorForm.setValue("primary_inspection_types", [...current, "Other"]);
+                              } else {
+                                vendorForm.setValue("primary_inspection_types", current.filter((t) => t !== "Other"));
+                              }
+                            }
+                          }}
+                        />
+                        <Label htmlFor="inspection-other" className="text-foreground font-normal cursor-pointer">
+                          Other
+                        </Label>
+                      </div>
+
+                      {inspectionTypes.includes("Other") && (
+                        <div className="ml-7">
+                          <Label htmlFor="inspection_types_other" className="text-sm">
+                            Please specify other inspection type
+                          </Label>
+                          <Input
+                            id="inspection_types_other"
+                            {...(isRep
+                              ? repForm.register("inspection_types_other") 
+                              : vendorForm.register("primary_inspection_types_other"))}
+                            placeholder="Enter inspection type"
+                            className="mt-1"
+                            maxLength={100}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
+            {/* Section 3: Coverage & Pricing */}
+            <Collapsible defaultOpen className="group">
+              <Card className="bg-card-elevated border border-border overflow-hidden">
+                <CollapsibleTrigger className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                  <div className="text-left flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    <h3 className="text-xl font-semibold text-foreground">
+                      Coverage & Pricing
+                    </h3>
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-6 pb-6 space-y-4 border-t border-border pt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Add the states and counties you're willing to cover, and your typical pricing.
+                    </p>
+
+                    {/* Rep coverage warning */}
+                    {isRep && coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
+                      <Alert className="border-orange-500/50 bg-orange-500/10">
+                        <AlertCircle className="h-4 w-4 text-orange-500" />
+                        <AlertDescription className="text-foreground">
+                          <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {coverageAreas.length === 0 ? (
+                      <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
+                        <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {isRep 
+                            ? "You haven't added any coverage yet. Click \"Add Coverage Area\" to set your first state and county."
+                            : "No coverage areas added yet. Reps won't see your footprint until you add at least one state."
+                          }
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setEditingCoverage(null);
+                            setCoverageDialogOpen(true);
+                          }}
+                        >
+                          Add Coverage Area
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        {isRep ? (
+                          <RepCoverageTable
+                            coverageAreas={coverageAreas}
+                            onEdit={(row) => {
+                              const editData: CoverageArea = {
+                                id: row.id,
+                                state_code: row.state_code,
+                                state_name: row.state_name,
+                                coverage_mode: (row.coverage_mode as CoverageMode) || "selected_counties",
+                                county_name: row.county_name || undefined,
+                                county_id: row.county_id,
+                                base_price: row.base_price?.toString() || "",
+                                rush_price: row.rush_price?.toString() || "",
+                                region_note: row.region_note || "",
+                                inspection_types: row.inspection_types || [],
+                                covers_entire_state: row.covers_entire_state,
+                              };
+                              setEditingCoverage(editData);
+                              setCoverageDialogOpen(true);
+                            }}
+                            onDelete={async (rowId) => {
+                              const { error } = await supabase
+                                .from("rep_coverage_areas")
+                                .delete()
+                                .eq("id", rowId);
+
+                              if (error) {
+                                toast({
+                                  variant: "destructive",
+                                  title: "Error",
+                                  description: "Failed to delete coverage area.",
+                                });
+                              } else {
+                                toast({
+                                  title: "Coverage Area Deleted",
+                                  description: "Coverage area removed successfully.",
+                                });
+                                loadRepCoverageAreas();
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="space-y-3">
+                            {coverageAreas.map((coverage) => (
+                              <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h4 className="font-semibold text-foreground">
+                                        {coverage.state_code} - {coverage.state_name}
+                                      </h4>
+                                      {coverage.coverage_mode === "entire_state" && (
+                                        <Badge variant="secondary">Entire State</Badge>
+                                      )}
+                                    </div>
+                                    
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                      {coverage.coverage_mode === "entire_state" && "All counties"}
+                                      {coverage.coverage_mode === "entire_state_except" && (() => {
+                                        const countyIds = coverage.excluded_county_ids || [];
+                                        const names = countyIds
+                                          .map((id: string) => countyNameMap.get(id))
+                                          .filter(Boolean);
+                                        const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
+                                        return countyIds.length > 0 ? `All counties except: ${countiesLabel}` : "All counties (no exclusions)";
+                                      })()}
+                                      {coverage.coverage_mode === "selected_counties" && (() => {
+                                        const countyIds = coverage.included_county_ids || [];
+                                        const names = countyIds
+                                          .map((id: string) => countyNameMap.get(id))
+                                          .filter(Boolean);
+                                        const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
+                                        return countyIds.length > 0 ? `Selected counties: ${countiesLabel}` : "No counties selected";
+                                      })()}
+                                    </p>
+
+                                    {coverage.region_note && (
+                                      <p className="text-xs text-muted-foreground italic mb-2">
+                                        {coverage.region_note}
+                                      </p>
+                                    )}
+
+                                    {coverage.inspection_types && coverage.inspection_types.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-2">
+                                        {coverage.inspection_types.map((type: string, idx: number) => (
+                                          <Badge key={idx} variant="outline" className="text-xs">
+                                            {type}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 ml-4">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingCoverage(coverage);
+                                        setCoverageDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={async () => {
+                                        const { error } = await supabase
+                                          .from("vendor_coverage_areas")
+                                          .delete()
+                                          .eq("id", coverage.id);
+
+                                        if (error) {
+                                          toast({
+                                            variant: "destructive",
+                                            title: "Error",
+                                            description: "Failed to delete coverage area.",
+                                          });
+                                        } else {
+                                          toast({
+                                            title: "Coverage Area Deleted",
+                                            description: "Coverage area removed successfully.",
+                                          });
+                                          loadVendorCoverageAreas();
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingCoverage(null);
+                            setCoverageDialogOpen(true);
+                          }}
+                        >
+                          Add Another Coverage Area
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
 
             {/* Save button */}
-            <div className="flex justify-end pt-4 border-t border-border">
+            <div className="flex justify-end pt-4">
               <Button type="submit" disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
-          </Card>
+          </div>
         </form>
 
         {/* Coverage Dialogs */}
