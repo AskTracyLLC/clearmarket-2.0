@@ -13,8 +13,15 @@ import {
   AlertCircle,
   ChevronRight,
   Clock,
-  Megaphone
+  Megaphone,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDistanceToNow, parseISO } from "date-fns";
 
 interface FeedItem {
@@ -327,12 +334,14 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     );
   }
 
-  const filterOptions: { value: ActivityFilter; label: string }[] = [
+  const filterOptions: { value: ActivityFilter; label: string; hasTooltip?: boolean }[] = [
     { value: 'all', label: 'All' },
     { value: 'alerts', label: 'Alerts' },
-    { value: 'opportunities', label: 'Opportunities' },
+    { value: 'opportunities', label: 'Opportunities', hasTooltip: true },
     { value: 'updates', label: 'Updates' },
   ];
+
+  const opportunitiesTooltipText = "These are posts from vendors looking for help in your work areas.\nYou'll see opportunities based on the coverage you saved in your profile.";
 
   if (feedItems.length === 0) {
     return (
@@ -354,19 +363,38 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     <div className="space-y-3">
       {/* Filter chips - dark text for accessibility, active has tinted bg + underline indicator */}
       <div className="flex flex-wrap gap-2">
-        {filterOptions.map((option) => (
-          <button
-            key={option.value}
-            onClick={() => setActivityFilter(option.value)}
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
-              activityFilter === option.value
-                ? 'bg-primary/10 text-foreground font-semibold border-primary/50 underline underline-offset-2 dark:bg-primary/20'
-                : 'bg-background text-foreground border-border hover:bg-muted/50 font-medium'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+        <TooltipProvider>
+          {filterOptions.map((option) => (
+            <div key={option.value} className="flex items-center gap-1">
+              <button
+                onClick={() => setActivityFilter(option.value)}
+                className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
+                  activityFilter === option.value
+                    ? 'bg-primary/10 text-foreground font-semibold border-primary/50 underline underline-offset-2 dark:bg-primary/20'
+                    : 'bg-background text-foreground border-border hover:bg-muted/50 font-medium'
+                }`}
+              >
+                {option.label}
+              </button>
+              {option.hasTooltip && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                      aria-label="How opportunities work"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
+                    {opportunitiesTooltipText}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          ))}
+        </TooltipProvider>
       </div>
 
       {/* Filtered items */}
