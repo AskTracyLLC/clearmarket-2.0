@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock, HelpCircle } from "lucide-react";
+import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
@@ -20,6 +20,8 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
@@ -58,6 +60,7 @@ interface RepCoverageArea {
   county_id: string | null;
   covers_entire_state: boolean;
   base_price: number | null;
+  inspection_types: string[] | null;
 }
 
 interface RepResult {
@@ -87,6 +90,7 @@ interface RepResult {
   unavailable_from?: string | null;
   unavailable_to?: string | null;
   unavailable_note?: string | null;
+  inspectionTypesInArea?: string[];
 }
 
 export default function VendorFindReps() {
@@ -104,6 +108,11 @@ export default function VendorFindReps() {
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [selectedInspectionTypes, setSelectedInspectionTypes] = useState<string[]>([]);
   const [onlyAccepting, setOnlyAccepting] = useState(false);
+  
+  // Detailed inspection type filter
+  const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
+  const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
+  const [inspectionTypesExpanded, setInspectionTypesExpanded] = useState(false);
   
   // "Other" text search inputs
   const [otherSystemText, setOtherSystemText] = useState<string>("");
@@ -127,6 +136,15 @@ export default function VendorFindReps() {
   // Reviews dialog
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
+  
+  // Fetch all inspection types on mount
+  useEffect(() => {
+    const loadInspectionTypes = async () => {
+      const grouped = await fetchInspectionTypesForRole('vendor');
+      setAllInspectionTypesByCategory(grouped);
+    };
+    loadInspectionTypes();
+  }, []);
 
   // Public profile dialog
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -225,12 +243,12 @@ export default function VendorFindReps() {
 
       if (error) throw error;
 
-      // For each rep, load their coverage areas with pricing and background check info
+      // For each rep, load their coverage areas with pricing, inspection types, and background check info
       const repsWithCoverage = await Promise.all(
         (data || []).map(async (rep) => {
           const { data: coverageData } = await supabase
             .from("rep_coverage_areas")
-            .select("id, user_id, state_code, county_id, covers_entire_state, base_price")
+            .select("id, user_id, state_code, county_id, covers_entire_state, base_price, inspection_types")
             .eq("user_id", rep.user_id);
 
           return {
@@ -239,7 +257,7 @@ export default function VendorFindReps() {
             unavailable_from: (rep as any).unavailable_from || null,
             unavailable_to: (rep as any).unavailable_to || null,
             unavailable_note: (rep as any).unavailable_note || null,
-            coverageAreas: coverageData || [],
+            coverageAreas: (coverageData || []) as RepCoverageArea[],
           };
         })
       );
@@ -265,6 +283,7 @@ export default function VendorFindReps() {
         });
       }
 
+      // Legacy broad inspection type filter (kept for backwards compatibility)
       if (selectedInspectionTypes.length > 0 || otherInspectionTypeText.trim()) {
         filtered = filtered.filter((rep) => {
           const matchesStandardTypes = selectedInspectionTypes.length === 0 || selectedInspectionTypes.some((type) =>
@@ -280,6 +299,48 @@ export default function VendorFindReps() {
           });
           
           return matchesStandardTypes || matchesOtherType;
+        });
+      }
+
+      // NEW: Detailed inspection type filter with per-region awareness
+      // This uses the same logic as TodayFeed opportunities matching
+      if (selectedDetailedTypes.length > 0) {
+        filtered = filtered.filter((rep) => {
+          // Find all coverage areas that match the selected state (if state is selected)
+          const matchingCoverageAreas = selectedState !== "all" 
+            ? rep.coverageAreas.filter((ca: RepCoverageArea) => ca.state_code === selectedState)
+            : rep.coverageAreas;
+
+          if (matchingCoverageAreas.length === 0 && selectedState !== "all") {
+            return false; // No coverage in this state
+          }
+
+          // Compute rep's active inspection types for the searched area
+          const repTypesInArea = new Set<string>();
+          
+          for (const coverage of matchingCoverageAreas) {
+            // If coverage has specific inspection_types, use those
+            if (coverage.inspection_types && coverage.inspection_types.length > 0) {
+              coverage.inspection_types.forEach((t: string) => repTypesInArea.add(t));
+            } else {
+              // Fall back to profile-level inspection types
+              (rep.inspection_types || []).forEach((t: string) => repTypesInArea.add(t));
+            }
+          }
+
+          // If no specific coverage but state is "all", use profile-level types
+          if (matchingCoverageAreas.length === 0 && selectedState === "all") {
+            (rep.inspection_types || []).forEach((t: string) => repTypesInArea.add(t));
+          }
+
+          // If rep has no types at all, exclude when vendor has selected types
+          if (repTypesInArea.size === 0) {
+            return false;
+          }
+
+          // Check for intersection using "any-of" logic
+          const hasIntersection = selectedDetailedTypes.some((vt) => repTypesInArea.has(vt));
+          return hasIntersection;
         });
       }
 
@@ -373,14 +434,35 @@ export default function VendorFindReps() {
       // Enhance results with trust scores, community scores, connection data, unlock status, and filter blocked users
       let enhancedResults = filtered
         .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
-        .map(rep => ({
-          ...rep,
-          trustScore: trustScores[rep.user_id]?.average ?? null,
-          trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
-          communityScore: communityScoreMap.get(rep.user_id) ?? 0,
-          connectedSince: connectionMap.get(rep.user_id) ?? null,
-          isContactUnlocked: unlockMap[rep.user_id] ?? false,
-        }));
+        .map(rep => {
+          // Compute inspection types in area for display
+          const matchingCoverageAreas = selectedState !== "all" 
+            ? rep.coverageAreas.filter((ca: RepCoverageArea) => ca.state_code === selectedState)
+            : rep.coverageAreas;
+          
+          const repTypesInArea = new Set<string>();
+          for (const coverage of matchingCoverageAreas) {
+            if (coverage.inspection_types && coverage.inspection_types.length > 0) {
+              coverage.inspection_types.forEach((t: string) => repTypesInArea.add(t));
+            } else {
+              (rep.inspection_types || []).forEach((t: string) => repTypesInArea.add(t));
+            }
+          }
+          // Fallback for when state is "all" and no coverage areas
+          if (matchingCoverageAreas.length === 0 && selectedState === "all") {
+            (rep.inspection_types || []).forEach((t: string) => repTypesInArea.add(t));
+          }
+
+          return {
+            ...rep,
+            trustScore: trustScores[rep.user_id]?.average ?? null,
+            trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
+            communityScore: communityScoreMap.get(rep.user_id) ?? 0,
+            connectedSince: connectionMap.get(rep.user_id) ?? null,
+            isContactUnlocked: unlockMap[rep.user_id] ?? false,
+            inspectionTypesInArea: Array.from(repTypesInArea),
+          };
+        });
 
       // Apply activity filter (client-side)
       if (activityFilter === "active-week") {
@@ -425,6 +507,14 @@ export default function VendorFindReps() {
     } finally {
       setSearching(false);
     }
+  };
+
+  const toggleDetailedType = (typeLabel: string) => {
+    setSelectedDetailedTypes((prev) =>
+      prev.includes(typeLabel)
+        ? prev.filter((t) => t !== typeLabel)
+        : [...prev, typeLabel]
+    );
   };
 
   const toggleSystem = (system: string) => {
@@ -631,45 +721,73 @@ export default function VendorFindReps() {
               )}
             </div>
 
-            {/* Inspection Types Filter */}
-            <div>
-              <Label>Inspection Types</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                {INSPECTION_TYPE_OPTIONS.map((type) => (
-                  <div key={type} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`type-${type}`}
-                      checked={selectedInspectionTypes.includes(type)}
-                      onCheckedChange={() => toggleInspectionType(type)}
-                    />
-                    <Label
-                      htmlFor={`type-${type}`}
-                      className="font-normal cursor-pointer"
-                    >
-                      {type}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              
-              {/* "Other" inspection type text search */}
-              {selectedInspectionTypes.includes("Other") && (
-                <div className="mt-3">
-                  <Label htmlFor="other-inspection-text" className="text-sm">
-                    Other inspection type (search text)
-                  </Label>
-                  <Input
-                    id="other-inspection-text"
-                    value={otherInspectionTypeText}
-                    onChange={(e) => setOtherInspectionTypeText(e.target.value)}
-                    placeholder="e.g., Mystery Shopper, Disaster"
-                    className="mt-1"
-                  />
+            {/* Detailed Inspection Types Filter (per-region aware) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Inspection Types (optional)</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Search for reps performing custom inspection types
+                    Choose the inspection types you need help with. Leave blank to see all matching reps in this area.
                   </p>
                 </div>
-              )}
+                {selectedDetailedTypes.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {selectedDetailedTypes.length} selected
+                  </Badge>
+                )}
+              </div>
+              
+              <Collapsible open={inspectionTypesExpanded} onOpenChange={setInspectionTypesExpanded}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between">
+                    <span>{inspectionTypesExpanded ? "Hide inspection types" : "Show inspection types"}</span>
+                    {inspectionTypesExpanded ? (
+                      <ChevronUp className="h-4 w-4 ml-2" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 space-y-4">
+                  {Object.entries(allInspectionTypesByCategory).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Loading inspection types...</p>
+                  ) : (
+                    Object.entries(allInspectionTypesByCategory).map(([category, types]) => (
+                      <div key={category} className="space-y-2">
+                        <Label className="text-sm font-medium text-muted-foreground">{category}</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {types.map((type) => (
+                            <div key={type.id} className="flex items-center gap-2">
+                              <Checkbox
+                                id={`detailed-type-${type.id}`}
+                                checked={selectedDetailedTypes.includes(type.label)}
+                                onCheckedChange={() => toggleDetailedType(type.label)}
+                              />
+                              <Label
+                                htmlFor={`detailed-type-${type.id}`}
+                                className="font-normal cursor-pointer text-sm"
+                              >
+                                {type.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  
+                  {selectedDetailedTypes.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedDetailedTypes([])}
+                      className="text-muted-foreground"
+                    >
+                      Clear all selections
+                    </Button>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             {/* Accepting New Vendors Filter */}
@@ -983,6 +1101,17 @@ export default function VendorFindReps() {
                           </span>
                         )}
                       </div>
+
+                      {/* Inspection Types in Area (when vendor filtered by types) */}
+                      {selectedDetailedTypes.length > 0 && rep.inspectionTypesInArea && rep.inspectionTypesInArea.length > 0 && (
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Types in this area: </span>
+                          <span className="text-foreground">
+                            {rep.inspectionTypesInArea.slice(0, 3).join(", ")}
+                            {rep.inspectionTypesInArea.length > 3 && ` +${rep.inspectionTypesInArea.length - 3} more`}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Activity Badge */}
                       <div className="pb-3 border-b border-border">
