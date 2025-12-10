@@ -13,15 +13,8 @@ import {
   AlertCircle,
   ChevronRight,
   Clock,
-  Megaphone,
-  Info
+  Megaphone
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay } from "date-fns";
 
 interface FeedItem {
@@ -334,14 +327,25 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     );
   }
 
-  const filterOptions: { value: ActivityFilter; label: string; hasTooltip?: boolean }[] = [
+  const filterOptions: { value: ActivityFilter; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'alerts', label: 'Alerts' },
-    { value: 'opportunities', label: 'Opportunities', hasTooltip: true },
+    { value: 'opportunities', label: 'Opportunities' },
     { value: 'updates', label: 'Updates' },
   ];
 
-  const opportunitiesTooltipText = "These are posts from vendors looking for help in your work areas.\nYou'll see opportunities based on the coverage you saved in your profile.";
+  const getFilterDescription = (filter: ActivityFilter): string => {
+    switch (filter) {
+      case 'all':
+        return 'This view shows every alert, opportunity, and update in one list.';
+      case 'alerts':
+        return 'Alerts are time-sensitive items or things that may need a response from you, like coverage & pricing requests, working terms changes, or office/network alerts.';
+      case 'opportunities':
+        return "These are posts from vendors looking for help in your work areas. You'll see opportunities based on the coverage you saved in your profile.";
+      case 'updates':
+        return "Updates keep you in the loop on things that usually don't need a response, like ClearMarket announcements, FAQ changes, and comments on your posts.";
+    }
+  };
 
   if (feedItems.length === 0) {
     return (
@@ -361,41 +365,27 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
   return (
     <div className="space-y-3">
-      {/* Filter chips - dark text for accessibility, active has tinted bg + underline indicator */}
+      {/* Filter chips */}
       <div className="flex flex-wrap gap-2">
-        <TooltipProvider>
-          {filterOptions.map((option) => (
-            <div key={option.value} className="flex items-center gap-1">
-              <button
-                onClick={() => setActivityFilter(option.value)}
-                className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
-                  activityFilter === option.value
-                    ? 'bg-primary/10 text-foreground font-semibold border-primary/50 underline underline-offset-2 dark:bg-primary/20'
-                    : 'bg-background text-foreground border-border hover:bg-muted/50 font-medium'
-                }`}
-              >
-                {option.label}
-              </button>
-              {option.hasTooltip && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                      aria-label="How opportunities work"
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs whitespace-pre-line">
-                    {opportunitiesTooltipText}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          ))}
-        </TooltipProvider>
+        {filterOptions.map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setActivityFilter(option.value)}
+            className={`px-3 py-1.5 text-sm rounded-full transition-colors border ${
+              activityFilter === option.value
+                ? 'bg-primary/10 text-foreground font-semibold border-primary/50 underline underline-offset-2 dark:bg-primary/20'
+                : 'bg-background text-foreground border-border hover:bg-muted/50 font-medium'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
+
+      {/* Inline description for active filter */}
+      <p className="text-sm text-muted-foreground py-2 px-1">
+        {getFilterDescription(activityFilter)}
+      </p>
 
       {/* Filtered items grouped by date */}
       {filteredItems.length === 0 ? (
