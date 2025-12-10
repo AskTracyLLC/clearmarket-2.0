@@ -625,6 +625,17 @@ export function PublicProfileDialog({
                 {profileData.anonymousId}
               </DialogTitle>
               <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+              {/* Hybrid user badge and helper text */}
+              {profileData.isHybridUser && (
+                <div className="mt-2">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    Vendor & Field Rep
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This member uses ClearMarket in a dual role, both assigning work as a Vendor and performing inspections as a Field Rep.
+                  </p>
+                </div>
+              )}
             </div>
             {user && targetUserId && user.id !== targetUserId && (
               <ReportFlagButton
