@@ -129,7 +129,6 @@ export async function fetchAllBackgroundChecks(
     .from("background_checks")
     .select(`
       *,
-      rep_profile:rep_profile!background_checks_field_rep_id_fkey(anonymous_id, user_id),
       profiles!background_checks_field_rep_id_fkey(email, full_name),
       reviewer:profiles!background_checks_reviewed_by_user_id_fkey(email, full_name)
     `)
