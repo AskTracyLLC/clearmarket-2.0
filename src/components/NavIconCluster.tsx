@@ -67,11 +67,11 @@ export function NavIconCluster({ vendorCredits, showCredits = false }: NavIconCl
         <TooltipContent>Settings</TooltipContent>
       </Tooltip>
 
-      {/* Credits Pill (for vendors) */}
+      {/* Credits Pill (for vendors) - uses teal secondary accent */}
       {showCredits && vendorCredits !== null && vendorCredits !== undefined && (
         <Badge 
           variant="secondary" 
-          className="bg-secondary/20 text-secondary hover:bg-secondary/30 cursor-pointer ml-2"
+          className="cursor-pointer ml-2"
           onClick={() => navigate("/vendor/credits")}
         >
           Credits: {vendorCredits}

@@ -2,59 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-
-Theme system:
-- Default is dark mode (class="dark" on html)
-- Light mode activated via class="light" on html
-- Theme preference stored in localStorage as "clearmarket-theme"
-- To add a "system" option: next-themes already supports it, just setTheme("system")
-
-Brand Color Hierarchy:
-- Primary accent (teal): Main CTAs, active states, primary actions
-- Secondary accent (purple): Decorative highlights, community elements
-- Semantic colors: success, info, warning, error for status/feedback
-- Neutrals: backgrounds, surfaces, borders, text
+/* ClearMarket Design System
+   ===========================
+   Based on DMC StitchPalette "Sunset + Turquoise":
+   - DMC 722 (light orange)      → --cm-orange-soft
+   - DMC 946 (medium burnt orange) → --cm-orange-primary
+   - DMC 3830 (terra cotta)      → --cm-orange-deep
+   - DMC 09 (very dark cocoa)    → --cm-neutral-dark
+   - DMC 3808 (ultra very dark turquoise) → --cm-teal-deep
+   - DMC 3809 (very dark turquoise) → --cm-teal-primary
+   
+   All colors MUST be HSL.
 */
 
 @layer base {
   /* Light mode color tokens */
   :root {
-    /* Page background - very light neutral (off-white) */
-    --background: 220 20% 97%;
-    --background-secondary: 220 15% 94%;
-    --foreground: 220 15% 15%;
+    /* ===== DMC Palette Brand Colors ===== */
+    --cm-orange-soft: 30 85% 62%;       /* DMC 722 - light orange */
+    --cm-orange-primary: 24 85% 55%;    /* DMC 946 - medium burnt orange */
+    --cm-orange-deep: 12 65% 48%;       /* DMC 3830 - terra cotta */
+    --cm-neutral-dark: 20 45% 12%;      /* DMC 09 - very dark cocoa */
+    --cm-teal-primary: 180 55% 27%;     /* DMC 3809 - very dark turquoise */
+    --cm-teal-deep: 180 50% 21%;        /* DMC 3808 - ultra very dark turquoise */
     
-    /* Card surfaces - white with subtle elevation */
+    /* ===== Neutrals ===== */
+    --cm-bg: 30 15% 97%;                /* Off-white with warm tint */
+    --cm-surface: 0 0% 100%;            /* Pure white for cards */
+    --cm-border: 30 10% 85%;            /* Warm gray border */
+    --cm-text: 20 45% 12%;              /* Dark cocoa for text (same as neutral-dark) */
+    --cm-text-muted: 20 20% 45%;        /* Muted cocoa */
+    
+    /* Page background */
+    --background: 30 15% 97%;
+    --background-secondary: 30 12% 94%;
+    --foreground: 20 45% 12%;
+    
+    /* Card surfaces */
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
-    --card-elevated: 220 15% 98%;
+    --card-foreground: 20 45% 12%;
+    --card-elevated: 30 10% 98%;
     
     /* Popover surfaces */
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover-foreground: 20 45% 12%;
     
-    /* Primary brand accent - Teal (main CTAs, active states) */
-    --primary: 173 80% 35%;
+    /* Primary brand - Orange (main CTAs, active states) */
+    --primary: 24 85% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 173 80% 45%;
+    --primary-glow: 30 85% 62%;
     
-    /* Secondary accent - Soft Purple (decorative, community) */
-    --secondary: 270 50% 55%;
+    /* Secondary accent - Teal (credits, secondary buttons) */
+    --secondary: 180 55% 27%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-glow: 270 50% 65%;
+    --secondary-glow: 180 55% 35%;
     
     /* Muted elements */
-    --muted: 220 15% 92%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 30 10% 92%;
+    --muted-foreground: 20 20% 45%;
     
     /* Accent surfaces */
-    --accent: 220 15% 92%;
-    --accent-foreground: 220 15% 15%;
+    --accent: 30 10% 92%;
+    --accent-foreground: 20 45% 12%;
     
-    /* Destructive/Error states */
-    --destructive: 0 84% 50%;
+    /* Destructive/Error states - uses terra cotta */
+    --destructive: 12 65% 48%;
     --destructive-foreground: 0 0% 100%;
     
     /* ===== Semantic Status Colors ===== */
@@ -64,51 +76,42 @@ Brand Color Hierarchy:
     --success-border: 145 60% 45%;
     --success-text: 145 60% 25%;
     
-    /* Info states - Blue */
-    --info-bg: 210 80% 95%;
-    --info-border: 210 80% 50%;
-    --info-text: 210 80% 30%;
+    /* Info states - Teal tinted */
+    --info-bg: 180 40% 94%;
+    --info-border: 180 55% 27%;
+    --info-text: 180 50% 21%;
     
-    /* Warning states - Orange/Amber */
-    --warning-bg: 40 100% 95%;
-    --warning-border: 30 90% 50%;
-    --warning-icon: 30 90% 40%;
-    --warning-text: 220 15% 20%;
+    /* Warning states - Orange soft */
+    --warning-bg: 30 80% 95%;
+    --warning-border: 24 85% 55%;
+    --warning-icon: 24 85% 50%;
+    --warning-text: 20 45% 12%;
     
-    /* Error states - Red */
-    --error-bg: 0 80% 95%;
-    --error-border: 0 80% 50%;
-    --error-text: 0 80% 30%;
+    /* Error states - Terra cotta */
+    --error-bg: 12 60% 95%;
+    --error-border: 12 65% 48%;
+    --error-text: 12 65% 35%;
     
-    /* ===== ClearMarket Brand Tokens (aliases) ===== */
-    --cm-accent-primary: 173 80% 35%;
-    --cm-accent-secondary: 270 50% 55%;
-    --cm-bg: 220 20% 97%;
-    --cm-surface: 0 0% 100%;
-    --cm-border: 220 15% 85%;
-    --cm-text: 220 15% 15%;
-    --cm-text-muted: 220 10% 45%;
-    
-    /* Borders and inputs - light gray for separation */
-    --border: 220 15% 85%;
-    --input: 220 15% 95%;
-    --input-border: 220 15% 80%;
-    --ring: 173 80% 35%;
+    /* Borders and inputs */
+    --border: 30 10% 85%;
+    --input: 30 10% 95%;
+    --input-border: 30 10% 80%;
+    --ring: 24 85% 55%;
     
     /* Border radius */
     --radius: 0.75rem;
     
-    /* Gradients - subtle for light mode */
-    --gradient-background: linear-gradient(135deg, hsl(220 20% 97%), hsl(220 15% 95%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 15% 98%));
-    --gradient-primary: linear-gradient(135deg, hsl(173 80% 35%), hsl(173 80% 45%));
+    /* Gradients */
+    --gradient-background: linear-gradient(135deg, hsl(30 15% 97%), hsl(30 12% 95%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(30 10% 98%));
+    --gradient-primary: linear-gradient(135deg, hsl(24 85% 55%), hsl(30 85% 62%));
     
-    /* Shadows - softer for light mode */
-    --shadow-sm: 0 2px 8px -2px hsl(220 15% 50% / 0.15);
-    --shadow-md: 0 4px 16px -4px hsl(220 15% 50% / 0.2);
-    --shadow-lg: 0 8px 32px -8px hsl(220 15% 50% / 0.25);
-    --shadow-primary-glow: 0 0 32px -8px hsl(173 80% 35% / 0.2);
-    --shadow-secondary-glow: 0 0 32px -8px hsl(270 50% 55% / 0.15);
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(20 20% 30% / 0.12);
+    --shadow-md: 0 4px 16px -4px hsl(20 20% 30% / 0.18);
+    --shadow-lg: 0 8px 32px -8px hsl(20 20% 30% / 0.22);
+    --shadow-primary-glow: 0 0 32px -8px hsl(24 85% 55% / 0.25);
+    --shadow-secondary-glow: 0 0 32px -8px hsl(180 55% 27% / 0.2);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -116,94 +119,100 @@ Brand Color Hierarchy:
 
   /* Dark mode color tokens */
   .dark {
-    /* Deep charcoal gradient background */
-    --background: 220 13% 9%;
-    --background-secondary: 220 13% 12%;
+    /* ===== DMC Palette Brand Colors (same values) ===== */
+    --cm-orange-soft: 30 85% 62%;
+    --cm-orange-primary: 24 85% 55%;
+    --cm-orange-deep: 12 65% 48%;
+    --cm-neutral-dark: 20 45% 12%;
+    --cm-teal-primary: 180 55% 32%;     /* Slightly brighter for dark mode visibility */
+    --cm-teal-deep: 180 50% 21%;
+    
+    /* ===== Neutrals for dark mode ===== */
+    --cm-bg: 180 50% 8%;                /* Deep teal-dark background */
+    --cm-surface: 180 40% 12%;          /* Teal-tinted card surface */
+    --cm-border: 180 30% 20%;           /* Teal-gray border */
+    --cm-text: 0 0% 95%;                /* Light text */
+    --cm-text-muted: 0 0% 60%;          /* Muted light text */
+    
+    /* Page background - teal-deep based */
+    --background: 180 50% 8%;
+    --background-secondary: 180 40% 11%;
     --foreground: 0 0% 95%;
     
-    /* Card surfaces with subtle elevation */
-    --card: 220 13% 12%;
+    /* Card surfaces */
+    --card: 180 40% 12%;
     --card-foreground: 0 0% 95%;
-    --card-elevated: 220 13% 15%;
+    --card-elevated: 180 35% 15%;
     
     /* Popover surfaces */
-    --popover: 220 13% 12%;
+    --popover: 180 40% 12%;
     --popover-foreground: 0 0% 95%;
     
-    /* Primary brand accent - Teal (main CTAs, active states) */
-    --primary: 173 80% 40%;
+    /* Primary brand - Orange (main CTAs) */
+    --primary: 24 85% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 173 80% 50%;
+    --primary-glow: 30 85% 62%;
     
-    /* Secondary accent - Soft Purple (decorative, community) */
-    --secondary: 270 50% 60%;
+    /* Secondary accent - Teal */
+    --secondary: 180 55% 32%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-glow: 270 50% 70%;
+    --secondary-glow: 180 55% 40%;
     
     /* Muted elements */
-    --muted: 220 13% 18%;
+    --muted: 180 30% 18%;
     --muted-foreground: 0 0% 60%;
     
     /* Accent surfaces */
-    --accent: 220 13% 18%;
+    --accent: 180 30% 18%;
     --accent-foreground: 0 0% 95%;
     
     /* Destructive/Error states */
-    --destructive: 0 84% 60%;
+    --destructive: 12 70% 55%;
     --destructive-foreground: 0 0% 100%;
     
     /* ===== Semantic Status Colors ===== */
     
-    /* Success states - Green */
+    /* Success states */
     --success-bg: 145 40% 15%;
     --success-border: 145 60% 45%;
     --success-text: 145 50% 75%;
     
-    /* Info states - Blue */
-    --info-bg: 210 50% 15%;
-    --info-border: 210 70% 50%;
-    --info-text: 210 60% 75%;
+    /* Info states - Teal */
+    --info-bg: 180 40% 15%;
+    --info-border: 180 55% 40%;
+    --info-text: 180 50% 75%;
     
-    /* Warning states - Orange/Amber */
-    --warning-bg: 30 30% 15%;
-    --warning-border: 30 80% 50%;
-    --warning-icon: 30 90% 55%;
+    /* Warning states - Orange */
+    --warning-bg: 24 40% 15%;
+    --warning-border: 24 85% 55%;
+    --warning-icon: 30 85% 62%;
     --warning-text: 0 0% 90%;
     
-    /* Error states - Red */
-    --error-bg: 0 40% 15%;
-    --error-border: 0 70% 50%;
-    --error-text: 0 60% 75%;
-    
-    /* ===== ClearMarket Brand Tokens (aliases) ===== */
-    --cm-accent-primary: 173 80% 40%;
-    --cm-accent-secondary: 270 50% 60%;
-    --cm-bg: 220 13% 9%;
-    --cm-surface: 220 13% 12%;
-    --cm-border: 220 13% 20%;
-    --cm-text: 0 0% 95%;
-    --cm-text-muted: 0 0% 60%;
+    /* Error states - Terra cotta */
+    --error-bg: 12 40% 15%;
+    --error-border: 12 65% 55%;
+    --error-text: 12 50% 75%;
     
     /* Borders and inputs */
-    --border: 220 13% 20%;
-    --input: 220 13% 15%;
-    --input-border: 220 13% 25%;
-    --ring: 173 80% 40%;
+    --border: 180 30% 20%;
+    --input: 180 35% 15%;
+    --input-border: 180 30% 25%;
+    --ring: 24 85% 55%;
     
     /* Border radius */
     --radius: 0.75rem;
     
     /* Gradients */
-    --gradient-background: linear-gradient(135deg, hsl(220 13% 9%), hsl(220 15% 12%));
-    --gradient-card: linear-gradient(135deg, hsl(220 13% 12%), hsl(220 13% 15%));
-    --gradient-primary: linear-gradient(135deg, hsl(173 80% 40%), hsl(173 80% 50%));
+    --gradient-background: linear-gradient(135deg, hsl(180 50% 8%), hsl(180 45% 10%));
+    --gradient-card: linear-gradient(135deg, hsl(180 40% 12%), hsl(180 35% 15%));
+    --gradient-primary: linear-gradient(135deg, hsl(24 85% 55%), hsl(30 85% 62%));
     
-    /* Shadows with glow effects */
-    --shadow-sm: 0 2px 8px -2px hsl(220 13% 5% / 0.4);
-    --shadow-md: 0 4px 16px -4px hsl(220 13% 5% / 0.5);
-    --shadow-lg: 0 8px 32px -8px hsl(220 13% 5% / 0.6);
-    --shadow-primary-glow: 0 0 32px -8px hsl(173 80% 40% / 0.3);
-    --shadow-secondary-glow: 0 0 32px -8px hsl(270 50% 60% / 0.2);
+    /* Shadows */
+    --shadow-sm: 0 2px 8px -2px hsl(180 50% 5% / 0.4);
+    --shadow-md: 0 4px 16px -4px hsl(180 50% 5% / 0.5);
+    --shadow-lg: 0 8px 32px -8px hsl(180 50% 5% / 0.6);
+    --shadow-primary-glow: 0 0 32px -8px hsl(24 85% 55% / 0.35);
+    --shadow-secondary-glow: 0 0 32px -8px hsl(180 55% 32% / 0.25);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
