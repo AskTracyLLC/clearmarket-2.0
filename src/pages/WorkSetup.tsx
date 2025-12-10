@@ -24,12 +24,13 @@ import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Validation schema for rep work setup
+// NOTE: Legacy inspection type fields (inspection_types_other) have been deprecated.
+// Only the new categorized inspection types from inspection_type_options are used.
 const repWorkSetupSchema = z.object({
   systems_used: z.array(z.string()).min(1, "Please select at least one system"),
   systems_used_other: z.string().trim().max(100).optional().nullable(),
   open_to_new_systems: z.boolean(),
   inspection_types: z.array(z.string()).min(1, "Please select at least one inspection type"),
-  inspection_types_other: z.string().trim().max(100).optional().nullable(),
 });
 
 // Validation schema for vendor work setup
@@ -37,7 +38,6 @@ const vendorWorkSetupSchema = z.object({
   systems_used: z.array(z.string()).min(1, "Please select at least one system"),
   systems_used_other: z.string().trim().max(100).optional().nullable(),
   primary_inspection_types: z.array(z.string()).min(1, "Please select at least one inspection type"),
-  primary_inspection_types_other: z.string().trim().max(100).optional().nullable(),
 });
 
 type RepWorkSetupForm = z.infer<typeof repWorkSetupSchema>;
@@ -147,25 +147,14 @@ const WorkSetup = () => {
         }
       });
       
-      // Parse inspection types
+      // Load inspection types - only use the new system values
+      // NOTE: Legacy inspection type values are intentionally ignored
       const inspectionTypesArray = repData.inspection_types || [];
-      const inspectionTypesForCheckboxes: string[] = [];
-      let inspectionTypesOtherText = "";
-      
-      inspectionTypesArray.forEach((type: string) => {
-        if (type.startsWith("Other: ")) {
-          inspectionTypesForCheckboxes.push("Other");
-          inspectionTypesOtherText = type.substring(7);
-        } else {
-          inspectionTypesForCheckboxes.push(type);
-        }
-      });
       
       repForm.setValue("systems_used", systemsForCheckboxes);
       repForm.setValue("systems_used_other", systemsOtherText);
       repForm.setValue("open_to_new_systems", repData.open_to_new_systems ?? false);
-      repForm.setValue("inspection_types", inspectionTypesForCheckboxes);
-      repForm.setValue("inspection_types_other", inspectionTypesOtherText);
+      repForm.setValue("inspection_types", inspectionTypesArray);
     }
 
     // Load coverage areas
@@ -216,24 +205,13 @@ const WorkSetup = () => {
         }
       });
       
-      // Parse inspection types
+      // Load inspection types - only use the new system values
+      // NOTE: Legacy inspection type values are intentionally ignored
       const inspectionTypesArray = vendorData.primary_inspection_types || [];
-      const inspectionTypesForCheckboxes: string[] = [];
-      let inspectionTypesOtherText = "";
-      
-      inspectionTypesArray.forEach((type: string) => {
-        if (type.startsWith("Other: ")) {
-          inspectionTypesForCheckboxes.push("Other");
-          inspectionTypesOtherText = type.substring(7);
-        } else {
-          inspectionTypesForCheckboxes.push(type);
-        }
-      });
       
       vendorForm.setValue("systems_used", systemsForCheckboxes);
       vendorForm.setValue("systems_used_other", systemsOtherText);
-      vendorForm.setValue("primary_inspection_types", inspectionTypesForCheckboxes);
-      vendorForm.setValue("primary_inspection_types_other", inspectionTypesOtherText);
+      vendorForm.setValue("primary_inspection_types", inspectionTypesArray);
     }
 
     // Load vendor coverage areas
@@ -289,18 +267,14 @@ const WorkSetup = () => {
         finalSystems.push(`Other: ${data.systems_used_other}`);
       }
 
-      // Prepare inspection_types array
-      let finalInspectionTypes = data.inspection_types.filter(t => t !== "Other");
-      if (data.inspection_types.includes("Other") && data.inspection_types_other) {
-        finalInspectionTypes.push(`Other: ${data.inspection_types_other}`);
-      }
-
+      // NOTE: Inspection types now use the new categorized system only
+      // Legacy "Other: " prefix handling is deprecated
       const { error } = await supabase
         .from("rep_profile")
         .update({
           systems_used: finalSystems,
           open_to_new_systems: data.open_to_new_systems,
-          inspection_types: finalInspectionTypes,
+          inspection_types: data.inspection_types,
         })
         .eq("id", repProfile.id);
 
@@ -334,18 +308,13 @@ const WorkSetup = () => {
         finalSystems.push(`Other: ${data.systems_used_other}`);
       }
 
-      // Prepare primary_inspection_types array
-      let finalInspectionTypes = [...data.primary_inspection_types];
-      if (data.primary_inspection_types.includes("Other") && data.primary_inspection_types_other) {
-        finalInspectionTypes = finalInspectionTypes.filter(t => t !== "Other");
-        finalInspectionTypes.push(`Other: ${data.primary_inspection_types_other}`);
-      }
-
+      // NOTE: Inspection types now use the new categorized system only
+      // Legacy "Other: " prefix handling is deprecated
       const { error } = await supabase
         .from("vendor_profile")
         .update({
           systems_used: finalSystems,
-          primary_inspection_types: finalInspectionTypes,
+          primary_inspection_types: data.primary_inspection_types,
         })
         .eq("id", vendorProfile.id);
 
@@ -530,65 +499,20 @@ const WorkSetup = () => {
 
                     <InspectionTypeMultiSelect
                       role={isRep ? "rep" : "vendor"}
-                      selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
+                      selectedLabels={inspectionTypes}
                       onChange={(labels) => {
-                        const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
                         if (isRep) {
-                          repForm.setValue("inspection_types", [...labels, ...otherEntries]);
+                          repForm.setValue("inspection_types", labels);
                         } else {
-                          vendorForm.setValue("primary_inspection_types", [...labels, ...otherEntries]);
+                          vendorForm.setValue("primary_inspection_types", labels);
                         }
                       }}
                       error={isRep 
                         ? repForm.formState.errors.inspection_types?.message 
                         : vendorForm.formState.errors.primary_inspection_types?.message}
                     />
-
-                    {/* Other inspection type */}
-                    <div className="space-y-3 border-t border-border pt-4 mt-4">
-                      <div className="flex items-center space-x-3">
-                        <Checkbox
-                          id="inspection-other"
-                          checked={inspectionTypes.includes("Other")}
-                          onCheckedChange={(checked) => {
-                            const current = inspectionTypes;
-                            if (isRep) {
-                              if (checked) {
-                                repForm.setValue("inspection_types", [...current, "Other"]);
-                              } else {
-                                repForm.setValue("inspection_types", current.filter((t) => t !== "Other"));
-                              }
-                            } else {
-                              if (checked) {
-                                vendorForm.setValue("primary_inspection_types", [...current, "Other"]);
-                              } else {
-                                vendorForm.setValue("primary_inspection_types", current.filter((t) => t !== "Other"));
-                              }
-                            }
-                          }}
-                        />
-                        <Label htmlFor="inspection-other" className="text-foreground font-normal cursor-pointer">
-                          Other
-                        </Label>
-                      </div>
-
-                      {inspectionTypes.includes("Other") && (
-                        <div className="ml-7">
-                          <Label htmlFor="inspection_types_other" className="text-sm">
-                            Please specify other inspection type
-                          </Label>
-                          <Input
-                            id="inspection_types_other"
-                            {...(isRep
-                              ? repForm.register("inspection_types_other") 
-                              : vendorForm.register("primary_inspection_types_other"))}
-                            placeholder="Enter inspection type"
-                            className="mt-1"
-                            maxLength={100}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    {/* NOTE: The separate "Other" checkbox/input has been removed.
+                        "Other" is now a category in the InspectionTypeMultiSelect component. */}
                   </div>
                 </CollapsibleContent>
               </Card>
