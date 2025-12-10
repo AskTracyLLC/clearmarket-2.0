@@ -149,17 +149,51 @@ const Dashboard = () => {
         
         setPendingConnectionCount(pendingCount || 0);
 
-        // Count new opportunities (last 7 days)
+        // Count new opportunities (last 7 days) that match rep's coverage
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const { count: oppCount } = await supabase
+        
+        // Get rep's coverage areas
+        const { data: repCoverage } = await supabase
+          .from("rep_coverage_areas")
+          .select("state_code, county_id, covers_entire_state")
+          .eq("user_id", user.id);
+        
+        // Get all active opportunities from last 7 days
+        const { data: opportunities } = await supabase
           .from("seeking_coverage_posts")
-          .select("*", { count: "exact", head: true })
+          .select("id, state_code, county_id, covers_entire_state")
           .eq("status", "active")
           .is("deleted_at", null)
           .gte("created_at", sevenDaysAgo.toISOString());
         
-        setNewOpportunityCount(oppCount || 0);
+        // Filter by coverage match
+        const matchedCount = (opportunities || []).filter(opp => {
+          if (!repCoverage || repCoverage.length === 0) return false;
+          
+          return repCoverage.some(coverage => {
+            // Must match state first
+            if (opp.state_code !== coverage.state_code) return false;
+            
+            // If post covers entire state, any rep in that state matches
+            if (opp.covers_entire_state) return true;
+            
+            // If rep covers entire state, they match any post in that state
+            if (coverage.covers_entire_state) return true;
+            
+            // If post is county-specific, rep must have that county
+            if (opp.county_id && coverage.county_id) {
+              return opp.county_id === coverage.county_id;
+            }
+            
+            // If no county specified on post but rep has state coverage, match
+            if (!opp.county_id) return true;
+            
+            return false;
+          });
+        }).length;
+        
+        setNewOpportunityCount(matchedCount);
       }
 
       // Load unread notification count
