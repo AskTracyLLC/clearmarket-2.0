@@ -111,7 +111,7 @@ const CommunityBoard = () => {
     );
   }
 
-  const getTabDescription = (tab: string): { line1: string; line2: string } => {
+  const getTabDescription = (tab: string): { line1: string; line2: string; line3?: string } => {
     switch (tab) {
       case 'community':
         return {
@@ -121,7 +121,8 @@ const CommunityBoard = () => {
       case 'network':
         return {
           line1: 'Use this area for time-sensitive network alerts.',
-          line2: 'Share coverage gaps, office closures, travel plans, or urgent help needed.'
+          line2: "Alerts are not public and no one can see who else is in your network.",
+          line3: "When you post here, it's sent only to the vendors or field reps you're connected with, and they can't see each other."
         };
       case 'announcements':
         return {
@@ -179,6 +180,7 @@ const CommunityBoard = () => {
           <div className="mb-6 px-1">
             <p className="text-sm text-muted-foreground">{tabDescription.line1}</p>
             <p className="text-sm text-muted-foreground">{tabDescription.line2}</p>
+            {tabDescription.line3 && <p className="text-sm text-muted-foreground">{tabDescription.line3}</p>}
           </div>
 
           <TabsContent value="community">
