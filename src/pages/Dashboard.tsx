@@ -468,6 +468,15 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">Manage type options</CardDescription>
                 </CardHeader>
               </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/background-checks")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldAlert className="w-5 h-5 text-primary" />
+                    Background Checks
+                  </CardTitle>
+                  <CardDescription className="text-sm">Review submissions</CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           </>
         )}

@@ -68,6 +68,69 @@ export type Database = {
           },
         ]
       }
+      background_checks: {
+        Row: {
+          check_id: string
+          created_at: string
+          expiration_date: string | null
+          field_rep_id: string
+          id: string
+          provider: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          screenshot_url: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          check_id: string
+          created_at?: string
+          expiration_date?: string | null
+          field_rep_id: string
+          id?: string
+          provider: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          screenshot_url: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          check_id?: string
+          created_at?: string
+          expiration_date?: string | null
+          field_rep_id?: string
+          id?: string
+          provider?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          screenshot_url?: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "background_checks_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "background_checks_reviewed_by_user_id_fkey"
+            columns: ["reviewed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beta_invite_codes: {
         Row: {
           code: string
