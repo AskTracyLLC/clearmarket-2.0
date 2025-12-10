@@ -12,12 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { US_STATES, SYSTEMS_LIST } from "@/lib/constants";
-import { InspectionTypeMultiSelect } from "@/components/InspectionTypeMultiSelect";
-import { ArrowLeft, Save, AlertCircle, Plus, Minus, MapPin, Edit, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
-import { Checkbox } from "@/components/ui/checkbox";
+import { US_STATES } from "@/lib/constants";
+import { ArrowLeft, Save, AlertCircle, Plus, Minus, ExternalLink } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
@@ -42,10 +38,6 @@ type VendorProfileForm = z.infer<typeof vendorProfileSchema>;
 
 const VendorProfile = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const focusCoverage = searchParams.get("focus") === "coverage";
-  const coverageSectionRef = useRef<HTMLDivElement>(null);
-  const hasScrolledToCoverage = useRef(false);
 
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -53,24 +45,7 @@ const VendorProfile = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
-  const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
-  const [editingCoverage, setEditingCoverage] = useState<any>(null);
-  const [countyNameMap, setCountyNameMap] = useState<Map<string, string>>(new Map());
   const [expandedSections, setExpandedSections] = useState(() => {
-    // If focus=coverage, collapse all except coverage
-    if (focusCoverage) {
-      return {
-        account: false,
-        company: false,
-        location: false,
-        systems: false,
-        inspectionTypes: false,
-        availability: false,
-        coverage: true,
-      };
-    }
-    // Otherwise load from localStorage
     const saved = localStorage.getItem('vendorProfileExpandedSections');
     if (saved) {
       return JSON.parse(saved);
@@ -79,30 +54,14 @@ const VendorProfile = () => {
       account: true,
       company: true,
       location: true,
-      systems: true,
-      inspectionTypes: true,
       availability: true,
-      coverage: true,
     };
   });
 
-  // Scroll to coverage section after page loads if focus=coverage
+  // Save expanded sections to localStorage whenever they change
   useEffect(() => {
-    if (focusCoverage && !loading && !hasScrolledToCoverage.current && coverageSectionRef.current) {
-      hasScrolledToCoverage.current = true;
-      // Small delay to ensure DOM is rendered
-      setTimeout(() => {
-        coverageSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  }, [focusCoverage, loading]);
-
-  // Save expanded sections to localStorage whenever they change (but not if focus=coverage)
-  useEffect(() => {
-    if (!focusCoverage) {
-      localStorage.setItem('vendorProfileExpandedSections', JSON.stringify(expandedSections));
-    }
-  }, [expandedSections, focusCoverage]);
+    localStorage.setItem('vendorProfileExpandedSections', JSON.stringify(expandedSections));
+  }, [expandedSections]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -124,8 +83,6 @@ const VendorProfile = () => {
   });
 
   const selectedState = watch("state");
-  const systemsUsed = watch("systems_used") || [];
-  const inspectionTypes = watch("primary_inspection_types") || [];
   const descriptionText = watch("company_description") || "";
 
   useEffect(() => {
@@ -136,47 +93,8 @@ const VendorProfile = () => {
 
     if (user) {
       loadProfile();
-      loadCoverageAreas();
     }
   }, [user, authLoading, navigate]);
-
-  const loadCoverageAreas = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("vendor_coverage_areas")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("state_code", { ascending: true })
-        .order("county_name", { ascending: true });
-
-      if (error) throw error;
-      setCoverageAreas(data || []);
-
-      // Fetch county names for all county IDs in coverage areas
-      const allCountyIds = new Set<string>();
-      (data || []).forEach((coverage: any) => {
-        (coverage.excluded_county_ids || []).forEach((id: string) => allCountyIds.add(id));
-        (coverage.included_county_ids || []).forEach((id: string) => allCountyIds.add(id));
-      });
-
-      if (allCountyIds.size > 0) {
-        const { data: countyRows } = await supabase
-          .from("us_counties")
-          .select("id, county_name")
-          .in("id", Array.from(allCountyIds));
-
-        const map = new Map<string, string>();
-        (countyRows || []).forEach((row: any) => {
-          map.set(row.id, row.county_name);
-        });
-        setCountyNameMap(map);
-      }
-    } catch (error: any) {
-      console.error("Error loading coverage areas:", error);
-    }
-  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -367,11 +285,11 @@ const VendorProfile = () => {
         </div>
 
         {/* Profile completion warning */}
-        {(!watch("company_name") || !watch("city") || !watch("state") || systemsUsed.length === 0 || inspectionTypes.length === 0) && (
+        {(!watch("company_name") || !watch("city") || !watch("state")) && (
           <Alert className="mb-6 border-secondary/50 bg-secondary/10">
             <AlertCircle className="h-4 w-4 text-secondary" />
             <AlertDescription className="text-foreground">
-              To connect with field reps, please complete your company information and select at least one Inspection Type and System Used.
+              To connect with field reps, please complete your company information.
             </AlertDescription>
           </Alert>
         )}
@@ -541,140 +459,22 @@ const VendorProfile = () => {
               )}
             </div>
 
-            {/* Section C: Systems We Use (MVP) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <button
-                type="button"
-                onClick={() => toggleSection('systems')}
-                className="flex items-center justify-between w-full text-left"
-              >
+            {/* Link to Work Setup page for Systems, Inspection Types, Coverage */}
+            <div className="p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1">Systems We Use</h3>
-                  <p className="text-sm text-muted-foreground">Select the inspection systems your company uses</p>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">Work Setup + Coverage & Rates</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Manage your systems, inspection types, and coverage areas on the dedicated Work Setup page.
+                  </p>
                 </div>
-                {expandedSections.systems ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-              
-              {expandedSections.systems && (
-              <>
-              
-              <div className="space-y-3">
-                {SYSTEMS_LIST.map((system) => (
-                  <div key={system} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={`vendor-system-${system}`}
-                      checked={systemsUsed.includes(system)}
-                      onCheckedChange={(checked) => {
-                        const current = systemsUsed;
-                        if (checked) {
-                          setValue("systems_used", [...current, system]);
-                        } else {
-                          setValue("systems_used", current.filter((s) => s !== system));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`vendor-system-${system}`} className="text-foreground font-normal cursor-pointer">
-                      {system}
-                    </Label>
-                  </div>
-                ))}
+                <Link to="/work-setup">
+                  <Button variant="outline" size="sm">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Work Setup
+                  </Button>
+                </Link>
               </div>
-
-              {/* Other system free text */}
-              {systemsUsed.includes("Other") && (
-                <div className="ml-7">
-                  <Label htmlFor="systems_used_other" className="text-sm">
-                    Please specify other system
-                  </Label>
-                  <Input
-                    id="systems_used_other"
-                    {...register("systems_used_other")}
-                    placeholder="Enter system name"
-                    className="mt-1"
-                    maxLength={100}
-                  />
-                </div>
-              )}
-
-              {errors.systems_used && (
-                <p className="text-sm text-destructive">{errors.systems_used.message}</p>
-              )}
-              </>
-              )}
-            </div>
-
-            {/* Section D: Inspection Types We Assign (MVP) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <button
-                type="button"
-                onClick={() => toggleSection('inspectionTypes')}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types We Assign</h3>
-                  <p className="text-sm text-muted-foreground">Select the types of inspections you assign to field reps</p>
-                </div>
-                {expandedSections.inspectionTypes ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-              
-              {expandedSections.inspectionTypes && (
-                <>
-                  <InspectionTypeMultiSelect
-                    role="vendor"
-                    selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
-                    onChange={(labels) => {
-                      // Preserve any "Other: X" entries
-                      const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
-                      setValue("primary_inspection_types", [...labels, ...otherEntries]);
-                    }}
-                    error={errors.primary_inspection_types?.message}
-                  />
-
-                  {/* Other inspection type checkbox and free text */}
-                  <div className="space-y-3 border-t border-border pt-4 mt-4">
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="vendor-inspection-other"
-                        checked={inspectionTypes.includes("Other")}
-                        onCheckedChange={(checked) => {
-                          const current = inspectionTypes;
-                          if (checked) {
-                            setValue("primary_inspection_types", [...current, "Other"]);
-                          } else {
-                            setValue("primary_inspection_types", current.filter((t) => t !== "Other"));
-                          }
-                        }}
-                      />
-                      <Label htmlFor="vendor-inspection-other" className="text-foreground font-normal cursor-pointer">
-                        Other
-                      </Label>
-                    </div>
-
-                    {inspectionTypes.includes("Other") && (
-                      <div className="ml-7">
-                        <Label htmlFor="primary_inspection_types_other" className="text-sm">
-                          Please specify other inspection type
-                        </Label>
-                        <Input
-                          id="primary_inspection_types_other"
-                          {...register("primary_inspection_types_other")}
-                          placeholder="Enter inspection type"
-                          className="mt-1"
-                          maxLength={100}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
 
             {/* Section E: Availability */}
@@ -717,164 +517,6 @@ const VendorProfile = () => {
               )}
             </div>
 
-            {/* Section F: Coverage & Focus Areas */}
-            <div 
-              ref={coverageSectionRef}
-              className={`space-y-4 pb-6 border-b border-border ${focusCoverage ? "ring-2 ring-primary/30 rounded-lg p-4 -mx-2 transition-all duration-500" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => toggleSection('coverage')}
-                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
-              >
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Coverage & Focus Areas
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-left">
-                    Add the states and counties where you actively place work. This helps reps understand your footprint and where future Seeking Coverage posts are likely to appear.
-                  </p>
-                </div>
-                {expandedSections.coverage ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-
-              {expandedSections.coverage && (
-                <>
-                  {coverageAreas.length === 0 ? (
-                    <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
-                      <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-sm text-muted-foreground mb-4">
-                        No coverage areas added yet. Reps won't see your footprint until you add at least one state.
-                      </p>
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setEditingCoverage(null);
-                          setCoverageDialogOpen(true);
-                        }}
-                      >
-                        Add Coverage Area
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-3">
-                        {coverageAreas.map((coverage) => (
-                          <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h4 className="font-semibold text-foreground">
-                                    {coverage.state_code} - {coverage.state_name}
-                                  </h4>
-                                  {coverage.coverage_mode === "entire_state" && (
-                                    <Badge variant="secondary">Entire State</Badge>
-                                  )}
-                                </div>
-                                
-                                <p className="text-sm text-muted-foreground mb-2">
-                                  {coverage.coverage_mode === "entire_state" && "All counties"}
-                                  {coverage.coverage_mode === "entire_state_except" && (() => {
-                                    const countyIds = coverage.excluded_county_ids || [];
-                                    const names = countyIds
-                                      .map((id: string) => countyNameMap.get(id))
-                                      .filter(Boolean);
-                                    const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
-                                    return countyIds.length > 0 ? `All counties except: ${countiesLabel}` : "All counties (no exclusions)";
-                                  })()}
-                                  {coverage.coverage_mode === "selected_counties" && (() => {
-                                    const countyIds = coverage.included_county_ids || [];
-                                    const names = countyIds
-                                      .map((id: string) => countyNameMap.get(id))
-                                      .filter(Boolean);
-                                    const countiesLabel = names.length > 0 ? `${names.join(", ")} Counties` : "selected counties";
-                                    return countyIds.length > 0 ? `Selected counties: ${countiesLabel}` : "No counties selected";
-                                  })()}
-                                </p>
-
-                                {coverage.region_note && (
-                                  <p className="text-xs text-muted-foreground italic mb-2">
-                                    {coverage.region_note}
-                                  </p>
-                                )}
-
-                                {coverage.inspection_types && coverage.inspection_types.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {coverage.inspection_types.map((type: string, idx: number) => (
-                                      <Badge key={idx} variant="outline" className="text-xs">
-                                        {type}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    setEditingCoverage(coverage);
-                                    setCoverageDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={async () => {
-                                    const { error } = await supabase
-                                      .from("vendor_coverage_areas")
-                                      .delete()
-                                      .eq("id", coverage.id);
-
-                                    if (error) {
-                                      toast({
-                                        variant: "destructive",
-                                        title: "Error",
-                                        description: "Failed to delete coverage area.",
-                                      });
-                                    } else {
-                                      toast({
-                                        title: "Coverage Area Deleted",
-                                        description: "Coverage area removed successfully.",
-                                      });
-                                      loadCoverageAreas();
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                      
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingCoverage(null);
-                          setCoverageDialogOpen(true);
-                        }}
-                      >
-                        Add Another Coverage Area
-                      </Button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">
               <Button type="submit" disabled={saving}>
@@ -884,66 +526,6 @@ const VendorProfile = () => {
             </div>
           </Card>
         </form>
-
-        {/* Vendor Coverage Dialog */}
-        <VendorCoverageDialog
-          open={coverageDialogOpen}
-          onOpenChange={setCoverageDialogOpen}
-          editData={editingCoverage}
-          onSave={async (data) => {
-            const payload: any = {
-              user_id: user!.id,
-              state_code: data.state_code,
-              state_name: data.state_name,
-              coverage_mode: data.coverage_mode,
-              excluded_county_ids: data.excluded_county_ids || null,
-              included_county_ids: data.included_county_ids || null,
-              region_note: data.region_note || null,
-              inspection_types: data.inspection_types && data.inspection_types.length > 0 ? data.inspection_types : null,
-            };
-
-            if (data.id) {
-              // Update existing
-              const { error } = await supabase
-                .from("vendor_coverage_areas")
-                .update(payload)
-                .eq("id", data.id);
-
-              if (error) {
-                toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to update coverage area.",
-                });
-              } else {
-                toast({
-                  title: "Coverage Area Updated",
-                  description: "Your coverage area has been updated successfully.",
-                });
-                await loadCoverageAreas();
-              }
-            } else {
-              // Insert new
-              const { error } = await supabase
-                .from("vendor_coverage_areas")
-                .insert([payload]);
-
-              if (error) {
-                toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to add coverage area.",
-                });
-              } else {
-                toast({
-                  title: "Coverage Area Added",
-                  description: "Your coverage area has been added successfully.",
-                });
-                await loadCoverageAreas();
-              }
-            }
-          }}
-        />
       </div>
     </AuthenticatedLayout>
   );

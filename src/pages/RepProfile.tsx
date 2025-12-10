@@ -624,161 +624,23 @@ const RepProfile = () => {
               )}
             </div>
 
-            {/* Section B: Systems I Use (MVP) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <button
-                type="button"
-                onClick={() => toggleSection('systems')}
-                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
-              >
+            {/* Link to Work Setup page for Systems, Inspection Types, Coverage */}
+            <div className="p-4 bg-muted/30 rounded-lg border border-border">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1">Systems I Use</h3>
-                  <p className="text-sm text-muted-foreground text-left">Select the inspection systems you currently use</p>
-                </div>
-                {expandedSections.systems ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-              
-              {expandedSections.systems && (
-                <>
-                  <div className="space-y-3">
-                {SYSTEMS_LIST.map((system) => (
-                  <div key={system} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={`system-${system}`}
-                      checked={systemsUsed.includes(system)}
-                      onCheckedChange={(checked) => {
-                        const current = systemsUsed;
-                        if (checked) {
-                          setValue("systems_used", [...current, system]);
-                        } else {
-                          setValue("systems_used", current.filter((s) => s !== system));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`system-${system}`} className="text-foreground font-normal cursor-pointer">
-                      {system}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-
-              {/* Other system free text */}
-              {systemsUsed.includes("Other") && (
-                <div className="ml-7">
-                  <Label htmlFor="systems_used_other" className="text-sm">
-                    Please specify other system
-                  </Label>
-                  <Input
-                    id="systems_used_other"
-                    {...register("systems_used_other")}
-                    placeholder="Enter system name"
-                    className="mt-1"
-                    maxLength={100}
-                  />
-                </div>
-              )}
-
-              {/* Open to new systems checkbox */}
-              <Separator className="my-4" />
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="open_to_new_systems"
-                  checked={watch("open_to_new_systems")}
-                  onCheckedChange={(checked) => setValue("open_to_new_systems", !!checked)}
-                  className="mt-0.5"
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="open_to_new_systems" className="text-foreground font-normal cursor-pointer">
-                    Open to work in new systems
-                  </Label>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">Work Setup + Coverage & Rates</h3>
                   <p className="text-sm text-muted-foreground">
-                    Select this if you're comfortable using inspection systems you haven't worked in before. 
-                    This lets vendors match you with jobs even when they use different software, as long as 
-                    they provide the access and instructions needed for their process.
+                    Manage your systems, inspection types, and coverage areas on the dedicated Work Setup page.
                   </p>
                 </div>
+                <Link to="/work-setup">
+                  <Button variant="outline" size="sm">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open Work Setup
+                  </Button>
+                </Link>
               </div>
-
-                  {errors.systems_used && (
-                    <p className="text-sm text-destructive">{errors.systems_used.message}</p>
-                  )}
-                </>
-              )}
             </div>
-
-            {/* Section C: Inspection Types I Perform (MVP) */}
-            <div className="space-y-4 pb-6 border-b border-border">
-              <button
-                type="button"
-                onClick={() => toggleSection('inspectionTypes')}
-                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
-              >
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1">Inspection Types I Perform</h3>
-                  <p className="text-sm text-muted-foreground text-left">Select the types of inspections you do</p>
-                </div>
-                {expandedSections.inspectionTypes ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-
-              {expandedSections.inspectionTypes && (
-                <>
-                  <InspectionTypeMultiSelect
-                    role="rep"
-                    selectedLabels={inspectionTypes.filter(t => !t.startsWith("Other:"))}
-                    onChange={(labels) => {
-                      // Preserve any "Other: X" entries
-                      const otherEntries = inspectionTypes.filter(t => t.startsWith("Other:") || t === "Other");
-                      setValue("inspection_types", [...labels, ...otherEntries]);
-                    }}
-                    error={errors.inspection_types?.message}
-                  />
-
-                  {/* Other inspection type checkbox and free text */}
-                  <div className="space-y-3 border-t border-border pt-4 mt-4">
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        id="inspection-other"
-                        checked={inspectionTypes.includes("Other")}
-                        onCheckedChange={(checked) => {
-                          const current = inspectionTypes;
-                          if (checked) {
-                            setValue("inspection_types", [...current, "Other"]);
-                          } else {
-                            setValue("inspection_types", current.filter((t) => t !== "Other"));
-                          }
-                        }}
-                      />
-                      <Label htmlFor="inspection-other" className="text-foreground font-normal cursor-pointer">
-                        Other
-                      </Label>
-                    </div>
-
-                    {inspectionTypes.includes("Other") && (
-                      <div className="ml-7">
-                        <Label htmlFor="inspection_types_other" className="text-sm">
-                          Please specify other inspection type
-                        </Label>
-                        <Input
-                          id="inspection_types_other"
-                          {...register("inspection_types_other")}
-                          placeholder="Enter inspection type"
-                          className="mt-1"
-                          maxLength={100}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-        </div>
 
         {/* Section D: Availability & Preferences */}
         <div className="space-y-4 pb-6 border-b border-border">
@@ -1078,12 +940,12 @@ const RepProfile = () => {
                     <>
                       <div>
                         <Label htmlFor="background_check_provider_other_name">
-                          Background Check Provider Name <span className="text-destructive">*</span>
+                          Provider Name <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           id="background_check_provider_other_name"
                           {...register("background_check_provider_other_name")}
-                          placeholder="e.g., Sterling, Checkr"
+                          placeholder="e.g., GoodHire, Checkr"
                           className="mt-2"
                         />
                         {errors.background_check_provider_other_name && (
@@ -1093,12 +955,12 @@ const RepProfile = () => {
 
                       <div>
                         <Label htmlFor="background_check_id">
-                          Background Check Reference / ID <span className="text-muted-foreground">(optional)</span>
+                          Check ID / Reference Number <span className="text-muted-foreground">(optional)</span>
                         </Label>
                         <Input
                           id="background_check_id"
                           {...register("background_check_id")}
-                          placeholder="e.g., REF-12345"
+                          placeholder="Enter ID if available"
                           className="mt-2"
                         />
                       </div>
@@ -1110,13 +972,9 @@ const RepProfile = () => {
                         <Input
                           id="background_check_expires_on"
                           type="date"
-                          min={new Date().toISOString().split('T')[0]}
                           {...register("background_check_expires_on")}
                           className="mt-2"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Must be today or a future date.
-                        </p>
                         {errors.background_check_expires_on && (
                           <p className="text-sm text-destructive mt-1">{errors.background_check_expires_on.message}</p>
                         )}
@@ -1125,44 +983,39 @@ const RepProfile = () => {
                   )}
 
                   {/* Screenshot Upload */}
-                  {backgroundCheckProvider && (
-                    <div>
-                      <Label>
-                        Upload Screenshot of Background Check <span className="text-destructive">*</span>
-                      </Label>
-                      <p className="text-xs text-muted-foreground mt-1 mb-2">
-                        Upload a screenshot that clearly shows your name, AspenGrove/Shield ID, and the expiration date. Blurry or cropped screenshots may be rejected.
-                      </p>
-                      
-                      {backgroundCheckScreenshot ? (
-                        <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                          <ShieldCheck className="h-5 w-5 text-green-500" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-foreground">Screenshot uploaded</p>
+                  <div>
+                    <Label>
+                      Proof Screenshot <span className="text-destructive">*</span>
+                    </Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Upload a screenshot of your background check status page showing verification.
+                    </p>
+                    
+                    {backgroundCheckScreenshot ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg border border-border">
+                          <ShieldCheck className="h-5 w-5 text-primary" />
+                          <span className="text-sm text-foreground flex-1">Screenshot uploaded</span>
                           <Button
                             type="button"
-                            variant="link"
+                            variant="ghost"
                             size="sm"
-                            className="h-auto p-0 text-primary"
                             onClick={async () => {
-                              try {
-                                const signedUrl = await getBackgroundCheckSignedUrl(backgroundCheckScreenshot, 60);
-                                
-                                if (signedUrl) {
-                                  window.open(signedUrl, '_blank');
-                                } else {
-                                  toast({ title: "Error", description: "Could not generate preview link", variant: "destructive" });
-                                }
-                              } catch (error) {
-                                console.error('Error viewing screenshot:', error);
-                                toast({ title: "Error", description: "Failed to open screenshot", variant: "destructive" });
+                              // Get signed URL and open in new tab
+                              const signedUrl = await getBackgroundCheckSignedUrl(backgroundCheckScreenshot);
+                              if (signedUrl) {
+                                window.open(signedUrl, '_blank');
+                              } else {
+                                toast({
+                                  variant: "destructive",
+                                  title: "Error",
+                                  description: "Could not load screenshot preview.",
+                                });
                               }
                             }}
-                            >
-                              <ExternalLink className="h-3 w-3 mr-1" />
-                              View Screenshot
-                            </Button>
-                          </div>
+                          >
+                            View
+                          </Button>
                           <Button
                             type="button"
                             variant="ghost"
@@ -1172,168 +1025,107 @@ const RepProfile = () => {
                             Remove
                           </Button>
                         </div>
-                      ) : (
-                        <div>
-                          <Input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp"
-                            disabled={uploadingScreenshot}
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingScreenshot}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file || !user) return;
 
-                              // Validate file size (max 5MB)
-                              if (file.size > 5 * 1024 * 1024) {
-                                toast({
-                                  title: "File too large",
-                                  description: "Please upload an image smaller than 5MB.",
-                                  variant: "destructive",
-                                });
-                                return;
-                              }
+                            setUploadingScreenshot(true);
+                            try {
+                              // Upload to private bucket
+                              const filePath = `${user.id}/${Date.now()}_${file.name}`;
+                              const { error: uploadError } = await supabase.storage
+                                .from("background-checks")
+                                .upload(filePath, file);
 
-                              setUploadingScreenshot(true);
-                              try {
-                                // Upload to Supabase Storage
-                                const fileExt = file.name.split('.').pop();
-                                const fileName = `${user!.id}/${Date.now()}.${fileExt}`;
-                                
-                                const { data, error } = await supabase.storage
-                                  .from('background-checks')
-                                  .upload(fileName, file);
+                              if (uploadError) throw uploadError;
 
-                                if (error) throw error;
+                              setValue("background_check_screenshot_url", filePath);
+                              toast({
+                                title: "Screenshot Uploaded",
+                                description: "Your background check screenshot has been uploaded.",
+                              });
+                            } catch (error) {
+                              console.error("Upload error:", error);
+                              toast({
+                                variant: "destructive",
+                                title: "Upload Failed",
+                                description: "Failed to upload screenshot. Please try again.",
+                              });
+                            } finally {
+                              setUploadingScreenshot(false);
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        {uploadingScreenshot && (
+                          <span className="text-sm text-muted-foreground">Uploading...</span>
+                        )}
+                      </div>
+                    )}
+                    {errors.background_check_screenshot_url && (
+                      <p className="text-sm text-destructive mt-1">{errors.background_check_screenshot_url.message}</p>
+                    )}
+                  </div>
 
-                                // Get public URL
-                                const { data: { publicUrl } } = supabase.storage
-                                  .from('background-checks')
-                                  .getPublicUrl(data.path);
-
-                                setValue("background_check_screenshot_url", publicUrl);
-                                toast({
-                                  title: "Screenshot Uploaded",
-                                  description: "Your background check screenshot has been uploaded successfully.",
-                                });
-                              } catch (error: any) {
-                                console.error("Upload error:", error);
-                                toast({
-                                  title: "Upload Failed",
-                                  description: "Failed to upload screenshot. Please try again.",
-                                  variant: "destructive",
-                                });
-                              } finally {
-                                setUploadingScreenshot(false);
-                              }
-                            }}
-                          />
-                          {uploadingScreenshot && (
-                            <p className="text-sm text-muted-foreground mt-2">Uploading...</p>
-                          )}
-                        </div>
-                      )}
-                      {errors.background_check_screenshot_url && (
-                        <p className="text-sm text-destructive mt-1">{errors.background_check_screenshot_url.message}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Send for Verification Button */}
-                  <div className="mt-6 pt-4 border-t border-border">
+                  {/* Send for Verification button */}
+                  <div className="pt-4 border-t border-border">
                     <Button
                       type="button"
-                      disabled={submittingBackgroundCheck || uploadingScreenshot}
+                      variant="secondary"
+                      disabled={submittingBackgroundCheck || !backgroundCheckProvider || !backgroundCheckScreenshot}
                       onClick={async () => {
-                        // Validation
-                        const provider = watch("background_check_provider");
-                        const checkId = watch("background_check_id");
-                        const screenshot = watch("background_check_screenshot_url");
-                        const expirationDate = watch("background_check_expires_on");
-                        const providerOtherName = watch("background_check_provider_other_name");
-
-                        if (!provider) {
-                          toast({
-                            variant: "destructive",
-                            title: "Missing Provider",
-                            description: "Please select a background check provider.",
-                          });
+                        // Validate required fields
+                        if (!backgroundCheckProvider) {
+                          toast({ variant: "destructive", title: "Missing provider", description: "Please select a background check provider." });
                           return;
                         }
-
-                        if (provider === "aspen_grove" && !checkId) {
-                          toast({
-                            variant: "destructive",
-                            title: "Missing ID",
-                            description: "Please enter your AspenGrove / Shield ID (ABC#).",
-                          });
+                        if (!backgroundCheckScreenshot) {
+                          toast({ variant: "destructive", title: "Missing screenshot", description: "Please upload a screenshot of your background check." });
                           return;
                         }
-
-                        if (provider === "other" && !providerOtherName) {
-                          toast({
-                            variant: "destructive",
-                            title: "Missing Provider Name",
-                            description: "Please enter the background check provider name.",
-                          });
+                        if (backgroundCheckProvider === "aspen_grove" && !watch("background_check_id")) {
+                          toast({ variant: "destructive", title: "Missing ID", description: "Please enter your AspenGrove ID." });
                           return;
                         }
-
-                        if (!screenshot) {
-                          toast({
-                            variant: "destructive",
-                            title: "Missing Screenshot",
-                            description: "Please upload a screenshot of your background check.",
-                          });
+                        if (backgroundCheckProvider === "other" && !watch("background_check_provider_other_name")) {
+                          toast({ variant: "destructive", title: "Missing provider name", description: "Please enter the provider name." });
                           return;
                         }
-
-                        // Check if expiration date is in the past
-                        if (expirationDate) {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          const exp = new Date(expirationDate);
-                          exp.setHours(0, 0, 0, 0);
-                          if (exp < today) {
-                            toast({
-                              variant: "destructive",
-                              title: "Expired Date",
-                              description: "The expiration date is in the past. Please update it before submitting.",
-                            });
-                            return;
-                          }
+                        if (backgroundCheckProvider === "other" && !watch("background_check_expires_on")) {
+                          toast({ variant: "destructive", title: "Missing expiration", description: "Please enter the expiration date." });
+                          return;
                         }
 
                         setSubmittingBackgroundCheck(true);
                         try {
-                          const providerValue = provider === "aspen_grove" 
+                          const providerName = backgroundCheckProvider === "aspen_grove" 
                             ? "aspen_grove" 
-                            : (providerOtherName || "other");
-
-                          const bgResult = await submitBackgroundCheck(
+                            : watch("background_check_provider_other_name") || "other";
+                          
+                          await submitBackgroundCheck(
                             user!.id,
-                            providerValue,
-                            checkId || "",
-                            screenshot,
-                            expirationDate || null
+                            providerName,
+                            watch("background_check_id") || "",
+                            backgroundCheckScreenshot,
+                            watch("background_check_expires_on") || null
                           );
 
-                          if (!bgResult.success) {
-                            toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: bgResult.error || "Failed to submit background check.",
-                            });
-                            return;
-                          }
-
-                          // Reload the background check record
-                          const updatedRecord = await fetchMyBackgroundCheck(user!.id);
-                          setBackgroundCheckRecord(updatedRecord);
+                          // Reload background check record
+                          const bgCheck = await fetchMyBackgroundCheck(user!.id);
+                          setBackgroundCheckRecord(bgCheck);
 
                           toast({
-                            title: "Background check sent for verification.",
-                            description: "Status is now Under review. We'll verify your details before marking it as Approved and sharing it with your network.",
+                            title: "Background Check Sent",
+                            description: "Your background check has been sent for verification. Status is now Under review.",
                           });
-                        } catch (error: any) {
+                        } catch (error) {
                           console.error("Error submitting background check:", error);
                           toast({
                             variant: "destructive",
@@ -1345,38 +1137,39 @@ const RepProfile = () => {
                         }
                       }}
                     >
-                      {submittingBackgroundCheck ? "Submitting..." : "Send for Verification"}
+                      <Upload className="h-4 w-4 mr-2" />
+                      {submittingBackgroundCheck ? "Sending..." : "Send for Verification"}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-2">
-                      This submits your background check details to be reviewed by our team.
+                      Clicking this button sends your background check details for review. You can update details and resubmit if needed.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Willing to Obtain Background Check Toggle - shown when NO valid check */}
+              {/* Willingness fallback */}
               {!backgroundCheckActive && (
-                <div className="mt-4 p-4 bg-muted/20 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="willing_to_obtain_background_check"
-                      checked={watch("willing_to_obtain_background_check") ?? false}
-                      onCheckedChange={(checked) => setValue("willing_to_obtain_background_check", checked as boolean)}
-                    />
-                    <Label htmlFor="willing_to_obtain_background_check" className="cursor-pointer font-normal text-foreground">
-                      I don't currently have a background check, but I am willing to obtain one if required
+                <div className="flex items-center space-x-3 pt-2">
+                  <Checkbox
+                    id="willing_to_obtain_background_check"
+                    checked={watch("willing_to_obtain_background_check") ?? false}
+                    onCheckedChange={(checked) => setValue("willing_to_obtain_background_check", !!checked)}
+                  />
+                  <div>
+                    <Label htmlFor="willing_to_obtain_background_check" className="text-foreground font-normal cursor-pointer">
+                      I'm willing to obtain a background check if required
                     </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Some Seeking Coverage posts allow reps who are willing to get a background check, even if they don't have one yet.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 ml-7">
-                    Some vendors allow reps who are willing to obtain a background check. This increases your visibility for those opportunities.
-                  </p>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Section D2: Access & Equipment (Optional) */}
+        {/* Section E: Access & Equipment */}
         <div className="space-y-4 pb-6 border-b border-border">
           <button
             type="button"
@@ -1385,9 +1178,7 @@ const RepProfile = () => {
           >
             <div>
               <h3 className="text-xl font-semibold text-foreground mb-1">Access & Equipment</h3>
-              <p className="text-sm text-muted-foreground text-left">
-                Share what kind of property access you have and any tools or equipment you want vendors to know about.
-              </p>
+              <p className="text-sm text-muted-foreground text-left">Share details about your access capabilities and equipment</p>
             </div>
             {expandedSections.accessEquipment ? (
               <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
@@ -1460,122 +1251,6 @@ const RepProfile = () => {
               )}
             </div>
 
-            {/* Section E: Coverage & Pricing (MVP) */}
-            <div 
-              ref={coverageSectionRef}
-              className={`space-y-4 pb-6 border-b border-border ${focusCoverage ? "ring-2 ring-primary/30 rounded-lg p-4 -mx-2 transition-all duration-500" : ""}`}
-            >
-              <button
-                type="button"
-                onClick={() => toggleSection('coverage')}
-                className="w-full flex items-center justify-between hover:opacity-70 transition-opacity"
-              >
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Coverage & Pricing (MVP)
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-left">
-                    Add the states and counties you're willing to cover, and your typical pricing. 
-                    This is MVP data that future matching and Seeking Coverage will use.
-                  </p>
-                </div>
-                {expandedSections.coverage ? (
-                  <Minus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                ) : (
-                  <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-              </button>
-
-              {expandedSections.coverage && (
-                <>
-                  {/* Warning for incomplete pricing */}
-                  {coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
-                    <Alert className="border-orange-500/50 bg-orange-500/10">
-                      <AlertCircle className="h-4 w-4 text-orange-500" />
-                      <AlertDescription className="text-foreground">
-                        <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there. 
-                        Posts that don't meet your pricing requirements won't be shown on Find Work.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {coverageAreas.length === 0 ? (
-                    <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
-                      <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-sm text-muted-foreground mb-4">
-                        You haven't added any coverage yet. Click "Add Coverage Area" to set your first state and county.
-                      </p>
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setEditingCoverage(null);
-                          setCoverageDialogOpen(true);
-                        }}
-                      >
-                        Add Coverage Area
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <RepCoverageTable
-                        coverageAreas={coverageAreas}
-                        onEdit={(row) => {
-                          // Transform row to CoverageArea format for editing
-                          const editData: CoverageArea = {
-                            id: row.id,
-                            state_code: row.state_code,
-                            state_name: row.state_name,
-                            coverage_mode: (row.coverage_mode as CoverageMode) || "selected_counties",
-                            county_name: row.county_name || undefined,
-                            county_id: row.county_id,
-                            base_price: row.base_price?.toString() || "",
-                            rush_price: row.rush_price?.toString() || "",
-                            region_note: row.region_note || "",
-                            inspection_types: row.inspection_types || [],
-                            covers_entire_state: row.covers_entire_state,
-                          };
-                          setEditingCoverage(editData);
-                          setCoverageDialogOpen(true);
-                        }}
-                        onDelete={async (rowId) => {
-                          const { error } = await supabase
-                            .from("rep_coverage_areas")
-                            .delete()
-                            .eq("id", rowId);
-
-                          if (error) {
-                            toast({
-                              variant: "destructive",
-                              title: "Error",
-                              description: "Failed to delete coverage area.",
-                            });
-                          } else {
-                            toast({
-                              title: "Coverage Area Deleted",
-                              description: "Coverage area removed successfully.",
-                            });
-                            loadCoverageAreas();
-                          }
-                        }}
-                      />
-                      
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setEditingCoverage(null);
-                          setCoverageDialogOpen(true);
-                        }}
-                      >
-                        Add Coverage Area
-                      </Button>
-                    </>
-                  )}
-                </>
-              )}
-          </div>
-
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">
               <Button type="submit" disabled={saving}>
@@ -1585,126 +1260,6 @@ const RepProfile = () => {
             </div>
           </Card>
         </form>
-
-        {/* Coverage Area Dialog */}
-        <CoverageAreaDialog
-          open={coverageDialogOpen}
-          onOpenChange={setCoverageDialogOpen}
-          editData={editingCoverage}
-          profileInspectionTypes={inspectionTypes}
-          onSave={async (data) => {
-            const basePayload = {
-              user_id: user!.id,
-              state_code: data.state_code,
-              state_name: data.state_name,
-              coverage_mode: data.coverage_mode,
-              base_price: data.base_price ? parseFloat(data.base_price) : null,
-              rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
-              region_note: data.region_note || null,
-              inspection_types: data.inspection_types.length > 0 ? data.inspection_types : null,
-            };
-
-            if (data.id) {
-              // Update existing single row
-              const updatePayload = {
-                ...basePayload,
-                county_name: data.county_name || null,
-                county_id: data.county_id || null,
-                covers_entire_state: data.covers_entire_state || false,
-                covers_entire_county: false,
-              };
-
-              const { error } = await supabase
-                .from("rep_coverage_areas")
-                .update(updatePayload)
-                .eq("id", data.id);
-
-              if (error) {
-                toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to update coverage area.",
-                });
-              } else {
-                toast({
-                  title: "Coverage Area Updated",
-                  description: "Your coverage area has been updated successfully.",
-                });
-                await loadCoverageAreas();
-              }
-            } else {
-              // Insert new - handle based on coverage mode
-              try {
-                // Fetch all counties for the state
-                const { data: allCounties, error: countiesError } = await supabase
-                  .from("us_counties")
-                  .select("id, county_name")
-                  .eq("state_code", data.state_code)
-                  .order("county_name");
-
-                if (countiesError) throw countiesError;
-
-                let countiesToInsert: Array<{ id: string; county_name: string }> = [];
-
-                if (data.coverage_mode === "entire_state") {
-                  // All counties
-                  countiesToInsert = allCounties || [];
-                } else if (data.coverage_mode === "entire_state_except") {
-                  // All counties except excluded ones
-                  const excludedIds = data.excluded_county_ids || [];
-                  countiesToInsert = (allCounties || []).filter(c => !excludedIds.includes(c.id));
-                } else if (data.coverage_mode === "selected_counties") {
-                  // Only selected counties
-                  const includedIds = data.included_county_ids || [];
-                  countiesToInsert = (allCounties || []).filter(c => includedIds.includes(c.id));
-                }
-
-                if (countiesToInsert.length === 0) {
-                  toast({
-                    variant: "destructive",
-                    title: "No counties to add",
-                    description: "No counties matched your selection criteria.",
-                  });
-                  return;
-                }
-
-                // Create payload for each county
-                const insertPayloads = countiesToInsert.map(county => ({
-                  ...basePayload,
-                  county_name: county.county_name,
-                  county_id: county.id,
-                  covers_entire_state: data.coverage_mode === "entire_state",
-                  covers_entire_county: true,
-                }));
-
-                const { error } = await supabase
-                  .from("rep_coverage_areas")
-                  .insert(insertPayloads);
-
-                if (error) {
-                  toast({
-                    variant: "destructive",
-                    title: "Error",
-                    description: "Failed to add coverage areas.",
-                  });
-                } else {
-                  toast({
-                    title: "Coverage Areas Added",
-                    description: `Added ${countiesToInsert.length} county coverage ${countiesToInsert.length === 1 ? 'area' : 'areas'} successfully.`,
-                  });
-                  await loadCoverageAreas();
-                }
-              } catch (error) {
-                console.error("Error adding coverage areas:", error);
-                toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to add coverage areas. Please try again.",
-                });
-              }
-            }
-          }}
-        />
       </div>
     </AuthenticatedLayout>
   );
