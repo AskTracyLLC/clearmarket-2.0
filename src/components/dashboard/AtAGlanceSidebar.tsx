@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -33,8 +33,10 @@ export function AtAGlanceSidebar({
   upcomingTimeOff,
   coverageStats = { statesCount: 0, countiesCount: 0, activeAgreementsCount: 0 },
 }: AtAGlanceSidebarProps) {
+  const navigate = useNavigate();
   const hasCoverage = coverageStats.statesCount > 0 || coverageStats.countiesCount > 0;
   const profileRoute = isRep ? "/rep/profile" : "/vendor/profile";
+  const coverageRoute = `${profileRoute}?focus=coverage`;
 
   // Mobile: Single consolidated card view
   // Desktop: Multiple separate cards
@@ -59,7 +61,7 @@ export function AtAGlanceSidebar({
                   You haven't added any coverage yet.
                 </p>
               )}
-              <Link to={profileRoute}>
+              <Link to={coverageRoute}>
                 <Button variant="default" size="sm" className="w-full text-xs">
                   Manage Coverage & Rates
                 </Button>
@@ -202,12 +204,12 @@ export function AtAGlanceSidebar({
             )}
             
             <div className="space-y-2">
-              <Link to={profileRoute} className="block">
+              <Link to={coverageRoute} className="block">
                 <Button variant="default" size="sm" className="w-full text-xs">
                   Manage Coverage & Rates
                 </Button>
               </Link>
-              <Link to={profileRoute} className="block">
+              <Link to={coverageRoute} className="block">
                 <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-foreground">
                   <Plus className="h-3 w-3 mr-1" />
                   Add new coverage area
