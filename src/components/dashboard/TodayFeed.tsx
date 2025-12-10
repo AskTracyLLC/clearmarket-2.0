@@ -22,7 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatDistanceToNow, parseISO } from "date-fns";
+import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay } from "date-fns";
 
 interface FeedItem {
   id: string;
@@ -397,7 +397,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         </TooltipProvider>
       </div>
 
-      {/* Filtered items */}
+      {/* Filtered items grouped by date */}
       {filteredItems.length === 0 ? (
         <Card className="bg-card border-border">
           <CardContent className="py-6 text-center">
@@ -410,45 +410,86 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {filteredItems.map((item) => (
-            <Card 
-              key={item.id} 
-              className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
-                item.isUnread ? 'border-l-2 border-l-primary' : ''
-              }`}
-              onClick={() => item.link && navigate(item.link)}
-            >
-              <CardContent className="py-3 px-4">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
-                    {getIcon(item.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {item.title}
-                      </span>
-                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
-                        {getTypeLabel(item.type)}
-                      </Badge>
-                      {item.isUnread && (
-                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {item.description}
-                    </p>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
-                    </div>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <div className="space-y-4">
+          {(() => {
+            // Group items by date
+            const groupedItems: { [dateKey: string]: FeedItem[] } = {};
+            
+            filteredItems.forEach((item) => {
+              const itemDate = parseISO(item.timestamp);
+              const dateKey = startOfDay(itemDate).toISOString();
+              if (!groupedItems[dateKey]) {
+                groupedItems[dateKey] = [];
+              }
+              groupedItems[dateKey].push(item);
+            });
+
+            // Sort date keys descending (newest first)
+            const sortedDateKeys = Object.keys(groupedItems).sort(
+              (a, b) => new Date(b).getTime() - new Date(a).getTime()
+            );
+
+            const getDateHeader = (dateKey: string): string => {
+              const date = new Date(dateKey);
+              if (isToday(date)) return "Today";
+              if (isYesterday(date)) return "Yesterday";
+              return format(date, "MMM d, yyyy");
+            };
+
+            return sortedDateKeys.map((dateKey, groupIndex) => (
+              <div key={dateKey}>
+                {/* Date header */}
+                <div className={`flex items-center gap-2 ${groupIndex > 0 ? 'mt-4 pt-4 border-t border-border' : ''}`}>
+                  <span className="text-sm font-semibold text-foreground">
+                    {getDateHeader(dateKey)}
+                  </span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                
+                {/* Items for this date */}
+                <div className="space-y-2 mt-2">
+                  {groupedItems[dateKey].map((item) => (
+                    <Card 
+                      key={item.id} 
+                      className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
+                        item.isUnread ? 'border-l-2 border-l-primary' : ''
+                      }`}
+                      onClick={() => item.link && navigate(item.link)}
+                    >
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
+                            {getIcon(item.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-foreground truncate">
+                                {item.title}
+                              </span>
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
+                                {getTypeLabel(item.type)}
+                              </Badge>
+                              {item.isUnread && (
+                                <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {item.description}
+                            </p>
+                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                            </div>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ));
+          })()}
         </div>
       )}
       
