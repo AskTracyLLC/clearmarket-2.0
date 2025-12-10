@@ -3,6 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  computeRepProfileCompleteness,
+  computeVendorProfileCompleteness,
+} from "@/lib/profileCompleteness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +82,7 @@ export default function AdminUsers() {
   const [repProfiles, setRepProfiles] = useState<Record<string, string>>({});
   const [vendorProfiles, setVendorProfiles] = useState<Record<string, { anonymousId: string; companyName: string | null }>>({});
   const [reportCounts, setReportCounts] = useState<Record<string, number>>({});
+  const [profileCompleteness, setProfileCompleteness] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -206,6 +211,27 @@ export default function AdminUsers() {
         });
         setReportCounts(counts);
       }
+
+      // Compute profile completeness for each user
+      const completenessMap: Record<string, number> = {};
+      if (profiles) {
+        await Promise.all(
+          profiles.map(async (p) => {
+            try {
+              if (p.is_fieldrep) {
+                const result = await computeRepProfileCompleteness(supabase, p.id);
+                completenessMap[p.id] = result.percent;
+              } else if (p.is_vendor_admin) {
+                const result = await computeVendorProfileCompleteness(supabase, p.id);
+                completenessMap[p.id] = result.percent;
+              }
+            } catch (err) {
+              // Ignore errors for individual users
+            }
+          })
+        );
+      }
+      setProfileCompleteness(completenessMap);
     } catch (error) {
       console.error("Error loading users:", error);
       toast.error("Failed to load users");
@@ -500,6 +526,7 @@ export default function AdminUsers() {
                     <TableHead>Anonymous ID</TableHead>
                     <TableHead>Roles</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Profile</TableHead>
                     <TableHead>Last Active</TableHead>
                     <TableHead>Community</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -508,7 +535,7 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-48">
+                      <TableCell colSpan={8} className="h-48">
                         <div className="flex flex-col items-center justify-center text-center py-8">
                           {users.length === 0 ? (
                             <>
@@ -566,6 +593,23 @@ export default function AdminUsers() {
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(userProfile.account_status)}</TableCell>
+                        <TableCell>
+                          {(userProfile.is_fieldrep || userProfile.is_vendor_admin) ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-cm-accent-primary rounded-full transition-all"
+                                  style={{ width: `${profileCompleteness[userProfile.id] ?? 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {profileCompleteness[userProfile.id] ?? 0}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {userProfile.last_seen_at
                             ? format(new Date(userProfile.last_seen_at), "MMM d, yyyy")
