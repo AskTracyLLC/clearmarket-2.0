@@ -28,7 +28,8 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
+  // Use scope: 'local' to ensure local session is cleared even if server session is stale/expired
+  const { error } = await supabase.auth.signOut({ scope: 'local' });
   return { error };
 };
 
