@@ -88,7 +88,7 @@ const SignUp = () => {
     if (data.user) {
       // Validate and consume invite code
       try {
-        const { data: validateResult, error: validateError } = await supabase.functions.invoke(
+        const response = await supabase.functions.invoke(
           "validate-invite-code",
           {
             body: {
@@ -98,27 +98,18 @@ const SignUp = () => {
           }
         );
 
-        if (validateError) {
-          console.error("Invite validation error:", validateError);
-          // In beta mode, sign out the user if validation fails
-          if (betaMode) {
-            await supabase.auth.signOut();
-            setLoading(false);
-            toast({
-              title: "Invalid Invite Code",
-              description: "We couldn't validate your invite code. Your account wasn't activated. Please check your code or contact support.",
-              variant: "destructive",
-            });
-            return;
-          }
-        }
+        console.log("Invite validation response:", response);
 
-        if (validateResult && !validateResult.success && betaMode) {
-          await supabase.auth.signOut();
+        // Check for function invoke error OR unsuccessful result
+        const hasError = response.error || (response.data && response.data.success === false);
+        
+        if (hasError && betaMode) {
+          console.error("Invite validation failed:", response.error || response.data?.error);
+          await supabase.auth.signOut({ scope: 'local' });
           setLoading(false);
           toast({
             title: "Invalid Invite Code",
-            description: validateResult.error || "We couldn't validate your invite code. Please check your code or contact support.",
+            description: response.data?.error || response.error?.message || "We couldn't validate your invite code. Your account wasn't activated. Please check your code or contact support.",
             variant: "destructive",
           });
           return;
@@ -126,7 +117,7 @@ const SignUp = () => {
       } catch (err) {
         console.error("Invite validation exception:", err);
         if (betaMode) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           setLoading(false);
           toast({
             title: "Validation Error",
