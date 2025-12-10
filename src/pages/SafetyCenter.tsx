@@ -201,13 +201,13 @@ export default function SafetyCenter() {
   function getStatusColor(status: string) {
     switch (status) {
       case "open":
-        return "bg-[hsl(var(--warning-bg))] text-[hsl(var(--warning-text))] border-[hsl(var(--warning-border))]";
+        return "bg-warning-bg text-warning-text border-warning-border";
       case "reviewed":
-        return "bg-secondary/10 text-secondary border-secondary/30";
+        return "bg-info-bg text-info-text border-info-border";
       case "dismissed":
         return "bg-muted text-muted-foreground border-border";
       case "action_taken":
-        return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30";
+        return "bg-success-bg text-success-text border-success-border";
       default:
         return "";
     }
@@ -241,17 +241,11 @@ export default function SafetyCenter() {
           />
 
           <Tabs defaultValue="blocked" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted p-1">
-              <TabsTrigger 
-                value="blocked" 
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
-              >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="blocked">
                 Blocked Users
               </TabsTrigger>
-              <TabsTrigger 
-                value="reports"
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
-              >
+              <TabsTrigger value="reports">
                 Your Reports
               </TabsTrigger>
             </TabsList>
