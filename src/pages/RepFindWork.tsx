@@ -409,10 +409,11 @@ export default function RepFindWork() {
 
           if (!inspectionMatch) return false;
 
-          // 4. Systems match (at least one must match OR post has no system requirements)
+          // 4. Systems match (at least one must match OR post has no system requirements OR rep is open to new systems)
           // Handle "Other: CustomText" format
           const systemsMatch = 
             !post.systems_required_array?.length ||
+            repProfile.open_to_new_systems === true ||
             post.systems_required_array.some((postSys: string) => {
               const postSysBase = postSys.startsWith("Other:") 
                 ? postSys.substring(6).trim().toLowerCase() 

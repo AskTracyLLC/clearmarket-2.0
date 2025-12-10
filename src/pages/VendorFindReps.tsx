@@ -70,6 +70,7 @@ interface RepResult {
   city: string;
   state: string;
   systems_used: string[];
+  open_to_new_systems: boolean;
   inspection_types: string[];
   is_accepting_new_vendors: boolean;
   coverageAreas: RepCoverageArea[];
@@ -213,7 +214,8 @@ export default function VendorFindReps() {
           anonymous_id, 
           city, 
           state, 
-          systems_used, 
+          systems_used,
+          open_to_new_systems, 
           inspection_types, 
           is_accepting_new_vendors, 
           background_check_is_active, 
@@ -267,6 +269,9 @@ export default function VendorFindReps() {
 
       if (selectedSystems.length > 0 || otherSystemText.trim()) {
         filtered = filtered.filter((rep) => {
+          // Rep is compatible if they're open to new systems
+          if (rep.open_to_new_systems) return true;
+          
           const matchesStandardSystems = selectedSystems.length === 0 || selectedSystems.some((sys) =>
             rep.systems_used?.some((repSys: string) => repSys.includes(sys))
           );

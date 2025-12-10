@@ -56,6 +56,7 @@ interface ProfileData {
   companyDescription?: string;
   website?: string;
   systemsUsed?: string[];
+  openToNewSystems?: boolean;
   inspectionTypes?: string[];
   isAcceptingNewVendors?: boolean;
   isAcceptingNewReps?: boolean;
@@ -408,6 +409,7 @@ export function PublicProfileDialog({
             zipCode: repProfile.zip_code,
             bio: repProfile.bio,
             systemsUsed: repProfile.systems_used || [],
+            openToNewSystems: repProfile.open_to_new_systems || false,
             inspectionTypes: repProfile.inspection_types || [],
             isAcceptingNewVendors: repProfile.is_accepting_new_vendors,
             willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state,
@@ -740,6 +742,11 @@ export function PublicProfileDialog({
                         {system}
                       </Badge>
                     ))}
+                    {profileData.openToNewSystems && (
+                      <Badge variant="outline" className="border-primary/50 text-primary">
+                        Open to work in new systems
+                      </Badge>
+                    )}
                   </div>
                 </Card>
               )}
