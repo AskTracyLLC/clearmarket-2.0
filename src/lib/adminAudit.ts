@@ -4,6 +4,7 @@ export type AdminActionType =
   | "user.deactivated"
   | "user.reactivated"
   | "user.role_updated"
+  | "user.message_sent"
   | "staff.invited"
   | "staff.invite_resent"
   | "staff.role_changed"
