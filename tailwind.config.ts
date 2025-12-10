@@ -54,11 +54,37 @@ export default {
           foreground: "hsl(var(--card-foreground))",
           elevated: "hsl(var(--card-elevated))",
         },
+        // Semantic status colors
+        success: {
+          bg: "hsl(var(--success-bg))",
+          border: "hsl(var(--success-border))",
+          text: "hsl(var(--success-text))",
+        },
+        info: {
+          bg: "hsl(var(--info-bg))",
+          border: "hsl(var(--info-border))",
+          text: "hsl(var(--info-text))",
+        },
         warning: {
           bg: "hsl(var(--warning-bg))",
           border: "hsl(var(--warning-border))",
           icon: "hsl(var(--warning-icon))",
           text: "hsl(var(--warning-text))",
+        },
+        error: {
+          bg: "hsl(var(--error-bg))",
+          border: "hsl(var(--error-border))",
+          text: "hsl(var(--error-text))",
+        },
+        // ClearMarket brand aliases
+        cm: {
+          "accent-primary": "hsl(var(--cm-accent-primary))",
+          "accent-secondary": "hsl(var(--cm-accent-secondary))",
+          bg: "hsl(var(--cm-bg))",
+          surface: "hsl(var(--cm-surface))",
+          border: "hsl(var(--cm-border))",
+          text: "hsl(var(--cm-text))",
+          "text-muted": "hsl(var(--cm-text-muted))",
         },
       },
       boxShadow: {

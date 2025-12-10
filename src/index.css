@@ -10,6 +10,12 @@ Theme system:
 - Light mode activated via class="light" on html
 - Theme preference stored in localStorage as "clearmarket-theme"
 - To add a "system" option: next-themes already supports it, just setTheme("system")
+
+Brand Color Hierarchy:
+- Primary accent (teal): Main CTAs, active states, primary actions
+- Secondary accent (purple): Decorative highlights, community elements
+- Semantic colors: success, info, warning, error for status/feedback
+- Neutrals: backgrounds, surfaces, borders, text
 */
 
 @layer base {
@@ -29,15 +35,15 @@ Theme system:
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 15%;
     
-    /* ClearMarket Orange - Primary brand color */
-    --primary: 25 95% 50%;
+    /* Primary brand accent - Teal (main CTAs, active states) */
+    --primary: 173 80% 35%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 25 95% 55%;
+    --primary-glow: 173 80% 45%;
     
-    /* Teal - Trust/Status indicator */
-    --secondary: 173 80% 35%;
+    /* Secondary accent - Soft Purple (decorative, community) */
+    --secondary: 270 50% 55%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-glow: 173 80% 45%;
+    --secondary-glow: 270 50% 65%;
     
     /* Muted elements */
     --muted: 220 15% 92%;
@@ -47,21 +53,47 @@ Theme system:
     --accent: 220 15% 92%;
     --accent-foreground: 220 15% 15%;
     
-    /* Destructive states */
+    /* Destructive/Error states */
     --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Warning states - light mode */
+    /* ===== Semantic Status Colors ===== */
+    
+    /* Success states - Green */
+    --success-bg: 145 60% 94%;
+    --success-border: 145 60% 45%;
+    --success-text: 145 60% 25%;
+    
+    /* Info states - Blue */
+    --info-bg: 210 80% 95%;
+    --info-border: 210 80% 50%;
+    --info-text: 210 80% 30%;
+    
+    /* Warning states - Orange/Amber */
     --warning-bg: 40 100% 95%;
     --warning-border: 30 90% 50%;
     --warning-icon: 30 90% 40%;
-    --warning-text: 30 60% 25%;
+    --warning-text: 220 15% 20%;
+    
+    /* Error states - Red */
+    --error-bg: 0 80% 95%;
+    --error-border: 0 80% 50%;
+    --error-text: 0 80% 30%;
+    
+    /* ===== ClearMarket Brand Tokens (aliases) ===== */
+    --cm-accent-primary: 173 80% 35%;
+    --cm-accent-secondary: 270 50% 55%;
+    --cm-bg: 220 20% 97%;
+    --cm-surface: 0 0% 100%;
+    --cm-border: 220 15% 85%;
+    --cm-text: 220 15% 15%;
+    --cm-text-muted: 220 10% 45%;
     
     /* Borders and inputs - light gray for separation */
     --border: 220 15% 85%;
     --input: 220 15% 95%;
     --input-border: 220 15% 80%;
-    --ring: 25 95% 50%;
+    --ring: 173 80% 35%;
     
     /* Border radius */
     --radius: 0.75rem;
@@ -69,14 +101,14 @@ Theme system:
     /* Gradients - subtle for light mode */
     --gradient-background: linear-gradient(135deg, hsl(220 20% 97%), hsl(220 15% 95%));
     --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 15% 98%));
-    --gradient-primary: linear-gradient(135deg, hsl(25 95% 50%), hsl(25 95% 55%));
+    --gradient-primary: linear-gradient(135deg, hsl(173 80% 35%), hsl(173 80% 45%));
     
     /* Shadows - softer for light mode */
     --shadow-sm: 0 2px 8px -2px hsl(220 15% 50% / 0.15);
     --shadow-md: 0 4px 16px -4px hsl(220 15% 50% / 0.2);
     --shadow-lg: 0 8px 32px -8px hsl(220 15% 50% / 0.25);
-    --shadow-primary-glow: 0 0 32px -8px hsl(25 95% 50% / 0.2);
-    --shadow-secondary-glow: 0 0 32px -8px hsl(173 80% 35% / 0.15);
+    --shadow-primary-glow: 0 0 32px -8px hsl(173 80% 35% / 0.2);
+    --shadow-secondary-glow: 0 0 32px -8px hsl(270 50% 55% / 0.15);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -98,15 +130,15 @@ Theme system:
     --popover: 220 13% 12%;
     --popover-foreground: 0 0% 95%;
     
-    /* ClearMarket Orange - Primary brand color */
-    --primary: 25 95% 53%;
+    /* Primary brand accent - Teal (main CTAs, active states) */
+    --primary: 173 80% 40%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 25 95% 60%;
+    --primary-glow: 173 80% 50%;
     
-    /* Teal - Trust/Status indicator */
-    --secondary: 173 80% 40%;
+    /* Secondary accent - Soft Purple (decorative, community) */
+    --secondary: 270 50% 60%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-glow: 173 80% 50%;
+    --secondary-glow: 270 50% 70%;
     
     /* Muted elements */
     --muted: 220 13% 18%;
@@ -116,21 +148,47 @@ Theme system:
     --accent: 220 13% 18%;
     --accent-foreground: 0 0% 95%;
     
-    /* Destructive states */
+    /* Destructive/Error states */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Warning states - dark mode */
+    /* ===== Semantic Status Colors ===== */
+    
+    /* Success states - Green */
+    --success-bg: 145 40% 15%;
+    --success-border: 145 60% 45%;
+    --success-text: 145 50% 75%;
+    
+    /* Info states - Blue */
+    --info-bg: 210 50% 15%;
+    --info-border: 210 70% 50%;
+    --info-text: 210 60% 75%;
+    
+    /* Warning states - Orange/Amber */
     --warning-bg: 30 30% 15%;
     --warning-border: 30 80% 50%;
     --warning-icon: 30 90% 55%;
-    --warning-text: 35 30% 85%;
+    --warning-text: 0 0% 90%;
+    
+    /* Error states - Red */
+    --error-bg: 0 40% 15%;
+    --error-border: 0 70% 50%;
+    --error-text: 0 60% 75%;
+    
+    /* ===== ClearMarket Brand Tokens (aliases) ===== */
+    --cm-accent-primary: 173 80% 40%;
+    --cm-accent-secondary: 270 50% 60%;
+    --cm-bg: 220 13% 9%;
+    --cm-surface: 220 13% 12%;
+    --cm-border: 220 13% 20%;
+    --cm-text: 0 0% 95%;
+    --cm-text-muted: 0 0% 60%;
     
     /* Borders and inputs */
     --border: 220 13% 20%;
     --input: 220 13% 15%;
     --input-border: 220 13% 25%;
-    --ring: 25 95% 53%;
+    --ring: 173 80% 40%;
     
     /* Border radius */
     --radius: 0.75rem;
@@ -138,14 +196,14 @@ Theme system:
     /* Gradients */
     --gradient-background: linear-gradient(135deg, hsl(220 13% 9%), hsl(220 15% 12%));
     --gradient-card: linear-gradient(135deg, hsl(220 13% 12%), hsl(220 13% 15%));
-    --gradient-primary: linear-gradient(135deg, hsl(25 95% 53%), hsl(25 95% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(173 80% 40%), hsl(173 80% 50%));
     
     /* Shadows with glow effects */
     --shadow-sm: 0 2px 8px -2px hsl(220 13% 5% / 0.4);
     --shadow-md: 0 4px 16px -4px hsl(220 13% 5% / 0.5);
     --shadow-lg: 0 8px 32px -8px hsl(220 13% 5% / 0.6);
-    --shadow-primary-glow: 0 0 32px -8px hsl(25 95% 53% / 0.3);
-    --shadow-secondary-glow: 0 0 32px -8px hsl(173 80% 40% / 0.2);
+    --shadow-primary-glow: 0 0 32px -8px hsl(173 80% 40% / 0.3);
+    --shadow-secondary-glow: 0 0 32px -8px hsl(270 50% 60% / 0.2);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
