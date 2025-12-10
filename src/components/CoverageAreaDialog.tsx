@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { X, ChevronDown, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetchInspectionCategories, InspectionCategory } from "@/lib/inspectionTypes";
 
 export type CoverageMode = "entire_state" | "entire_state_except" | "selected_counties";
 
@@ -41,12 +42,6 @@ interface CoverageAreaDialogProps {
   editData?: CoverageArea | null;
 }
 
-const INSPECTION_TYPES = [
-  "Property Inspections",
-  "Loss/Insurance Claims",
-  "Commercial",
-];
-
 /**
  * Dialog for adding/editing rep coverage areas and pricing.
  * Supports: entire state, entire state except counties, or selected counties only.
@@ -63,9 +58,19 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
   const [otherInspectionType, setOtherInspectionType] = useState("");
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
   const [countySearchOpen, setCountySearchOpen] = useState(false);
+  const [inspectionCategories, setInspectionCategories] = useState<InspectionCategory[]>([]);
 
   // For edit mode - single county editing
   const isEditingSingleRow = !!editData?.id;
+
+  // Fetch inspection categories from database
+  useEffect(() => {
+    const loadCategories = async () => {
+      const categories = await fetchInspectionCategories();
+      setInspectionCategories(categories);
+    };
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     if (editData) {
@@ -78,7 +83,9 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
       setRegionNote(editData.region_note || "");
       
       const types = editData.inspection_types || [];
-      const standardTypes = types.filter(t => INSPECTION_TYPES.includes(t));
+      // Filter for standard types (match by label from categories)
+      const categoryLabels = inspectionCategories.map(c => c.label);
+      const standardTypes = types.filter(t => categoryLabels.includes(t));
       const otherTypes = types.filter(t => t.startsWith("Other: "));
       
       setInspectionTypes(standardTypes);
@@ -89,7 +96,7 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
     } else {
       resetForm();
     }
-  }, [editData, open]);
+  }, [editData, open, inspectionCategories]);
 
   // Fetch counties when state changes
   useEffect(() => {
@@ -461,15 +468,15 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData }: Cov
               Leave blank to use your profile-level inspection types.
             </p>
             <div className="space-y-2">
-              {INSPECTION_TYPES.map((type) => (
-                <div key={type} className="flex items-center space-x-2">
+              {inspectionCategories.map((category) => (
+                <div key={category.id} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`inspection-${type}`}
-                    checked={inspectionTypes.includes(type)}
-                    onCheckedChange={() => handleInspectionTypeToggle(type)}
+                    id={`inspection-${category.code}`}
+                    checked={inspectionTypes.includes(category.label)}
+                    onCheckedChange={() => handleInspectionTypeToggle(category.label)}
                   />
-                  <Label htmlFor={`inspection-${type}`} className="cursor-pointer font-normal">
-                    {type}
+                  <Label htmlFor={`inspection-${category.code}`} className="cursor-pointer font-normal">
+                    {category.label}
                   </Label>
                 </div>
               ))}
