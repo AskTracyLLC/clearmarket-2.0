@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -115,6 +115,11 @@ type RepProfileForm = z.infer<typeof repProfileSchema>;
 
 const RepProfile = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const focusCoverage = searchParams.get("focus") === "coverage";
+  const coverageSectionRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToCoverage = useRef(false);
+  
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
@@ -128,8 +133,22 @@ const RepProfile = () => {
   const [backgroundCheckRecord, setBackgroundCheckRecord] = useState<BackgroundCheck | null>(null);
   const [submittingBackgroundCheck, setSubmittingBackgroundCheck] = useState(false);
   
-  // Section collapse states - load from localStorage
+  // Section collapse states - load from localStorage unless focus=coverage
   const [expandedSections, setExpandedSections] = useState(() => {
+    // If focus=coverage, collapse all except coverage
+    if (focusCoverage) {
+      return {
+        account: false,
+        basic: false,
+        systems: false,
+        inspectionTypes: false,
+        availability: false,
+        backgroundCheck: false,
+        accessEquipment: false,
+        coverage: true,
+      };
+    }
+    // Otherwise load from localStorage
     const saved = localStorage.getItem('repProfileExpandedSections');
     if (saved) {
       return JSON.parse(saved);
@@ -146,10 +165,23 @@ const RepProfile = () => {
     };
   });
 
-  // Save expanded sections to localStorage whenever they change
+  // Scroll to coverage section after page loads if focus=coverage
   useEffect(() => {
-    localStorage.setItem('repProfileExpandedSections', JSON.stringify(expandedSections));
-  }, [expandedSections]);
+    if (focusCoverage && !loading && !hasScrolledToCoverage.current && coverageSectionRef.current) {
+      hasScrolledToCoverage.current = true;
+      // Small delay to ensure DOM is rendered
+      setTimeout(() => {
+        coverageSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [focusCoverage, loading]);
+
+  // Save expanded sections to localStorage whenever they change (but not if focus=coverage)
+  useEffect(() => {
+    if (!focusCoverage) {
+      localStorage.setItem('repProfileExpandedSections', JSON.stringify(expandedSections));
+    }
+  }, [expandedSections, focusCoverage]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -1404,7 +1436,10 @@ const RepProfile = () => {
             </div>
 
             {/* Section E: Coverage & Pricing (MVP) */}
-            <div className="space-y-4 pb-6 border-b border-border">
+            <div 
+              ref={coverageSectionRef}
+              className={`space-y-4 pb-6 border-b border-border ${focusCoverage ? "ring-2 ring-primary/30 rounded-lg p-4 -mx-2 transition-all duration-500" : ""}`}
+            >
               <button
                 type="button"
                 onClick={() => toggleSection('coverage')}
