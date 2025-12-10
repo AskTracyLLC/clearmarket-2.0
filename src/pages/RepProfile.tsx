@@ -25,6 +25,12 @@ import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/background
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { 
+  fetchMyBackgroundCheck, 
+  submitBackgroundCheck, 
+  getBackgroundCheckStatusInfo,
+  BackgroundCheck 
+} from "@/lib/backgroundChecks";
 
 // Validation schema for rep profile (MVP)
 const repProfileSchema = z.object({
@@ -118,6 +124,7 @@ const RepProfile = () => {
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [backgroundCheckRecord, setBackgroundCheckRecord] = useState<BackgroundCheck | null>(null);
   
   // Section collapse states - load from localStorage
   const [expandedSections, setExpandedSections] = useState(() => {
@@ -303,6 +310,22 @@ const RepProfile = () => {
 
       // Load coverage areas
       await loadCoverageAreas();
+      
+      // Load background check record from new table
+      const bgCheck = await fetchMyBackgroundCheck(user.id);
+      setBackgroundCheckRecord(bgCheck);
+      
+      // Pre-fill form from background_checks table if exists
+      if (bgCheck) {
+        setValue("background_check_is_active", true);
+        setValue("background_check_provider", bgCheck.provider === "aspen_grove" ? "aspen_grove" : "other");
+        if (bgCheck.provider !== "aspen_grove") {
+          setValue("background_check_provider_other_name", bgCheck.provider);
+        }
+        setValue("background_check_id", bgCheck.check_id);
+        setValue("background_check_expires_on", bgCheck.expiration_date);
+        setValue("background_check_screenshot_url", bgCheck.screenshot_url);
+      }
     } catch (error: any) {
       console.error("Error loading profile:", error);
       toast({
@@ -358,12 +381,7 @@ const RepProfile = () => {
       unavailable_from: data.unavailable_from || null,
       unavailable_to: data.unavailable_to || null,
       unavailable_note: data.unavailable_note || null,
-      background_check_is_active: data.background_check_is_active,
-      background_check_provider: data.background_check_is_active ? data.background_check_provider : null,
-      background_check_provider_other_name: data.background_check_is_active ? (data.background_check_provider_other_name || null) : null,
-      background_check_id: data.background_check_is_active ? (data.background_check_id || null) : null,
-      background_check_expires_on: data.background_check_is_active ? (data.background_check_expires_on || null) : null,
-      background_check_screenshot_url: data.background_check_is_active ? (data.background_check_screenshot_url || null) : null,
+      willing_to_obtain_background_check: data.willing_to_obtain_background_check ?? false,
       has_hud_keys: data.has_hud_keys ?? null,
       hud_keys_details: data.has_hud_keys ? (data.hud_keys_details || null) : null,
       equipment_notes: data.equipment_notes || null,
@@ -381,15 +399,53 @@ const RepProfile = () => {
         title: "Error",
         description: "Failed to save profile. Please try again.",
       });
-    } else {
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been saved successfully.",
-      });
-      // Stay on profile page after save
-      await loadProfile();
+      setSaving(false);
+      return;
     }
 
+    // Handle background check submission to new table
+    if (data.background_check_is_active && data.background_check_provider && data.background_check_screenshot_url) {
+      const provider = data.background_check_provider === "aspen_grove" 
+        ? "aspen_grove" 
+        : (data.background_check_provider_other_name || "other");
+      const checkId = data.background_check_id || "";
+      
+      const bgResult = await submitBackgroundCheck(
+        user!.id,
+        provider,
+        checkId,
+        data.background_check_screenshot_url,
+        data.background_check_expires_on || null
+      );
+
+      if (!bgResult.success) {
+        if (bgResult.isExpired) {
+          toast({
+            variant: "destructive",
+            title: "Background Check Expired",
+            description: "The expiration date is in the past. Please upload an updated screenshot.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: bgResult.error || "Failed to submit background check.",
+          });
+        }
+        setSaving(false);
+        return;
+      }
+    }
+
+    toast({
+      title: "Profile Updated",
+      description: data.background_check_is_active 
+        ? "Your profile has been saved. Background check submitted for review."
+        : "Your profile has been saved successfully.",
+    });
+    
+    // Stay on profile page after save
+    await loadProfile();
     setSaving(false);
   };
 
@@ -831,6 +887,29 @@ const RepProfile = () => {
 
           {expandedSections.backgroundCheck && (
             <>
+              {/* Show status badge and message if background check record exists */}
+              {backgroundCheckRecord && (
+                <div className="mb-4">
+                  {(() => {
+                    const statusInfo = getBackgroundCheckStatusInfo(backgroundCheckRecord);
+                    return (
+                      <Alert className={`border-${statusInfo.variant === 'success' ? 'success-border' : statusInfo.variant === 'warning' ? 'warning-border' : statusInfo.variant === 'destructive' ? 'error-border' : 'border'}`}>
+                        <div className="flex items-start gap-3">
+                          <Badge variant={statusInfo.variant}>{statusInfo.badge}</Badge>
+                          <p className="text-sm text-foreground">{statusInfo.message}</p>
+                        </div>
+                        {backgroundCheckRecord.status === "rejected" && backgroundCheckRecord.review_notes && (
+                          <div className="mt-3 p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                            <p className="text-sm font-medium text-destructive">Reviewer notes:</p>
+                            <p className="text-sm text-foreground mt-1">{backgroundCheckRecord.review_notes}</p>
+                          </div>
+                        )}
+                      </Alert>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label htmlFor="background_check_is_active" className="text-foreground font-normal">
@@ -967,7 +1046,7 @@ const RepProfile = () => {
                         Upload Screenshot of Background Check <span className="text-destructive">*</span>
                       </Label>
                       <p className="text-xs text-muted-foreground mt-1 mb-2">
-                        Upload a screenshot showing your valid, passed background check.
+                        Upload a screenshot that clearly shows your name, AspenGrove/Shield ID, and the expiration date. Blurry or cropped screenshots may be rejected.
                       </p>
                       
                       {backgroundCheckScreenshot ? (
