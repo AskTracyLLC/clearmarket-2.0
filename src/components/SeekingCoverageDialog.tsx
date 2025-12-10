@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,9 +27,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { US_STATES, INSPECTION_TYPES_LIST, SYSTEMS_LIST } from "@/lib/constants";
+import { US_STATES, SYSTEMS_LIST } from "@/lib/constants";
 import { evaluateMatchAlertsForNewPost } from "@/lib/matchAlerts";
 import { useCreditConfirm } from "@/hooks/useCreditConfirm";
+import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -37,8 +38,11 @@ const seekingCoverageSchema = z.object({
   state_code: z.string().min(1, "State is required"),
   county_id: z.string().nullable(),
   covers_entire_state: z.boolean(),
+  // Legacy inspection types (broad categories) - still required for backward compatibility
   inspection_types: z.array(z.string()).min(1, "At least one inspection type is required"),
   inspection_types_other: z.string().optional(),
+  // New: detailed inspection type labels for matching (optional)
+  inspection_type_ids: z.array(z.string()).optional(),
   systems_required_array: z.array(z.string()).min(1, "At least one system is required"),
   systems_required_other: z.string().optional(),
   is_accepting_responses: z.boolean(),
@@ -101,6 +105,10 @@ export const SeekingCoverageDialog = ({
   const [loadingCounties, setLoadingCounties] = useState(false);
   const [saving, setSaving] = useState(false);
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
+  
+  // Detailed inspection types from database
+  const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
+  const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
 
   const {
     register,
@@ -120,6 +128,7 @@ export const SeekingCoverageDialog = ({
       covers_entire_state: false,
       inspection_types: [],
       inspection_types_other: "",
+      inspection_type_ids: [],
       systems_required_array: [],
       systems_required_other: "",
       is_accepting_responses: true,
@@ -138,6 +147,15 @@ export const SeekingCoverageDialog = ({
   const systemsRequired = watch("systems_required_array") || [];
   const payType = watch("pay_type");
   const requiresBackgroundCheck = watch("requires_background_check");
+
+  // Load detailed inspection types from database
+  useEffect(() => {
+    const loadInspectionTypes = async () => {
+      const grouped = await fetchInspectionTypesForRole('vendor');
+      setAllInspectionTypesByCategory(grouped);
+    };
+    loadInspectionTypes();
+  }, []);
 
   // Load counties when state changes
   useEffect(() => {
@@ -187,6 +205,7 @@ export const SeekingCoverageDialog = ({
         covers_entire_state: editingPost.covers_entire_state,
         inspection_types: editingPost.inspection_types.filter((t: string) => !t.startsWith("Other:")),
         inspection_types_other: inspectionTypesOther || "",
+        inspection_type_ids: editingPost.inspection_type_ids || [],
         systems_required_array: editingPost.systems_required_array.filter((s: string) => !s.startsWith("Other:")),
         systems_required_other: systemsOther || "",
         is_accepting_responses: editingPost.is_accepting_responses,
@@ -197,6 +216,9 @@ export const SeekingCoverageDialog = ({
         requires_background_check: editingPost.requires_background_check || false,
         requires_aspen_grove: editingPost.requires_aspen_grove || false,
       });
+      
+      // Set detailed types for local state
+      setSelectedDetailedTypes(editingPost.inspection_type_ids || []);
     } else if (!editingPost && open) {
       reset({
         title: "",
@@ -207,6 +229,7 @@ export const SeekingCoverageDialog = ({
         covers_entire_state: false,
         inspection_types: [],
         inspection_types_other: "",
+        inspection_type_ids: [],
         systems_required_array: [],
         systems_required_other: "",
         is_accepting_responses: true,
@@ -217,6 +240,7 @@ export const SeekingCoverageDialog = ({
         requires_background_check: false,
         requires_aspen_grove: false,
       });
+      setSelectedDetailedTypes([]);
     }
   }, [editingPost, open, reset]);
 
@@ -277,6 +301,7 @@ export const SeekingCoverageDialog = ({
       county_id: data.covers_entire_state ? null : data.county_id,
       covers_entire_state: data.covers_entire_state,
       inspection_types: filteredInspectionTypes,
+      inspection_type_ids: selectedDetailedTypes.length > 0 ? selectedDetailedTypes : null,
       systems_required_array: filteredSystemsRequired,
       is_accepting_responses: saveAsDraft ? false : data.is_accepting_responses,
       status: saveAsDraft ? "draft" : "active",
@@ -536,20 +561,75 @@ export const SeekingCoverageDialog = ({
             </div>
           )}
 
-          {/* Inspection Types */}
+          {/* Inspection Types Needed (detailed, optional for matching) */}
+          <div className="space-y-4 p-4 bg-muted/20 rounded-lg border border-border">
+            <div>
+              <Label className="text-base font-semibold">Inspection Types Needed (optional)</Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose the specific inspection types you need for this request. Leave blank if any inspection type is okay.
+              </p>
+            </div>
+
+            {Object.keys(allInspectionTypesByCategory).length > 0 ? (
+              <div className="space-y-4">
+                {Object.entries(allInspectionTypesByCategory).map(([category, types]) => (
+                  <div key={category} className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">{category}</Label>
+                    <div className="ml-1 space-y-1.5">
+                      {types.map((type) => (
+                        <div key={type.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`detailed-inspection-${type.id}`}
+                            checked={selectedDetailedTypes.includes(type.label)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDetailedTypes(prev => [...prev, type.label]);
+                              } else {
+                                setSelectedDetailedTypes(prev => prev.filter(t => t !== type.label));
+                              }
+                            }}
+                          />
+                          <Label 
+                            htmlFor={`detailed-inspection-${type.id}`} 
+                            className="cursor-pointer font-normal text-sm"
+                          >
+                            {type.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Loading inspection types...</p>
+            )}
+
+            {selectedDetailedTypes.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                {selectedDetailedTypes.length} type{selectedDetailedTypes.length !== 1 ? 's' : ''} selected. 
+                Only reps who perform these specific types in this region will see this post.
+              </p>
+            )}
+          </div>
+
+          {/* Legacy Inspection Types (broad categories) - required for backward compatibility */}
           <div>
             <Label>
-              Inspection Types Needed <span className="text-destructive">*</span>
+              Inspection Category <span className="text-destructive">*</span>
             </Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Select the general category of work. Use the detailed types above for more precise matching.
+            </p>
             <div className="space-y-2 mt-2">
-              {INSPECTION_TYPES_LIST.map((type) => (
+              {["Property Inspections", "Loss / Insurance Claims (Appointment-based)", "Commercial", "Other"].map((type) => (
                 <div key={type} className="flex items-center gap-2">
                   <Checkbox
-                    id={`inspection-${type}`}
+                    id={`legacy-inspection-${type}`}
                     checked={inspectionTypes.includes(type)}
                     onCheckedChange={() => handleCheckboxChange("inspection_types", type)}
                   />
-                  <Label htmlFor={`inspection-${type}`} className="cursor-pointer font-normal">
+                  <Label htmlFor={`legacy-inspection-${type}`} className="cursor-pointer font-normal">
                     {type}
                   </Label>
                 </div>
@@ -566,8 +646,6 @@ export const SeekingCoverageDialog = ({
               <p className="text-sm text-destructive mt-1">{errors.inspection_types.message}</p>
             )}
           </div>
-
-          {/* Systems Required */}
           <div>
             <Label>
               Systems Required <span className="text-destructive">*</span>

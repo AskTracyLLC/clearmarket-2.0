@@ -1764,6 +1764,7 @@ export type Database = {
           expires_at: string | null
           id: string
           inspection_type: string | null
+          inspection_type_ids: string[] | null
           inspection_types: string[]
           is_accepting_responses: boolean
           location: string | null
@@ -1793,6 +1794,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           inspection_type?: string | null
+          inspection_type_ids?: string[] | null
           inspection_types?: string[]
           is_accepting_responses?: boolean
           location?: string | null
@@ -1822,6 +1824,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           inspection_type?: string | null
+          inspection_type_ids?: string[] | null
           inspection_types?: string[]
           is_accepting_responses?: boolean
           location?: string | null

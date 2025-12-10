@@ -150,11 +150,20 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
       // 3. Get new opportunities for reps (recent seeking coverage posts matching coverage)
       if (isRep) {
-        // First, get the rep's coverage areas
+        // First, get the rep's coverage areas with inspection types
         const { data: repCoverage } = await supabase
           .from("rep_coverage_areas")
-          .select("state_code, county_id, covers_entire_state")
+          .select("state_code, county_id, covers_entire_state, inspection_types")
           .eq("user_id", userId);
+
+        // Also get rep's profile-level inspection types as fallback
+        const { data: repProfile } = await supabase
+          .from("rep_profile")
+          .select("inspection_types")
+          .eq("user_id", userId)
+          .single();
+
+        const profileInspectionTypes = repProfile?.inspection_types || [];
 
         // Get opportunities from last 7 days
         const sevenDaysAgo = new Date();
@@ -162,19 +171,19 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
         const { data: opportunities } = await supabase
           .from("seeking_coverage_posts")
-          .select("id, title, state_code, county_id, covers_entire_state, created_at, pay_min, pay_max")
+          .select("id, title, state_code, county_id, covers_entire_state, created_at, pay_min, pay_max, inspection_type_ids")
           .eq("status", "active")
           .is("deleted_at", null)
           .gte("created_at", sevenDaysAgo.toISOString())
           .order("created_at", { ascending: false })
-          .limit(20); // Fetch more, we'll filter client-side
+          .limit(30); // Fetch more, we'll filter client-side
 
-        // Filter opportunities by coverage match
+        // Filter opportunities by coverage match AND inspection type match
         const matchedOpportunities = (opportunities || []).filter(opp => {
           if (!repCoverage || repCoverage.length === 0) return false;
           
-          // Check if any of the rep's coverage areas match this post
-          return repCoverage.some(coverage => {
+          // Find matching coverage areas for this post
+          const matchingCoverageAreas = repCoverage.filter(coverage => {
             // Must match state first
             if (opp.state_code !== coverage.state_code) return false;
             
@@ -194,6 +203,34 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
             
             return false;
           });
+
+          // If no area matches, skip this opportunity
+          if (matchingCoverageAreas.length === 0) return false;
+
+          // Check inspection type matching
+          const vendorRequestedTypes = opp.inspection_type_ids || [];
+          
+          // If vendor didn't specify types, accept any rep whose area matches
+          if (vendorRequestedTypes.length === 0) return true;
+
+          // Get rep's active inspection types for the matching coverage areas
+          // Use coverage-area-specific types if set, otherwise fall back to profile-level types
+          const repTypesForRegion = new Set<string>();
+          
+          for (const coverage of matchingCoverageAreas) {
+            const coverageTypes = coverage.inspection_types || [];
+            if (coverageTypes.length > 0) {
+              // Use coverage-area-specific types
+              coverageTypes.forEach((t: string) => repTypesForRegion.add(t));
+            } else {
+              // Fall back to profile-level types
+              profileInspectionTypes.forEach((t: string) => repTypesForRegion.add(t));
+            }
+          }
+
+          // Check for intersection (any-of logic)
+          const hasIntersection = vendorRequestedTypes.some((vt: string) => repTypesForRegion.has(vt));
+          return hasIntersection;
         });
 
         for (const opp of matchedOpportunities.slice(0, 5)) {
