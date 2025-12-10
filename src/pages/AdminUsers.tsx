@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -87,6 +87,8 @@ export default function AdminUsers() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [deactivateDialog, setDeactivateDialog] = useState<{ open: boolean; user: UserProfile | null }>({
     open: false,
     user: null,
@@ -403,7 +405,7 @@ export default function AdminUsers() {
   };
 
   const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+    let result = users.filter((u) => {
       // Role filter
       if (roleFilter === "fieldreps" && !u.is_fieldrep) return false;
       if (roleFilter === "vendors" && !u.is_vendor_admin) return false;
@@ -426,7 +428,68 @@ export default function AdminUsers() {
         u.id.toLowerCase().includes(term)
       );
     });
-  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles]);
+
+    // Sort
+    if (sortColumn) {
+      result = [...result].sort((a, b) => {
+        let aVal: string | number = "";
+        let bVal: string | number = "";
+
+        switch (sortColumn) {
+          case "user":
+            aVal = (a.full_name || a.email).toLowerCase();
+            bVal = (b.full_name || b.email).toLowerCase();
+            break;
+          case "anonymous_id":
+            aVal = getAnonymousId(a).toLowerCase();
+            bVal = getAnonymousId(b).toLowerCase();
+            break;
+          case "status":
+            aVal = a.account_status;
+            bVal = b.account_status;
+            break;
+          case "profile":
+            aVal = profileCompleteness[a.id] ?? -1;
+            bVal = profileCompleteness[b.id] ?? -1;
+            break;
+          case "last_active":
+            aVal = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
+            bVal = b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
+            break;
+          case "community":
+            aVal = a.community_score;
+            bVal = b.community_score;
+            break;
+        }
+
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles, sortColumn, sortDirection, profileCompleteness]);
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-3 w-3 ml-1" />
+    ) : (
+      <ArrowDown className="h-3 w-3 ml-1" />
+    );
+  };
 
   const handleViewInModeration = (userId: string) => {
     navigate(`/admin/moderation?targetUserId=${userId}`);
@@ -522,13 +585,61 @@ export default function AdminUsers() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Anonymous ID</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("user")}
+                    >
+                      <div className="flex items-center">
+                        User
+                        <SortIcon column="user" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("anonymous_id")}
+                    >
+                      <div className="flex items-center">
+                        Anonymous ID
+                        <SortIcon column="anonymous_id" />
+                      </div>
+                    </TableHead>
                     <TableHead>Roles</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Last Active</TableHead>
-                    <TableHead>Community</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("status")}
+                    >
+                      <div className="flex items-center">
+                        Status
+                        <SortIcon column="status" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("profile")}
+                    >
+                      <div className="flex items-center">
+                        Profile
+                        <SortIcon column="profile" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("last_active")}
+                    >
+                      <div className="flex items-center">
+                        Last Active
+                        <SortIcon column="last_active" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("community")}
+                    >
+                      <div className="flex items-center">
+                        Community
+                        <SortIcon column="community" />
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
