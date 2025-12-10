@@ -36,10 +36,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { AdminMessageUserDialog } from "@/components/admin/AdminMessageUserDialog";
 import { logAdminAction } from "@/lib/adminAudit";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
@@ -98,6 +99,10 @@ export default function AdminUsers() {
   const [profileDialog, setProfileDialog] = useState<{ open: boolean; userId: string | null }>({
     open: false,
     userId: null,
+  });
+  const [messageDialog, setMessageDialog] = useState<{ open: boolean; user: UserProfile | null }>({
+    open: false,
+    user: null,
   });
 
   // Permission-based access control
@@ -758,6 +763,15 @@ export default function AdminUsers() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  onClick={() => setMessageDialog({ open: true, user: userProfile })}
+                                  disabled={actionLoading === userProfile.id}
+                                  title="Message user"
+                                >
+                                  <MessageSquare className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => handleSendResetLink(userProfile)}
                                   disabled={actionLoading === userProfile.id}
                                   title="Send password reset"
@@ -854,6 +868,17 @@ export default function AdminUsers() {
           open={profileDialog.open}
           onOpenChange={(open) => setProfileDialog({ open, userId: open ? profileDialog.userId : null })}
           targetUserId={profileDialog.userId}
+        />
+      )}
+
+      {/* Message User Dialog */}
+      {messageDialog.open && messageDialog.user && user && (
+        <AdminMessageUserDialog
+          open={messageDialog.open}
+          onOpenChange={(open) => setMessageDialog({ open, user: open ? messageDialog.user : null })}
+          targetUserId={messageDialog.user.id}
+          targetUserDisplay={messageDialog.user.email || getAnonymousId(messageDialog.user)}
+          adminUserId={user.id}
         />
       )}
     </AuthenticatedLayout>

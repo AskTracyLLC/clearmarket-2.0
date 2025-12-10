@@ -109,6 +109,8 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         let link = '/notifications';
         if (notif.type === 'announcement' && notif.ref_id) {
           link = `/community?tab=announcements&postId=${notif.ref_id}`;
+        } else if (notif.type === 'admin_message' && notif.ref_id) {
+          link = `/messages/${notif.ref_id}`;
         } else if (notif.type === 'working_terms_request' && notif.ref_id) {
           link = `/rep/working-terms-request/${notif.ref_id}`;
         } else if (notif.type === 'working_terms_submitted' && notif.ref_id) {
@@ -131,7 +133,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           itemType = 'review';
         } else if (notif.type.includes('connection')) {
           itemType = 'connection_request';
-        } else if (notif.type.includes('alert') || notif.type.includes('working_terms')) {
+        } else if (notif.type.includes('alert') || notif.type.includes('working_terms') || notif.type === 'admin_message') {
           itemType = 'alert';
         }
         

@@ -93,6 +93,8 @@ export function NotificationsDropdown() {
     switch (type) {
       case "message":
         return <MessageSquare className="h-3.5 w-3.5" />;
+      case "admin_message":
+        return <MessageSquare className="h-3.5 w-3.5" />;
       case "connection_request":
         return <UserPlus className="h-3.5 w-3.5" />;
       case "review":
@@ -134,6 +136,8 @@ export function NotificationsDropdown() {
       } else {
         navigate("/messages");
       }
+    } else if (notification.type === "admin_message" && notification.ref_id) {
+      navigate(`/messages/${notification.ref_id}`);
     } else if (notification.type === "connection_request") {
       navigate("/messages");
     } else if (notification.type === "review") {
