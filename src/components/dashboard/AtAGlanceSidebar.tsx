@@ -12,8 +12,15 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  Edit
+  Edit,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 
@@ -85,15 +92,35 @@ export function AtAGlanceSidebar({
                 </Link>
 
                 {isRep && (
-                  <Link to="/rep/find-work" className="flex items-center justify-between hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors">
+                    <Link to="/rep/find-work" className="flex items-center gap-2 text-sm text-muted-foreground flex-1">
                       <Briefcase className="h-4 w-4" />
                       New Opportunities
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="p-0.5 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                              aria-label="How opportunities work"
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs whitespace-pre-line">
+                            {"These are posts from vendors looking for help in your work areas.\nYou'll see opportunities based on the coverage you saved in your profile."}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Link to="/rep/find-work">
+                        <Badge variant={newOpportunities > 0 ? "default" : "secondary"} className="text-xs">
+                          {newOpportunities}
+                        </Badge>
+                      </Link>
                     </div>
-                    <Badge variant={newOpportunities > 0 ? "default" : "secondary"} className="text-xs">
-                      {newOpportunities}
-                    </Badge>
-                  </Link>
+                  </div>
                 )}
 
                 {isRep && pendingConnections > 0 && (
@@ -292,15 +319,35 @@ export function AtAGlanceSidebar({
 
             {isRep && (
               <>
-                <Link to="/rep/find-work" className="flex items-center justify-between hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors">
+                  <Link to="/rep/find-work" className="flex items-center gap-2 text-sm text-muted-foreground flex-1">
                     <Briefcase className="h-4 w-4" />
                     New Opportunities
+                  </Link>
+                  <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="p-0.5 rounded-full text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="How opportunities work"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs whitespace-pre-line">
+                          {"These are posts from vendors looking for help in your work areas.\nYou'll see opportunities based on the coverage you saved in your profile."}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Link to="/rep/find-work">
+                      <Badge variant={newOpportunities > 0 ? "default" : "secondary"} className="text-xs">
+                        {newOpportunities}
+                      </Badge>
+                    </Link>
                   </div>
-                  <Badge variant={newOpportunities > 0 ? "default" : "secondary"} className="text-xs">
-                    {newOpportunities}
-                  </Badge>
-                </Link>
+                </div>
 
                 {pendingConnections > 0 && (
                   <Link to="/messages" className="flex items-center justify-between hover:bg-muted/50 p-2 -mx-2 rounded-md transition-colors">
