@@ -5,7 +5,7 @@ import { NavIconCluster } from "@/components/NavIconCluster";
 import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
-import { Briefcase, Users, ShieldAlert } from "lucide-react";
+import { Briefcase, Users, ShieldAlert, MessageSquare } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -65,15 +65,26 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
                 Safety
               </NavLink>
               {isAdmin && (
-                <NavLink 
-                  to="/admin/moderation" 
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
-                  activeClassName="text-primary"
-                >
-                  <ShieldAlert className="w-4 h-4" />
-                  Admin
-                  <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
-                </NavLink>
+                <>
+                  <NavLink 
+                    to="/messages" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
+                    activeClassName="text-primary"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Messages
+                    <CountBadge count={sectionCounts.unreadMessages} className="ml-1" />
+                  </NavLink>
+                  <NavLink 
+                    to="/admin/moderation" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
+                    activeClassName="text-primary"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Admin
+                    <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
+                  </NavLink>
+                </>
               )}
             </nav>
           </div>
