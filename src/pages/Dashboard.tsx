@@ -64,6 +64,11 @@ const Dashboard = () => {
   } | null>(null);
   const [newOpportunityCount, setNewOpportunityCount] = useState(0);
   const [showSetupSection, setShowSetupSection] = useState(false);
+  const [coverageStats, setCoverageStats] = useState<{
+    statesCount: number;
+    countiesCount: number;
+    activeAgreementsCount: number;
+  }>({ statesCount: 0, countiesCount: 0, activeAgreementsCount: 0 });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -111,12 +116,28 @@ const Dashboard = () => {
           .maybeSingle();
         
         if (repData) {
-          const { count } = await supabase
+          // Get rep coverage areas for count and stats
+          const { data: repCoverageAreas } = await supabase
             .from("rep_coverage_areas")
-            .select("*", { count: "exact", head: true })
+            .select("state_code, county_id")
             .eq("user_id", user.id);
           
-          setRepProfile({ ...repData, coverage_count: count || 0 });
+          const coverageCount = repCoverageAreas?.length || 0;
+          const uniqueStates = new Set(repCoverageAreas?.map(ca => ca.state_code) || []);
+          
+          // Get active working terms agreements count
+          const { count: agreementsCount } = await supabase
+            .from("working_terms_requests")
+            .select("*", { count: "exact", head: true })
+            .eq("rep_id", user.id)
+            .eq("status", "active");
+          
+          setRepProfile({ ...repData, coverage_count: coverageCount });
+          setCoverageStats({
+            statesCount: uniqueStates.size,
+            countiesCount: coverageCount,
+            activeAgreementsCount: agreementsCount || 0,
+          });
         } else {
           setRepProfile(repData);
         }
@@ -130,6 +151,28 @@ const Dashboard = () => {
           .maybeSingle();
         
         setVendorProfile(vendorData);
+        
+        // Get vendor coverage areas for stats
+        const { data: vendorCoverageAreas } = await supabase
+          .from("vendor_coverage_areas")
+          .select("state_code, county_id")
+          .eq("user_id", user.id);
+        
+        const vendorCoverageCount = vendorCoverageAreas?.length || 0;
+        const vendorUniqueStates = new Set(vendorCoverageAreas?.map(ca => ca.state_code) || []);
+        
+        // Get active working terms agreements count for vendor
+        const { count: vendorAgreementsCount } = await supabase
+          .from("working_terms_requests")
+          .select("*", { count: "exact", head: true })
+          .eq("vendor_id", user.id)
+          .eq("status", "active");
+        
+        setCoverageStats({
+          statesCount: vendorUniqueStates.size,
+          countiesCount: vendorCoverageCount,
+          activeAgreementsCount: vendorAgreementsCount || 0,
+        });
       }
 
       // Load unread message count
@@ -618,13 +661,9 @@ const Dashboard = () => {
                 <AtAGlanceSidebar
                   isRep={showingAsRep}
                   isVendor={showingAsVendor}
-                  profileCompletion={profileCompletion}
-                  unreadMessages={unreadMessageCount}
-                  unreadNotifications={unreadNotificationCount}
                   vendorCredits={vendorCredits}
                   upcomingTimeOff={upcomingTimeOff}
-                  pendingConnections={pendingConnectionCount}
-                  newOpportunities={newOpportunityCount}
+                  coverageStats={coverageStats}
                 />
               </div>
             </div>
