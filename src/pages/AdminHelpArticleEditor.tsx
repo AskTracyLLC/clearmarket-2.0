@@ -32,15 +32,11 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ExternalLink, Save, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
-const CATEGORIES = [
-  "Getting Started",
-  "Accounts & Access",
-  "Field Reps",
-  "Vendors",
-  "Credits & Billing",
-  "Reviews & Trust",
-  "Safety & Support",
-  "Community",
+const CATEGORY_OPTIONS = [
+  { key: "getting_started", label: "Getting Started" },
+  { key: "accounts_access", label: "Accounts & Access" },
+  { key: "credits_billing", label: "Credits & Billing" },
+  { key: "safety_support", label: "Safety & Support" },
 ];
 
 interface HelpArticle {
@@ -69,7 +65,7 @@ export default function AdminHelpArticleEditor() {
   const [article, setArticle] = useState<HelpArticle | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(CATEGORY_OPTIONS[0].key);
   const [content, setContent] = useState("");
   const [displayOrder, setDisplayOrder] = useState(100);
   const [isPublished, setIsPublished] = useState(false);
@@ -291,9 +287,9 @@ export default function AdminHelpArticleEditor() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <SelectItem key={cat.key} value={cat.key}>
+                        {cat.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

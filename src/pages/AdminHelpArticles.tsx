@@ -30,6 +30,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  getting_started: "Getting Started",
+  accounts_access: "Accounts & Access",
+  credits_billing: "Credits & Billing",
+  safety_support: "Safety & Support",
+};
+
 interface HelpArticle {
   id: string;
   title: string;
@@ -204,7 +211,9 @@ export default function AdminHelpArticles() {
                     <TableRow key={article.id}>
                       <TableCell className="font-medium">{article.title}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{article.category}</Badge>
+                        <Badge variant="secondary">
+                          {CATEGORY_LABELS[article.category] || article.category}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {article.is_published ? (
