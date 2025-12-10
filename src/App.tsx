@@ -67,6 +67,7 @@ import AdminHelpArticles from "./pages/AdminHelpArticles";
 import AdminHelpArticleEditor from "./pages/AdminHelpArticleEditor";
 import LegalPage from "./pages/LegalPage";
 import PublicHelpCenter from "./pages/PublicHelpCenter";
+import WorkSetup from "./pages/WorkSetup";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
               <Route path="/onboarding/role" element={<RoleSelection />} />
               <Route path="/onboarding/terms" element={<Terms />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/work-setup" element={<WorkSetup />} />
               <Route path="/rep/profile" element={<RepProfile />} />
               <Route path="/rep/find-work" element={<RepFindWork />} />
               <Route path="/rep/find-vendors" element={<RepFindVendors />} />
