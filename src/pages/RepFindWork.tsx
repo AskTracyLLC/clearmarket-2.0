@@ -36,6 +36,47 @@ const INSPECTION_TYPE_OPTIONS = [
   "Other"
 ];
 
+// Mapping of inspection type keywords to their category
+// This helps match rep-specific types (e.g., "Full Interior/Exterior") to vendor categories (e.g., "Property Inspections")
+const INSPECTION_TYPE_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  "property inspections": ["exterior", "interior", "occupancy", "condition", "preservation", "bpo", "disaster", "property"],
+  "loss / insurance claims (appointment-based)": ["loss", "insurance", "claim", "draft", "draw"],
+  "loss/insurance claims": ["loss", "insurance", "claim", "draft", "draw"],
+  "commercial": ["commercial", "multi-family", "industrial", "mystery"],
+  "notary services": ["notary"],
+  "other": []
+};
+
+// Helper to check if a rep's inspection type matches a vendor's requested category/type
+const inspectionTypeMatches = (postType: string, repType: string): boolean => {
+  const postLower = postType.toLowerCase().trim();
+  const repLower = repType.toLowerCase().trim();
+  
+  // Direct substring match (original logic)
+  if (postLower.includes(repLower) || repLower.includes(postLower)) {
+    return true;
+  }
+  
+  // Check if the vendor's type is a category and the rep's type has keywords for that category
+  for (const [category, keywords] of Object.entries(INSPECTION_TYPE_CATEGORY_KEYWORDS)) {
+    // If the vendor's post type matches this category
+    if (postLower.includes(category) || category.includes(postLower)) {
+      // Check if the rep's type contains any keywords for this category
+      if (keywords.some(kw => repLower.includes(kw))) {
+        return true;
+      }
+    }
+    // Also check if rep's type matches a category and vendor requested something in that category
+    if (repLower.includes(category) || category.includes(repLower)) {
+      if (keywords.some(kw => postLower.includes(kw))) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
+
 interface SeekingCoveragePost {
   id: string;
   vendor_id: string;
@@ -351,18 +392,18 @@ export default function RepFindWork() {
           }
 
           // 3. Inspection type match (at least one must match)
-          // Handle "Other: CustomText" format like we do in profile pages
+          // Uses helper function that handles category-to-specific-type matching
           const inspectionMatch = post.inspection_types.some((postType: string) => {
             const postBase = postType.startsWith("Other:") 
-              ? postType.substring(6).trim().toLowerCase() 
-              : postType.toLowerCase();
+              ? postType.substring(6).trim() 
+              : postType;
             
             return repProfile.inspection_types?.some((repType: string) => {
               const repBase = repType.startsWith("Other:") 
-                ? repType.substring(6).trim().toLowerCase() 
-                : repType.toLowerCase();
+                ? repType.substring(6).trim() 
+                : repType;
               
-              return postBase.includes(repBase) || repBase.includes(postBase);
+              return inspectionTypeMatches(postBase, repBase);
             });
           });
 
