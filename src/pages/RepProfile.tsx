@@ -20,7 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { CoverageAreaDialog } from "@/components/CoverageAreaDialog";
+import { CoverageAreaDialog, CoverageArea, CoverageMode } from "@/components/CoverageAreaDialog";
+import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
@@ -1430,152 +1431,89 @@ const RepProfile = () => {
                 <>
                   {/* Warning for incomplete pricing */}
                   {coverageAreas.length > 0 && coverageAreas.some(c => c.base_price === null || c.base_price === undefined) && (
-                <Alert className="border-orange-500/50 bg-orange-500/10">
-                  <AlertCircle className="h-4 w-4 text-orange-500" />
-                  <AlertDescription className="text-foreground">
-                    <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there. 
-                    Posts that don't meet your pricing requirements won't be shown on Find Work.
-                  </AlertDescription>
-                </Alert>
+                    <Alert className="border-orange-500/50 bg-orange-500/10">
+                      <AlertCircle className="h-4 w-4 text-orange-500" />
+                      <AlertDescription className="text-foreground">
+                        <strong>Set a Base Rate for each county</strong> if you want to be matched to Seeking Coverage posts there. 
+                        Posts that don't meet your pricing requirements won't be shown on Find Work.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {coverageAreas.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
+                      <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-sm text-muted-foreground mb-4">
+                        You haven't added any coverage yet. Click "Add Coverage Area" to set your first state and county.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setEditingCoverage(null);
+                          setCoverageDialogOpen(true);
+                        }}
+                      >
+                        Add Coverage Area
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <RepCoverageTable
+                        coverageAreas={coverageAreas}
+                        onEdit={(row) => {
+                          // Transform row to CoverageArea format for editing
+                          const editData: CoverageArea = {
+                            id: row.id,
+                            state_code: row.state_code,
+                            state_name: row.state_name,
+                            coverage_mode: (row.coverage_mode as CoverageMode) || "selected_counties",
+                            county_name: row.county_name || undefined,
+                            county_id: row.county_id,
+                            base_price: row.base_price?.toString() || "",
+                            rush_price: row.rush_price?.toString() || "",
+                            region_note: row.region_note || "",
+                            inspection_types: row.inspection_types || [],
+                            covers_entire_state: row.covers_entire_state,
+                          };
+                          setEditingCoverage(editData);
+                          setCoverageDialogOpen(true);
+                        }}
+                        onDelete={async (rowId) => {
+                          const { error } = await supabase
+                            .from("rep_coverage_areas")
+                            .delete()
+                            .eq("id", rowId);
+
+                          if (error) {
+                            toast({
+                              variant: "destructive",
+                              title: "Error",
+                              description: "Failed to delete coverage area.",
+                            });
+                          } else {
+                            toast({
+                              title: "Coverage Area Deleted",
+                              description: "Coverage area removed successfully.",
+                            });
+                            loadCoverageAreas();
+                          }
+                        }}
+                      />
+                      
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingCoverage(null);
+                          setCoverageDialogOpen(true);
+                        }}
+                      >
+                        Add Coverage Area
+                      </Button>
+                    </>
+                  )}
+                </>
               )}
-
-              {coverageAreas.length === 0 ? (
-                <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
-                  <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    No coverage areas added yet. Vendors won't see you in searches until you add at least one state.
-                  </p>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setEditingCoverage(null);
-                      setCoverageDialogOpen(true);
-                    }}
-                  >
-                    Add Coverage Area
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-3">
-                    {coverageAreas.map((coverage) => (
-                      <Card key={coverage.id} className="p-4 bg-muted/30 border-border">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h4 className="font-semibold text-foreground">
-                                {coverage.state_code} - {coverage.state_name}
-                              </h4>
-                              {coverage.covers_entire_state && (
-                                <Badge variant="secondary">Entire State</Badge>
-                              )}
-                              {(!coverage.base_price && coverage.base_price !== 0) && (
-                                <Badge variant="destructive" className="text-xs">Missing Base Rate</Badge>
-                              )}
-                            </div>
-                            
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {coverage.covers_entire_state 
-                                ? "All counties" 
-                                : coverage.county_name || "No specific county"}
-                              {!coverage.covers_entire_state && coverage.covers_entire_county && coverage.county_name && (
-                                <Badge variant="secondary" className="ml-2">Entire County</Badge>
-                              )}
-                            </p>
-
-                            {(coverage.base_price || coverage.rush_price) && (
-                              <div className="flex items-center gap-4 text-sm mb-2">
-                                {coverage.base_price && (
-                                  <span className="flex items-center gap-1 text-foreground">
-                                    <DollarSign className="h-3 w-3" />
-                                    Base: ${parseFloat(coverage.base_price).toFixed(2)}
-                                  </span>
-                                )}
-                                {coverage.rush_price && (
-                                  <span className="flex items-center gap-1 text-foreground">
-                                    <DollarSign className="h-3 w-3" />
-                                    Rush: ${parseFloat(coverage.rush_price).toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {coverage.region_note && (
-                              <p className="text-xs text-muted-foreground italic mb-2">
-                                {coverage.region_note}
-                              </p>
-                            )}
-
-                            {coverage.inspection_types && coverage.inspection_types.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {coverage.inspection_types.map((type: string, idx: number) => (
-                                  <Badge key={idx} variant="outline" className="text-xs">
-                                    {type}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 ml-4">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setEditingCoverage(coverage);
-                                setCoverageDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={async () => {
-                                const { error } = await supabase
-                                  .from("rep_coverage_areas")
-                                  .delete()
-                                  .eq("id", coverage.id);
-
-                                if (error) {
-                                  toast({
-                                    variant: "destructive",
-                                    title: "Error",
-                                    description: "Failed to delete coverage area.",
-                                  });
-                                } else {
-                                  toast({
-                                    title: "Coverage Area Deleted",
-                                    description: "Coverage area removed successfully.",
-                                  });
-                                  loadCoverageAreas();
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setEditingCoverage(null);
-                      setCoverageDialogOpen(true);
-                    }}
-                  >
-                    Add Another Coverage Area
-                  </Button>
-                  </>
-                )}
-              </>
-            )}
           </div>
 
             {/* Save button */}
@@ -1594,14 +1532,11 @@ const RepProfile = () => {
           onOpenChange={setCoverageDialogOpen}
           editData={editingCoverage}
           onSave={async (data) => {
-            const payload: any = {
+            const basePayload = {
               user_id: user!.id,
               state_code: data.state_code,
               state_name: data.state_name,
-              county_name: data.county_name || null,
-              county_id: data.county_id || null,
-              covers_entire_state: data.covers_entire_state,
-              covers_entire_county: data.covers_entire_county,
+              coverage_mode: data.coverage_mode,
               base_price: data.base_price ? parseFloat(data.base_price) : null,
               rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
               region_note: data.region_note || null,
@@ -1609,10 +1544,18 @@ const RepProfile = () => {
             };
 
             if (data.id) {
-              // Update existing
+              // Update existing single row
+              const updatePayload = {
+                ...basePayload,
+                county_name: data.county_name || null,
+                county_id: data.county_id || null,
+                covers_entire_state: data.covers_entire_state || false,
+                covers_entire_county: false,
+              };
+
               const { error } = await supabase
                 .from("rep_coverage_areas")
-                .update(payload)
+                .update(updatePayload)
                 .eq("id", data.id);
 
               if (error) {
@@ -1629,23 +1572,74 @@ const RepProfile = () => {
                 await loadCoverageAreas();
               }
             } else {
-              // Insert new
-              const { error } = await supabase
-                .from("rep_coverage_areas")
-                .insert([payload]);
+              // Insert new - handle based on coverage mode
+              try {
+                // Fetch all counties for the state
+                const { data: allCounties, error: countiesError } = await supabase
+                  .from("us_counties")
+                  .select("id, county_name")
+                  .eq("state_code", data.state_code)
+                  .order("county_name");
 
-              if (error) {
+                if (countiesError) throw countiesError;
+
+                let countiesToInsert: Array<{ id: string; county_name: string }> = [];
+
+                if (data.coverage_mode === "entire_state") {
+                  // All counties
+                  countiesToInsert = allCounties || [];
+                } else if (data.coverage_mode === "entire_state_except") {
+                  // All counties except excluded ones
+                  const excludedIds = data.excluded_county_ids || [];
+                  countiesToInsert = (allCounties || []).filter(c => !excludedIds.includes(c.id));
+                } else if (data.coverage_mode === "selected_counties") {
+                  // Only selected counties
+                  const includedIds = data.included_county_ids || [];
+                  countiesToInsert = (allCounties || []).filter(c => includedIds.includes(c.id));
+                }
+
+                if (countiesToInsert.length === 0) {
+                  toast({
+                    variant: "destructive",
+                    title: "No counties to add",
+                    description: "No counties matched your selection criteria.",
+                  });
+                  return;
+                }
+
+                // Create payload for each county
+                const insertPayloads = countiesToInsert.map(county => ({
+                  ...basePayload,
+                  county_name: county.county_name,
+                  county_id: county.id,
+                  covers_entire_state: data.coverage_mode === "entire_state",
+                  covers_entire_county: true,
+                }));
+
+                const { error } = await supabase
+                  .from("rep_coverage_areas")
+                  .insert(insertPayloads);
+
+                if (error) {
+                  toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to add coverage areas.",
+                  });
+                } else {
+                  toast({
+                    title: "Coverage Areas Added",
+                    description: `Added ${countiesToInsert.length} county coverage ${countiesToInsert.length === 1 ? 'area' : 'areas'} successfully.`,
+                  });
+                  await loadCoverageAreas();
+                }
+              } catch (error) {
+                console.error("Error adding coverage areas:", error);
                 toast({
                   variant: "destructive",
                   title: "Error",
-                  description: "Failed to add coverage area.",
+                  description: "Failed to add coverage areas. Please try again.",
                 });
-              } else {
-                toast({
-                  title: "Coverage Area Added",
-                  description: "Your coverage area has been added successfully.",
-                });
-                await loadCoverageAreas();
               }
             }
           }}

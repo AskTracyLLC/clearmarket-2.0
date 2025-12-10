@@ -1217,6 +1217,7 @@ export type Database = {
           base_price: number | null
           county_id: string | null
           county_name: string | null
+          coverage_mode: string | null
           covers_entire_county: boolean
           covers_entire_state: boolean
           created_at: string
@@ -1233,6 +1234,7 @@ export type Database = {
           base_price?: number | null
           county_id?: string | null
           county_name?: string | null
+          coverage_mode?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
@@ -1249,6 +1251,7 @@ export type Database = {
           base_price?: number | null
           county_id?: string | null
           county_name?: string | null
+          coverage_mode?: string | null
           covers_entire_county?: boolean
           covers_entire_state?: boolean
           created_at?: string
