@@ -477,6 +477,15 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">Review submissions</CardDescription>
                 </CardHeader>
               </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/legal")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="w-5 h-5 text-primary" />
+                    Legal & Help Center
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage ToS, Privacy, Help</CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           </>
         )}

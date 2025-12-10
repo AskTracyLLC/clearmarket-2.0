@@ -650,6 +650,53 @@ export type Database = {
           },
         ]
       }
+      help_center_articles: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          display_order: number
+          id: string
+          is_published: boolean
+          last_updated_at: string
+          last_updated_by: string | null
+          slug: string
+          title: string
+        }
+        Insert: {
+          category: string
+          content?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_published?: boolean
+          last_updated_at?: string
+          last_updated_by?: string | null
+          slug: string
+          title: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_published?: boolean
+          last_updated_at?: string
+          last_updated_by?: string | null
+          slug?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_center_articles_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_categories: {
         Row: {
           code: string
@@ -1803,6 +1850,56 @@ export type Database = {
           },
         ]
       }
+      site_pages: {
+        Row: {
+          announced_on: string | null
+          content: string
+          created_at: string
+          effective_at: string | null
+          id: string
+          is_published: boolean
+          last_updated_at: string
+          last_updated_by: string | null
+          page_type: Database["public"]["Enums"]["site_page_type"]
+          slug: string
+          title: string
+        }
+        Insert: {
+          announced_on?: string | null
+          content?: string
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          is_published?: boolean
+          last_updated_at?: string
+          last_updated_by?: string | null
+          page_type: Database["public"]["Enums"]["site_page_type"]
+          slug: string
+          title: string
+        }
+        Update: {
+          announced_on?: string | null
+          content?: string
+          created_at?: string
+          effective_at?: string | null
+          id?: string
+          is_published?: boolean
+          last_updated_at?: string
+          last_updated_by?: string | null
+          page_type?: Database["public"]["Enums"]["site_page_type"]
+          slug?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_pages_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_articles: {
         Row: {
           body: string
@@ -2815,6 +2912,7 @@ export type Database = {
       }
     }
     Enums: {
+      site_page_type: "tos" | "privacy" | "support"
       vendor_connection_initiator: "vendor" | "field_rep"
       vendor_connection_status:
         | "pending"
@@ -2950,6 +3048,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      site_page_type: ["tos", "privacy", "support"],
       vendor_connection_initiator: ["vendor", "field_rep"],
       vendor_connection_status: [
         "pending",

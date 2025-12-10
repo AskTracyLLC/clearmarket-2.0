@@ -61,6 +61,12 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import RepWorkingTermsRequest from "./pages/RepWorkingTermsRequest";
 import VendorWorkingTermsReview from "./pages/VendorWorkingTermsReview";
+import AdminLegalHelpCenter from "./pages/AdminLegalHelpCenter";
+import AdminSitePageEditor from "./pages/AdminSitePageEditor";
+import AdminHelpArticles from "./pages/AdminHelpArticles";
+import AdminHelpArticleEditor from "./pages/AdminHelpArticleEditor";
+import LegalPage from "./pages/LegalPage";
+import PublicHelpCenter from "./pages/PublicHelpCenter";
 
 const queryClient = new QueryClient();
 
@@ -119,8 +125,14 @@ const App = () => (
               <Route path="/admin/credits" element={<AdminCredits />} />
               <Route path="/admin/inspection-types" element={<AdminInspectionTypes />} />
               <Route path="/admin/background-checks" element={<AdminBackgroundChecks />} />
+              <Route path="/admin/legal" element={<AdminLegalHelpCenter />} />
+              <Route path="/admin/legal/:pageType" element={<AdminSitePageEditor />} />
+              <Route path="/admin/help-articles" element={<AdminHelpArticles />} />
+              <Route path="/admin/help-articles/:articleId" element={<AdminHelpArticleEditor />} />
               <Route path="/support" element={<Support />} />
-              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/help" element={<PublicHelpCenter />} />
+              <Route path="/help/:articleSlug" element={<PublicHelpCenter />} />
+              <Route path="/legal/:pageType" element={<LegalPage />} />
               <Route path="/safety" element={<SafetyCenter />} />
               <Route path="/community" element={<CommunityBoard />} />
               <Route path="/community/:postId" element={<CommunityPostDetail />} />
