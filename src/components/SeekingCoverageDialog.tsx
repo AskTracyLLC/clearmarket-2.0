@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,6 +115,7 @@ export const SeekingCoverageDialog = ({
   // Detailed inspection types from database
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
   const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
+  const [detailedTypesOpen, setDetailedTypesOpen] = useState(false);
 
   const {
     register,
@@ -561,65 +568,13 @@ export const SeekingCoverageDialog = ({
             </div>
           )}
 
-          {/* Inspection Types Needed (detailed, optional for matching) */}
-          <div className="space-y-4 p-4 bg-muted/20 rounded-lg border border-border">
-            <div>
-              <Label className="text-base font-semibold">Inspection Types Needed (optional)</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Choose the specific inspection types you need for this request. Leave blank if any inspection type is okay.
-              </p>
-            </div>
-
-            {Object.keys(allInspectionTypesByCategory).length > 0 ? (
-              <div className="space-y-4">
-                {Object.entries(allInspectionTypesByCategory).map(([category, types]) => (
-                  <div key={category} className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">{category}</Label>
-                    <div className="ml-1 space-y-1.5">
-                      {types.map((type) => (
-                        <div key={type.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`detailed-inspection-${type.id}`}
-                            checked={selectedDetailedTypes.includes(type.label)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedDetailedTypes(prev => [...prev, type.label]);
-                              } else {
-                                setSelectedDetailedTypes(prev => prev.filter(t => t !== type.label));
-                              }
-                            }}
-                          />
-                          <Label 
-                            htmlFor={`detailed-inspection-${type.id}`} 
-                            className="cursor-pointer font-normal text-sm"
-                          >
-                            {type.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">Loading inspection types...</p>
-            )}
-
-            {selectedDetailedTypes.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {selectedDetailedTypes.length} type{selectedDetailedTypes.length !== 1 ? 's' : ''} selected. 
-                Only reps who perform these specific types in this region will see this post.
-              </p>
-            )}
-          </div>
-
-          {/* Legacy Inspection Types (broad categories) - required for backward compatibility */}
+          {/* Inspection Category (broad categories) - required */}
           <div>
             <Label>
               Inspection Category <span className="text-destructive">*</span>
             </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Select the general category of work. Use the detailed types above for more precise matching.
+              Select the general category of work. Use the detailed types section below if you want more precise matching.
             </p>
             <div className="space-y-2 mt-2">
               {["Property Inspections", "Loss / Insurance Claims (Appointment-based)", "Commercial", "Other"].map((type) => (
@@ -646,6 +601,83 @@ export const SeekingCoverageDialog = ({
               <p className="text-sm text-destructive mt-1">{errors.inspection_types.message}</p>
             )}
           </div>
+
+          {/* Inspection Types Needed (detailed, optional for matching) - Collapsible */}
+          <Collapsible open={detailedTypesOpen} onOpenChange={setDetailedTypesOpen}>
+            <div className="space-y-3 p-4 bg-muted/20 rounded-lg border border-border">
+              <div>
+                <Label className="text-base font-semibold">Inspection Types Needed (optional)</Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Choose specific inspection types for this request if you want more precise matches. Leave this blank if any type within your selected category is okay.
+                </p>
+              </div>
+
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 px-0 hover:bg-transparent">
+                  {detailedTypesOpen ? (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      <span className="text-sm">Hide detailed inspection types</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-4 w-4" />
+                      <span className="text-sm">Show detailed inspection types</span>
+                    </>
+                  )}
+                  {selectedDetailedTypes.length > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({selectedDetailedTypes.length} selected)
+                    </span>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="pt-2">
+                {Object.keys(allInspectionTypesByCategory).length > 0 ? (
+                  <div className="space-y-4">
+                    {Object.entries(allInspectionTypesByCategory).map(([category, types]) => (
+                      <div key={category} className="space-y-2">
+                        <Label className="text-sm font-medium text-foreground">{category}</Label>
+                        <div className="ml-1 space-y-1.5">
+                          {types.map((type) => (
+                            <div key={type.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`detailed-inspection-${type.id}`}
+                                checked={selectedDetailedTypes.includes(type.label)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedDetailedTypes(prev => [...prev, type.label]);
+                                  } else {
+                                    setSelectedDetailedTypes(prev => prev.filter(t => t !== type.label));
+                                  }
+                                }}
+                              />
+                              <Label 
+                                htmlFor={`detailed-inspection-${type.id}`} 
+                                className="cursor-pointer font-normal text-sm"
+                              >
+                                {type.label}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Loading inspection types...</p>
+                )}
+
+                {selectedDetailedTypes.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-3">
+                    {selectedDetailedTypes.length} type{selectedDetailedTypes.length !== 1 ? 's' : ''} selected. 
+                    Only reps who perform these specific types in this region will see this post.
+                  </p>
+                )}
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
           <div>
             <Label>
               Systems Required <span className="text-destructive">*</span>
