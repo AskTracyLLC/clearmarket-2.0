@@ -130,8 +130,7 @@ const App = () => (
               <Route path="/admin/help-articles" element={<AdminHelpArticles />} />
               <Route path="/admin/help-articles/:articleId" element={<AdminHelpArticleEditor />} />
               <Route path="/support" element={<Support />} />
-              <Route path="/help" element={<PublicHelpCenter />} />
-              <Route path="/help/:articleSlug" element={<PublicHelpCenter />} />
+              <Route path="/help" element={<HelpCenter />} />
               <Route path="/legal/:pageType" element={<LegalPage />} />
               <Route path="/safety" element={<SafetyCenter />} />
               <Route path="/community" element={<CommunityBoard />} />
