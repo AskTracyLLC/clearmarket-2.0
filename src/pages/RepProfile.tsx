@@ -125,6 +125,7 @@ const RepProfile = () => {
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [backgroundCheckRecord, setBackgroundCheckRecord] = useState<BackgroundCheck | null>(null);
+  const [submittingBackgroundCheck, setSubmittingBackgroundCheck] = useState(false);
   
   // Section collapse states - load from localStorage
   const [expandedSections, setExpandedSections] = useState(() => {
@@ -403,45 +404,11 @@ const RepProfile = () => {
       return;
     }
 
-    // Handle background check submission to new table
-    if (data.background_check_is_active && data.background_check_provider && data.background_check_screenshot_url) {
-      const provider = data.background_check_provider === "aspen_grove" 
-        ? "aspen_grove" 
-        : (data.background_check_provider_other_name || "other");
-      const checkId = data.background_check_id || "";
-      
-      const bgResult = await submitBackgroundCheck(
-        user!.id,
-        provider,
-        checkId,
-        data.background_check_screenshot_url,
-        data.background_check_expires_on || null
-      );
-
-      if (!bgResult.success) {
-        if (bgResult.isExpired) {
-          toast({
-            variant: "destructive",
-            title: "Background Check Expired",
-            description: "The expiration date is in the past. Please upload an updated screenshot.",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: bgResult.error || "Failed to submit background check.",
-          });
-        }
-        setSaving(false);
-        return;
-      }
-    }
+    // Note: Background check is submitted separately via "Send for Verification" button
 
     toast({
       title: "Profile Updated",
-      description: data.background_check_is_active 
-        ? "Your profile has been saved. Background check submitted for review."
-        : "Your profile has been saved successfully.",
+      description: "Your profile has been saved successfully.",
     });
     
     // Stay on profile page after save
@@ -887,28 +854,88 @@ const RepProfile = () => {
 
           {expandedSections.backgroundCheck && (
             <>
-              {/* Show status badge and message if background check record exists */}
-              {backgroundCheckRecord && (
-                <div className="mb-4">
-                  {(() => {
-                    const statusInfo = getBackgroundCheckStatusInfo(backgroundCheckRecord);
+              {/* Status indicator section */}
+              <div className="mb-4 p-4 rounded-lg border border-border bg-muted/30">
+                {(() => {
+                  // Determine status and messaging
+                  const isExpired = backgroundCheckRecord?.status === "approved" && backgroundCheckRecord?.expiration_date && 
+                    new Date(backgroundCheckRecord.expiration_date) < new Date(new Date().toDateString());
+                  
+                  if (!backgroundCheckRecord) {
+                    // No submission yet
                     return (
-                      <Alert className={`border-${statusInfo.variant === 'success' ? 'success-border' : statusInfo.variant === 'warning' ? 'warning-border' : statusInfo.variant === 'destructive' ? 'error-border' : 'border'}`}>
-                        <div className="flex items-start gap-3">
-                          <Badge variant={statusInfo.variant}>{statusInfo.badge}</Badge>
-                          <p className="text-sm text-foreground">{statusInfo.message}</p>
-                        </div>
-                        {backgroundCheckRecord.status === "rejected" && backgroundCheckRecord.review_notes && (
-                          <div className="mt-3 p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                            <p className="text-sm font-medium text-destructive">Reviewer notes:</p>
-                            <p className="text-sm text-foreground mt-1">{backgroundCheckRecord.review_notes}</p>
-                          </div>
-                        )}
-                      </Alert>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Status: Not sent for verification yet.</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          When you finish this section, click "Send for Verification" so we can review your background check.
+                        </p>
+                      </div>
                     );
-                  })()}
-                </div>
-              )}
+                  }
+                  
+                  if (isExpired) {
+                    // Expired
+                    return (
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="warning">Expired</Badge>
+                          <span className="text-sm font-medium text-foreground">Status: Expired.</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Update your expiration date and upload a current screenshot, then send it for verification again.
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  switch (backgroundCheckRecord.status) {
+                    case "pending":
+                      return (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary">Under review</Badge>
+                            <span className="text-sm font-medium text-foreground">Status: Under review.</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            We'll verify your background check details before marking it as Approved and sharing this status with your network.
+                          </p>
+                        </div>
+                      );
+                    case "approved":
+                      return (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="success">Approved</Badge>
+                            <span className="text-sm font-medium text-foreground">Status: Approved.</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Your background check has been verified and is shared as Approved with your network.
+                          </p>
+                        </div>
+                      );
+                    case "rejected":
+                      return (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="destructive">Needs new screenshot</Badge>
+                            <span className="text-sm font-medium text-foreground">Status: Needs a new screenshot.</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            We couldn't verify the screenshot you sent. Please upload a clearer screenshot and send it for verification again.
+                          </p>
+                          {backgroundCheckRecord.review_notes && (
+                            <div className="mt-3 p-3 bg-destructive/10 rounded-md border border-destructive/20">
+                              <p className="text-xs font-medium text-destructive">Reviewer notes:</p>
+                              <p className="text-xs text-foreground mt-1">{backgroundCheckRecord.review_notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    default:
+                      return null;
+                  }
+                })()}
+              </div>
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
@@ -1151,6 +1178,121 @@ const RepProfile = () => {
                       )}
                     </div>
                   )}
+
+                  {/* Send for Verification Button */}
+                  <div className="mt-6 pt-4 border-t border-border">
+                    <Button
+                      type="button"
+                      disabled={submittingBackgroundCheck || uploadingScreenshot}
+                      onClick={async () => {
+                        // Validation
+                        const provider = watch("background_check_provider");
+                        const checkId = watch("background_check_id");
+                        const screenshot = watch("background_check_screenshot_url");
+                        const expirationDate = watch("background_check_expires_on");
+                        const providerOtherName = watch("background_check_provider_other_name");
+
+                        if (!provider) {
+                          toast({
+                            variant: "destructive",
+                            title: "Missing Provider",
+                            description: "Please select a background check provider.",
+                          });
+                          return;
+                        }
+
+                        if (provider === "aspen_grove" && !checkId) {
+                          toast({
+                            variant: "destructive",
+                            title: "Missing ID",
+                            description: "Please enter your AspenGrove / Shield ID (ABC#).",
+                          });
+                          return;
+                        }
+
+                        if (provider === "other" && !providerOtherName) {
+                          toast({
+                            variant: "destructive",
+                            title: "Missing Provider Name",
+                            description: "Please enter the background check provider name.",
+                          });
+                          return;
+                        }
+
+                        if (!screenshot) {
+                          toast({
+                            variant: "destructive",
+                            title: "Missing Screenshot",
+                            description: "Please upload a screenshot of your background check.",
+                          });
+                          return;
+                        }
+
+                        // Check if expiration date is in the past
+                        if (expirationDate) {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const exp = new Date(expirationDate);
+                          exp.setHours(0, 0, 0, 0);
+                          if (exp < today) {
+                            toast({
+                              variant: "destructive",
+                              title: "Expired Date",
+                              description: "The expiration date is in the past. Please update it before submitting.",
+                            });
+                            return;
+                          }
+                        }
+
+                        setSubmittingBackgroundCheck(true);
+                        try {
+                          const providerValue = provider === "aspen_grove" 
+                            ? "aspen_grove" 
+                            : (providerOtherName || "other");
+
+                          const bgResult = await submitBackgroundCheck(
+                            user!.id,
+                            providerValue,
+                            checkId || "",
+                            screenshot,
+                            expirationDate || null
+                          );
+
+                          if (!bgResult.success) {
+                            toast({
+                              variant: "destructive",
+                              title: "Error",
+                              description: bgResult.error || "Failed to submit background check.",
+                            });
+                            return;
+                          }
+
+                          // Reload the background check record
+                          const updatedRecord = await fetchMyBackgroundCheck(user!.id);
+                          setBackgroundCheckRecord(updatedRecord);
+
+                          toast({
+                            title: "Background check sent for verification.",
+                            description: "Status is now Under review. We'll verify your details before marking it as Approved and sharing it with your network.",
+                          });
+                        } catch (error: any) {
+                          console.error("Error submitting background check:", error);
+                          toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: "Failed to submit background check. Please try again.",
+                          });
+                        } finally {
+                          setSubmittingBackgroundCheck(false);
+                        }
+                      }}
+                    >
+                      {submittingBackgroundCheck ? "Submitting..." : "Send for Verification"}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      This submits your background check details to be reviewed by our team.
+                    </p>
+                  </div>
                 </div>
               )}
 
