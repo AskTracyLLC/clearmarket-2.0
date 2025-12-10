@@ -64,16 +64,33 @@ export async function computeRepProfileCompleteness(
     link: "/rep/profile",
   });
 
-  // 3. Background Check (or willing to obtain)
-  const hasBackgroundCheck =
-    repProfile?.background_check_is_active === true ||
-    repProfile?.willing_to_obtain_background_check === true;
+  // 3. Background Check - complete once submitted for verification
+  const { data: bgCheck } = await supabaseClient
+    .from("background_checks")
+    .select("status")
+    .eq("field_rep_id", userId)
+    .maybeSingle();
+
+  // Consider complete if any submission exists (pending, approved, rejected, or expired)
+  const hasSubmittedBackgroundCheck = bgCheck?.status != null;
+
+  // Determine status text for the checklist description
+  let bgCheckDescription = "Submit your background check for verification";
+  if (bgCheck?.status === "pending") {
+    bgCheckDescription = "Submitted – under review";
+  } else if (bgCheck?.status === "approved") {
+    bgCheckDescription = "Verified background check on file";
+  } else if (bgCheck?.status === "rejected") {
+    bgCheckDescription = "Submitted – needs a new screenshot";
+  } else if (bgCheck?.status === "expired") {
+    bgCheckDescription = "Submitted – background check expired";
+  }
 
   checklist.push({
     id: "background_check",
     label: "Add Background Check",
-    description: "Active background check or willing to obtain",
-    done: hasBackgroundCheck,
+    description: bgCheckDescription,
+    done: hasSubmittedBackgroundCheck,
     link: "/rep/profile",
   });
 
