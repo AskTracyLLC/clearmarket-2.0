@@ -244,13 +244,13 @@ export default function SafetyCenter() {
             <TabsList className="grid w-full grid-cols-2 bg-muted p-1">
               <TabsTrigger 
                 value="blocked" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
+                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
               >
                 Blocked Users
               </TabsTrigger>
               <TabsTrigger 
                 value="reports"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
+                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-foreground font-medium"
               >
                 Your Reports
               </TabsTrigger>

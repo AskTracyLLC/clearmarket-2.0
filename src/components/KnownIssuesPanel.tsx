@@ -32,8 +32,8 @@ export function KnownIssuesPanel() {
             <li key={issue.id} className="flex items-start gap-2">
               <span className="text-warning-icon mt-1">•</span>
               <div>
-                <span className="font-medium text-warning-text">{issue.title}:</span>{" "}
-                <span className="text-warning-text opacity-90">{issue.description}</span>
+                <span className="font-medium text-foreground">{issue.title}:</span>{" "}
+                <span className="text-foreground/90">{issue.description}</span>
               </div>
             </li>
           ))}
