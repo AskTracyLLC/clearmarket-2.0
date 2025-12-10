@@ -111,6 +111,35 @@ const CommunityBoard = () => {
     );
   }
 
+  const getTabDescription = (tab: string): { line1: string; line2: string } => {
+    switch (tab) {
+      case 'community':
+        return {
+          line1: 'This is the main discussion space.',
+          line2: 'Ask questions, share tips, and talk with other field reps and vendors.'
+        };
+      case 'network':
+        return {
+          line1: 'Use this area for time-sensitive network alerts.',
+          line2: 'Share coverage gaps, office closures, travel plans, or urgent help needed.'
+        };
+      case 'announcements':
+        return {
+          line1: 'Official updates from the ClearMarket team.',
+          line2: 'New features, FAQs, release notes, and important system news will show here.'
+        };
+      case 'saved':
+        return {
+          line1: "Posts you've saved to revisit later.",
+          line2: 'Only you can see the items in this list.'
+        };
+      default:
+        return { line1: '', line2: '' };
+    }
+  };
+
+  const tabDescription = getTabDescription(activeTab);
+
   return (
     <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8">
@@ -123,7 +152,7 @@ const CommunityBoard = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="mb-6 flex-wrap h-auto gap-2">
+          <TabsList className="mb-4 flex-wrap h-auto gap-2">
             <TabsTrigger value="community" className="gap-2">
               <Users className="w-4 h-4" />
               Community
@@ -145,6 +174,12 @@ const CommunityBoard = () => {
               {savedCount > 0 && <CountBadge count={savedCount} />}
             </TabsTrigger>
           </TabsList>
+
+          {/* Inline tab description */}
+          <div className="mb-6 px-1">
+            <p className="text-sm text-muted-foreground">{tabDescription.line1}</p>
+            <p className="text-sm text-muted-foreground">{tabDescription.line2}</p>
+          </div>
 
           <TabsContent value="community">
             <CommunityTab userId={user.id} channel="community" canCreate={true} />
