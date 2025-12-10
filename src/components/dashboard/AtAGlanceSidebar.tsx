@@ -35,8 +35,7 @@ export function AtAGlanceSidebar({
 }: AtAGlanceSidebarProps) {
   const navigate = useNavigate();
   const hasCoverage = coverageStats.statesCount > 0 || coverageStats.countiesCount > 0;
-  const profileRoute = isRep ? "/rep/profile" : "/vendor/profile";
-  const coverageRoute = `${profileRoute}?focus=coverage`;
+  const coverageRoute = "/work-setup";
 
   // Mobile: Single consolidated card view
   // Desktop: Multiple separate cards
