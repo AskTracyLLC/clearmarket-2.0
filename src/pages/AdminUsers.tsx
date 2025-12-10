@@ -709,7 +709,7 @@ export default function AdminUsers() {
                             <div className="flex items-center gap-2">
                               <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-cm-accent-primary rounded-full transition-all"
+                                  className="h-full bg-primary rounded-full transition-all"
                                   style={{ width: `${profileCompleteness[userProfile.id] ?? 0}%` }}
                                 />
                               </div>

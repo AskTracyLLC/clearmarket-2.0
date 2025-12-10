@@ -76,10 +76,17 @@ export default {
           border: "hsl(var(--error-border))",
           text: "hsl(var(--error-text))",
         },
-        // ClearMarket brand aliases
+        // ClearMarket DMC Palette brand colors
         cm: {
-          "accent-primary": "hsl(var(--cm-accent-primary))",
-          "accent-secondary": "hsl(var(--cm-accent-secondary))",
+          // Orange family
+          "orange-soft": "hsl(var(--cm-orange-soft))",
+          "orange-primary": "hsl(var(--cm-orange-primary))",
+          "orange-deep": "hsl(var(--cm-orange-deep))",
+          // Teal family
+          "teal-primary": "hsl(var(--cm-teal-primary))",
+          "teal-deep": "hsl(var(--cm-teal-deep))",
+          // Neutrals
+          "neutral-dark": "hsl(var(--cm-neutral-dark))",
           bg: "hsl(var(--cm-bg))",
           surface: "hsl(var(--cm-surface))",
           border: "hsl(var(--cm-border))",
