@@ -1531,6 +1531,7 @@ const RepProfile = () => {
           open={coverageDialogOpen}
           onOpenChange={setCoverageDialogOpen}
           editData={editingCoverage}
+          profileInspectionTypes={inspectionTypes}
           onSave={async (data) => {
             const basePayload = {
               user_id: user!.id,
