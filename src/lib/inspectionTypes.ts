@@ -252,6 +252,38 @@ export async function toggleInspectionTypeActive(id: string, isActive: boolean):
 }
 
 /**
+ * Delete an inspection type permanently (use for items created in error)
+ */
+export async function deleteInspectionType(id: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('inspection_type_options')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Delete an inspection category permanently (use for items created in error)
+ */
+export async function deleteInspectionCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('inspection_categories')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
  * Map legacy string-based inspection types to new option IDs
  * Returns both matching IDs and any unmatched legacy values
  */

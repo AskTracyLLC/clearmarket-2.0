@@ -17,7 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, ArrowLeft } from "lucide-react";
+import { Plus, Edit, ArrowLeft, Trash2, Power, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Link } from "react-router-dom";
 import {
   InspectionTypeOption,
@@ -27,9 +28,11 @@ import {
   createInspectionType,
   updateInspectionType,
   toggleInspectionTypeActive,
+  deleteInspectionType,
   createInspectionCategory,
   updateInspectionCategory,
   toggleInspectionCategoryActive,
+  deleteInspectionCategory,
 } from "@/lib/inspectionTypes";
 
 const APPLIES_TO_OPTIONS = [
@@ -59,6 +62,14 @@ const AdminInspectionTypes = () => {
   const [categorySaving, setCategorySaving] = useState(false);
   const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
   const [categoryToDeactivate, setCategoryToDeactivate] = useState<InspectionCategory | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<InspectionCategory | null>(null);
+  
+  // Type deactivate/delete state
+  const [typeDeactivateConfirmOpen, setTypeDeactivateConfirmOpen] = useState(false);
+  const [typeToDeactivate, setTypeToDeactivate] = useState<InspectionTypeOption | null>(null);
+  const [typeDeleteConfirmOpen, setTypeDeleteConfirmOpen] = useState(false);
+  const [typeToDelete, setTypeToDelete] = useState<InspectionTypeOption | null>(null);
 
   // Category form state
   const [catFormLabel, setCatFormLabel] = useState("");
@@ -187,14 +198,59 @@ const AdminInspectionTypes = () => {
   };
 
   const handleToggleActive = async (opt: InspectionTypeOption) => {
-    const result = await toggleInspectionTypeActive(opt.id, !opt.is_active);
+    if (opt.is_active) {
+      // Show confirmation before deactivating
+      setTypeToDeactivate(opt);
+      setTypeDeactivateConfirmOpen(true);
+    } else {
+      // Activate directly
+      const result = await toggleInspectionTypeActive(opt.id, true);
+      if (result.success) {
+        setOptions(prev =>
+          prev.map(o => (o.id === opt.id ? { ...o, is_active: true } : o))
+        );
+        toast({ title: "Activated", description: `"${opt.label}" is now active.` });
+      } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+      }
+    }
+  };
+
+  const confirmDeactivateType = async () => {
+    if (!typeToDeactivate) return;
+    
+    const result = await toggleInspectionTypeActive(typeToDeactivate.id, false);
     if (result.success) {
       setOptions(prev =>
-        prev.map(o => (o.id === opt.id ? { ...o, is_active: !opt.is_active } : o))
+        prev.map(o => (o.id === typeToDeactivate.id ? { ...o, is_active: false } : o))
       );
+      toast({ title: "Deactivated", description: `"${typeToDeactivate.label}" is now inactive. It can be reactivated later.` });
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
+    
+    setTypeDeactivateConfirmOpen(false);
+    setTypeToDeactivate(null);
+  };
+
+  const handleDeleteType = (opt: InspectionTypeOption) => {
+    setTypeToDelete(opt);
+    setTypeDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteType = async () => {
+    if (!typeToDelete) return;
+    
+    const result = await deleteInspectionType(typeToDelete.id);
+    if (result.success) {
+      setOptions(prev => prev.filter(o => o.id !== typeToDelete.id));
+      toast({ title: "Deleted", description: `"${typeToDelete.label}" has been permanently deleted.` });
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    
+    setTypeDeleteConfirmOpen(false);
+    setTypeToDelete(null);
   };
 
   // Category CRUD functions
@@ -296,13 +352,33 @@ const AdminInspectionTypes = () => {
       setCategories(prev =>
         prev.map(c => (c.id === categoryToDeactivate.id ? { ...c, is_active: false } : c))
       );
-      toast({ title: "Deactivated", description: `"${categoryToDeactivate.label}" is now inactive.` });
+      toast({ title: "Deactivated", description: `"${categoryToDeactivate.label}" is now inactive. It can be reactivated later.` });
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
     
     setDeactivateConfirmOpen(false);
     setCategoryToDeactivate(null);
+  };
+
+  const handleDeleteCategory = (cat: InspectionCategory) => {
+    setCategoryToDelete(cat);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+    
+    const result = await deleteInspectionCategory(categoryToDelete.id);
+    if (result.success) {
+      setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id));
+      toast({ title: "Deleted", description: `"${categoryToDelete.label}" has been permanently deleted.` });
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    
+    setDeleteConfirmOpen(false);
+    setCategoryToDelete(null);
   };
 
   // Apply filters
@@ -453,9 +529,31 @@ const AdminInspectionTypes = () => {
                           {opt.description || "—"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(opt)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditDialog(opt)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleToggleActive(opt)}>
+                                <Power className="h-4 w-4 mr-2" />
+                                {opt.is_active ? 'Deactivate' : 'Reactivate'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteType(opt)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -521,9 +619,31 @@ const AdminInspectionTypes = () => {
                         </TableCell>
                         <TableCell className="text-center">{cat.sort_order}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => openEditCategoryDialog(cat)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditCategoryDialog(cat)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleToggleCategoryActive(cat)}>
+                                <Power className="h-4 w-4 mr-2" />
+                                {cat.is_active ? 'Deactivate' : 'Reactivate'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteCategory(cat)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -694,20 +814,77 @@ const AdminInspectionTypes = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Deactivate Confirmation Dialog */}
+        {/* Deactivate Category Confirmation Dialog */}
         <AlertDialog open={deactivateConfirmOpen} onOpenChange={setDeactivateConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Deactivate Category?</AlertDialogTitle>
               <AlertDialogDescription>
                 Deactivating "{categoryToDeactivate?.label}" will hide it from new profile selections, 
-                but it will remain on any profiles that already use it.
+                but it will remain on any profiles that already use it. You can reactivate it later.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={confirmDeactivateCategory}>
                 Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Category Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Category Permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete "{categoryToDelete?.label}". This action cannot be undone.
+                Only use this if the category was created in error.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteCategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete Permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Deactivate Type Confirmation Dialog */}
+        <AlertDialog open={typeDeactivateConfirmOpen} onOpenChange={setTypeDeactivateConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Deactivate Inspection Type?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deactivating "{typeToDeactivate?.label}" will hide it from new profile selections, 
+                but it will remain on any profiles that already use it. You can reactivate it later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeactivateType}>
+                Deactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Delete Type Confirmation Dialog */}
+        <AlertDialog open={typeDeleteConfirmOpen} onOpenChange={setTypeDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Inspection Type Permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete "{typeToDelete?.label}". This action cannot be undone.
+                Only use this if the type was created in error.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteType} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete Permanently
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
