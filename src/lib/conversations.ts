@@ -121,6 +121,18 @@ export async function getOrCreateConversation(
  */
 export async function getUserDisplayName(userId: string): Promise<string> {
   try {
+    // First check if user is staff/admin with staff_anonymous_id
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, is_admin, is_moderator, is_support, staff_anonymous_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    // If staff member with staff_anonymous_id, use that
+    if (profile?.staff_anonymous_id && (profile.is_admin || profile.is_moderator || profile.is_support)) {
+      return profile.staff_anonymous_id;
+    }
+
     // Try to get rep profile anonymous ID
     const { data: repProfile } = await supabase
       .from("rep_profile")
@@ -144,12 +156,6 @@ export async function getUserDisplayName(userId: string): Promise<string> {
     }
 
     // Fallback to profile full name
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", userId)
-      .maybeSingle();
-
     if (profile?.full_name) {
       const names = profile.full_name.split(" ");
       if (names.length > 1) {
