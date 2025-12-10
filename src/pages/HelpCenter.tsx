@@ -18,17 +18,20 @@ const STATIC_FAQ = {
       {
         id: "what-is-clearmarket",
         question: "What is ClearMarket?",
-        answer: "ClearMarket is a networking platform that connects field reps and vendors in the property inspection industry. Reps can showcase their coverage and experience, vendors can post Seeking Coverage requests and find reliable reps."
+        answer:
+          "ClearMarket is a networking and coverage-matching platform for the property inspection industry.\n\nField Reps use ClearMarket to show where they work, what types of inspections they do, and which systems they're familiar with. Vendors use ClearMarket to see who is active in a specific area and reach out when they're looking for help with coverage.\n\nClearMarket does not dispatch work or employ inspectors. Any work agreements, pricing, and expectations are handled directly between Vendors and Field Reps."
       },
       {
         id: "get-started-rep",
         question: "How do I get started as a Field Rep?",
-        answer: "1. Create your account\n2. Complete your Field Rep Profile\n3. Add your Coverage Areas & pricing\n4. Join the Community Board and start participating"
+        answer:
+          "1. Create your account and select the Field Rep role.\n2. Complete your Field Rep Profile (basic info, experience, and systems used).\n3. Add your Coverage Areas (states/counties, and zip codes if you'd like).\n4. (Optional) Add your typical fee ranges so Vendors know what to expect.\n5. Join the Community Board and start participating.\n\nOnce your profile is set up, Vendors can find you when they search for coverage in your areas."
       },
       {
         id: "get-started-vendor",
         question: "How do I get started as a Vendor?",
-        answer: "1. Create your account\n2. Complete your Vendor Profile\n3. Fund your credits (if Stripe is connected)\n4. Post your first Seeking Coverage request"
+        answer:
+          "1. Create your account and select the Vendor role.\n2. Complete your Vendor Profile (company details, coverage, inspection types).\n3. Add the systems/platforms you use so reps know what to expect.\n4. Purchase credits if you plan to use credit-based features.\n5. Search for Field Reps in your coverage gaps or post Seeking Coverage (when available) and reach out directly.\n\nAll work agreements and pricing are handled directly between you and the Field Rep."
       }
     ]
   },
@@ -39,17 +42,20 @@ const STATIC_FAQ = {
       {
         id: "forgot-password",
         question: "I forgot my password — what do I do?",
-        answer: "Use the Forgot Password link on the sign-in page. You'll receive an email with a secure reset link. If you still can't sign in, contact Support from the Help Center."
+        answer:
+          "Use the \"Forgot password?\" link on the sign-in page. Enter the email you used to register and you'll receive a secure reset link.\n\nIf you don't see the email after a few minutes, check your spam/junk folder. If it still doesn't arrive, contact Support from the Help Center or email hello@useclearmarket.io."
       },
       {
         id: "deactivate-account",
         question: "How do I deactivate my account?",
-        answer: "You can request deactivation from inside the app. Admins may deactivate accounts that violate our guidelines. Deactivated accounts can't log in or appear in search."
+        answer:
+          "You can request deactivation from inside the app (Account or Profile settings) or by emailing hello@useclearmarket.io from the email address on your profile.\n\nDeactivated accounts can't log in or appear in search. Some activity (like past reviews) may still appear in a limited or anonymized way where needed to keep the system accurate."
       },
       {
         id: "restricted-pages",
         question: "Why can't I see certain pages?",
-        answer: "Some pages are role-specific. Vendor-only and Field Rep–only pages may be restricted unless you have the correct role. Admins can view both with an admin banner."
+        answer:
+          "Some pages are role-specific. Vendor-only and Field Rep–only pages may be restricted unless you have the correct role.\n\nCertain features may also require a completed profile, verification, or an active subscription/credit balance. If you believe you should have access to something you're not seeing, please contact Support."
       }
     ]
   },
@@ -60,17 +66,20 @@ const STATIC_FAQ = {
       {
         id: "what-are-credits",
         question: "What are credits used for?",
-        answer: "Credits power vendor actions in ClearMarket (for example, posting Seeking Coverage or unlocking contact details). Field reps do not pay credits to participate."
+        answer:
+          "Credits power certain actions inside ClearMarket.\n\nExamples include:\n• Unlocking more detailed contact information for Field Reps or Vendors\n• Posting or boosting Seeking Coverage requests (where available)\n• Accessing specific premium features that are marked as credit-based\n\nField Reps do not pay credits just to have a profile or participate in the community."
       },
       {
         id: "buy-credits",
         question: "How do I buy credits?",
-        answer: "Vendors can purchase credits from the Credits page. Purchases are handled by Stripe; ClearMarket never stores your full card details."
+        answer:
+          "Vendors can purchase credits from the Credits or Billing page inside the app.\n\n1. Go to Credits/Billing.\n2. Choose the amount of credits you want to purchase.\n3. Enter your payment details and confirm.\n\nPayments are processed securely through Stripe. ClearMarket does not store your full card number."
       },
       {
         id: "credit-activity",
         question: "Where can I see my recent credit activity?",
-        answer: "The Credits page shows a transaction history including date, action (e.g., Seeking Coverage post, unlock), amount, and any admin adjustments."
+        answer:
+          "Open the Credits or Billing section and look for your credit history or activity.\n\nYou'll see:\n• When credits were purchased\n• Which actions used credits (for example, an unlock or post)\n• Your remaining credit balance\n\nIf something doesn't look right, contact Support so we can review it with you."
       }
     ]
   },
@@ -81,21 +90,24 @@ const STATIC_FAQ = {
       {
         id: "report-user",
         question: "How do I report a user or content?",
-        answer: "Use the flag icon on profiles, messages, or Community Board posts to submit a report. Our moderation team reviews reports and may take further action."
+        answer:
+          "Use the flag or report option on profiles, messages, or Community Board posts (where available) to submit a report.\n\nYou can also email hello@useclearmarket.io with a link and a brief description of the issue. Our moderation team reviews reports and may warn, limit, or remove users or content that violates our guidelines or Terms of Service."
       },
       {
         id: "block-user",
         question: "How do I block another user?",
-        answer: "You can block users from message threads or profiles. Blocked users can't message you, connect with you, or see certain actions."
+        answer:
+          "If a block feature is available in your account, you can block users from message threads or profiles so they can't contact you.\n\nIf you don't see a block option yet but need to stop contact from someone, email hello@useclearmarket.io with their name or profile link and we'll review what actions can be taken."
       },
       {
         id: "contact-support",
         question: "How do I contact Support?",
-        answer: "Use the Contact Support button below to open a ticket, or email us at hello@useclearmarket.io."
+        answer:
+          "You can contact Support in two ways:\n\n• Click the Contact Support button in the Help Center or Support page.\n• Email us directly at hello@useclearmarket.io.\n\nPlease include as much detail as you can (what you were trying to do, any error messages, and screenshots if possible) so we can help you faster."
       }
     ]
   }
-};
+} as const;
 
 const CATEGORY_ORDER = ["getting_started", "accounts_access", "credits_billing", "safety_support"] as const;
 
@@ -110,7 +122,7 @@ export default function HelpCenter() {
     if (!searchTerm) return STATIC_FAQ;
     
     const search = searchTerm.toLowerCase();
-    const filtered: typeof STATIC_FAQ = {} as any;
+    const filtered: Record<string, { label: string; icon: typeof Rocket; items: readonly { id: string; question: string; answer: string }[] }> = {};
     
     for (const [key, category] of Object.entries(STATIC_FAQ)) {
       const matchingItems = category.items.filter(
@@ -119,7 +131,7 @@ export default function HelpCenter() {
           item.answer.toLowerCase().includes(search)
       );
       if (matchingItems.length > 0) {
-        filtered[key as keyof typeof STATIC_FAQ] = {
+        filtered[key] = {
           ...category,
           items: matchingItems
         };
