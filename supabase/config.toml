@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.send-vendor-network-alerts]
 verify_jwt = false
+
+[functions.admin-delete-user]
+verify_jwt = true
