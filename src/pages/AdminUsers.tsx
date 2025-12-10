@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -104,6 +104,11 @@ export default function AdminUsers() {
     open: false,
     user: null,
   });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: UserProfile | null }>({
+    open: false,
+    user: null,
+  });
+  const [deleteReason, setDeleteReason] = useState("");
 
   // Permission-based access control
   useEffect(() => {
@@ -381,6 +386,51 @@ export default function AdminUsers() {
       });
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteDialog.user || !user) return;
+
+    setActionLoading(deleteDialog.user.id);
+    const targetUser = deleteDialog.user;
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error("No session found");
+      }
+
+      const response = await supabase.functions.invoke("admin-delete-user", {
+        body: {
+          target_user_id: targetUser.id,
+          reason: deleteReason || null,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to delete user");
+      }
+
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
+      // Remove user from local state
+      setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
+
+      toast.success("User deleted", {
+        description: `${targetUser.email || getAnonymousId(targetUser)} has been permanently deleted.`,
+      });
+    } catch (error: any) {
+      console.error("Delete user error:", error);
+      toast.error("Failed to delete user", {
+        description: error.message,
+      });
+    } finally {
+      setActionLoading(null);
+      setDeleteDialog({ open: false, user: null });
+      setDeleteReason("");
     }
   };
 
@@ -801,6 +851,16 @@ export default function AdminUsers() {
                                     <UserCheck className="h-4 w-4" />
                                   </Button>
                                 )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteDialog({ open: true, user: userProfile })}
+                                  disabled={actionLoading === userProfile.id || userProfile.is_admin}
+                                  title={userProfile.is_admin ? "Cannot delete admin accounts" : "Delete user permanently"}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </>
                             )}
                           </div>
@@ -881,6 +941,60 @@ export default function AdminUsers() {
           adminUserId={user.id}
         />
       )}
+
+      {/* Delete User Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteDialog({ open: false, user: null });
+            setDeleteReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Delete User Permanently
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete {deleteDialog.user?.email || "this user"} and all their data. 
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md">
+              <p className="text-sm text-red-600 font-medium">Warning: This is a permanent action</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                All profile data, messages, reviews, and other associated records will be deleted.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="delete-reason">Reason (optional)</Label>
+              <Textarea
+                id="delete-reason"
+                placeholder="Enter a reason for deletion..."
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, user: null })}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={actionLoading === deleteDialog.user?.id}
+            >
+              {actionLoading === deleteDialog.user?.id ? "Deleting..." : "Delete User Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AuthenticatedLayout>
   );
 }
