@@ -4,6 +4,7 @@ import { NavLink } from "@/components/NavLink";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
+import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { Briefcase, Users, ShieldAlert, MessageSquare } from "lucide-react";
 import { signOut } from "@/lib/auth";
@@ -13,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 interface AuthenticatedNavProps {
   isAdmin?: boolean;
   isVendor?: boolean;
+  isRep?: boolean;
   vendorCredits?: number | null;
 }
 
@@ -89,6 +91,7 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <RoleSwitcher />
             <NavIconCluster 
               vendorCredits={vendorCredits} 
               showCredits={isVendor} 

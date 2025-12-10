@@ -1033,6 +1033,7 @@ export type Database = {
       profiles: {
         Row: {
           account_status: string
+          active_role: string | null
           community_score: number
           community_score_last_calculated: string | null
           created_at: string
@@ -1065,6 +1066,7 @@ export type Database = {
         }
         Insert: {
           account_status?: string
+          active_role?: string | null
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string
@@ -1097,6 +1099,7 @@ export type Database = {
         }
         Update: {
           account_status?: string
+          active_role?: string | null
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string

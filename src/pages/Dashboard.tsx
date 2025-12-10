@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveRole } from "@/hooks/useActiveRole";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { effectiveRole, isHybrid, isRep: hasRepRole, isVendor: hasVendorRole, loading: roleLoading } = useActiveRole();
   const { toast } = useToast();
   
   // Auto-update last_seen_at heartbeat
@@ -338,7 +340,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -346,18 +348,21 @@ const Dashboard = () => {
     );
   }
 
-  const isRep = profile?.is_fieldrep;
-  const isVendor = profile?.is_vendor_admin;
+  // Use effectiveRole for hybrid users to determine which dashboard view to show
   const isAdmin = profile?.is_admin === true;
-  const isAdminOnly = isAdmin && !isRep && !isVendor;
+  const isAdminOnly = isAdmin && !hasRepRole && !hasVendorRole;
+  
+  // For non-admin users, determine which role view to show based on effectiveRole
+  const showingAsRep = effectiveRole === "rep";
+  const showingAsVendor = effectiveRole === "vendor";
 
-  const profileCompletion = isRep 
+  const profileCompletion = showingAsRep 
     ? (repCompleteness?.percent ?? 0) 
     : (vendorCompleteness?.percent ?? 0);
 
-  const checklistData = isRep && repCompleteness 
+  const checklistData = showingAsRep && repCompleteness 
     ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount }
-    : isVendor && vendorCompleteness 
+    : showingAsVendor && vendorCompleteness 
     ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount }
     : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0 };
 
@@ -365,7 +370,8 @@ const Dashboard = () => {
     <div className="min-h-screen flex flex-col">
       <AuthenticatedNav 
         isAdmin={profile?.is_admin}
-        isVendor={isVendor}
+        isVendor={hasVendorRole}
+        isRep={hasRepRole}
         vendorCredits={vendorCredits}
       />
 
@@ -499,9 +505,10 @@ const Dashboard = () => {
                 Welcome back, {profile?.full_name?.split(' ')[0] || 'there'}
               </h1>
               <p className="text-muted-foreground text-sm">
-                {isRep ? "Field Rep" : "Vendor"} Dashboard
-                {isRep && repProfile?.anonymous_id && ` · ${repProfile.anonymous_id}`}
-                {isVendor && vendorProfile?.anonymous_id && ` · ${vendorProfile.anonymous_id}`}
+                {showingAsRep ? "Field Rep" : "Vendor"} Dashboard
+                {isHybrid && <span className="text-xs ml-1">(Hybrid Account)</span>}
+                {showingAsRep && repProfile?.anonymous_id && ` · ${repProfile.anonymous_id}`}
+                {showingAsVendor && vendorProfile?.anonymous_id && ` · ${vendorProfile.anonymous_id}`}
               </p>
             </div>
 
@@ -532,7 +539,7 @@ const Dashboard = () => {
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => navigate(isRep ? "/rep/my-vendors" : "/vendor/my-reps")}
+                        onClick={() => navigate(showingAsRep ? "/rep/my-vendors" : "/vendor/my-reps")}
                       >
                         Leave Review
                       </Button>
@@ -544,7 +551,7 @@ const Dashboard = () => {
 
             {/* Quick Actions - Always on top */}
             <div className="max-w-5xl mb-6">
-              <QuickActions isRep={isRep} isVendor={isVendor} />
+              <QuickActions isRep={showingAsRep} isVendor={showingAsVendor} />
             </div>
 
             {/* Main Content Grid */}
@@ -559,8 +566,8 @@ const Dashboard = () => {
                   </h2>
                   <TodayFeed 
                     userId={user?.id || ''} 
-                    isRep={isRep} 
-                    isVendor={isVendor} 
+                    isRep={showingAsRep} 
+                    isVendor={showingAsVendor} 
                   />
                 </div>
 
@@ -609,8 +616,8 @@ const Dashboard = () => {
               <div className="order-2 lg:order-2">
                 <h2 className="text-lg font-semibold text-foreground mb-3">At a Glance</h2>
                 <AtAGlanceSidebar
-                  isRep={isRep}
-                  isVendor={isVendor}
+                  isRep={showingAsRep}
+                  isVendor={showingAsVendor}
                   profileCompletion={profileCompletion}
                   unreadMessages={unreadMessageCount}
                   unreadNotifications={unreadNotificationCount}

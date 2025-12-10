@@ -79,6 +79,7 @@ export function AuthenticatedLayout({ children, className = "" }: AuthenticatedL
       <AuthenticatedNav 
         isAdmin={profile?.is_admin}
         isVendor={profile?.is_vendor_admin}
+        isRep={profile?.is_fieldrep}
         vendorCredits={vendorCredits}
       />
       <main className={`flex-1 ${className}`}>
