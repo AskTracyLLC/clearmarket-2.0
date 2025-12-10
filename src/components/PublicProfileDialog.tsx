@@ -640,10 +640,12 @@ export function PublicProfileDialog({
               )}
             </div>
             {user && targetUserId && user.id !== targetUserId && (
-              <ReportFlagButton
-                onClick={() => setShowReportDialog(true)}
-                alreadyReported={alreadyReported}
-              />
+              <div className="mr-8">
+                <ReportFlagButton
+                  onClick={() => setShowReportDialog(true)}
+                  alreadyReported={alreadyReported}
+                />
+              </div>
             )}
           </div>
         </DialogHeader>
