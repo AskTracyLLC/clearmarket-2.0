@@ -23,6 +23,7 @@ import { getSavedPostIds } from "@/lib/postSaves";
 import { formatCommunityScore } from "@/lib/communityScore";
 import { CommunityPostDialog } from "@/components/CommunityPostDialog";
 import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
+import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PostBookmarkButton } from "@/components/PostBookmarkButton";
@@ -31,6 +32,7 @@ import {
   MessageCircle,
   Award,
   HelpCircle,
+  Image as ImageIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -238,6 +240,14 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {post.body}
                       </p>
+
+                      {/* Image indicator for posts with images */}
+                      {post.image_urls && post.image_urls.length > 0 && (
+                        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                          <ImageIcon className="w-3 h-3" />
+                          <span>{post.image_urls.length} image{post.image_urls.length > 1 ? "s" : ""}</span>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-4 mt-3">
                         <div onClick={(e) => e.stopPropagation()}>
