@@ -12,7 +12,8 @@ import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSqua
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
-import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult } from "@/lib/profileCompleteness";
+import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult, ChecklistItem } from "@/lib/profileCompleteness";
+import { ExtrasChecklist } from "@/components/ExtrasChecklist";
 import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
@@ -404,10 +405,10 @@ const Dashboard = () => {
     : (vendorCompleteness?.percent ?? 0);
 
   const checklistData = showingAsRep && repCompleteness 
-    ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount }
+    ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount, extras: repCompleteness.extras }
     : showingAsVendor && vendorCompleteness 
-    ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount }
-    : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0 };
+    ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount, extras: vendorCompleteness.extras }
+    : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0, extras: [] as ChecklistItem[] };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -641,13 +642,16 @@ const Dashboard = () => {
                         </CardHeader>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <CardContent className="pt-0 px-4 pb-4">
+                        <CardContent className="pt-0 px-4 pb-4 space-y-4">
                           <OnboardingChecklist
                             title=""
                             items={checklistData.items}
                             completedCount={checklistData.completedCount}
                             totalCount={checklistData.totalCount}
                           />
+                          {checklistData.extras && checklistData.extras.length > 0 && (
+                            <ExtrasChecklist items={checklistData.extras} />
+                          )}
                         </CardContent>
                       </CollapsibleContent>
                     </Card>
