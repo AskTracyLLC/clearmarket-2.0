@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,6 +34,8 @@ import {
   isUserWatchingPost,
   watchPost,
   unwatchPost,
+  updateCommunityPostStatus,
+  deleteCommunityPost,
   CommunityPost,
   CommunityComment,
 } from "@/lib/community";
@@ -47,6 +60,9 @@ import {
   BellRing,
   Award,
   HelpCircle,
+  EyeOff,
+  Trash2,
+  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -73,12 +89,29 @@ const CommunityPostDetail = () => {
   const [profileTargetUserId, setProfileTargetUserId] = useState<string | null>(null);
   const [isWatching, setIsWatching] = useState(false);
   const [watchLoading, setWatchLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/signin");
     }
   }, [authLoading, user, navigate]);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single();
+      setIsAdmin(data?.is_admin || false);
+    };
+    checkAdminStatus();
+  }, [user]);
 
   useEffect(() => {
     if (user && postId) {
@@ -203,6 +236,35 @@ const CommunityPostDetail = () => {
   const handleViewProfile = (userId: string) => {
     setProfileTargetUserId(userId);
     setProfileDialogOpen(true);
+  };
+
+  // Admin actions
+  const handleHidePost = async () => {
+    if (!post) return;
+    setAdminActionLoading(true);
+    const newStatus = post.status === "locked" ? "active" : "locked";
+    const result = await updateCommunityPostStatus(post.id, newStatus);
+    if (result.success) {
+      toast({ title: newStatus === "locked" ? "Post hidden/locked" : "Post unhidden" });
+      loadPost();
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    setAdminActionLoading(false);
+  };
+
+  const handleDeletePost = async () => {
+    if (!post) return;
+    setAdminActionLoading(true);
+    const result = await deleteCommunityPost(post.id);
+    if (result.success) {
+      toast({ title: "Post deleted" });
+      navigate("/community");
+    } else {
+      toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    setAdminActionLoading(false);
+    setDeleteDialogOpen(false);
   };
 
   if (authLoading || loading || !user) {
@@ -351,6 +413,41 @@ const CommunityPostDetail = () => {
                 {!isAuthor && (
                   <ReportFlagButton onClick={handleReportPost} />
                 )}
+                
+                {/* Admin controls */}
+                {isAdmin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleHidePost}
+                      disabled={adminActionLoading}
+                      className="text-amber-600 border-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+                    >
+                      {isLocked ? (
+                        <>
+                          <Eye className="w-4 h-4 mr-1" />
+                          Unhide
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="w-4 h-4 mr-1" />
+                          Hide
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      disabled={adminActionLoading}
+                      className="text-destructive border-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
@@ -497,6 +594,28 @@ const CommunityPostDetail = () => {
           targetUserId={profileTargetUserId}
         />
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The post and all its comments will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={adminActionLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePost}
+              disabled={adminActionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {adminActionLoading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AuthenticatedLayout>
   );
 };
