@@ -203,6 +203,10 @@ export const SeekingCoverageDialog = ({
         ?.replace("Other:", "")
         .trim();
 
+      // For fixed rate: pay_max holds the value, pay_min is null
+      // For range: both pay_min and pay_max are set
+      const isFixedRate = editingPost.pay_type === "fixed" || (!editingPost.pay_min && editingPost.pay_max);
+      
       reset({
         title: editingPost.title,
         description: editingPost.description || "",
@@ -216,9 +220,12 @@ export const SeekingCoverageDialog = ({
         systems_required_array: editingPost.systems_required_array.filter((s: string) => !s.startsWith("Other:")),
         systems_required_other: systemsOther || "",
         is_accepting_responses: editingPost.is_accepting_responses,
-        pay_type: editingPost.pay_type || "fixed",
-        pay_min: editingPost.pay_min ? String(editingPost.pay_min) : "",
-        pay_max: editingPost.pay_max ? String(editingPost.pay_max) : "",
+        pay_type: isFixedRate ? "fixed" : "range",
+        // For fixed rate, the value is in pay_max; for range, use pay_min
+        pay_min: isFixedRate 
+          ? (editingPost.pay_max ? String(editingPost.pay_max) : "")
+          : (editingPost.pay_min ? String(editingPost.pay_min) : ""),
+        pay_max: isFixedRate ? "" : (editingPost.pay_max ? String(editingPost.pay_max) : ""),
         pay_notes: editingPost.pay_notes || "",
         requires_background_check: editingPost.requires_background_check || false,
         requires_aspen_grove: editingPost.requires_aspen_grove || false,
@@ -317,8 +324,12 @@ export const SeekingCoverageDialog = ({
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
       vendor_id: user.id,
       pay_type: data.pay_type,
-      pay_min: parseFloat(data.pay_min),
-      pay_max: data.pay_type === "range" && data.pay_max ? parseFloat(data.pay_max) : null,
+      // For fixed rate: store as pay_max only (treat as "up to X" for matching)
+      // For range: store both pay_min and pay_max
+      pay_min: data.pay_type === "range" ? parseFloat(data.pay_min) : null,
+      pay_max: data.pay_type === "range" 
+        ? (data.pay_max ? parseFloat(data.pay_max) : null)
+        : parseFloat(data.pay_min), // Fixed rate stored as pay_max
       pay_notes: data.pay_notes || null,
       requires_background_check: data.requires_background_check,
       requires_aspen_grove: data.requires_background_check ? data.requires_aspen_grove : false,
@@ -722,9 +733,9 @@ export const SeekingCoverageDialog = ({
           {/* Pricing Section */}
           <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
             <div>
-              <Label className="text-base font-semibold">What are you paying?</Label>
+              <Label className="text-base font-semibold">Offered Rate (recommended: range)</Label>
               <p className="text-sm text-muted-foreground mt-1">
-                Reps will only see this post if your offered rate meets their minimum for this county.
+                We recommend entering a minimum and maximum rate for this work. Field Reps will not see this range – they'll only see whether the pay matches their base rate in that county. This helps you attract more interest and still control final pricing.
               </p>
             </div>
 
