@@ -9,6 +9,13 @@
  */
 
 /**
+ * Near-miss threshold for Match Assistant.
+ * Shows opportunities where the vendor's max rate is below the rep's base rate by this percentage or less.
+ * 0.30 = 30%
+ */
+export const NEAR_MISS_THRESHOLD = 0.30;
+
+/**
  * Determines if a rep's base rate matches a post's offered rate range.
  * 
  * @param repRate - The rep's base rate for the county

@@ -653,6 +653,42 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          beta_note: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          is_paid: boolean
+          key: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          beta_note?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          is_paid?: boolean
+          key: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          beta_note?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          is_paid?: boolean
+          key?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       help_center_articles: {
         Row: {
           category: string
