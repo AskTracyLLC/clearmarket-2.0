@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users } from "lucide-react";
+import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, ArrowUpDown } from "lucide-react";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SeekingCoveragePost {
   id: string;
@@ -44,6 +51,8 @@ interface SeekingCoveragePost {
   } | null;
 }
 
+type SortMode = "newest" | "interest";
+
 const VendorSeekingCoverage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -60,6 +69,7 @@ const VendorSeekingCoverage = () => {
   const [editingPost, setEditingPost] = useState<SeekingCoveragePost | null>(null);
   const [viewingPost, setViewingPost] = useState<SeekingCoveragePost | null>(null);
   const [filterStatus, setFilterStatus] = useState<"all" | "open" | "closed" | "expired">("all");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
   
   // Interested reps count per post
   const [interestedCounts, setInterestedCounts] = useState<Record<string, number>>({});
@@ -215,26 +225,59 @@ const VendorSeekingCoverage = () => {
     }
   };
 
-  // Filter posts based on selected filter
+  // Compute summary stats for interest
+  const interestSummary = useMemo(() => {
+    const postsWithInterest = Object.keys(interestedCounts).filter(
+      (postId) => interestedCounts[postId] > 0
+    ).length;
+    const totalInterestedReps = Object.values(interestedCounts).reduce(
+      (sum, count) => sum + count,
+      0
+    );
+    return { postsWithInterest, totalInterestedReps };
+  }, [interestedCounts]);
+
+  // Filter and sort posts based on selected filter and sort mode
   useEffect(() => {
     const now = new Date();
+    let filtered: SeekingCoveragePost[];
     
     switch (filterStatus) {
       case "open":
-        setFilteredPosts(allPosts.filter((p) => p.status === "active"));
+        filtered = allPosts.filter((p) => p.status === "active");
         break;
       case "closed":
-        setFilteredPosts(allPosts.filter((p) => p.status === "closed"));
+        filtered = allPosts.filter((p) => p.status === "closed");
         break;
       case "expired":
-        setFilteredPosts(allPosts.filter((p) => p.status === "expired" || (p.auto_expires_at && new Date(p.auto_expires_at) < now)));
+        filtered = allPosts.filter((p) => p.status === "expired" || (p.auto_expires_at && new Date(p.auto_expires_at) < now));
         break;
       case "all":
       default:
-        setFilteredPosts(allPosts);
+        filtered = [...allPosts];
         break;
     }
-  }, [filterStatus, allPosts]);
+
+    // Apply sorting
+    if (sortMode === "interest") {
+      filtered.sort((a, b) => {
+        const countA = interestedCounts[a.id] || 0;
+        const countB = interestedCounts[b.id] || 0;
+        if (countB !== countA) {
+          return countB - countA; // Higher interest first
+        }
+        // Tiebreaker: newest first
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    } else {
+      // Default: newest first
+      filtered.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    }
+
+    setFilteredPosts(filtered);
+  }, [filterStatus, allPosts, sortMode, interestedCounts]);
 
   const handleCreateNew = () => {
     // Check vendor profile completion
@@ -540,8 +583,22 @@ Thank you again for your interest!`;
           )}
         </div>
 
-        {/* Filter Tabs */}
-        <div className="mb-6">
+        {/* Interest Summary Pills (only show when there is interest) */}
+        {interestSummary.postsWithInterest > 0 && (
+          <div className="mb-6 flex flex-wrap gap-3">
+            <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1.5 text-sm">
+              <Users className="h-4 w-4 mr-2" />
+              {interestSummary.postsWithInterest} post{interestSummary.postsWithInterest !== 1 ? 's' : ''} with interested reps
+            </Badge>
+            <Badge className="bg-secondary/50 text-secondary-foreground border-secondary/30 px-3 py-1.5 text-sm">
+              <Users className="h-4 w-4 mr-2" />
+              {interestSummary.totalInterestedReps} rep{interestSummary.totalInterestedReps !== 1 ? 's' : ''} have shown interest
+            </Badge>
+          </div>
+        )}
+
+        {/* Filter Tabs + Sort Control */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
@@ -550,7 +607,27 @@ Thank you again for your interest!`;
               <TabsTrigger value="expired">Expired</TabsTrigger>
             </TabsList>
           </Tabs>
+          
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="interest">Interest at top</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        {/* Sort helper text */}
+        {sortMode === "interest" && (
+          <p className="text-sm text-muted-foreground mb-4 -mt-2">
+            Posts with interested reps are shown first.
+          </p>
+        )}
 
         {/* Posts List */}
         {filteredPosts.length === 0 ? (
@@ -593,9 +670,16 @@ Thank you again for your interest!`;
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="text-xl font-semibold text-foreground">{post.title}</h3>
                         {getStatusBadge(post)}
+                        {/* Prominent Interest Badge */}
+                        {interestedCounts[post.id] > 0 && (
+                          <Badge className="bg-primary/20 text-primary border-primary/30 font-semibold">
+                            <Users className="h-3.5 w-3.5 mr-1.5" />
+                            {interestedCounts[post.id]} Interested Rep{interestedCounts[post.id] !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-1">{getLocationDisplay(post)}</p>
                       {isExpiringSoon(post) && (
@@ -652,16 +736,6 @@ Thank you again for your interest!`;
                     <p className="text-xs text-muted-foreground mb-4">
                       {isExpired ? 'Expired on' : 'Auto-expires on'} {format(new Date(post.auto_expires_at), "MMM d, yyyy")}
                     </p>
-                  )}
-
-                  {/* Interested Reps Badge */}
-                  {interestedCounts[post.id] > 0 && (
-                    <div className="pt-3 border-t border-border">
-                      <Badge variant="secondary" className="text-xs">
-                        <Users className="h-3 w-3 mr-1" />
-                        {interestedCounts[post.id]} Interested Rep{interestedCounts[post.id] !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
                   )}
 
                   {/* Action Buttons */}

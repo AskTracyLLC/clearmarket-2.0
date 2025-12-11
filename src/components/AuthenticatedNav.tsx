@@ -6,10 +6,16 @@ import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
 import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
-import { Briefcase, Users, ShieldAlert, MessageSquare } from "lucide-react";
+import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AuthenticatedNavProps {
   isAdmin?: boolean;
@@ -66,6 +72,31 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
                 <ShieldAlert className="w-4 h-4" />
                 Safety
               </NavLink>
+              {/* Vendor-only: Seeking Coverage link with interest badge */}
+              {isVendor && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <NavLink 
+                        to="/vendor/seeking-coverage" 
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
+                        activeClassName="text-primary"
+                      >
+                        <FileSearch className="w-4 h-4" />
+                        Seeking Coverage
+                        {sectionCounts.vendorPostsWithInterest > 0 && (
+                          <CountBadge count={sectionCounts.vendorPostsWithInterest} className="ml-1" />
+                        )}
+                      </NavLink>
+                    </TooltipTrigger>
+                    {sectionCounts.vendorPostsWithInterest > 0 && (
+                      <TooltipContent>
+                        <p>You have {sectionCounts.vendorPostsWithInterest} Seeking Coverage post{sectionCounts.vendorPostsWithInterest !== 1 ? 's' : ''} with interested reps.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {isAdmin && (
                 <>
                   <NavLink 
