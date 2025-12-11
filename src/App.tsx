@@ -69,6 +69,8 @@ import AdminHelpArticleEditor from "./pages/AdminHelpArticleEditor";
 import LegalPage from "./pages/LegalPage";
 import PublicHelpCenter from "./pages/PublicHelpCenter";
 import WorkSetup from "./pages/WorkSetup";
+import RepMatchAssistant from "./pages/RepMatchAssistant";
+import AdminFeatureFlags from "./pages/AdminFeatureFlags";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +110,7 @@ const App = () => (
               <Route path="/rep/my-vendors" element={<RepMyVendors />} />
               <Route path="/rep/availability" element={<RepAvailability />} />
               <Route path="/rep/calendar" element={<RepCalendar />} />
+              <Route path="/rep/match-assistant" element={<RepMatchAssistant />} />
               <Route path="/messages" element={<MessagesList />} />
               <Route path="/messages/:conversationId" element={<MessageThread />} />
               <Route path="/vendor/message-templates" element={<VendorMessageTemplates />} />
@@ -133,6 +136,7 @@ const App = () => (
               <Route path="/admin/legal/:pageType" element={<AdminSitePageEditor />} />
               <Route path="/admin/help-articles" element={<AdminHelpArticles />} />
               <Route path="/admin/help-articles/:articleId" element={<AdminHelpArticleEditor />} />
+              <Route path="/admin/features" element={<AdminFeatureFlags />} />
               <Route path="/support" element={<Support />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />

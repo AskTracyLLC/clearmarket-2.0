@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings } from "lucide-react";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -24,6 +24,7 @@ import { CountBadge } from "@/components/CountBadge";
 import { TodayFeed } from "@/components/dashboard/TodayFeed";
 import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -536,6 +537,15 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">Manage ToS, Privacy, Help</CardDescription>
                 </CardHeader>
               </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/features")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Settings className="w-5 h-5 text-primary" />
+                    Feature Flags
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage paid/beta features</CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           </>
         )}
@@ -597,6 +607,13 @@ const Dashboard = () => {
             <div className="max-w-5xl mb-6">
               <QuickActions isRep={showingAsRep} isVendor={showingAsVendor} />
             </div>
+
+            {/* Match Assistant Card - Rep only */}
+            {showingAsRep && (
+              <div className="max-w-5xl mb-6">
+                <MatchAssistantCard />
+              </div>
+            )}
 
             {/* Main Content Grid */}
             <div className="grid lg:grid-cols-3 gap-6 max-w-5xl">
