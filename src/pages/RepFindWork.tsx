@@ -374,24 +374,30 @@ export default function RepFindWork() {
 
           if (!matchingCoverage) return false;
 
-          // 2. Pricing validation: vendor pay must meet rep's base_price
+          // 2. Pricing validation
           // Skip posts with incomplete coverage pricing
           if (matchingCoverage.base_price === null || matchingCoverage.base_price === undefined) {
             return false;
           }
 
-          // Check if vendor pay meets or exceeds rep's base_price
-          // Use COALESCE logic: pay_max if available, otherwise pay_min
-          const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
-            ? post.pay_max 
-            : post.pay_min;
+          // Matching logic:
+          // - For range posts (pay_min and pay_max set): rep must be within range: pay_min <= base_price <= pay_max
+          // - For fixed posts (only pay_max set): rep's base_price must be <= pay_max
+          const vendorPayMin = post.pay_min ?? 0;
+          const vendorPayMax = post.pay_max;
           
-          if (vendorEffectiveRate === null || vendorEffectiveRate === undefined) {
+          if (vendorPayMax === null || vendorPayMax === undefined) {
             return false; // Exclude posts with no pricing set
           }
 
-          if (vendorEffectiveRate < matchingCoverage.base_price) {
-            return false; // Vendor pay doesn't meet rep's minimum
+          // Rep's base rate must be <= vendor's max rate
+          if (matchingCoverage.base_price > vendorPayMax) {
+            return false;
+          }
+          
+          // For range posts, rep's base rate must also be >= vendor's min rate
+          if (post.pay_type === 'range' && matchingCoverage.base_price < vendorPayMin) {
+            return false;
           }
 
           // 3. Inspection type match (at least one must match)
@@ -929,8 +935,8 @@ export default function RepFindWork() {
                         </div>
                       )}
 
-                      {/* Pricing */}
-                      {post.pay_min && (() => {
+                      {/* Pricing - Rep view: hide vendor rate, show "matches your rate" */}
+                      {(() => {
                         // Find the matching coverage to get base_price
                         const matchingCoverage = coverageAreas.find((coverage) => {
                           if (coverage.state_code !== post.state_code) return false;
@@ -940,26 +946,15 @@ export default function RepFindWork() {
                           return false;
                         });
 
-                        const vendorEffectiveRate = post.pay_max !== null && post.pay_max !== undefined 
-                          ? post.pay_max 
-                          : post.pay_min;
-
                         return (
-                          <div className="p-2 bg-primary/5 rounded border border-primary/20">
-                            <p className="text-xs text-muted-foreground mb-0.5">Offered Rate:</p>
-                            <p className="text-sm font-semibold text-primary">
-                              {post.pay_type === "fixed" 
-                                ? `$${post.pay_min.toFixed(2)} / order`
-                                : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
-                              }
+                          <div className="p-2 bg-emerald-500/10 rounded border border-emerald-500/30">
+                            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                              ✓ Pay matches your rate for this county
                             </p>
                             {matchingCoverage?.base_price && (
-                              <p className="text-xs text-green-600 mt-1">
-                                ✓ Meets your minimum for this county (${matchingCoverage.base_price.toFixed(2)})
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Your base rate here: ${matchingCoverage.base_price.toFixed(2)} / order
                               </p>
-                            )}
-                            {post.pay_notes && (
-                              <p className="text-xs text-muted-foreground mt-1 italic line-clamp-2">{post.pay_notes}</p>
                             )}
                           </div>
                         );

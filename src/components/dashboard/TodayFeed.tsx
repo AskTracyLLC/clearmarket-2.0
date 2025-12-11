@@ -234,16 +234,12 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         });
 
         for (const opp of matchedOpportunities.slice(0, 5)) {
-          const payText = opp.pay_max 
-            ? `$${opp.pay_min}–$${opp.pay_max}` 
-            : opp.pay_min 
-              ? `$${opp.pay_min}` 
-              : '';
+          // Don't show vendor rate to reps - just show location and that it matches
           items.push({
             id: `opp-${opp.id}`,
             type: 'opportunity',
             title: opp.title,
-            description: `${opp.state_code || 'Location TBD'}${payText ? ` · ${payText}` : ''}`,
+            description: `${opp.state_code || 'Location TBD'} · Matches your rate`,
             timestamp: opp.created_at,
             isUnread: false,
             link: `/rep/seeking-coverage/${opp.id}`,

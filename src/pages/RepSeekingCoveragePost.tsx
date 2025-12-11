@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Calendar, Building2, DollarSign, Clock, Shield, CheckCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Building2, Clock, Shield, CheckCircle } from "lucide-react";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
@@ -177,11 +177,22 @@ export default function RepSeekingCoveragePost() {
     );
   }
 
-  const payText = post.pay_max
-    ? `$${post.pay_min}–$${post.pay_max}`
-    : post.pay_min
-      ? `$${post.pay_min}`
-      : "Not specified";
+  // Find rep's base rate for this post's location
+  const getRepBaseRateForPost = () => {
+    if (!post || !coverageAreas || coverageAreas.length === 0) return null;
+    
+    const matchingCoverage = coverageAreas.find((coverage) => {
+      if (coverage.state_code !== post.state_code) return false;
+      if (coverage.covers_entire_state) return true;
+      if (!post.county_id) return true;
+      if (coverage.county_id === post.county_id) return true;
+      return false;
+    });
+    
+    return matchingCoverage?.base_price ?? null;
+  };
+  
+  const repBaseRate = getRepBaseRateForPost();
 
   const locationText = post.us_counties
     ? `${post.us_counties.county_name}, ${post.state_code}`
@@ -240,19 +251,22 @@ export default function RepSeekingCoveragePost() {
               </div>
             </div>
 
-            {/* Pay */}
-            <div className="bg-muted/50 rounded-lg p-4">
+            {/* Pay - Rep view: show only "meets your rate" messaging, hide vendor's range */}
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-lg">{payText}</span>
-                {post.pay_type && (
-                  <Badge variant="outline" className="text-xs">
-                    {post.pay_type === "range" ? "Range" : "Fixed"}
-                  </Badge>
-                )}
+                <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">
+                  Pay matches your base rate for this county
+                </span>
               </div>
-              {post.pay_notes && (
-                <p className="text-sm text-muted-foreground">{post.pay_notes}</p>
+              {repBaseRate !== null ? (
+                <p className="text-sm text-muted-foreground">
+                  Your base rate here: ${repBaseRate.toFixed(2)} / order
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  This opportunity meets your pricing for this county.
+                </p>
               )}
             </div>
 

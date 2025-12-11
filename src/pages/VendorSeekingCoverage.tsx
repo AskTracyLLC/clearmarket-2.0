@@ -716,13 +716,13 @@ Thank you again for your interest!`;
                   </div>
 
                   {/* Pricing */}
-                  {post.pay_min && (
+                  {(post.pay_min || post.pay_max) && (
                     <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
                       <p className="text-xs text-muted-foreground mb-1">Offered Rate:</p>
                       <p className="text-lg font-semibold text-primary">
                         {post.pay_type === "fixed" 
-                          ? `$${post.pay_min.toFixed(2)} / order`
-                          : `$${post.pay_min.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
+                          ? `$${(post.pay_max || post.pay_min)?.toFixed(2)} / order`
+                          : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
                         }
                       </p>
                       {post.pay_notes && (
