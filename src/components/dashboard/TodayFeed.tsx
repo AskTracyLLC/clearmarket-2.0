@@ -16,6 +16,7 @@ import {
   Megaphone
 } from "lucide-react";
 import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay } from "date-fns";
+import { doesPostMatchRepRate } from "@/lib/rateMatching";
 
 interface FeedItem {
   id: string;
@@ -150,10 +151,10 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
       // 3. Get new opportunities for reps (recent seeking coverage posts matching coverage)
       if (isRep) {
-        // First, get the rep's coverage areas with inspection types
+        // First, get the rep's coverage areas with inspection types AND base_price for rate matching
         const { data: repCoverage } = await supabase
           .from("rep_coverage_areas")
-          .select("state_code, county_id, covers_entire_state, inspection_types")
+          .select("state_code, county_id, covers_entire_state, inspection_types, base_price")
           .eq("user_id", userId);
 
         // Also get rep's profile-level inspection types as fallback
@@ -178,7 +179,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           .order("created_at", { ascending: false })
           .limit(30); // Fetch more, we'll filter client-side
 
-        // Filter opportunities by coverage match AND inspection type match
+        // Filter opportunities by coverage match, inspection type match, AND rate match
         const matchedOpportunities = (opportunities || []).filter(opp => {
           if (!repCoverage || repCoverage.length === 0) return false;
           
@@ -206,6 +207,16 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
           // If no area matches, skip this opportunity
           if (matchingCoverageAreas.length === 0) return false;
+
+          // RATE MATCHING: Check if at least one matching coverage area has a rate that works
+          const hasRateMatch = matchingCoverageAreas.some(coverage => {
+            const repBaseRate = coverage.base_price;
+            // Use the shared rate matching function
+            return doesPostMatchRepRate(repBaseRate, opp.pay_min, opp.pay_max);
+          });
+
+          // If no rate match, skip this opportunity
+          if (!hasRateMatch) return false;
 
           // Check inspection type matching
           const vendorRequestedTypes = opp.inspection_type_ids || [];

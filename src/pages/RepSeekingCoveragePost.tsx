@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, Calendar, Building2, Clock, Shield, CheckCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Building2, Clock, Shield, CheckCircle, AlertTriangle } from "lucide-react";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { format, parseISO } from "date-fns";
+import { getRateMatchStatus } from "@/lib/rateMatching";
 
 interface PostData {
   id: string;
@@ -193,6 +194,9 @@ export default function RepSeekingCoveragePost() {
   };
   
   const repBaseRate = getRepBaseRateForPost();
+  
+  // Check if the post's rate matches the rep's base rate
+  const rateMatchStatus = getRateMatchStatus(repBaseRate, post.pay_min, post.pay_max);
 
   const locationText = post.us_counties
     ? `${post.us_counties.county_name}, ${post.state_code}`
@@ -251,24 +255,32 @@ export default function RepSeekingCoveragePost() {
               </div>
             </div>
 
-            {/* Pay - Rep view: show only "meets your rate" messaging, hide vendor's range */}
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">
-                  Pay matches your base rate for this county
-                </span>
+            {/* Pay - Rep view: show rate match status based on actual matching logic */}
+            {rateMatchStatus.matches ? (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="font-semibold text-lg text-emerald-700 dark:text-emerald-300">
+                    {rateMatchStatus.message}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {rateMatchStatus.subMessage}
+                </p>
               </div>
-              {repBaseRate !== null ? (
+            ) : (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <span className="font-semibold text-lg text-amber-700 dark:text-amber-300">
+                    {rateMatchStatus.message}
+                  </span>
+                </div>
                 <p className="text-sm text-muted-foreground">
-                  Your base rate here: ${repBaseRate.toFixed(2)} / order
+                  {rateMatchStatus.subMessage}
                 </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  This opportunity meets your pricing for this county.
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Description */}
             {post.description && (
