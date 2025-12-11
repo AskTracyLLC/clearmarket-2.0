@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
+import { useActiveRole } from "@/hooks/useActiveRole";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SectionCounts {
@@ -11,11 +12,15 @@ interface SectionCounts {
   adminOpenReports: number;
   communityUnread: number;
   networkUnread: number;
+  // Vendor-specific: posts with interested reps
+  vendorPostsWithInterest: number;
+  vendorTotalInterestedReps: number;
 }
 
 export function useSectionCounts(): SectionCounts {
   const { user, loading: authLoading } = useAuth();
   const { loading: permsLoading, permissions } = useStaffPermissions();
+  const { effectiveRole, loading: roleLoading } = useActiveRole();
   const [loading, setLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [openSupportTickets, setOpenSupportTickets] = useState(0);
@@ -23,16 +28,18 @@ export function useSectionCounts(): SectionCounts {
   const [adminOpenReports, setAdminOpenReports] = useState(0);
   const [communityUnread, setCommunityUnread] = useState(0);
   const [networkUnread, setNetworkUnread] = useState(0);
+  const [vendorPostsWithInterest, setVendorPostsWithInterest] = useState(0);
+  const [vendorTotalInterestedReps, setVendorTotalInterestedReps] = useState(0);
 
   useEffect(() => {
-    if (authLoading || permsLoading) return;
+    if (authLoading || permsLoading || roleLoading) return;
     if (!user) {
       setLoading(false);
       return;
     }
 
     loadCounts();
-  }, [user, authLoading, permsLoading, permissions]);
+  }, [user, authLoading, permsLoading, roleLoading, permissions, effectiveRole]);
 
   async function loadCounts() {
     if (!user) return;
@@ -102,6 +109,44 @@ export function useSectionCounts(): SectionCounts {
         .in("type", ["vendor_network_alert", "vendor_alert", "new_coverage_opportunity"]);
 
       setNetworkUnread(networkCount || 0);
+
+      // Vendor-specific: posts with interested reps (only if acting as vendor)
+      if (effectiveRole === "vendor") {
+        // Get all active seeking coverage posts for this vendor
+        const { data: posts } = await supabase
+          .from("seeking_coverage_posts")
+          .select("id")
+          .eq("vendor_id", user.id)
+          .is("deleted_at", null);
+
+        if (posts && posts.length > 0) {
+          const postIds = posts.map((p) => p.id);
+          
+          // Get all interested reps (not declined) for these posts
+          const { data: interestData } = await supabase
+            .from("rep_interest")
+            .select("post_id")
+            .in("post_id", postIds)
+            .neq("status", "declined");
+
+          if (interestData && interestData.length > 0) {
+            // Count unique posts with interest
+            const postsWithInterestSet = new Set(interestData.map((i) => i.post_id));
+            setVendorPostsWithInterest(postsWithInterestSet.size);
+            // Total interested reps
+            setVendorTotalInterestedReps(interestData.length);
+          } else {
+            setVendorPostsWithInterest(0);
+            setVendorTotalInterestedReps(0);
+          }
+        } else {
+          setVendorPostsWithInterest(0);
+          setVendorTotalInterestedReps(0);
+        }
+      } else {
+        setVendorPostsWithInterest(0);
+        setVendorTotalInterestedReps(0);
+      }
     } catch (error) {
       console.error("Error loading section counts:", error);
     } finally {
@@ -117,5 +162,7 @@ export function useSectionCounts(): SectionCounts {
     adminOpenReports,
     communityUnread,
     networkUnread,
+    vendorPostsWithInterest,
+    vendorTotalInterestedReps,
   };
 }
