@@ -24,6 +24,7 @@ import MessageThread from "./pages/MessageThread";
 import VendorMessageTemplates from "./pages/VendorMessageTemplates";
 import RepMessageTemplates from "./pages/RepMessageTemplates";
 import RepFindVendors from "./pages/RepFindVendors";
+import RepSeekingCoveragePost from "./pages/RepSeekingCoveragePost";
 import VendorAvailability from "./pages/VendorAvailability";
 import VendorReviews from "./pages/VendorReviews";
 import RepReviews from "./pages/RepReviews";
@@ -96,6 +97,7 @@ const App = () => (
               <Route path="/work-setup" element={<WorkSetup />} />
               <Route path="/rep/profile" element={<RepProfile />} />
               <Route path="/rep/find-work" element={<RepFindWork />} />
+              <Route path="/rep/seeking-coverage/:postId" element={<RepSeekingCoveragePost />} />
               <Route path="/rep/find-vendors" element={<RepFindVendors />} />
               <Route path="/vendor/profile" element={<VendorProfile />} />
               <Route path="/vendor/find-reps" element={<VendorFindReps />} />
