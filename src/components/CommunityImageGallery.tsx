@@ -29,15 +29,15 @@ export function CommunityImageGallery({ images }: CommunityImageGalleryProps) {
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  // Single image: full width
+  // Single image: full width with contain
   if (images.length === 1) {
     return (
       <>
-        <div className="mt-3">
+        <div className="mt-3 flex justify-center rounded-lg overflow-hidden bg-muted/30 border border-border">
           <img
             src={images[0]}
             alt="Post attachment"
-            className="w-full max-h-96 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            className="max-w-full max-h-[450px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
             onClick={() => openLightbox(0)}
           />
         </div>
@@ -53,31 +53,19 @@ export function CommunityImageGallery({ images }: CommunityImageGalleryProps) {
     );
   }
 
-  // 2-4 images: grid layout
+  // 2-4 images: grid layout with contain
   return (
     <>
-      <div
-        className={`mt-3 grid gap-2 ${
-          images.length === 2
-            ? "grid-cols-2"
-            : images.length === 3
-            ? "grid-cols-2"
-            : "grid-cols-2"
-        }`}
-      >
+      <div className="mt-3 grid grid-cols-2 gap-2">
         {images.slice(0, 4).map((url, index) => (
           <div
             key={index}
-            className={`relative ${
-              images.length === 3 && index === 0 ? "row-span-2" : ""
-            }`}
+            className="relative flex justify-center items-center rounded-lg overflow-hidden bg-muted/30 border border-border h-[200px]"
           >
             <img
               src={url}
               alt={`Post attachment ${index + 1}`}
-              className={`w-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity ${
-                images.length === 3 && index === 0 ? "h-full" : "h-40"
-              }`}
+              className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => openLightbox(index)}
             />
             {/* Show "+N more" on last visible image if there are more */}
