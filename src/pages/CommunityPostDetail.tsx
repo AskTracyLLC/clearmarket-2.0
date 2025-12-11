@@ -32,6 +32,7 @@ import { CommunityVoteButtons } from "@/components/CommunityVoteButtons";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import {
   MessageSquare,
@@ -323,6 +324,11 @@ const CommunityPostDetail = () => {
             <div className="prose prose-invert max-w-none mb-4">
               <p className="whitespace-pre-wrap text-foreground">{post.body}</p>
             </div>
+
+            {/* Post images */}
+            {post.image_urls && post.image_urls.length > 0 && (
+              <CommunityImageGallery images={post.image_urls} />
+            )}
 
             <div className="flex items-center justify-between border-t border-border pt-4">
               <CommunityVoteButtons

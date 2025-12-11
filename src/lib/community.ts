@@ -18,6 +18,7 @@ export interface CommunityPost {
   helpful_count: number;
   not_helpful_count: number;
   comments_count: number;
+  image_urls: string[];
 }
 
 export interface CommunityComment {
@@ -151,7 +152,8 @@ export async function createCommunityPost(
   category: string,
   title: string,
   body: string,
-  channel: CommunityChannel = "community"
+  channel: CommunityChannel = "community",
+  imageUrls: string[] = []
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   try {
     const { anonymousId, role } = await getAuthorInfo(authorId);
@@ -166,6 +168,7 @@ export async function createCommunityPost(
         category,
         title,
         body,
+        image_urls: imageUrls,
       })
       .select("id")
       .single();
@@ -184,7 +187,7 @@ export async function createCommunityPost(
 
 export async function updateCommunityPost(
   postId: string,
-  updates: { category?: string; title?: string; body?: string }
+  updates: { category?: string; title?: string; body?: string; image_urls?: string[] }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
@@ -270,6 +273,7 @@ export async function fetchCommunityPosts(options?: {
       ...p,
       channel: (p.channel || "community") as CommunityChannel,
       author_community_score: scoreMap[p.author_id] ?? null,
+      image_urls: p.image_urls || [],
     }));
 
     // Client-side sort for author_score
@@ -313,6 +317,7 @@ export async function fetchCommunityPost(postId: string): Promise<CommunityPost 
       ...data,
       channel: (data.channel || "community") as CommunityChannel,
       author_community_score: profile?.community_score ?? null,
+      image_urls: data.image_urls || [],
     };
   } catch (error) {
     console.error("Error fetching post:", error);
