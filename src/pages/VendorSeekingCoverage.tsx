@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, ArrowUpDown } from "lucide-react";
+import { VendorPostPricingAlert } from "@/components/VendorPostPricingAlert";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -679,6 +680,16 @@ Thank you again for your interest!`;
                             <Users className="h-3.5 w-3.5 mr-1.5" />
                             {interestedCounts[post.id]} Interested Rep{interestedCounts[post.id] !== 1 ? 's' : ''}
                           </Badge>
+                        )}
+                        {/* Pricing Alert Badge */}
+                        {isActive && (
+                          <VendorPostPricingAlert
+                            stateCode={post.state_code}
+                            countyId={post.county_id}
+                            coversEntireState={post.covers_entire_state}
+                            payMin={post.pay_min}
+                            payMax={post.pay_max}
+                          />
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-1">{getLocationDisplay(post)}</p>

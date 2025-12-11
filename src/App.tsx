@@ -70,6 +70,7 @@ import LegalPage from "./pages/LegalPage";
 import PublicHelpCenter from "./pages/PublicHelpCenter";
 import WorkSetup from "./pages/WorkSetup";
 import RepMatchAssistant from "./pages/RepMatchAssistant";
+import VendorMatchAssistant from "./pages/VendorMatchAssistant";
 import AdminFeatureFlags from "./pages/AdminFeatureFlags";
 
 const queryClient = new QueryClient();
@@ -111,6 +112,7 @@ const App = () => (
               <Route path="/rep/availability" element={<RepAvailability />} />
               <Route path="/rep/calendar" element={<RepCalendar />} />
               <Route path="/rep/match-assistant" element={<RepMatchAssistant />} />
+              <Route path="/vendor/match-assistant" element={<VendorMatchAssistant />} />
               <Route path="/messages" element={<MessagesList />} />
               <Route path="/messages/:conversationId" element={<MessageThread />} />
               <Route path="/vendor/message-templates" element={<VendorMessageTemplates />} />

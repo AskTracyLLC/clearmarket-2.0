@@ -25,6 +25,7 @@ import { TodayFeed } from "@/components/dashboard/TodayFeed";
 import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
+import { VendorMatchAssistantCard } from "@/components/dashboard/VendorMatchAssistantCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -612,6 +613,13 @@ const Dashboard = () => {
             {showingAsRep && (
               <div className="max-w-5xl mb-6">
                 <MatchAssistantCard />
+              </div>
+            )}
+
+            {/* Vendor Match Assistant Card - Vendor only */}
+            {showingAsVendor && (
+              <div className="max-w-5xl mb-6">
+                <VendorMatchAssistantCard />
               </div>
             )}
 
