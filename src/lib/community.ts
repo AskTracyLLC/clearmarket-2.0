@@ -798,3 +798,25 @@ export async function updateCommunityPostStatus(
     return { success: false, error: "An unexpected error occurred" };
   }
 }
+
+// Delete community post (admin only)
+export async function deleteCommunityPost(
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from("community_posts")
+      .delete()
+      .eq("id", postId);
+
+    if (error) {
+      console.error("Error deleting post:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting post:", error);
+    return { success: false, error: "An unexpected error occurred" };
+  }
+}
