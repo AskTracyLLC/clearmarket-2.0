@@ -19,6 +19,7 @@ import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
 import { getRepMatchSettings } from "@/lib/matchAlerts";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -150,7 +151,6 @@ export default function RepFindWork() {
 
   // Rep interest tracking
   const [repInterest, setRepInterest] = useState<Set<string>>(new Set());
-  const [expressedInterestLoading, setExpressedInterestLoading] = useState<string | null>(null);
 
   // Detail dialog
   const [viewingPost, setViewingPost] = useState<MatchedPost | null>(null);
@@ -158,6 +158,9 @@ export default function RepFindWork() {
   // Match settings
   const [matchSettingsOpen, setMatchSettingsOpen] = useState(false);
   const [hasMatchSettings, setHasMatchSettings] = useState(false);
+
+  // Express interest dialog
+  const [interestDialogPost, setInterestDialogPost] = useState<MatchedPost | null>(null);
 
   // Check auth and rep role
   useEffect(() => {
@@ -511,41 +514,18 @@ export default function RepFindWork() {
     );
   };
 
-  const handleInterestedClick = async (postId: string) => {
-    if (!repProfile?.id) {
-      toast.error("Rep profile not found");
+  const handleInterestedClick = (post: MatchedPost) => {
+    // If already expressed interest, redirect to messages instead
+    if (repInterest.has(post.id)) {
+      navigate("/messages");
       return;
     }
+    // Open the express interest dialog
+    setInterestDialogPost(post);
+  };
 
-    setExpressedInterestLoading(postId);
-
-    try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .insert({
-          post_id: postId,
-          rep_id: repProfile.id,
-          status: "interested",
-        });
-
-      if (error) {
-        if (error.code === "23505") {
-          // Unique constraint violation - already expressed interest
-          toast.info("You've already expressed interest in this post");
-        } else {
-          throw error;
-        }
-      } else {
-        toast.success("Your interest has been sent to the vendor.");
-        // Add to local state
-        setRepInterest((prev) => new Set([...prev, postId]));
-      }
-    } catch (error: any) {
-      console.error("Error expressing interest:", error);
-      toast.error("Failed to express interest. Please try again.");
-    } finally {
-      setExpressedInterestLoading(null);
-    }
+  const handleInterestExpressed = (postId: string) => {
+    setRepInterest((prev) => new Set([...prev, postId]));
   };
 
   const formatDate = (dateString: string) => {
@@ -1027,10 +1007,9 @@ export default function RepFindWork() {
                           <Button
                             size="sm"
                             className="flex-1"
-                            onClick={() => handleInterestedClick(post.id)}
-                            disabled={expressedInterestLoading === post.id}
+                            onClick={() => handleInterestedClick(post)}
                           >
-                            {expressedInterestLoading === post.id ? "Sending..." : "I'm Interested"}
+                            I'm Interested
                           </Button>
                         )}
                       </div>
@@ -1125,10 +1104,9 @@ export default function RepFindWork() {
               ) : (
                 <Button 
                   className="w-full" 
-                  onClick={() => handleInterestedClick(viewingPost.id)}
-                  disabled={expressedInterestLoading === viewingPost.id}
+                  onClick={() => handleInterestedClick(viewingPost)}
                 >
-                  {expressedInterestLoading === viewingPost.id ? "Sending..." : "I'm Interested"}
+                  I'm Interested
                 </Button>
               )}
             </div>
@@ -1142,6 +1120,36 @@ export default function RepFindWork() {
         onOpenChange={setMatchSettingsOpen}
         userId={user?.id || ""}
       />
+
+      {/* Express Interest Dialog */}
+      {interestDialogPost && repProfile && (
+        <ExpressInterestDialog
+          open={!!interestDialogPost}
+          onOpenChange={(open) => {
+            if (!open) setInterestDialogPost(null);
+          }}
+          post={{
+            id: interestDialogPost.id,
+            title: interestDialogPost.title,
+            state_code: interestDialogPost.state_code,
+            county: interestDialogPost.county,
+            vendor_id: interestDialogPost.vendor_id,
+          }}
+          repProfile={{
+            id: repProfile.id,
+            user_id: user?.id || "",
+            city: repProfile.city,
+            state: repProfile.state,
+            zip_code: repProfile.zip_code,
+            systems_used: repProfile.systems_used,
+            inspection_types: repProfile.inspection_types,
+            is_accepting_new_vendors: repProfile.is_accepting_new_vendors,
+            willing_to_travel_out_of_state: repProfile.willing_to_travel_out_of_state,
+          }}
+          coverageAreas={coverageAreas}
+          onInterestExpressed={handleInterestExpressed}
+        />
+      )}
     </AuthenticatedLayout>
   );
 }
