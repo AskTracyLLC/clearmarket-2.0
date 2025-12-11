@@ -570,6 +570,10 @@ const WorkSetup = () => {
                         {isRep ? (
                           <RepCoverageTable
                             coverageAreas={coverageAreas}
+                            onAdd={() => {
+                              setEditingCoverage(null);
+                              setCoverageDialogOpen(true);
+                            }}
                             onEdit={(row) => {
                               const editData: CoverageArea = {
                                 id: row.id,
@@ -603,6 +607,52 @@ const WorkSetup = () => {
                                 toast({
                                   title: "Coverage Area Deleted",
                                   description: "Coverage area removed successfully.",
+                                });
+                                loadRepCoverageAreas();
+                              }
+                            }}
+                            onBatchDelete={async (rowIds) => {
+                              const { error } = await supabase
+                                .from("rep_coverage_areas")
+                                .delete()
+                                .in("id", rowIds);
+
+                              if (error) {
+                                toast({
+                                  variant: "destructive",
+                                  title: "Error",
+                                  description: "Failed to delete coverage areas.",
+                                });
+                              } else {
+                                toast({
+                                  title: "Coverage Areas Deleted",
+                                  description: `Deleted ${rowIds.length} coverage area${rowIds.length !== 1 ? "s" : ""}.`,
+                                });
+                                loadRepCoverageAreas();
+                              }
+                            }}
+                            onBatchUpdate={async (rowIds, basePrice, rushPrice) => {
+                              const updateData: Record<string, number> = {};
+                              if (basePrice) updateData.base_price = parseFloat(basePrice);
+                              if (rushPrice) updateData.rush_price = parseFloat(rushPrice);
+
+                              if (Object.keys(updateData).length === 0) return;
+
+                              const { error } = await supabase
+                                .from("rep_coverage_areas")
+                                .update(updateData)
+                                .in("id", rowIds);
+
+                              if (error) {
+                                toast({
+                                  variant: "destructive",
+                                  title: "Error",
+                                  description: "Failed to update pricing.",
+                                });
+                              } else {
+                                toast({
+                                  title: "Pricing Updated",
+                                  description: `Updated pricing on ${rowIds.length} coverage area${rowIds.length !== 1 ? "s" : ""}.`,
                                 });
                                 loadRepCoverageAreas();
                               }
@@ -706,16 +756,19 @@ const WorkSetup = () => {
                           </div>
                         )}
                         
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingCoverage(null);
-                            setCoverageDialogOpen(true);
-                          }}
-                        >
-                          Add Another Coverage Area
-                        </Button>
+                        {/* Add button for vendors (reps have it in the table header now) */}
+                        {isVendor && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingCoverage(null);
+                              setCoverageDialogOpen(true);
+                            }}
+                          >
+                            Add Another Coverage Area
+                          </Button>
+                        )}
                       </>
                     )}
                   </div>
