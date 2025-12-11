@@ -24,10 +24,12 @@ import {
   MessageSquare,
   X,
   ExternalLink,
+  Paperclip,
 } from "lucide-react";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
+import { SupportImageGallery } from "@/components/SupportImageGallery";
 import {
   fetchAllTickets,
   fetchTicketMessages,
@@ -381,7 +383,12 @@ export default function AdminSupport() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{ticket.subject}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-medium text-sm truncate">{ticket.subject}</p>
+                                  {ticket.image_urls && ticket.image_urls.length > 0 && (
+                                    <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  )}
+                                </div>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {getAnonId(ticket)} · {ticket.userProfile?.email}
                                 </p>
@@ -528,6 +535,13 @@ export default function AdminSupport() {
                           </span>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{selectedTicket.message}</p>
+                        {/* Attached images */}
+                        {selectedTicket.image_urls && selectedTicket.image_urls.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-border/50">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Attached screenshots</p>
+                            <SupportImageGallery images={selectedTicket.image_urls} />
+                          </div>
+                        )}
                       </div>
 
                       {/* Thread messages */}

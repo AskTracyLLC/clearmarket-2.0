@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowLeft, Send, HelpCircle, TicketPlus, RefreshCw, Clock, MessageSquare } from "lucide-react";
+import { ArrowLeft, Send, HelpCircle, TicketPlus, RefreshCw, Clock, MessageSquare, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import {
   createSupportTicket,
@@ -32,6 +32,8 @@ import {
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { SupportImageUpload } from "@/components/SupportImageUpload";
+import { SupportImageGallery } from "@/components/SupportImageGallery";
 
 export default function Support() {
   const { user, loading } = useAuth();
@@ -50,6 +52,7 @@ export default function Support() {
   const [category, setCategory] = useState<SupportTicketCategory>("other");
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState<SupportTicketPriority>("normal");
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // Reply
@@ -86,7 +89,14 @@ export default function Support() {
     }
 
     setSubmitting(true);
-    const { ticket, error } = await createSupportTicket(user.id, subject, category, message, priority);
+    const { ticket, error } = await createSupportTicket(
+      user.id,
+      subject,
+      category,
+      message,
+      priority,
+      attachedImages
+    );
     setSubmitting(false);
 
     if (error) {
@@ -99,6 +109,7 @@ export default function Support() {
     setCategory("other");
     setMessage("");
     setPriority("normal");
+    setAttachedImages([]);
     loadTickets();
   }
 
@@ -229,6 +240,14 @@ export default function Support() {
                     maxLength={2000}
                   />
                 </div>
+                {/* Image upload */}
+                {user && (
+                  <SupportImageUpload
+                    userId={user.id}
+                    images={attachedImages}
+                    onImagesChange={setAttachedImages}
+                  />
+                )}
                 <Button type="submit" disabled={submitting} className="w-full">
                   {submitting ? "Submitting..." : "Submit Request"}
                 </Button>
@@ -272,7 +291,12 @@ export default function Support() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{ticket.subject}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium truncate">{ticket.subject}</p>
+                                {ticket.image_urls && ticket.image_urls.length > 0 && (
+                                  <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground">
                                 {getCategoryLabelForTicket(ticket.category)} ·{" "}
                                 {format(new Date(ticket.created_at), "MMM d, yyyy")}
@@ -319,6 +343,14 @@ export default function Support() {
                 </SheetHeader>
 
                 <div className="mt-6 flex flex-col h-[calc(100vh-200px)]">
+                  {/* Attached Images */}
+                  {selectedTicket.image_urls && selectedTicket.image_urls.length > 0 && (
+                    <div className="mb-4 pb-4 border-b">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Attached screenshots</p>
+                      <SupportImageGallery images={selectedTicket.image_urls} />
+                    </div>
+                  )}
+
                   {/* Messages */}
                   <ScrollArea className="flex-1 pr-2">
                     {loadingMessages ? (

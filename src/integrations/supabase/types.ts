@@ -1996,6 +1996,7 @@ export type Database = {
           closed_at: string | null
           created_at: string
           id: string
+          image_urls: string[] | null
           last_admin_reply_at: string | null
           last_user_reply_at: string | null
           message: string
@@ -2010,6 +2011,7 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           id?: string
+          image_urls?: string[] | null
           last_admin_reply_at?: string | null
           last_user_reply_at?: string | null
           message: string
@@ -2024,6 +2026,7 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           id?: string
+          image_urls?: string[] | null
           last_admin_reply_at?: string | null
           last_user_reply_at?: string | null
           message?: string
