@@ -37,6 +37,7 @@ export interface SupportTicket {
   last_admin_reply_at: string | null;
   last_user_reply_at: string | null;
   closed_at: string | null;
+  image_urls: string[] | null;
 }
 
 export interface SupportTicketMessage {
@@ -64,7 +65,8 @@ export async function createSupportTicket(
   subject: string,
   category: SupportTicketCategory,
   message: string,
-  priority: SupportTicketPriority = 'normal'
+  priority: SupportTicketPriority = 'normal',
+  imageUrls: string[] = []
 ): Promise<{ ticket: SupportTicket | null; error: string | null }> {
   // Create the ticket
   const { data: ticket, error: ticketError } = await supabase
@@ -75,6 +77,7 @@ export async function createSupportTicket(
       category,
       message,
       priority,
+      image_urls: imageUrls,
     })
     .select()
     .single();
