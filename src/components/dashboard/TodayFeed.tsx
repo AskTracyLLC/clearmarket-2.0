@@ -246,7 +246,8 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
             description: `${opp.state_code || 'Location TBD'}${payText ? ` · ${payText}` : ''}`,
             timestamp: opp.created_at,
             isUnread: false,
-            link: '/rep/find-work',
+            link: `/rep/seeking-coverage/${opp.id}`,
+            metadata: { postId: opp.id },
           });
         }
       }
