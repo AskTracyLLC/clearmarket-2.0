@@ -23,92 +23,77 @@ interface Notification {
   created_at: string;
 }
 
+interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+}
+
 const categoryLabels: Record<string, string> = {
   message: "Messages",
+  new_message: "Messages",
   connection: "Connections",
+  connection_request: "Connections",
+  connection_accepted: "Connections",
   review: "Reviews",
+  review_received: "Reviews",
   system: "System & Safety",
+  system_update: "System & Safety",
+  territory_assignment_pending: "Territory Assignments",
+  territory_assignment_accepted: "Territory Assignments",
 };
 
-function buildDigestHTML(notificationsByType: Record<string, Notification[]>): string {
-  let sectionsHTML = "";
+function categorizeNotificationType(type: string): string {
+  if (type.includes("message")) return "message";
+  if (type.includes("connection") || type.includes("territory")) return "connection";
+  if (type.includes("review")) return "review";
+  return "system";
+}
+
+function buildDigestSummary(notificationsByCategory: Record<string, Notification[]>): string {
+  const parts: string[] = [];
   
-  for (const [type, notifications] of Object.entries(notificationsByType)) {
+  for (const [category, notifications] of Object.entries(notificationsByCategory)) {
+    if (notifications.length === 0) continue;
+    const label = categoryLabels[category] || category;
+    parts.push(`${notifications.length} ${label.toLowerCase()}`);
+  }
+  
+  if (parts.length === 0) return "No new activity";
+  if (parts.length === 1) return `You have ${parts[0]}`;
+  
+  const lastPart = parts.pop();
+  return `You have ${parts.join(", ")}, and ${lastPart}`;
+}
+
+function buildDigestBodyHTML(notificationsByCategory: Record<string, Notification[]>): string {
+  let html = "";
+  
+  for (const [category, notifications] of Object.entries(notificationsByCategory)) {
     if (notifications.length === 0) continue;
     
-    const label = categoryLabels[type] || type;
-    sectionsHTML += `
+    const label = categoryLabels[category] || category;
+    html += `
       <div style="margin-bottom: 24px;">
-        <h2 style="color: #1a1a1a; font-size: 18px; font-weight: 600; margin-bottom: 12px;">
+        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 600; color: #f2f2f2;">
           ${label} (${notifications.length})
-        </h2>
-        ${notifications.map(n => `
-          <div style="background: #f8f9fa; border-left: 3px solid #3b82f6; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
-            <div style="font-weight: 600; color: #1a1a1a; margin-bottom: 4px;">${n.title}</div>
-            ${n.body ? `<div style="color: #6b7280; font-size: 14px;">${n.body}</div>` : ''}
+        </h3>
+        ${notifications.slice(0, 5).map(n => `
+          <div style="background: #0d2626; border-left: 3px solid #e07830; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
+            <div style="font-weight: 500; color: #f2f2f2; margin-bottom: 4px;">${n.title}</div>
+            ${n.body ? `<div style="color: #999999; font-size: 14px;">${n.body}</div>` : ''}
           </div>
         `).join('')}
+        ${notifications.length > 5 ? `
+          <p style="color: #999999; font-size: 14px; margin: 8px 0 0 0;">
+            +${notifications.length - 5} more
+          </p>
+        ` : ''}
       </div>
     `;
   }
-
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #ffffff; border-radius: 8px; padding: 32px;">
-          <h1 style="color: #1a1a1a; font-size: 24px; font-weight: 700; margin-bottom: 8px;">
-            Your ClearMarket daily summary
-          </h1>
-          <p style="color: #6b7280; margin-bottom: 24px;">
-            Here's what happened in the last 24 hours:
-          </p>
-          
-          ${sectionsHTML}
-          
-          <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
-            <a href="${appBaseUrl}/notifications" 
-               style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
-              View All Notifications
-            </a>
-          </div>
-          
-          <div style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
-            <p>You're receiving this because you enabled daily digest notifications.</p>
-            <p>
-              <a href="${appBaseUrl}/notifications/settings" style="color: #3b82f6; text-decoration: none;">
-                Manage your notification preferences
-              </a>
-            </p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-}
-
-function buildDigestText(notificationsByType: Record<string, Notification[]>): string {
-  let text = "Your ClearMarket daily summary\n\n";
-  text += "Here's what happened in the last 24 hours:\n\n";
   
-  for (const [type, notifications] of Object.entries(notificationsByType)) {
-    if (notifications.length === 0) continue;
-    
-    const label = categoryLabels[type] || type;
-    text += `${label} (${notifications.length}):\n`;
-    text += notifications.map(n => `  • ${n.title}${n.body ? ': ' + n.body : ''}`).join('\n');
-    text += '\n\n';
-  }
-  
-  text += `View all notifications: ${appBaseUrl}/notifications\n\n`;
-  text += "You're receiving this because you enabled daily digest notifications.\n";
-  text += `Manage preferences: ${appBaseUrl}/notifications/settings`;
-  
-  return text;
+  return html;
 }
 
 serve(async (req) => {
@@ -116,7 +101,7 @@ serve(async (req) => {
     console.log("Starting daily digest job...");
 
     if (!enableEmailNotifications) {
-      console.log("Email notifications are disabled (ENABLE_EMAIL_NOTIFICATIONS=false). Skipping digest.");
+      console.log("Email notifications are disabled. Skipping digest.");
       return new Response(JSON.stringify({ message: "Email notifications disabled" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -129,12 +114,24 @@ serve(async (req) => {
 
     console.log(`Digest window: ${windowStart.toISOString()} to ${windowEnd.toISOString()}`);
 
+    // Load digest template
+    const { data: digestTemplate, error: templateError } = await supabase
+      .from("email_templates")
+      .select("subject_template, body_template")
+      .eq("key", "digest.daily")
+      .single();
+
+    if (templateError) {
+      console.error("Error loading digest template:", templateError);
+    }
+
     // Fetch users with digest preferences enabled
     const { data: usersWithDigest, error: usersError } = await supabase
       .from("profiles")
       .select(`
         id,
         email,
+        full_name,
         notification_preferences:notification_preferences(
           digest_messages,
           digest_connections,
@@ -162,14 +159,11 @@ serve(async (req) => {
         continue;
       }
 
-      // Build list of types to include
-      const digestTypes: string[] = [];
-      if (prefs.digest_messages) digestTypes.push("message");
-      if (prefs.digest_connections) digestTypes.push("connection");
-      if (prefs.digest_reviews) digestTypes.push("review");
-      if (prefs.digest_system) digestTypes.push("system");
-
-      if (digestTypes.length === 0) {
+      // Check if any digest preference is enabled
+      const hasDigestEnabled = prefs.digest_messages || prefs.digest_connections || 
+                               prefs.digest_reviews || prefs.digest_system;
+      
+      if (!hasDigestEnabled) {
         skippedCount++;
         continue;
       }
@@ -179,7 +173,6 @@ serve(async (req) => {
         .from("notifications")
         .select("id, type, title, body, created_at")
         .eq("user_id", user.id)
-        .in("type", digestTypes)
         .gte("created_at", windowStart.toISOString())
         .lt("created_at", windowEnd.toISOString())
         .is("digest_sent_at", null)
@@ -195,33 +188,56 @@ serve(async (req) => {
         continue;
       }
 
-      console.log(`Processing ${notifications.length} notifications for user ${user.email}`);
+      // Filter notifications based on user's digest preferences
+      const filteredNotifications = notifications.filter(n => {
+        const category = categorizeNotificationType(n.type);
+        switch (category) {
+          case "message": return prefs.digest_messages;
+          case "connection": return prefs.digest_connections;
+          case "review": return prefs.digest_reviews;
+          default: return prefs.digest_system;
+        }
+      });
 
-      // Group notifications by type
-      const notificationsByType: Record<string, Notification[]> = {
+      if (filteredNotifications.length === 0) {
+        skippedCount++;
+        continue;
+      }
+
+      console.log(`Processing ${filteredNotifications.length} notifications for user ${user.email}`);
+
+      // Group notifications by category
+      const notificationsByCategory: Record<string, Notification[]> = {
         message: [],
         connection: [],
         review: [],
         system: [],
       };
 
-      for (const notif of notifications) {
-        if (notificationsByType[notif.type]) {
-          notificationsByType[notif.type].push(notif);
-        }
+      for (const notif of filteredNotifications) {
+        const category = categorizeNotificationType(notif.type);
+        notificationsByCategory[category].push(notif);
       }
 
-      // Build email content
-      const htmlBody = buildDigestHTML(notificationsByType);
-      const textBody = buildDigestText(notificationsByType);
+      // Build summary and body
+      const summary = buildDigestSummary(notificationsByCategory);
+      const bodyContent = buildDigestBodyHTML(notificationsByCategory);
+      const firstName = user.full_name?.split(" ")[0] || "there";
 
-      // Send email via existing send-notification-email function
+      // Send email using template-based approach
       const { error: emailError } = await supabase.functions.invoke("send-notification-email", {
         body: {
           to: user.email,
-          subject: "Your ClearMarket daily summary",
-          htmlBody,
-          textBody,
+          templateKey: "digest.daily",
+          placeholders: {
+            user_first_name: firstName,
+            summary: summary,
+          },
+          // Override body with the full digest content
+          subject: digestTemplate?.subject_template || "Your ClearMarket daily summary",
+          htmlBody: undefined, // Will use template
+          ctaLabel: "View All Activity",
+          ctaUrl: `${appBaseUrl}/dashboard`,
         },
       });
 
@@ -231,7 +247,7 @@ serve(async (req) => {
       }
 
       // Mark notifications as digested
-      const notificationIds = notifications.map(n => n.id);
+      const notificationIds = filteredNotifications.map(n => n.id);
       const { error: updateError } = await supabase
         .from("notifications")
         .update({ digest_sent_at: new Date().toISOString() })
@@ -242,7 +258,7 @@ serve(async (req) => {
         continue;
       }
 
-      console.log(`✓ Sent digest to ${user.email} with ${notifications.length} notifications`);
+      console.log(`✓ Sent digest to ${user.email} with ${filteredNotifications.length} notifications`);
       sentCount++;
     }
 
