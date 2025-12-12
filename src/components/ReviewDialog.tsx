@@ -110,11 +110,14 @@ export function ReviewDialog({
 
     setSubmitting(true);
     try {
+      // Ensure UUID fields are null not empty strings
+      const safeRepInterestId = (repInterestId && repInterestId.trim() !== "") ? repInterestId : null;
+      
       const reviewData: any = {
         reviewer_id: reviewerId,
         reviewee_id: revieweeId,
         direction,
-        rep_interest_id: repInterestId,
+        rep_interest_id: safeRepInterestId,
         is_exit_review: isExitReview,
         rating_on_time: onTimeRating > 0 ? onTimeRating : null,
         rating_quality: qualityRating > 0 ? qualityRating : null,
@@ -122,7 +125,7 @@ export function ReviewDialog({
         // Only save would_work_again for exit reviews
         would_work_again: isExitReview ? wouldWorkAgain : null,
         comment: comment.trim() || null,
-        is_verified: repInterestId != null,
+        is_verified: safeRepInterestId != null,
         status: 'pending_reviewee',
       };
       
