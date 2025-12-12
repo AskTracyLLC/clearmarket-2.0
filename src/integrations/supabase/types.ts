@@ -1630,6 +1630,53 @@ export type Database = {
           },
         ]
       }
+      rep_vendor_contacts: {
+        Row: {
+          company_name: string | null
+          contact_name: string | null
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          phone: string | null
+          rep_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          phone?: string | null
+          rep_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          phone?: string | null
+          rep_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_vendor_contacts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reputation_share_links: {
         Row: {
           created_at: string
