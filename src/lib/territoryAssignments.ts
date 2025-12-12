@@ -244,6 +244,7 @@ export async function acceptTerritoryAssignment(
         status: "closed",
         closed_reason: "filled",
         filled_by_rep_id: repUserId,
+        filled_at: new Date().toISOString(),
         has_pending_assignment: false,
       })
       .eq("id", assignment.seeking_coverage_post_id);
@@ -279,13 +280,20 @@ export async function acceptTerritoryAssignment(
     "seeking_coverage_assignment"
   );
 
-  // Create or update vendor_rep_agreements
+  // Create or update vendor_rep_agreements with effective date and work type
+  const workType = assignment.inspection_types && assignment.inspection_types.length > 0
+    ? assignment.inspection_types.join(", ")
+    : null;
+
   await ensureAgreementOnFile(
     assignment.vendor_id,
     assignment.rep_id,
     assignment.state_code,
     assignment.county_name,
-    assignment.agreed_rate
+    assignment.agreed_rate,
+    assignment.effective_date,
+    workType,
+    assignment.seeking_coverage_post_id
   );
 
   // Build notification body with connection info
@@ -534,7 +542,10 @@ async function ensureAgreementOnFile(
   repId: string,
   stateCode: string,
   countyName: string | null,
-  rate: number
+  rate: number,
+  effectiveDate: string,
+  workType: string | null,
+  seekingCoveragePostId: string | null
 ): Promise<void> {
   // Check if agreement already exists
   const { data: existing } = await supabase
@@ -566,6 +577,9 @@ async function ensureAgreementOnFile(
         coverage_summary: updatedCoverage,
         pricing_summary: `$${rate}/order`,
         base_rate: rate,
+        effective_date: effectiveDate,
+        work_type: workType,
+        source_seeking_coverage_post_id: seekingCoveragePostId,
       })
       .eq("id", existing.id);
   } else {
@@ -578,6 +592,9 @@ async function ensureAgreementOnFile(
       coverage_summary: countyName ? `${countyName}, ${stateCode}` : `${stateCode} (statewide)`,
       pricing_summary: `$${rate}/order`,
       base_rate: rate,
+      effective_date: effectiveDate,
+      work_type: workType,
+      source_seeking_coverage_post_id: seekingCoveragePostId,
     });
   }
 }

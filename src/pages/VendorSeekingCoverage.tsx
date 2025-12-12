@@ -71,9 +71,15 @@ interface SeekingCoveragePost {
   pay_min: number | null;
   pay_max: number | null;
   pay_notes: string | null;
+  filled_by_rep_id: string | null;
+  filled_at: string | null;
+  closed_reason: string | null;
   us_counties?: {
     county_name: string;
     state_name: string;
+  } | null;
+  filled_by_rep?: {
+    anonymous_id: string | null;
   } | null;
 }
 
@@ -227,9 +233,12 @@ const VendorSeekingCoverage = () => {
       return;
     }
 
-    // Fetch county data separately for posts that have county_id
-    const postsWithCounties = await Promise.all(
+    // Fetch county data and rep profile for filled posts separately
+    const postsWithDetails = await Promise.all(
       (posts || []).map(async (post) => {
+        let enrichedPost = { ...post, us_counties: null as { county_name: string; state_name: string } | null, filled_by_rep: null as { anonymous_id: string | null } | null };
+        
+        // Fetch county data
         if (post.county_id) {
           const { data: countyData } = await supabase
             .from("us_counties")
@@ -237,13 +246,25 @@ const VendorSeekingCoverage = () => {
             .eq("id", post.county_id)
             .maybeSingle();
           
-          return { ...post, us_counties: countyData };
+          enrichedPost.us_counties = countyData;
         }
-        return post;
+        
+        // Fetch rep anonymous ID for filled posts
+        if (post.filled_by_rep_id) {
+          const { data: repData } = await supabase
+            .from("rep_profile")
+            .select("anonymous_id")
+            .eq("user_id", post.filled_by_rep_id)
+            .maybeSingle();
+          
+          enrichedPost.filled_by_rep = repData;
+        }
+        
+        return enrichedPost;
       })
     );
 
-    setAllPosts(postsWithCounties);
+    setAllPosts(postsWithDetails);
 
     // Load interested rep counts for all posts (exclude declined)
     if (posts && posts.length > 0) {
@@ -637,6 +658,14 @@ Thank you again for your interest!`;
     if (post.status === "active" && !isExpired) {
       return <Badge className="bg-green-600/20 text-green-600 border-green-600/30 text-xs">Open</Badge>;
     } else if (post.status === "closed") {
+      // Check if filled by a rep
+      if (post.closed_reason === "filled" && post.filled_by_rep?.anonymous_id) {
+        return (
+          <Badge variant="outline" className="text-muted-foreground text-xs">
+            Filled – {post.filled_by_rep.anonymous_id}
+          </Badge>
+        );
+      }
       return <Badge variant="outline" className="text-muted-foreground text-xs">Closed</Badge>;
     } else if (post.status === "in_discussion") {
       return <Badge className="bg-blue-600/20 text-blue-600 border-blue-600/30 text-xs">In discussion</Badge>;
