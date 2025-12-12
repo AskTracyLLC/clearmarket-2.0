@@ -1824,6 +1824,7 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           expires_at: string | null
+          filled_at: string | null
           filled_by_rep_id: string | null
           has_pending_assignment: boolean | null
           id: string
@@ -1857,6 +1858,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
+          filled_at?: string | null
           filled_by_rep_id?: string | null
           has_pending_assignment?: boolean | null
           id?: string
@@ -1890,6 +1892,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
+          filled_at?: string | null
           filled_by_rep_id?: string | null
           has_pending_assignment?: boolean | null
           id?: string
@@ -2832,39 +2835,48 @@ export type Database = {
           coverage_summary: string | null
           created_at: string
           currency: string | null
+          effective_date: string | null
           field_rep_id: string
           id: string
           pricing_summary: string | null
+          source_seeking_coverage_post_id: string | null
           states_covered: string[] | null
           status: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at: string
           vendor_id: string
+          work_type: string | null
         }
         Insert: {
           base_rate?: number | null
           coverage_summary?: string | null
           created_at?: string
           currency?: string | null
+          effective_date?: string | null
           field_rep_id: string
           id?: string
           pricing_summary?: string | null
+          source_seeking_coverage_post_id?: string | null
           states_covered?: string[] | null
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id: string
+          work_type?: string | null
         }
         Update: {
           base_rate?: number | null
           coverage_summary?: string | null
           created_at?: string
           currency?: string | null
+          effective_date?: string | null
           field_rep_id?: string
           id?: string
           pricing_summary?: string | null
+          source_seeking_coverage_post_id?: string | null
           states_covered?: string[] | null
           status?: Database["public"]["Enums"]["vendor_rep_agreement_status"]
           updated_at?: string
           vendor_id?: string
+          work_type?: string | null
         }
         Relationships: [
           {
@@ -2872,6 +2884,13 @@ export type Database = {
             columns: ["field_rep_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_rep_agreements_source_seeking_coverage_post_id_fkey"
+            columns: ["source_seeking_coverage_post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
             referencedColumns: ["id"]
           },
           {
