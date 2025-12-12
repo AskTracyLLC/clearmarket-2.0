@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -30,9 +32,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Plus, Pencil, Trash2, Mail, Phone, Building2 } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Mail, Phone, Building2, Link, CheckCircle2, Info, ExternalLink } from "lucide-react";
 
 interface VendorContact {
   id: string;
@@ -42,7 +50,16 @@ interface VendorContact {
   phone: string | null;
   notes: string | null;
   is_active: boolean;
+  is_converted_to_vendor: boolean;
+  converted_vendor_id: string | null;
+  potential_vendor_profile_id: string | null;
   created_at: string;
+}
+
+interface VendorProfile {
+  id: string;
+  company_name: string | null;
+  anonymous_id: string | null;
 }
 
 interface Props {
@@ -53,9 +70,12 @@ export function RepVendorContactsCard({ repUserId }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<VendorContact[]>([]);
+  const [vendorProfiles, setVendorProfiles] = useState<Map<string, VendorProfile>>(new Map());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [showConverted, setShowConverted] = useState(false);
 
   // Form state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -67,20 +87,51 @@ export function RepVendorContactsCard({ repUserId }: Props) {
 
   useEffect(() => {
     loadContacts();
-  }, [repUserId]);
+  }, [repUserId, showConverted]);
 
   const loadContacts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Build query based on showConverted toggle
+      let query = supabase
         .from("rep_vendor_contacts")
         .select("*")
         .eq("rep_user_id", repUserId)
-        .eq("is_active", true)
         .order("created_at", { ascending: false });
+
+      if (!showConverted) {
+        // Default: show only active, non-converted
+        query = query.eq("is_active", true).eq("is_converted_to_vendor", false);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setContacts(data || []);
+
+      // Fetch vendor profiles for soft matches and converted contacts
+      const vendorIds = new Set<string>();
+      data?.forEach(c => {
+        if (c.potential_vendor_profile_id) vendorIds.add(c.potential_vendor_profile_id);
+        if (c.converted_vendor_id) vendorIds.add(c.converted_vendor_id);
+      });
+
+      if (vendorIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from("vendor_profile")
+          .select("id, user_id, company_name, anonymous_id")
+          .in("user_id", Array.from(vendorIds));
+
+        const profileMap = new Map<string, VendorProfile>();
+        profiles?.forEach(p => {
+          profileMap.set(p.user_id, {
+            id: p.id,
+            company_name: p.company_name,
+            anonymous_id: p.anonymous_id,
+          });
+        });
+        setVendorProfiles(profileMap);
+      }
     } catch (error) {
       console.error("Error loading vendor contacts:", error);
     } finally {
@@ -207,6 +258,80 @@ export function RepVendorContactsCard({ repUserId }: Props) {
     }
   };
 
+  const handleConnectToVendor = async (contact: VendorContact) => {
+    if (!contact.potential_vendor_profile_id) return;
+
+    setConnecting(contact.id);
+    try {
+      // Check if connection already exists
+      const { data: existingConnection } = await supabase
+        .from("vendor_connections")
+        .select("id, status")
+        .eq("vendor_id", contact.potential_vendor_profile_id)
+        .eq("field_rep_id", repUserId)
+        .maybeSingle();
+
+      if (!existingConnection) {
+        // Create new connection
+        const { error: connError } = await supabase
+          .from("vendor_connections")
+          .insert({
+            vendor_id: contact.potential_vendor_profile_id,
+            field_rep_id: repUserId,
+            status: "connected",
+            requested_by: "field_rep" as const,
+            requested_at: new Date().toISOString(),
+            responded_at: new Date().toISOString(),
+          });
+
+        if (connError) throw connError;
+      } else if (existingConnection.status !== "connected") {
+        // Reactivate if ended
+        await supabase
+          .from("vendor_connections")
+          .update({
+            status: "connected",
+            responded_at: new Date().toISOString(),
+          })
+          .eq("id", existingConnection.id);
+      }
+
+      // Mark contact as converted
+      const { error: updateError } = await supabase
+        .from("rep_vendor_contacts")
+        .update({
+          is_converted_to_vendor: true,
+          is_active: false,
+          converted_vendor_id: contact.potential_vendor_profile_id,
+        })
+        .eq("id", contact.id);
+
+      if (updateError) throw updateError;
+
+      const vendorProfile = vendorProfiles.get(contact.potential_vendor_profile_id);
+      toast({
+        title: "Connected!",
+        description: `You're now connected to ${vendorProfile?.company_name || "this vendor"} on ClearMarket.`,
+      });
+
+      loadContacts();
+    } catch (error: any) {
+      console.error("Error connecting to vendor:", error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to vendor profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  // Filter active vs converted contacts
+  const activeContacts = contacts.filter(c => c.is_active && !c.is_converted_to_vendor);
+  const convertedContacts = contacts.filter(c => c.is_converted_to_vendor);
+  const softMatchContacts = activeContacts.filter(c => c.potential_vendor_profile_id);
+
   return (
     <>
       <Card>
@@ -221,11 +346,35 @@ export function RepVendorContactsCard({ repUserId }: Props) {
               Add Vendor Manually
             </Button>
           </div>
-          <CardDescription>
-            Add vendors you already work with so they get your ClearMarket alerts and availability updates.
+          <CardDescription className="space-y-2">
+            <span>Add vendors you already work with so they get your ClearMarket alerts and availability updates.</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 text-muted-foreground cursor-help ml-1">
+                    <Info className="h-3 w-3" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>If a vendor you added signs up for ClearMarket with a different email at the same company, we'll flag that contact so you can connect them to their ClearMarket profile.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Show converted toggle */}
+          <div className="flex items-center gap-2 mb-4">
+            <Checkbox
+              id="show-converted"
+              checked={showConverted}
+              onCheckedChange={(checked) => setShowConverted(!!checked)}
+            />
+            <Label htmlFor="show-converted" className="text-sm text-muted-foreground cursor-pointer">
+              Show converted contacts
+            </Label>
+          </div>
+
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : contacts.length === 0 ? (
@@ -245,53 +394,131 @@ export function RepVendorContactsCard({ repUserId }: Props) {
                     <TableHead>Company</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contacts.map((contact) => (
-                    <TableRow key={contact.id}>
-                      <TableCell>{contact.contact_name || "—"}</TableCell>
-                      <TableCell>{contact.company_name || "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3 text-muted-foreground" />
-                          {contact.email}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {contact.phone ? (
+                  {contacts.map((contact) => {
+                    const potentialVendor = contact.potential_vendor_profile_id 
+                      ? vendorProfiles.get(contact.potential_vendor_profile_id)
+                      : null;
+                    const convertedVendor = contact.converted_vendor_id
+                      ? vendorProfiles.get(contact.converted_vendor_id)
+                      : null;
+
+                    return (
+                      <TableRow key={contact.id} className={contact.is_converted_to_vendor ? "opacity-60" : ""}>
+                        <TableCell>{contact.contact_name || "—"}</TableCell>
+                        <TableCell>{contact.company_name || "—"}</TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-muted-foreground" />
-                            {contact.phone}
+                            <Mail className="h-3 w-3 text-muted-foreground" />
+                            {contact.email}
                           </div>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(contact)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteConfirmId(contact.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          {contact.phone ? (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              {contact.phone}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {contact.is_converted_to_vendor ? (
+                            <div className="space-y-1">
+                              <Badge variant="secondary" className="gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                On ClearMarket
+                              </Badge>
+                              {convertedVendor && (
+                                <p className="text-xs text-muted-foreground">
+                                  Linked to {convertedVendor.company_name || convertedVendor.anonymous_id}
+                                </p>
+                              )}
+                            </div>
+                          ) : potentialVendor ? (
+                            <div className="space-y-2">
+                              <Badge variant="outline" className="gap-1 text-primary border-primary">
+                                <Building2 className="h-3 w-3" />
+                                Match found
+                              </Badge>
+                              <p className="text-xs text-muted-foreground">
+                                Looks like <strong>{potentialVendor.company_name || potentialVendor.anonymous_id}</strong> is on ClearMarket
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Off-platform</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {contact.is_converted_to_vendor ? (
+                              // Converted: just show view link
+                              convertedVendor && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon">
+                                        <ExternalLink className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>View vendor profile</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )
+                            ) : potentialVendor ? (
+                              // Soft match: show connect button
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleConnectToVendor(contact)}
+                                disabled={connecting === contact.id}
+                                className="gap-1"
+                              >
+                                <Link className="h-3 w-3" />
+                                {connecting === contact.id ? "Connecting..." : "Connect"}
+                              </Button>
+                            ) : (
+                              // Regular contact: edit/delete
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(contact)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteConfirmId(contact.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Summary badge for soft matches */}
+          {softMatchContacts.length > 0 && !showConverted && (
+            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-sm">
+                <strong>{softMatchContacts.length}</strong> of your contacts may have joined ClearMarket. 
+                Connect them to your network to keep alerts flowing through the platform.
+              </p>
             </div>
           )}
         </CardContent>

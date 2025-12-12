@@ -1634,40 +1634,63 @@ export type Database = {
         Row: {
           company_name: string | null
           contact_name: string | null
+          converted_vendor_id: string | null
           created_at: string
           email: string
           id: string
           is_active: boolean
+          is_converted_to_vendor: boolean
           notes: string | null
           phone: string | null
+          potential_vendor_profile_id: string | null
           rep_user_id: string
           updated_at: string
         }
         Insert: {
           company_name?: string | null
           contact_name?: string | null
+          converted_vendor_id?: string | null
           created_at?: string
           email: string
           id?: string
           is_active?: boolean
+          is_converted_to_vendor?: boolean
           notes?: string | null
           phone?: string | null
+          potential_vendor_profile_id?: string | null
           rep_user_id: string
           updated_at?: string
         }
         Update: {
           company_name?: string | null
           contact_name?: string | null
+          converted_vendor_id?: string | null
           created_at?: string
           email?: string
           id?: string
           is_active?: boolean
+          is_converted_to_vendor?: boolean
           notes?: string | null
           phone?: string | null
+          potential_vendor_profile_id?: string | null
           rep_user_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rep_vendor_contacts_converted_vendor_id_fkey"
+            columns: ["converted_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_vendor_contacts_potential_vendor_profile_id_fkey"
+            columns: ["potential_vendor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rep_vendor_contacts_rep_user_id_fkey"
             columns: ["rep_user_id"]
