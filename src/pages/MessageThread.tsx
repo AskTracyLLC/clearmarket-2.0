@@ -793,6 +793,11 @@ export default function MessageThread() {
                     Pending connection
                   </Badge>
                 )}
+                {!vendorConnection && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Not yet connected
+                  </Badge>
+                )}
                 
                 {/* Territory Assignment Status */}
                 {pendingAssignment && (
@@ -822,8 +827,8 @@ export default function MessageThread() {
                   </Badge>
                 )}
                 
-                {/* Assign Territory Button - Vendor only */}
-                {isVendor && vendorConnection?.status === "connected" && !pendingAssignment && !activeAssignment && (
+                {/* Assign Territory Button - Vendor only, no connection required for Seeking Coverage conversations */}
+                {isVendor && conversationData?.seeking_post && !pendingAssignment && !activeAssignment && (
                   <Button
                     size="sm"
                     variant="secondary"
