@@ -4,6 +4,32 @@ import { supabase } from "@/integrations/supabase/client";
 
 type NotificationPreferences = Database["public"]["Tables"]["notification_preferences"]["Row"];
 
+// Map notification types to email template keys
+function getEmailTemplateKey(type: string): string | null {
+  switch (type) {
+    case "new_message":
+      return "message.new";
+    case "connection_request":
+    case "connection_accepted":
+    case "connection_declined":
+      return "connection.activity";
+    case "review_received":
+    case "review_reminder":
+      return "review.new";
+    case "territory_assignment_pending":
+      return "territory.assignment.sent";
+    case "territory_assignment_accepted":
+      return "territory.assignment.accepted";
+    case "credits_event":
+    case "system_update":
+    case "safety_alert":
+    case "announcement":
+      return "system.update";
+    default:
+      return null;
+  }
+}
+
 // Map notification types to categories for email preferences
 function getEmailPreferenceField(type: string): keyof NotificationPreferences | null {
   switch (type) {
@@ -12,6 +38,8 @@ function getEmailPreferenceField(type: string): keyof NotificationPreferences | 
     case "connection_request":
     case "connection_accepted":
     case "connection_declined":
+    case "territory_assignment_pending":
+    case "territory_assignment_accepted":
       return "email_connections";
     case "review_received":
     case "review_reminder":
@@ -21,96 +49,73 @@ function getEmailPreferenceField(type: string): keyof NotificationPreferences | 
     case "credits_event":
     case "system_update":
     case "safety_alert":
+    case "announcement":
       return "email_system";
     default:
       return null;
   }
 }
 
-// Build email content based on notification type
-function buildEmailContent(
-  type: string,
-  title: string,
-  body: string | null,
-  baseUrl: string
-): { subject: string; htmlBody: string } {
-  const subject = title;
-  let htmlBody = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #ffffff; padding: 30px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; }
-          .title { font-size: 24px; font-weight: bold; margin: 0 0 10px 0; }
-          .body { margin: 20px 0; color: #475569; }
-          .button { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: 500; }
-          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">ClearMarket</div>
-        </div>
-        <div class="content">
-          <h2>${title}</h2>
-          ${body ? `<div class="body">${body}</div>` : ""}
-  `;
-
-  // Add context-specific call to action
+// Get CTA details based on notification type
+function getCTADetails(type: string, refId: string | null): { label: string; path: string } {
   switch (type) {
     case "new_message":
-      htmlBody += `<a href="${baseUrl}/messages" class="button">View Messages</a>`;
-      break;
+      return { label: "View Messages", path: refId ? `/messages/${refId}` : "/messages" };
     case "connection_request":
     case "connection_accepted":
     case "connection_declined":
-      htmlBody += `<a href="${baseUrl}/messages" class="button">View Connections</a>`;
-      break;
+      return { label: "View Connections", path: "/messages" };
     case "review_received":
-      htmlBody += `<a href="${baseUrl}/dashboard" class="button">View Reviews</a>`;
-      break;
+      return { label: "View Reviews", path: "/dashboard" };
     case "review_reminder":
-      htmlBody += `<a href="${baseUrl}/notifications" class="button">Leave a Review</a>`;
-      break;
+      return { label: "Leave a Review", path: "/notifications" };
+    case "territory_assignment_pending":
+      return { label: "Review Assignment", path: "/dashboard" };
+    case "territory_assignment_accepted":
+      return { label: "View Agreement", path: "/dashboard" };
     case "new_coverage_opportunity":
-      htmlBody += `<a href="${baseUrl}/rep/find-work" class="button">View Opportunity</a>`;
-      break;
+      return { label: "View Opportunity", path: "/rep/find-work" };
+    case "announcement":
+      return { label: "View Announcement", path: refId ? `/community/${refId}` : "/community?tab=announcements" };
     default:
-      htmlBody += `<a href="${baseUrl}/dashboard" class="button">Go to Dashboard</a>`;
+      return { label: "Go to Dashboard", path: "/dashboard" };
   }
-
-  htmlBody += `
-        </div>
-        <div class="footer">
-          <p>You received this email because you have email notifications enabled for this type of activity.</p>
-          <p><a href="${baseUrl}/safety-center">Manage notification preferences</a></p>
-        </div>
-      </body>
-    </html>
-  `;
-
-  return { subject, htmlBody };
 }
 
-// Send email notification via Edge Function
+// Send email notification via Edge Function using templates
 async function sendEmailNotification(
   recipientEmail: string,
   type: string,
   title: string,
-  body: string | null
+  body: string | null,
+  refId: string | null,
+  actorName?: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const templateKey = getEmailTemplateKey(type);
+    if (!templateKey) {
+      console.log(`No template key for notification type: ${type}`);
+      return { ok: false, error: "No template for this notification type" };
+    }
+
     const baseUrl = window.location.origin;
-    const { subject, htmlBody } = buildEmailContent(type, title, body, baseUrl);
+    const cta = getCTADetails(type, refId);
+    
+    // Extract first name from title if it contains a name pattern
+    const firstName = recipientEmail.split("@")[0]; // Fallback
 
     const { data, error } = await supabase.functions.invoke("send-notification-email", {
       body: {
         to: recipientEmail,
-        subject,
-        htmlBody,
+        templateKey,
+        placeholders: {
+          user_first_name: firstName,
+          actor_name: actorName || "Someone",
+          summary: title,
+          snippet: body || "",
+        },
+        ctaLabel: cta.label,
+        ctaUrl: `${baseUrl}${cta.path}`,
       },
     });
 
@@ -155,7 +160,8 @@ export async function createNotification(
   type: string,
   title: string,
   body: string | null,
-  refId: string | null = null
+  refId: string | null = null,
+  actorName?: string
 ) {
   // Load preferences
   const prefs = await getNotificationPreferences(supabaseClient, userId);
@@ -213,10 +219,10 @@ export async function createNotification(
   const allowEmail = emailPrefField && prefs ? (prefs[emailPrefField] as boolean) : false;
 
   if (allowEmail && data?.id) {
-    // Fetch user email
+    // Fetch user email and name
     const { data: profileData } = await supabaseClient
       .from("profiles")
-      .select("email")
+      .select("email, full_name")
       .eq("id", userId)
       .maybeSingle();
 
@@ -224,7 +230,7 @@ export async function createNotification(
       console.log(`Sending email notification to ${profileData.email} for type ${type}`);
       
       // Send email asynchronously (don't block on it)
-      sendEmailNotification(profileData.email, type, title, body)
+      sendEmailNotification(profileData.email, type, title, body, refId, actorName)
         .then(async (result) => {
           if (result.ok) {
             console.log(`Email sent successfully for notification ${data.id}`);

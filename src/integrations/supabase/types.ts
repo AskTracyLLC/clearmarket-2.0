@@ -653,6 +653,42 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body_template: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          placeholders_hint: string | null
+          subject_template: string
+          updated_at: string
+        }
+        Insert: {
+          body_template: string
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          placeholders_hint?: string | null
+          subject_template: string
+          updated_at?: string
+        }
+        Update: {
+          body_template?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          placeholders_hint?: string | null
+          subject_template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           beta_note: string | null

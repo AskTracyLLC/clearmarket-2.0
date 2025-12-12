@@ -73,6 +73,7 @@ import WorkSetup from "./pages/WorkSetup";
 import RepMatchAssistant from "./pages/RepMatchAssistant";
 import VendorMatchAssistant from "./pages/VendorMatchAssistant";
 import AdminFeatureFlags from "./pages/AdminFeatureFlags";
+import AdminEmailTemplates from "./pages/AdminEmailTemplates";
 
 
 const queryClient = new QueryClient();
@@ -143,6 +144,7 @@ const App = () => (
               <Route path="/admin/help-articles" element={<AdminHelpArticles />} />
               <Route path="/admin/help-articles/:articleId" element={<AdminHelpArticleEditor />} />
               <Route path="/admin/features" element={<AdminFeatureFlags />} />
+              <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
               <Route path="/support" element={<Support />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />
