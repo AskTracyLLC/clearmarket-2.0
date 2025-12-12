@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
 import { computeRepProfileCompleteness, computeVendorProfileCompleteness, ProfileCompletenessResult, ChecklistItem } from "@/lib/profileCompleteness";
-import { ExtrasChecklist } from "@/components/ExtrasChecklist";
+import { ExtrasChecklist, ExtrasItem } from "@/components/ExtrasChecklist";
 import { SoftWarningBanner } from "@/components/SoftWarningBanner";
 import { checkSoftWarnings } from "@/lib/qualityAnalytics";
 import { useLastSeenHeartbeat } from "@/hooks/useLastSeenHeartbeat";
@@ -32,6 +32,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { MimicBanner } from "@/components/MimicBanner";
 import { useMimic } from "@/hooks/useMimic";
 import { AdminReviewSummaryCard } from "@/components/admin/AdminReviewSummaryCard";
+import { PlannedRouteAlertDialog } from "@/components/PlannedRouteAlertDialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -80,6 +81,7 @@ const Dashboard = () => {
   }>({ statesCount: 0, countiesCount: 0, activeAgreementsCount: 0 });
   
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [showRouteDialog, setShowRouteDialog] = useState(false);
 
   // When URL has mimic param and user is admin, start mimic session
   useEffect(() => {
@@ -472,11 +474,24 @@ const Dashboard = () => {
     ? (repCompleteness?.percent ?? 0) 
     : (vendorCompleteness?.percent ?? 0);
 
+  // Transform extras to add onClick handlers for actionable items
+  const transformExtras = (extras: ChecklistItem[]): ExtrasItem[] => {
+    return extras.map(item => {
+      if (item.actionId === "open_route_dialog") {
+        return {
+          ...item,
+          onClick: () => setShowRouteDialog(true),
+        };
+      }
+      return item;
+    });
+  };
+
   const checklistData = showingAsRep && repCompleteness 
-    ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount, extras: repCompleteness.extras }
+    ? { title: "Rep Onboarding", items: repCompleteness.checklist, completedCount: repCompleteness.completedCount, totalCount: repCompleteness.totalCount, extras: transformExtras(repCompleteness.extras) }
     : showingAsVendor && vendorCompleteness 
-    ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount, extras: vendorCompleteness.extras }
-    : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0, extras: [] as ChecklistItem[] };
+    ? { title: "Vendor Onboarding", items: vendorCompleteness.checklist, completedCount: vendorCompleteness.completedCount, totalCount: vendorCompleteness.totalCount, extras: transformExtras(vendorCompleteness.extras) }
+    : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0, extras: [] as ExtrasItem[] };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -806,6 +821,15 @@ const Dashboard = () => {
       <div className="mt-auto">
         <SiteFooter />
       </div>
+
+      {/* Planned Route Alert Dialog - opened from Extras */}
+      {user && showingAsRep && (
+        <PlannedRouteAlertDialog
+          open={showRouteDialog}
+          onOpenChange={setShowRouteDialog}
+          userId={mimickedUser?.id || user.id}
+        />
+      )}
     </div>
   );
 };

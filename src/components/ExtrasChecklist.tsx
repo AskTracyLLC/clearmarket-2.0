@@ -2,12 +2,13 @@ import { Card } from "@/components/ui/card";
 import { CheckCircle2, Circle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
-interface ExtrasItem {
+export interface ExtrasItem {
   id: string;
   label: string;
   description?: string;
   done: boolean;
   link?: string;
+  onClick?: () => void;
 }
 
 interface ExtrasChecklistProps {
@@ -46,7 +47,14 @@ export const ExtrasChecklist = ({ items }: ExtrasChecklistProps) => {
               <Circle className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
-              {item.link && !item.done ? (
+              {item.onClick && !item.done ? (
+                <button
+                  onClick={item.onClick}
+                  className="text-xs font-medium text-primary hover:underline text-left"
+                >
+                  {item.label}
+                </button>
+              ) : item.link && !item.done ? (
                 <Link
                   to={item.link}
                   className="text-xs font-medium text-primary hover:underline"
@@ -63,7 +71,7 @@ export const ExtrasChecklist = ({ items }: ExtrasChecklistProps) => {
                 </p>
               )}
               {item.description && (
-                <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1">
+                <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-2">
                   {item.description}
                 </p>
               )}

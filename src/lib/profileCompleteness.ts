@@ -6,6 +6,8 @@ export interface ChecklistItem {
   description?: string;
   done: boolean;
   link?: string;
+  /** Optional action ID that the parent component can use to trigger dialogs/modals */
+  actionId?: string;
 }
 
 export interface ProfileCompletenessResult {
@@ -176,18 +178,30 @@ export async function computeRepProfileCompleteness(
     link: "/rep/availability",
   });
 
-  // Extra 4: Send an Alert to Network (has sent at least one network alert)
-  // Reps don't have rep_network_alerts but they do have notifications they can send
-  // For now, we'll check if they have any "alert" type activity - using community announcements channel or similar
-  // Since reps don't have a dedicated alert system yet, we'll stub this as false for now
-  const hasNetworkAlert = false;
+  // Extra 4: Send an Alert to Network (has sent at least one vendor alert)
+  const { count: vendorAlertCount } = await supabaseClient
+    .from("vendor_alerts")
+    .select("*", { count: "exact", head: true })
+    .eq("rep_user_id", userId);
+
+  const hasNetworkAlert = (vendorAlertCount ?? 0) > 0;
 
   extras.push({
     id: "network_alert",
     label: "Send an Alert to Network",
     description: "Send a quick update to your network about your availability or schedule changes",
     done: hasNetworkAlert,
-    link: "/community?tab=network",
+    link: "/rep/availability",
+  });
+
+  // Extra 5: Send your route to vendors (actionable extra - opens dialog)
+  // This is always available as an action, not a one-time completion item
+  extras.push({
+    id: "send_route",
+    label: "Send your route to vendors at the beginning of your day",
+    description: "Sending your planned route helps vendors know where you'll be and when. Good route updates improve communication and help your Communication Score over time.",
+    done: false, // Always show as available action
+    actionId: "open_route_dialog", // Parent component handles this action
   });
 
   // Calculate completion (only required items)
