@@ -834,7 +834,12 @@ export default function AdminUsers() {
                               title={userProfile.account_status === "active" ? "Active" : userProfile.account_status}
                             />
                             <div>
-                              <p className="font-medium">{userProfile.full_name || "—"}</p>
+                              <button
+                                onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
+                                className="font-medium text-left hover:underline hover:text-primary transition-colors"
+                              >
+                                {userProfile.full_name || "—"}
+                              </button>
                               <p className="text-sm text-muted-foreground">{userProfile.email}</p>
                             </div>
                           </div>
@@ -910,14 +915,27 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
-                              title="View Profile"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      // Navigate to the user's dashboard as mimic mode
+                                      const targetPath = userProfile.is_fieldrep ? "/dashboard" : userProfile.is_vendor_admin ? "/dashboard" : "/dashboard";
+                                      navigate(`${targetPath}?mimic=${userProfile.id}`);
+                                    }}
+                                    title="View as this user"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Mimic user</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {reportCounts[userProfile.id] > 0 && (
                               <Button
                                 variant="ghost"
