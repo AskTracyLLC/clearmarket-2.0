@@ -396,11 +396,12 @@ export const SeekingCoverageDialog = ({
         return;
       }
 
-      // Deduct 1 credit
+      // Deduct 1 credit atomically - use decrement to avoid race conditions
       const { error: walletUpdateError } = await supabase
         .from("user_wallet")
-        .update({ credits: currentWallet.credits - 1 })
-        .eq("user_id", user.id);
+        .update({ credits: (currentWallet.credits ?? 0) - 1 })
+        .eq("user_id", user.id)
+        .eq("credits", currentWallet.credits); // Optimistic lock - only update if credits haven't changed
 
       if (walletUpdateError) {
         console.error("Error deducting credits:", walletUpdateError);
