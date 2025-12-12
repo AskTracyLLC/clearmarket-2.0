@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -31,9 +31,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { format, parseISO } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format, parseISO, isToday } from "date-fns";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { RepVendorContactsCard } from "@/components/RepVendorContactsCard";
+import { PlannedRouteConfirmBanner } from "@/components/PlannedRouteConfirmBanner";
 
 interface AvailabilityEntry {
   id: string;
@@ -44,6 +59,22 @@ interface AvailabilityEntry {
   auto_reply_message: string | null;
   created_at: string;
 }
+
+interface CoverageArea {
+  state_code: string;
+  state_name: string;
+  county_name: string | null;
+}
+
+interface PlannedRoute {
+  id: string;
+  message: string;
+  route_date: string;
+  route_state: string;
+  route_counties: string[];
+}
+
+type AlertType = "planned" | "emergency" | "update" | "route";
 
 export default function RepAvailability() {
   const { user, loading: authLoading } = useAuth();
@@ -56,7 +87,7 @@ export default function RepAvailability() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
   
-  // Form state
+  // Form state for time off
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -65,11 +96,19 @@ export default function RepAvailability() {
   const [saving, setSaving] = useState(false);
   
   // Alert form state
-  const [alertType, setAlertType] = useState<"planned" | "emergency" | "update">("planned");
+  const [alertType, setAlertType] = useState<AlertType>("planned");
   const [alertStartDate, setAlertStartDate] = useState("");
   const [alertEndDate, setAlertEndDate] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [sendingAlert, setSendingAlert] = useState(false);
+  
+  // Planned route state
+  const [routeDate, setRouteDate] = useState<Date | undefined>(undefined);
+  const [routeState, setRouteState] = useState("");
+  const [routeCounties, setRouteCounties] = useState<string[]>([]);
+  const [coverageAreas, setCoverageAreas] = useState<CoverageArea[]>([]);
+  const [pendingRoutes, setPendingRoutes] = useState<PlannedRoute[]>([]);
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -104,8 +143,12 @@ export default function RepAvailability() {
         return;
       }
 
-      // Load availability entries
-      await loadAvailabilityEntries();
+      // Load all data in parallel
+      await Promise.all([
+        loadAvailabilityEntries(),
+        loadCoverageAreas(),
+        loadPendingRoutes(),
+      ]);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -130,6 +173,68 @@ export default function RepAvailability() {
     setAvailabilityEntries(data || []);
   }
 
+  async function loadCoverageAreas() {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("rep_coverage_areas")
+      .select("state_code, state_name, county_name")
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error("Error loading coverage:", error);
+      return;
+    }
+
+    setCoverageAreas(data || []);
+  }
+
+  async function loadPendingRoutes() {
+    if (!user) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data, error } = await supabase
+      .from("vendor_alerts")
+      .select("id, message, route_date, route_state, route_counties")
+      .eq("rep_user_id", user.id)
+      .eq("is_scheduled", true)
+      .eq("scheduled_status", "pending_confirmation")
+      .eq("route_date", today);
+
+    if (error) {
+      console.error("Error loading pending routes:", error);
+      return;
+    }
+
+    setPendingRoutes((data || []).map(d => ({
+      id: d.id,
+      message: d.message,
+      route_date: d.route_date,
+      route_state: d.route_state || "",
+      route_counties: d.route_counties || [],
+    })));
+  }
+
+  // Get unique states from coverage
+  const coverageStates = useMemo(() => {
+    const states = new Map<string, string>();
+    coverageAreas.forEach(area => {
+      states.set(area.state_code, area.state_name);
+    });
+    return Array.from(states.entries()).map(([code, name]) => ({ code, name }));
+  }, [coverageAreas]);
+
+  // Get counties for selected state
+  const stateCounties = useMemo(() => {
+    if (!routeState) return [];
+    return coverageAreas
+      .filter(area => area.state_code === routeState && area.county_name)
+      .map(area => area.county_name!)
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort();
+  }, [coverageAreas, routeState]);
+
   function openAddDialog() {
     setEditingEntry(null);
     setStartDate("");
@@ -153,40 +258,23 @@ export default function RepAvailability() {
   async function handleSaveAvailability() {
     if (!user) return;
 
-    // Validation
     if (!startDate) {
-      toast({
-        title: "Validation Error",
-        description: "Start date is required.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Start date is required.", variant: "destructive" });
       return;
     }
 
     if (!endDate) {
-      toast({
-        title: "Validation Error",
-        description: "End date is required.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "End date is required.", variant: "destructive" });
       return;
     }
 
     if (endDate < startDate) {
-      toast({
-        title: "Validation Error",
-        description: "End date can't be before start date.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "End date can't be before start date.", variant: "destructive" });
       return;
     }
 
     if (autoReplyEnabled && !autoReplyMessage.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Auto-reply message is required when auto-reply is enabled.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Auto-reply message is required when enabled.", variant: "destructive" });
       return;
     }
 
@@ -202,41 +290,27 @@ export default function RepAvailability() {
       };
 
       if (editingEntry) {
-        // Update existing
         const { error } = await supabase
           .from("rep_availability")
           .update(dataToSave)
           .eq("id", editingEntry.id);
 
         if (error) throw error;
-
-        toast({
-          title: "Updated",
-          description: "Time off entry updated successfully.",
-        });
+        toast({ title: "Updated", description: "Time off entry updated." });
       } else {
-        // Insert new
         const { error } = await supabase
           .from("rep_availability")
           .insert(dataToSave);
 
         if (error) throw error;
-
-        toast({
-          title: "Added",
-          description: "Time off entry added successfully.",
-        });
+        toast({ title: "Added", description: "Time off entry added." });
       }
 
       setShowAddDialog(false);
       await loadAvailabilityEntries();
     } catch (error: any) {
       console.error("Error saving availability:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save time off entry.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to save.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -253,21 +327,13 @@ export default function RepAvailability() {
 
       if (error) throw error;
 
-      toast({
-        title: "Deleted",
-        description: "Time off entry deleted successfully.",
-      });
-
+      toast({ title: "Deleted", description: "Time off entry deleted." });
       setShowDeleteDialog(false);
       setDeletingEntryId(null);
       await loadAvailabilityEntries();
     } catch (error: any) {
-      console.error("Error deleting availability:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete entry.",
-        variant: "destructive",
-      });
+      console.error("Error deleting:", error);
+      toast({ title: "Error", description: error.message || "Failed to delete.", variant: "destructive" });
     }
   }
 
@@ -276,26 +342,33 @@ export default function RepAvailability() {
 
     // Validation
     if (!alertMessage.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Alert message is required.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Alert message is required.", variant: "destructive" });
       return;
     }
 
     if (alertType === "planned" && (!alertStartDate || !alertEndDate)) {
-      toast({
-        title: "Validation Error",
-        description: "Please provide both start and end dates for planned time off.",
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: "Please provide both start and end dates.", variant: "destructive" });
       return;
+    }
+
+    if (alertType === "route") {
+      if (!routeDate) {
+        toast({ title: "Validation Error", description: "Please select the route date.", variant: "destructive" });
+        return;
+      }
+      if (!routeState) {
+        toast({ title: "Validation Error", description: "Please select the state.", variant: "destructive" });
+        return;
+      }
+      if (routeCounties.length === 0) {
+        toast({ title: "Validation Error", description: "Please select at least one county.", variant: "destructive" });
+        return;
+      }
     }
 
     setSendingAlert(true);
     try {
-      // Get connected vendors count from vendor_connections
+      // Get connected vendors count
       const { data: connections, error: connectionsError } = await supabase
         .from("vendor_connections")
         .select("vendor_id")
@@ -304,7 +377,6 @@ export default function RepAvailability() {
 
       if (connectionsError) throw connectionsError;
 
-      // Get manual vendor contacts count
       const { count: manualContactCount } = await supabase
         .from("rep_vendor_contacts")
         .select("id", { count: "exact", head: true })
@@ -317,14 +389,61 @@ export default function RepAvailability() {
       if (totalRecipients === 0) {
         toast({
           title: "No Recipients",
-          description: "You don't have any connected vendors or manual contacts to send alerts to.",
+          description: "You don't have any connected vendors or manual contacts.",
           variant: "default",
         });
         setSendingAlert(false);
         return;
       }
 
-      // Prepare alert message with basic placeholder replacement
+      // Handle Planned Route differently - schedule instead of send
+      if (alertType === "route") {
+        const routeDateStr = format(routeDate!, "yyyy-MM-dd");
+        const stateName = coverageStates.find(s => s.code === routeState)?.name || routeState;
+
+        const alertData = {
+          rep_user_id: user.id,
+          alert_type: "planned_route",
+          message: alertMessage,
+          affected_start_date: routeDateStr,
+          affected_end_date: routeDateStr,
+          recipient_vendor_ids: vendorIds,
+          route_date: routeDateStr,
+          route_state: stateName,
+          route_counties: routeCounties,
+          is_scheduled: true,
+          scheduled_status: editingRouteId ? "pending_confirmation" : "pending_confirmation",
+        };
+
+        if (editingRouteId) {
+          // Update existing
+          const { error } = await supabase
+            .from("vendor_alerts")
+            .update(alertData)
+            .eq("id", editingRouteId);
+
+          if (error) throw error;
+        } else {
+          // Insert new
+          const { error } = await supabase
+            .from("vendor_alerts")
+            .insert(alertData);
+
+          if (error) throw error;
+        }
+
+        toast({
+          title: "Route Scheduled",
+          description: `Your planned route for ${format(routeDate!, "MMMM d, yyyy")} is saved. You'll be prompted to confirm and send it on that day.`,
+        });
+
+        // Reset form
+        resetAlertForm();
+        await loadPendingRoutes();
+        return;
+      }
+
+      // Prepare message with placeholder replacement for other types
       let finalMessage = alertMessage;
       if (alertStartDate) {
         finalMessage = finalMessage.replace(/\{\{START_DATE\}\}/g, format(parseISO(alertStartDate), "MM/dd/yyyy"));
@@ -333,7 +452,7 @@ export default function RepAvailability() {
         finalMessage = finalMessage.replace(/\{\{END_DATE\}\}/g, format(parseISO(alertEndDate), "MM/dd/yyyy"));
       }
 
-      // Insert vendor alert log
+      // Insert vendor alert
       const { data: alertRecord, error: alertError } = await supabase
         .from("vendor_alerts")
         .insert({
@@ -343,13 +462,14 @@ export default function RepAvailability() {
           affected_start_date: alertStartDate || null,
           affected_end_date: alertEndDate || null,
           recipient_vendor_ids: vendorIds,
+          is_scheduled: false,
         })
         .select()
         .single();
 
       if (alertError) throw alertError;
 
-      // Call edge function to send notifications and emails
+      // Call edge function to send notifications
       const { data: sendResult, error: sendError } = await supabase.functions.invoke(
         "send-rep-network-alert",
         {
@@ -364,51 +484,70 @@ export default function RepAvailability() {
 
       const inAppCount = sendResult?.inAppNotifications || 0;
       const emailCount = sendResult?.emailsSent || 0;
-      let description = `Notification sent to ${inAppCount} ClearMarket vendor${inAppCount !== 1 ? 's' : ''}`;
+      let description = `Alert sent to ${inAppCount} vendor${inAppCount !== 1 ? 's' : ''}`;
       if (emailCount > 0) {
         description += ` and ${emailCount} manual contact${emailCount !== 1 ? 's' : ''}`;
       }
-      description += '.';
 
-      toast({
-        title: "Alert Sent",
-        description,
-      });
-
-      // Reset form
-      setAlertType("planned");
-      setAlertStartDate("");
-      setAlertEndDate("");
-      setAlertMessage("");
+      toast({ title: "Alert Sent", description });
+      resetAlertForm();
     } catch (error: any) {
       console.error("Error sending alert:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send alert.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to send.", variant: "destructive" });
     } finally {
       setSendingAlert(false);
     }
   }
 
-  function getAlertTemplate() {
-    switch (alertType) {
+  function resetAlertForm() {
+    setAlertType("planned");
+    setAlertStartDate("");
+    setAlertEndDate("");
+    setAlertMessage(getAlertTemplate("planned"));
+    setRouteDate(undefined);
+    setRouteState("");
+    setRouteCounties([]);
+    setEditingRouteId(null);
+  }
+
+  function getAlertTemplate(type: AlertType) {
+    switch (type) {
       case "planned":
         return `Hi, I'll be unavailable from {{START_DATE}} to {{END_DATE}} in my normal coverage areas. Please keep me in mind for future work once I'm back. Thank you!`;
       case "emergency":
         return `Hi, I'm temporarily unavailable due to an emergency. I'll update you as soon as I'm able to take on work again. Thank you for your understanding.`;
       case "update":
         return `Hi, I wanted to update you on my availability. [Provide details about your current status and when you'll be available for work.]`;
+      case "route":
+        return `I'm planning to be in {COUNTIES}, {STATE} on {DATE}.\nIf you have any work or orders in this area, please let me know.`;
       default:
         return "";
     }
   }
 
   useEffect(() => {
-    // Auto-fill alert message when type changes
-    setAlertMessage(getAlertTemplate());
+    setAlertMessage(getAlertTemplate(alertType));
   }, [alertType]);
+
+  function handleEditRoute(route: PlannedRoute) {
+    setAlertType("route");
+    setEditingRouteId(route.id);
+    setRouteDate(parseISO(route.route_date));
+    
+    // Find state code from name
+    const stateCode = coverageStates.find(s => s.name === route.route_state)?.code || "";
+    setRouteState(stateCode);
+    setRouteCounties(route.route_counties);
+    setAlertMessage(route.message);
+  }
+
+  function toggleCounty(county: string) {
+    setRouteCounties(prev => 
+      prev.includes(county) 
+        ? prev.filter(c => c !== county)
+        : [...prev, county]
+    );
+  }
 
   if (authLoading || loading) {
     return (
@@ -418,7 +557,6 @@ export default function RepAvailability() {
     );
   }
 
-  // Filter entries into future, active, and past
   const today = new Date().toISOString().split("T")[0];
   const futureEntries = availabilityEntries.filter(e => e.start_date > today);
   const activeEntries = availabilityEntries.filter(e => e.start_date <= today && e.end_date >= today);
@@ -434,6 +572,7 @@ export default function RepAvailability() {
           </Button>
           <h1 className="text-xl font-bold text-foreground">Availability & Vendor Alerts</h1>
         </div>
+
         {/* Section 1: Time Off / Availability */}
         <Card className="mb-8">
           <CardHeader>
@@ -444,7 +583,7 @@ export default function RepAvailability() {
                   Time Off / Availability
                 </CardTitle>
                 <CardDescription className="mt-2">
-                  Manage your unavailable periods. When auto-reply is enabled, vendors will receive an automatic message when they send you a message during this time.
+                  Manage your unavailable periods. Vendors receive an auto-reply when they message you during this time.
                 </CardDescription>
               </div>
               <Button onClick={openAddDialog}>
@@ -458,11 +597,9 @@ export default function RepAvailability() {
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No time off scheduled yet.</p>
-                <p className="text-sm mt-1">Add your first unavailable period to let vendors know when you're away.</p>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Active entries */}
                 {activeEntries.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -482,27 +619,13 @@ export default function RepAvailability() {
                                     {entry.auto_reply_enabled ? "Auto-reply ON" : "Auto-reply OFF"}
                                   </Badge>
                                 </div>
-                                {entry.reason && (
-                                  <p className="text-sm text-muted-foreground mb-2">{entry.reason}</p>
-                                )}
-                                {entry.auto_reply_enabled && entry.auto_reply_message && (
-                                  <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded border border-border mt-2">
-                                    <strong>Auto-reply:</strong> {entry.auto_reply_message}
-                                  </p>
-                                )}
+                                {entry.reason && <p className="text-sm text-muted-foreground">{entry.reason}</p>}
                               </div>
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm" onClick={() => openEditDialog(entry)}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setDeletingEntryId(entry.id);
-                                    setShowDeleteDialog(true);
-                                  }}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => { setDeletingEntryId(entry.id); setShowDeleteDialog(true); }}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -514,7 +637,6 @@ export default function RepAvailability() {
                   </div>
                 )}
 
-                {/* Future entries */}
                 {futureEntries.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground mb-3">Upcoming</h3>
@@ -532,22 +654,13 @@ export default function RepAvailability() {
                                     {entry.auto_reply_enabled ? "Auto-reply ON" : "Auto-reply OFF"}
                                   </Badge>
                                 </div>
-                                {entry.reason && (
-                                  <p className="text-sm text-muted-foreground">{entry.reason}</p>
-                                )}
+                                {entry.reason && <p className="text-sm text-muted-foreground">{entry.reason}</p>}
                               </div>
                               <div className="flex gap-2">
                                 <Button variant="outline" size="sm" onClick={() => openEditDialog(entry)}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setDeletingEntryId(entry.id);
-                                    setShowDeleteDialog(true);
-                                  }}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => { setDeletingEntryId(entry.id); setShowDeleteDialog(true); }}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -559,7 +672,6 @@ export default function RepAvailability() {
                   </div>
                 )}
 
-                {/* Past entries */}
                 {pastEntries.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-muted-foreground mb-3">Past</h3>
@@ -570,14 +682,7 @@ export default function RepAvailability() {
                             {format(parseISO(entry.start_date), "MM/dd/yyyy")} – {format(parseISO(entry.end_date), "MM/dd/yyyy")}
                             {entry.reason && ` • ${entry.reason}`}
                           </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setDeletingEntryId(entry.id);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => { setDeletingEntryId(entry.id); setShowDeleteDialog(true); }}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -591,17 +696,25 @@ export default function RepAvailability() {
         </Card>
 
         {/* Section 2: Vendor Network Alerts */}
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Send className="w-5 h-5" />
               Vendor Network Alerts
             </CardTitle>
             <CardDescription className="mt-2">
-              Send a single message to your connected vendors (blind-copied) when you're taking time off or have an emergency.
+              Send a message to your connected vendors when you're taking time off, have an emergency, or will be working in a specific area.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Pending route confirmation banners */}
+            <PlannedRouteConfirmBanner
+              routes={pendingRoutes}
+              onConfirmed={() => loadPendingRoutes()}
+              onEdit={handleEditRoute}
+              repUserId={user?.id || ""}
+            />
+
             <Alert>
               <AlertTriangle className="w-4 h-4" />
               <AlertDescription>
@@ -612,23 +725,24 @@ export default function RepAvailability() {
             <div className="space-y-4">
               <div>
                 <Label className="mb-3 block">Alert Type</Label>
-                <RadioGroup value={alertType} onValueChange={(val: any) => setAlertType(val)}>
+                <RadioGroup value={alertType} onValueChange={(val: AlertType) => setAlertType(val)}>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="planned" id="planned" />
-                    <Label htmlFor="planned" className="font-normal cursor-pointer">
-                      Planned time off
-                    </Label>
+                    <Label htmlFor="planned" className="font-normal cursor-pointer">Planned time off</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="emergency" id="emergency" />
-                    <Label htmlFor="emergency" className="font-normal cursor-pointer">
-                      Emergency / temporarily unavailable
-                    </Label>
+                    <Label htmlFor="emergency" className="font-normal cursor-pointer">Emergency / temporarily unavailable</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="update" id="update" />
-                    <Label htmlFor="update" className="font-normal cursor-pointer">
-                      Availability update
+                    <Label htmlFor="update" className="font-normal cursor-pointer">Availability update</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="route" id="route" />
+                    <Label htmlFor="route" className="font-normal cursor-pointer flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      Planned route / Working in this area
                     </Label>
                   </div>
                 </RadioGroup>
@@ -657,6 +771,75 @@ export default function RepAvailability() {
                 </div>
               )}
 
+              {alertType === "route" && (
+                <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/20">
+                  <div>
+                    <Label className="mb-2 block">Which day will you be in this area?</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn("w-full justify-start text-left font-normal", !routeDate && "text-muted-foreground")}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {routeDate ? format(routeDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={routeDate}
+                          onSelect={setRouteDate}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="mb-2 block">State</Label>
+                      <Select value={routeState} onValueChange={(val) => { setRouteState(val); setRouteCounties([]); }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {coverageStates.map(s => (
+                            <SelectItem key={s.code} value={s.code}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="mb-2 block">Counties</Label>
+                      {stateCounties.length > 0 ? (
+                        <div className="border border-border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+                          {stateCounties.map(county => (
+                            <label key={county} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded">
+                              <input
+                                type="checkbox"
+                                checked={routeCounties.includes(county)}
+                                onChange={() => toggleCounty(county)}
+                                className="rounded"
+                              />
+                              <span className="text-sm">{county}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Select a state first</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Choose the state and counties you plan to work in on this day. We'll let your vendors know you'll be in these areas.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="alert-message">Message</Label>
                 <Textarea
@@ -668,13 +851,25 @@ export default function RepAvailability() {
                   className="mt-2"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Use {`{{START_DATE}}`} and {`{{END_DATE}}`} placeholders for automatic date substitution.
+                  {alertType === "route" 
+                    ? "Use {DATE}, {STATE}, and {COUNTIES} placeholders for automatic substitution."
+                    : "Use {{START_DATE}} and {{END_DATE}} placeholders for automatic date substitution."
+                  }
                 </p>
               </div>
 
               <Button onClick={handleSendAlert} disabled={sendingAlert} className="w-full">
-                <Send className="w-4 h-4 mr-2" />
-                {sendingAlert ? "Sending..." : "Send to My Vendors"}
+                {alertType === "route" ? (
+                  <>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {sendingAlert ? "Scheduling..." : editingRouteId ? "Update Planned Route" : "Schedule Planned Route"}
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    {sendingAlert ? "Sending..." : "Send to My Vendors"}
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -690,28 +885,18 @@ export default function RepAvailability() {
           <DialogHeader>
             <DialogTitle>{editingEntry ? "Edit Time Off" : "Add Time Off"}</DialogTitle>
             <DialogDescription>
-              Schedule a period when you'll be unavailable. Optionally enable auto-reply to send automatic messages to vendors who contact you during this time.
+              Schedule a period when you'll be unavailable.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="start-date">Start Date *</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
               </div>
               <div>
                 <Label htmlFor="end-date">End Date *</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </div>
             </div>
 
@@ -719,23 +904,16 @@ export default function RepAvailability() {
               <Label htmlFor="reason">Reason (optional)</Label>
               <Textarea
                 id="reason"
-                placeholder="e.g., Vacation, surgery, limited availability..."
+                placeholder="e.g., Vacation, surgery..."
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={2}
               />
-              <p className="text-xs text-muted-foreground mt-1">Max 200 characters</p>
             </div>
 
             <div className="flex items-center justify-between space-x-2 py-2">
-              <Label htmlFor="auto-reply-toggle" className="cursor-pointer">
-                Enable auto-reply during this time
-              </Label>
-              <Switch
-                id="auto-reply-toggle"
-                checked={autoReplyEnabled}
-                onCheckedChange={setAutoReplyEnabled}
-              />
+              <Label htmlFor="auto-reply-toggle" className="cursor-pointer">Enable auto-reply</Label>
+              <Switch id="auto-reply-toggle" checked={autoReplyEnabled} onCheckedChange={setAutoReplyEnabled} />
             </div>
 
             {autoReplyEnabled && (
@@ -743,21 +921,16 @@ export default function RepAvailability() {
                 <Label htmlFor="auto-reply-message">Auto-reply Message *</Label>
                 <Textarea
                   id="auto-reply-message"
-                  placeholder="I'm currently unavailable. I'll follow up when I'm back."
+                  placeholder="I'm currently unavailable..."
                   value={autoReplyMessage}
                   onChange={(e) => setAutoReplyMessage(e.target.value)}
                   rows={3}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This message will be sent once to each vendor who messages you during this period.
-                </p>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
             <Button onClick={handleSaveAvailability} disabled={saving}>
               {saving ? "Saving..." : editingEntry ? "Update" : "Add Time Off"}
             </Button>
@@ -765,14 +938,12 @@ export default function RepAvailability() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Time Off Entry?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove this time off entry. Any scheduled auto-reply will no longer be sent.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This will permanently remove this entry.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

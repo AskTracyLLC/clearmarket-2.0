@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 export interface CalendarEventPreview {
   id: string;
   date: string; // ISO date (yyyy-MM-dd)
-  type: "time_off" | "office_closed" | "alert" | "pay_day";
+  type: "time_off" | "office_closed" | "alert" | "pay_day" | "planned_route";
   label: string;
 }
 
