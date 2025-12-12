@@ -1329,6 +1329,7 @@ export type Database = {
           declined_reason: string | null
           id: string
           last_reminder_sent_at: string | null
+          not_interested_reason: string | null
           post_id: string
           rep_id: string
           status: string
@@ -1342,6 +1343,7 @@ export type Database = {
           declined_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
+          not_interested_reason?: string | null
           post_id: string
           rep_id: string
           status?: string
@@ -1355,6 +1357,7 @@ export type Database = {
           declined_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
+          not_interested_reason?: string | null
           post_id?: string
           rep_id?: string
           status?: string

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2, Bell } from "lucide-react";
+import { Search, MapPin, Calendar, AlertCircle, ExternalLink, Building2, Bell, X, Clock } from "lucide-react";
 import { US_STATES } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
@@ -20,6 +20,7 @@ import { getRepMatchSettings } from "@/lib/matchAlerts";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
+import { NotInterestedDialog } from "@/components/NotInterestedDialog";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -161,6 +162,12 @@ export default function RepFindWork() {
 
   // Express interest dialog
   const [interestDialogPost, setInterestDialogPost] = useState<MatchedPost | null>(null);
+
+  // Not interested dialog
+  const [notInterestedPost, setNotInterestedPost] = useState<MatchedPost | null>(null);
+
+  // Show hidden (not interested) posts toggle
+  const [showNotInterested, setShowNotInterested] = useState(false);
 
   // Check auth and rep role
   useEffect(() => {
@@ -532,6 +539,10 @@ export default function RepFindWork() {
 
   const handleInterestExpressed = (postId: string) => {
     setRepInterest((prev) => new Map([...prev, [postId, "interested"]]));
+  };
+
+  const handleNotInterestedConfirmed = (postId: string) => {
+    setRepInterest((prev) => new Map([...prev, [postId, "not_interested"]]));
   };
 
   const formatDate = (dateString: string) => {
@@ -999,6 +1010,10 @@ export default function RepFindWork() {
                             >
                               Not selected
                             </Button>
+                          ) : repInterest.get(post.id) === "not_interested" ? (
+                            <Badge variant="secondary" className="flex-1 justify-center py-2 text-muted-foreground">
+                              Not interested
+                            </Badge>
                           ) : (
                             <Button
                               size="sm"
@@ -1010,13 +1025,24 @@ export default function RepFindWork() {
                             </Button>
                           )
                         ) : (
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleInterestedClick(post)}
-                          >
-                            I'm Interested
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleInterestedClick(post)}
+                            >
+                              I'm Interested
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="px-2"
+                              onClick={() => setNotInterestedPost(post)}
+                              title="Not interested"
+                            >
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </CardContent>
@@ -1154,6 +1180,20 @@ export default function RepFindWork() {
           }}
           coverageAreas={coverageAreas}
           onInterestExpressed={handleInterestExpressed}
+        />
+      )}
+
+      {/* Not Interested Dialog */}
+      {notInterestedPost && repProfile && (
+        <NotInterestedDialog
+          open={!!notInterestedPost}
+          onOpenChange={(open) => {
+            if (!open) setNotInterestedPost(null);
+          }}
+          postId={notInterestedPost.id}
+          postTitle={notInterestedPost.title}
+          repProfileId={repProfile.id}
+          onConfirmed={() => handleNotInterestedConfirmed(notInterestedPost.id)}
         />
       )}
     </AuthenticatedLayout>
