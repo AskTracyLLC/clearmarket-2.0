@@ -100,8 +100,8 @@ export function ReviewsDetailDialog({
           return;
         }
 
-        // Filter out feedback reviews for scoring calculations
-        const scoredReviews = (reviewsData || []).filter(r => !r.is_feedback);
+        // Filter out feedback and coaching reviews for scoring calculations
+        const scoredReviews = (reviewsData || []).filter(r => !r.is_feedback && r.status !== "coaching");
 
         // Fetch reviewer anonymous IDs
         const reviewerIds = [...new Set(reviewsData?.map(r => r.reviewer_id) || [])];

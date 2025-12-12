@@ -19,12 +19,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, MessageSquare, Info } from "lucide-react";
+import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, MessageSquare, Info, GraduationCap } from "lucide-react";
 import { fetchTrustScoresForUsers, canMarkFeedback, markReviewAsFeedback } from "@/lib/reviews";
+import { canMoveToCoaching, MAX_COACHING_REVIEWS } from "@/lib/reviewCoaching";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
 import { ReputationSharePanel } from "@/components/ReputationSharePanel";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { MoveToCoachingDialog } from "@/components/MoveToCoachingDialog";
 
 interface ReviewData {
   id: string;
@@ -38,6 +40,9 @@ interface ReviewData {
   is_exit_review: boolean;
   direction: string;
   is_feedback?: boolean;
+  status?: string;
+  converted_to_coaching_at?: string | null;
+  coaching_note?: string | null;
   // Enriched data
   reviewerAnonymousId?: string;
   revieweeAnonymousId?: string;
@@ -80,6 +85,13 @@ export default function RepReviews() {
   const [recentAvgQuality, setRecentAvgQuality] = useState<number | null>(null);
   const [recentAvgCommunication, setRecentAvgCommunication] = useState<number | null>(null);
 
+  // Coaching state
+  const [canUseCoaching, setCanUseCoaching] = useState(true);
+  const [coachingCount, setCoachingCount] = useState(0);
+  const [coachingDialogReviewId, setCoachingDialogReviewId] = useState<string | null>(null);
+  const [publicReviewCount, setPublicReviewCount] = useState(0);
+  const [coachingReviewCount, setCoachingReviewCount] = useState(0);
+
   useEffect(() => {
     if (!authLoading && user) {
       checkAccess();
@@ -117,18 +129,23 @@ export default function RepReviews() {
       // Fetch received reviews (vendor_to_rep)
       const { data: received, error: receivedError } = await supabase
         .from("reviews")
-        .select("*, is_feedback")
+        .select("*, is_feedback, status, converted_to_coaching_at, coaching_note")
         .eq("reviewee_id", user.id)
         .eq("direction", "vendor_to_rep")
         .order("created_at", { ascending: false });
 
       if (receivedError) throw receivedError;
 
-      // Check feedback reset eligibility
-      const feedbackResult = await canMarkFeedback(user.id);
-      setCanUseFeedbackReset(feedbackResult.canMark);
-      setFeedbackDaysRemaining(feedbackResult.daysRemaining);
-      setFeedbackNextDate(feedbackResult.nextAvailableDate);
+      // Check coaching eligibility
+      const coachingResult = await canMoveToCoaching(user.id);
+      setCanUseCoaching(coachingResult.canMove);
+      setCoachingCount(coachingResult.currentCount);
+
+      // Calculate public vs coaching counts
+      const publicCount = (received || []).filter(r => r.status !== "coaching").length;
+      const coachingCountTotal = (received || []).filter(r => r.status === "coaching").length;
+      setPublicReviewCount(publicCount);
+      setCoachingReviewCount(coachingCountTotal);
 
       // Fetch given reviews (rep_to_vendor)
       const { data: given, error: givenError } = await supabase
@@ -276,11 +293,36 @@ export default function RepReviews() {
     const displayUserId = isReceived ? review.reviewer_id : review.reviewee_id;
     const displayAnonymousId = isReceived ? review.reviewerAnonymousId : review.revieweeAnonymousId;
 
-    const showFeedbackButton = isReceived && !review.is_feedback && canUseFeedbackReset;
+    const isCoaching = review.status === "coaching";
+    const isPublished = review.status === "published" || !review.status;
+    const showFeedbackButton = isReceived && !review.is_feedback && !isCoaching && canUseFeedbackReset;
+    const showCoachingButton = isReceived && isPublished && !review.is_feedback && canUseCoaching;
 
     return (
-      <Card key={review.id} className="mb-3">
+      <Card key={review.id} className={`mb-3 ${isCoaching ? "border-amber-500/30 bg-amber-500/5" : ""}`}>
         <CardContent className="pt-6">
+          {/* Coaching banner for coaching reviews */}
+          {isCoaching && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-start gap-2">
+                <GraduationCap className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-500">
+                    Coaching / Private Feedback
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    This review no longer affects your public rating.
+                  </p>
+                  {review.coaching_note && (
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                      Your note: "{review.coaching_note}"
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-foreground">
@@ -299,6 +341,17 @@ export default function RepReviews() {
               {review.is_exit_review && (
                 <Badge variant="outline" className="text-xs">
                   Exit Review
+                </Badge>
+              )}
+              {/* Status badges */}
+              {isPublished && !review.is_feedback && (
+                <Badge variant="secondary" className="text-xs">
+                  Public
+                </Badge>
+              )}
+              {isCoaching && (
+                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                  Coaching
                 </Badge>
               )}
               {review.is_feedback && (
@@ -358,21 +411,53 @@ export default function RepReviews() {
             <p className="text-sm text-muted-foreground italic mb-3">"{review.comment}"</p>
           )}
 
-          {/* Mark as Feedback button for received reviews */}
-          {showFeedbackButton && (
-            <div className="pt-3 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFeedbackConfirmReviewId(review.id)}
-                className="text-xs"
-              >
-                <MessageSquare className="h-3 w-3 mr-1.5" />
-                Mark as Feedback
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                Use your one feedback reset (available every 30 days)
-              </p>
+          {/* Action buttons for received reviews */}
+          {isReceived && isPublished && !review.is_feedback && (
+            <div className="pt-3 border-t border-border flex flex-wrap gap-2 items-center">
+              {/* Move to Coaching button */}
+              {showCoachingButton ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCoachingDialogReviewId(review.id)}
+                  className="text-xs"
+                >
+                  <GraduationCap className="h-3 w-3 mr-1.5" />
+                  Move to Coaching
+                </Button>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="text-xs opacity-50"
+                      >
+                        <GraduationCap className="h-3 w-3 mr-1.5" />
+                        Move to Coaching
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>You've already moved the maximum number of reviews ({MAX_COACHING_REVIEWS}) into Coaching. Please focus on improving your process before converting more.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Mark as Feedback button */}
+              {showFeedbackButton && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFeedbackConfirmReviewId(review.id)}
+                  className="text-xs"
+                >
+                  <MessageSquare className="h-3 w-3 mr-1.5" />
+                  Mark as Feedback
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
@@ -446,6 +531,27 @@ export default function RepReviews() {
               <p className="text-sm text-muted-foreground">
                 Based on {reviewCount} review{reviewCount !== 1 ? "s" : ""}
               </p>
+              
+              {/* Public vs Coaching counts */}
+              <div className="flex items-center gap-4 mt-2 text-sm">
+                <span className="text-muted-foreground">
+                  Public Reviews: <span className="font-medium text-foreground">{publicReviewCount}</span>
+                </span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="text-muted-foreground flex items-center gap-1 cursor-help">
+                        Private Feedback / Coaching: <span className="font-medium text-foreground">{coachingReviewCount}</span>
+                        <Info className="h-3 w-3" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>These are reviews you moved into a private coaching bucket. They no longer affect your public rating, but are still visible to the original vendor and ClearMarket Admins.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              
               <p className="text-xs text-muted-foreground mt-1">
                 Everyone starts in the middle. Your Trust Score adjusts as verified reviews are added.
               </p>
@@ -562,6 +668,17 @@ export default function RepReviews() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Move to Coaching Dialog */}
+      {coachingDialogReviewId && user && (
+        <MoveToCoachingDialog
+          open={!!coachingDialogReviewId}
+          onOpenChange={(open) => !open && setCoachingDialogReviewId(null)}
+          reviewId={coachingDialogReviewId}
+          repUserId={user.id}
+          onSuccess={() => loadReviewsData()}
+        />
+      )}
     </AuthenticatedLayout>
   );
 }

@@ -1700,7 +1700,10 @@ export type Database = {
       }
       reviews: {
         Row: {
+          coaching_note: string | null
           comment: string | null
+          converted_to_coaching_at: string | null
+          converted_to_coaching_by: string | null
           county_name: string | null
           created_at: string
           direction: string
@@ -1728,7 +1731,10 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          coaching_note?: string | null
           comment?: string | null
+          converted_to_coaching_at?: string | null
+          converted_to_coaching_by?: string | null
           county_name?: string | null
           created_at?: string
           direction: string
@@ -1756,7 +1762,10 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          coaching_note?: string | null
           comment?: string | null
+          converted_to_coaching_at?: string | null
+          converted_to_coaching_by?: string | null
           county_name?: string | null
           created_at?: string
           direction?: string
@@ -1784,6 +1793,13 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reviews_converted_to_coaching_by_fkey"
+            columns: ["converted_to_coaching_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reviews_feedback_marked_by_user_id_fkey"
             columns: ["feedback_marked_by_user_id"]

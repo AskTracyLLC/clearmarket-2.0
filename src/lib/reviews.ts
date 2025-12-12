@@ -21,12 +21,14 @@ export async function fetchTrustScoresForUsers(
       rating_communication,
       exclude_from_trust_score,
       is_hidden,
-      is_feedback
+      is_feedback,
+      status
     `)
     .in("reviewee_id", userIds)
     .eq("exclude_from_trust_score", false)
     .eq("is_hidden", false)
-    .eq("is_feedback", false); // Exclude feedback reviews from scoring
+    .eq("is_feedback", false) // Exclude feedback reviews from scoring
+    .neq("status", "coaching"); // Exclude coaching reviews from scoring
 
   if (error) {
     console.error("Error fetching trust scores", error);
