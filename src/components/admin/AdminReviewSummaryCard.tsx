@@ -9,6 +9,7 @@ import { getReviewSettings } from "@/lib/reviewSettings";
 export function AdminReviewSummaryCard() {
   const navigate = useNavigate();
   const [minDays, setMinDays] = useState<number | null>(null);
+  const [enforceWaitingPeriod, setEnforceWaitingPeriod] = useState<boolean>(true);
   const [recentReviewCount, setRecentReviewCount] = useState<number>(0);
   const [isDefault, setIsDefault] = useState(false);
 
@@ -20,6 +21,7 @@ export function AdminReviewSummaryCard() {
     // Get settings
     const settings = await getReviewSettings();
     setMinDays(settings.min_days_between_reviews);
+    setEnforceWaitingPeriod(settings.enforce_waiting_period);
     setIsDefault(!settings.id);
 
     // Get reviews in last 30 days
@@ -44,7 +46,15 @@ export function AdminReviewSummaryCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
-          Review cadence: <span className="text-foreground font-medium">every {minDays ?? 30} days</span> per connection
+          {enforceWaitingPeriod ? (
+            <>
+              Review cadence: <span className="text-foreground font-medium">every {minDays ?? 30} days</span> per connection
+            </>
+          ) : (
+            <>
+              Waiting period: <span className="text-orange-400 font-medium">Disabled (testing mode)</span>
+            </>
+          )}
           {isDefault && (
             <span className="block text-xs text-muted-foreground italic mt-1">
               Using default value (30 days)
