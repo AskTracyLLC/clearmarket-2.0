@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getReviewSettings } from "./reviewSettings";
 
 /**
  * Fetch Trust Scores for multiple users
@@ -68,12 +69,16 @@ export async function fetchTrustScoresForUsers(
 
 /**
  * Check if a user can post a new review to another user
- * Returns true if no existing review OR last review is 30+ days old
+ * Returns true if no existing review OR last review is older than the configured min days
  */
 export async function canPostReview(
   reviewerId: string,
   revieweeId: string
-): Promise<{ canPost: boolean; daysRemaining: number | null; nextReviewDate: Date | null }> {
+): Promise<{ canPost: boolean; daysRemaining: number | null; nextReviewDate: Date | null; minDays: number }> {
+  // Fetch dynamic settings
+  const settings = await getReviewSettings();
+  const minDays = settings.min_days_between_reviews;
+
   const { data, error } = await supabase
     .from("reviews")
     .select("created_at")
@@ -85,61 +90,65 @@ export async function canPostReview(
 
   if (error) {
     console.error("Error checking review eligibility:", error);
-    return { canPost: true, daysRemaining: null, nextReviewDate: null };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
   }
 
   if (!data) {
-    return { canPost: true, daysRemaining: null, nextReviewDate: null };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
   }
 
   const lastReviewDate = new Date(data.created_at);
   const nextReviewDate = new Date(lastReviewDate);
-  nextReviewDate.setDate(nextReviewDate.getDate() + 30);
+  nextReviewDate.setDate(nextReviewDate.getDate() + minDays);
   
   const now = new Date();
   const daysSinceLastReview = Math.floor(
     (now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  if (daysSinceLastReview >= 30) {
-    return { canPost: true, daysRemaining: null, nextReviewDate: null };
+  if (daysSinceLastReview >= minDays) {
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
   }
 
-  return { canPost: false, daysRemaining: 30 - daysSinceLastReview, nextReviewDate };
+  return { canPost: false, daysRemaining: minDays - daysSinceLastReview, nextReviewDate, minDays };
 }
 
 /**
  * Check if a user can mark another review as feedback
- * Returns true if no feedback marked in the last 30 days
+ * Returns true if no feedback marked in the last N days (configured by admin)
  */
 export async function canMarkFeedback(
   revieweeId: string
-): Promise<{ canMark: boolean; daysRemaining: number | null; nextAvailableDate: Date | null }> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+): Promise<{ canMark: boolean; daysRemaining: number | null; nextAvailableDate: Date | null; minDays: number }> {
+  // Fetch dynamic settings
+  const settings = await getReviewSettings();
+  const minDays = settings.min_days_between_reviews;
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - minDays);
 
   const { data, error } = await supabase
     .from("reviews")
     .select("feedback_marked_at")
     .eq("reviewee_id", revieweeId)
     .eq("is_feedback", true)
-    .gte("feedback_marked_at", thirtyDaysAgo.toISOString())
+    .gte("feedback_marked_at", cutoffDate.toISOString())
     .order("feedback_marked_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) {
     console.error("Error checking feedback eligibility:", error);
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
   }
 
   if (!data || !data.feedback_marked_at) {
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
   }
 
   const lastFeedbackDate = new Date(data.feedback_marked_at);
   const nextAvailableDate = new Date(lastFeedbackDate);
-  nextAvailableDate.setDate(nextAvailableDate.getDate() + 30);
+  nextAvailableDate.setDate(nextAvailableDate.getDate() + minDays);
   
   const now = new Date();
   const daysRemaining = Math.ceil(
@@ -147,10 +156,10 @@ export async function canMarkFeedback(
   );
 
   if (daysRemaining <= 0) {
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
   }
 
-  return { canMark: false, daysRemaining, nextAvailableDate };
+  return { canMark: false, daysRemaining, nextAvailableDate, minDays };
 }
 
 /**
@@ -161,12 +170,12 @@ export async function markReviewAsFeedback(
   revieweeId: string
 ): Promise<{ success: boolean; error?: string }> {
   // First check if user can mark feedback
-  const { canMark, daysRemaining } = await canMarkFeedback(revieweeId);
+  const { canMark, daysRemaining, minDays } = await canMarkFeedback(revieweeId);
   
   if (!canMark) {
     return { 
       success: false, 
-      error: `You've already marked a review as feedback in the last 30 days. Try again in ${daysRemaining} days.` 
+      error: `You've already marked a review as feedback in the last ${minDays} days. Try again in ${daysRemaining} days.` 
     };
   }
 

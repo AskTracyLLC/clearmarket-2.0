@@ -31,6 +31,7 @@ import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MimicBanner } from "@/components/MimicBanner";
 import { useMimic } from "@/hooks/useMimic";
+import { AdminReviewSummaryCard } from "@/components/admin/AdminReviewSummaryCard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -624,6 +625,20 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">Manage notification emails</CardDescription>
                 </CardHeader>
               </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/review-settings")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Star className="w-5 h-5 text-primary" />
+                    Review Settings
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage review cadence</CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+            
+            {/* Review Summary Card */}
+            <div className="mt-6 max-w-sm">
+              <AdminReviewSummaryCard />
             </div>
           </>
         )}

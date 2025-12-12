@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
+import { ReviewHelperTips } from "./ReviewHelperTips";
 
 export interface Review {
   id: string;
@@ -249,6 +250,9 @@ export function ReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Helper tips section */}
+          <ReviewHelperTips isVendorReviewing={isVendorReviewing} />
+
           <div className="space-y-2">
             {renderStarRating(onTimeRating, setOnTimeRating, labels.onTimeLabel)}
             <p className="text-xs text-muted-foreground">{labels.onTimeHelp}</p>
@@ -297,7 +301,7 @@ export function ReviewDialog({
               className="resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              Reviews are visible to the other party and may be shown on profiles once published.
+              Short and clear is best. Focus on what actually happened. Reviews are visible to the other party.
             </p>
           </div>
         </div>
