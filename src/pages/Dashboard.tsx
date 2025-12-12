@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,9 +29,12 @@ import { VendorMatchAssistantCard } from "@/components/dashboard/VendorMatchAssi
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { MimicBanner } from "@/components/MimicBanner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const mimicUserId = searchParams.get("mimic");
   const { user, loading: authLoading } = useAuth();
   const { effectiveRole, isHybrid, isRep: hasRepRole, isVendor: hasVendorRole, loading: roleLoading } = useActiveRole();
   const { toast } = useToast();
@@ -72,6 +75,16 @@ const Dashboard = () => {
     countiesCount: number;
     activeAgreementsCount: number;
   }>({ statesCount: 0, countiesCount: 0, activeAgreementsCount: 0 });
+  
+  // Mimic mode state
+  const [mimickedUser, setMimickedUser] = useState<{
+    id: string;
+    full_name: string | null;
+    email: string;
+    is_fieldrep: boolean;
+    is_vendor_admin: boolean;
+  } | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -82,130 +95,178 @@ const Dashboard = () => {
     if (user) {
       loadProfile();
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, mimicUserId]);
 
   const loadProfile = async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
+    // First, load the current user's profile to check if they're an admin
+    const { data: currentUserData, error: currentUserError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (error) {
-      console.error('Error loading profile:', error);
+    if (currentUserError) {
+      console.error('Error loading profile:', currentUserError);
+      setLoading(false);
+      return;
+    }
+    
+    const currentUserIsAdmin = currentUserData?.is_admin === true;
+    setIsAdminUser(currentUserIsAdmin);
+    
+    // If mimic mode is active and user is admin, load the mimicked user's data
+    if (mimicUserId && currentUserIsAdmin) {
+      const { data: mimicData, error: mimicError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', mimicUserId)
+        .single();
+      
+      if (mimicError || !mimicData) {
+        console.error('Error loading mimicked user:', mimicError);
+        toast({
+          title: "Error",
+          description: "Could not load user to mimic",
+          variant: "destructive",
+        });
+        navigate("/admin/users");
+        return;
+      }
+      
+      setMimickedUser({
+        id: mimicData.id,
+        full_name: mimicData.full_name,
+        email: mimicData.email,
+        is_fieldrep: mimicData.is_fieldrep,
+        is_vendor_admin: mimicData.is_vendor_admin,
+      });
+      
+      // Use mimicked user's profile data for dashboard display
+      setProfile(mimicData);
+      await loadUserDashboardData(mimicData);
     } else {
-      setProfile(data);
+      // Normal flow - load current user's dashboard
+      setProfile(currentUserData);
       
       // Redirect to onboarding if needed (admins bypass role selection)
-      const isAdmin = data.is_admin === true;
+      const isAdmin = currentUserData.is_admin === true;
       
-      if (!data.has_signed_terms && !isAdmin) {
+      if (!currentUserData.has_signed_terms && !isAdmin) {
         navigate("/onboarding/terms");
         return;
       }
-      if (!isAdmin && !data.is_fieldrep && !data.is_vendor_admin) {
+      if (!isAdmin && !currentUserData.is_fieldrep && !currentUserData.is_vendor_admin) {
         navigate("/onboarding/role");
         return;
       }
-
-      // Load role-specific profile
-      if (data.is_fieldrep) {
-        const { data: repData } = await supabase
-          .from("rep_profile")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        
-        if (repData) {
-          // Get rep coverage areas for count and stats
-          const { data: repCoverageAreas } = await supabase
-            .from("rep_coverage_areas")
-            .select("state_code, county_id")
-            .eq("user_id", user.id);
-          
-          const coverageCount = repCoverageAreas?.length || 0;
-          const uniqueStates = new Set(repCoverageAreas?.map(ca => ca.state_code) || []);
-          
-          // Get active working terms agreements count
-          const { count: agreementsCount } = await supabase
-            .from("working_terms_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("rep_id", user.id)
-            .eq("status", "active");
-          
-          setRepProfile({ ...repData, coverage_count: coverageCount });
-          setCoverageStats({
-            statesCount: uniqueStates.size,
-            countiesCount: coverageCount,
-            activeAgreementsCount: agreementsCount || 0,
-          });
-        } else {
-          setRepProfile(repData);
-        }
-      }
-
-      if (data.is_vendor_admin) {
-        const { data: vendorData } = await supabase
-          .from("vendor_profile")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        
-        setVendorProfile(vendorData);
-        
-        // Get vendor coverage areas for stats
-        const { data: vendorCoverageAreas } = await supabase
-          .from("vendor_coverage_areas")
+      
+      await loadUserDashboardData(currentUserData);
+    }
+    
+    setLoading(false);
+  };
+  
+  const loadUserDashboardData = async (data: any) => {
+    const targetUserId = data.id;
+    
+    // Load role-specific profile
+    if (data.is_fieldrep) {
+      const { data: repData } = await supabase
+        .from("rep_profile")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      
+      if (repData) {
+        // Get rep coverage areas for count and stats
+        const { data: repCoverageAreas } = await supabase
+          .from("rep_coverage_areas")
           .select("state_code, county_id")
-          .eq("user_id", user.id);
+          .eq("user_id", targetUserId);
         
-        const vendorCoverageCount = vendorCoverageAreas?.length || 0;
-        const vendorUniqueStates = new Set(vendorCoverageAreas?.map(ca => ca.state_code) || []);
+        const coverageCount = repCoverageAreas?.length || 0;
+        const uniqueStates = new Set(repCoverageAreas?.map(ca => ca.state_code) || []);
         
-        // Get active working terms agreements count for vendor
-        const { count: vendorAgreementsCount } = await supabase
+        // Get active working terms agreements count
+        const { count: agreementsCount } = await supabase
           .from("working_terms_requests")
           .select("*", { count: "exact", head: true })
-          .eq("vendor_id", user.id)
+          .eq("rep_id", targetUserId)
           .eq("status", "active");
         
+        setRepProfile({ ...repData, coverage_count: coverageCount });
         setCoverageStats({
-          statesCount: vendorUniqueStates.size,
-          countiesCount: vendorCoverageCount,
-          activeAgreementsCount: vendorAgreementsCount || 0,
+          statesCount: uniqueStates.size,
+          countiesCount: coverageCount,
+          activeAgreementsCount: agreementsCount || 0,
         });
+      } else {
+        setRepProfile(repData);
       }
+    }
 
-      // Load unread message count
-      const { count } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .eq("recipient_id", user.id)
-        .eq("read", false);
+    if (data.is_vendor_admin) {
+      const { data: vendorData } = await supabase
+        .from("vendor_profile")
+        .select("*")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
       
-      setUnreadMessageCount(count || 0);
+      setVendorProfile(vendorData);
+      
+      // Get vendor coverage areas for stats
+      const { data: vendorCoverageAreas } = await supabase
+        .from("vendor_coverage_areas")
+        .select("state_code, county_id")
+        .eq("user_id", targetUserId);
+      
+      const vendorCoverageCount = vendorCoverageAreas?.length || 0;
+      const vendorUniqueStates = new Set(vendorCoverageAreas?.map(ca => ca.state_code) || []);
+      
+      // Get active working terms agreements count for vendor
+      const { count: vendorAgreementsCount } = await supabase
+        .from("working_terms_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("vendor_id", targetUserId)
+        .eq("status", "active");
+      
+      setCoverageStats({
+        statesCount: vendorUniqueStates.size,
+        countiesCount: vendorCoverageCount,
+        activeAgreementsCount: vendorAgreementsCount || 0,
+      });
+    }
 
-      // Load pending connection count for field reps
-      if (data.is_fieldrep) {
-        const { count: pendingCount } = await supabase
-          .from("vendor_connections")
-          .select("*", { count: "exact", head: true })
-          .eq("field_rep_id", user.id)
-          .eq("status", "pending");
-        
-        setPendingConnectionCount(pendingCount || 0);
+    // Load unread message count
+    const { count } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+      .eq("recipient_id", targetUserId)
+      .eq("read", false);
+    
+    setUnreadMessageCount(count || 0);
 
-        // Count new opportunities (last 7 days) that match rep's coverage
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        
-        // Get rep's coverage areas
-        const { data: repCoverage } = await supabase
-          .from("rep_coverage_areas")
-          .select("state_code, county_id, covers_entire_state")
-          .eq("user_id", user.id);
+    // Load pending connection count for field reps
+    if (data.is_fieldrep) {
+      const { count: pendingCount } = await supabase
+        .from("vendor_connections")
+        .select("*", { count: "exact", head: true })
+        .eq("field_rep_id", targetUserId)
+        .eq("status", "pending");
+      
+      setPendingConnectionCount(pendingCount || 0);
+
+      // Count new opportunities (last 7 days) that match rep's coverage
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      // Get rep's coverage areas
+      const { data: repCoverage } = await supabase
+        .from("rep_coverage_areas")
+        .select("state_code, county_id, covers_entire_state")
+        .eq("user_id", targetUserId);
         
         // Get all active opportunities from last 7 days
         const { data: opportunities } = await supabase
@@ -244,66 +305,63 @@ const Dashboard = () => {
         setNewOpportunityCount(matchedCount);
       }
 
-      // Load unread notification count
-      const { count: notificationCount } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
+    // Load unread notification count
+    const { count: notificationCount } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", targetUserId)
+      .eq("is_read", false);
+    
+    setUnreadNotificationCount(notificationCount || 0);
+
+    // Load vendor credits if vendor
+    if (data.is_vendor_admin) {
+      const { data: walletData } = await supabase
+        .from("user_wallet")
+        .select("credits")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
       
-      setUnreadNotificationCount(notificationCount || 0);
-
-      // Load vendor credits if vendor
-      if (data.is_vendor_admin) {
-        const { data: walletData } = await supabase
-          .from("user_wallet")
-          .select("credits")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        
-        setVendorCredits(walletData?.credits ?? 0);
-      }
-
-      // Check for 14-day review prompts
-      await checkReviewPrompts(user.id, data.is_fieldrep, data.is_vendor_admin);
-
-      // Compute profile completeness
-      if (data.is_fieldrep) {
-        const repResult = await computeRepProfileCompleteness(supabase, user.id);
-        setRepCompleteness(repResult);
-        // Show setup section if profile incomplete
-        setShowSetupSection(repResult.percent < 100);
-      }
-      if (data.is_vendor_admin) {
-        const vendorResult = await computeVendorProfileCompleteness(supabase, user.id);
-        setVendorCompleteness(vendorResult);
-        setShowSetupSection(vendorResult.percent < 100);
-      }
-
-      // Check for soft warnings
-      const role = data.is_fieldrep ? "rep" : data.is_vendor_admin ? "vendor" : null;
-      if (role) {
-        const warningData = await checkSoftWarnings(user.id, role);
-        setSoftWarning(warningData);
-      }
-
-      // Check for upcoming time-off for field reps
-      if (data.is_fieldrep) {
-        const today = new Date().toISOString().split("T")[0];
-        const { data: upcomingAvailability } = await supabase
-          .from("rep_availability")
-          .select("start_date, end_date, auto_reply_enabled")
-          .eq("rep_user_id", user.id)
-          .gte("end_date", today)
-          .order("start_date", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        
-        setUpcomingTimeOff(upcomingAvailability);
-      }
+      setVendorCredits(walletData?.credits ?? 0);
     }
 
-    setLoading(false);
+    // Check for 14-day review prompts
+    await checkReviewPrompts(targetUserId, data.is_fieldrep, data.is_vendor_admin);
+
+    // Compute profile completeness
+    if (data.is_fieldrep) {
+      const repResult = await computeRepProfileCompleteness(supabase, targetUserId);
+      setRepCompleteness(repResult);
+      // Show setup section if profile incomplete
+      setShowSetupSection(repResult.percent < 100);
+    }
+    if (data.is_vendor_admin) {
+      const vendorResult = await computeVendorProfileCompleteness(supabase, targetUserId);
+      setVendorCompleteness(vendorResult);
+      setShowSetupSection(vendorResult.percent < 100);
+    }
+
+    // Check for soft warnings
+    const role = data.is_fieldrep ? "rep" : data.is_vendor_admin ? "vendor" : null;
+    if (role) {
+      const warningData = await checkSoftWarnings(targetUserId, role);
+      setSoftWarning(warningData);
+    }
+
+    // Check for upcoming time-off for field reps
+    if (data.is_fieldrep) {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: upcomingAvailability } = await supabase
+        .from("rep_availability")
+        .select("start_date, end_date, auto_reply_enabled")
+        .eq("rep_user_id", targetUserId)
+        .gte("end_date", today)
+        .order("start_date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      
+      setUpcomingTimeOff(upcomingAvailability);
+    }
   };
 
   const checkReviewPrompts = async (userId: string, isRep: boolean, isVendor: boolean) => {
@@ -395,12 +453,17 @@ const Dashboard = () => {
   }
 
   // Use effectiveRole for hybrid users to determine which dashboard view to show
+  // In mimic mode, use the mimicked user's roles
   const isAdmin = profile?.is_admin === true;
-  const isAdminOnly = isAdmin && !hasRepRole && !hasVendorRole;
+  const inMimicMode = !!mimickedUser;
+  const mimickedIsRep = mimickedUser?.is_fieldrep === true;
+  const mimickedIsVendor = mimickedUser?.is_vendor_admin === true;
+  const isAdminOnly = isAdmin && !hasRepRole && !hasVendorRole && !inMimicMode;
   
   // For non-admin users, determine which role view to show based on effectiveRole
-  const showingAsRep = effectiveRole === "rep";
-  const showingAsVendor = effectiveRole === "vendor";
+  // In mimic mode, prioritize rep view if user is rep, otherwise vendor
+  const showingAsRep = inMimicMode ? mimickedIsRep : effectiveRole === "rep";
+  const showingAsVendor = inMimicMode ? (!mimickedIsRep && mimickedIsVendor) : effectiveRole === "vendor";
 
   const profileCompletion = showingAsRep 
     ? (repCompleteness?.percent ?? 0) 
@@ -414,10 +477,19 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Mimic Mode Banner */}
+      {mimickedUser && (
+        <MimicBanner 
+          mimickedUserName={mimickedUser.full_name || ""}
+          mimickedUserEmail={mimickedUser.email}
+          mimickedUserId={mimickedUser.id}
+        />
+      )}
+      
       <AuthenticatedNav 
         isAdmin={profile?.is_admin}
-        isVendor={hasVendorRole}
-        isRep={hasRepRole}
+        isVendor={mimickedUser ? mimickedUser.is_vendor_admin : hasVendorRole}
+        isRep={mimickedUser ? mimickedUser.is_fieldrep : hasRepRole}
         vendorCredits={vendorCredits}
       />
 
