@@ -45,6 +45,7 @@ import {
   fetchPendingAssignmentForConversation,
   fetchActiveAssignmentForConversation 
 } from "@/lib/territoryAssignments";
+import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 
 interface Message {
   id: string;
@@ -768,12 +769,13 @@ export default function MessageThread() {
                   <Badge variant="outline" className="ml-2">{conversationData.seeking_post.state_code}</Badge>
                 )}
               </div>
-              {isVendor && (conversationData.seeking_post.pay_min || conversationData.seeking_post.pay_max) && (
+              {isVendor && (conversationData.seeking_post.pay_min != null || conversationData.seeking_post.pay_max != null) && (
                 <div className="text-sm text-muted-foreground">
-                  Pay: {conversationData.seeking_post.pay_type === "fixed" 
-                    ? `$${conversationData.seeking_post.pay_min} / order`
-                    : `$${conversationData.seeking_post.pay_min}–$${conversationData.seeking_post.pay_max} / order`
-                  }
+                  Pay: {formatVendorOfferedRate(
+                    conversationData.seeking_post.pay_min,
+                    conversationData.seeking_post.pay_max,
+                    conversationData.seeking_post.pay_type
+                  )}
                 </div>
               )}
               {conversationData.seeking_post.pay_notes && (
