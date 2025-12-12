@@ -705,11 +705,22 @@ const Dashboard = () => {
                     <Bell className="h-5 w-5 text-primary" />
                     Today
                   </h2>
-                  <TodayFeed 
-                    userId={inMimicMode ? (mimickedUser?.id || '') : (user?.id || '')} 
-                    isRep={showingAsRep} 
-                    isVendor={showingAsVendor} 
-                  />
+                  {(inMimicMode && !mimickedUser?.id) ? (
+                    <div className="animate-pulse space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-card border border-border rounded-lg p-4">
+                          <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                          <div className="h-3 bg-muted rounded w-2/3"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <TodayFeed 
+                      userId={inMimicMode ? mimickedUser!.id : (user?.id || '')} 
+                      isRep={showingAsRep} 
+                      isVendor={showingAsVendor} 
+                    />
+                  )}
                 </div>
 
                 {/* Setup Section - Collapsible, hidden on mobile (shown in At a Glance instead) */}
