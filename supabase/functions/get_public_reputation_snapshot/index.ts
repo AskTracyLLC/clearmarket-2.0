@@ -58,22 +58,70 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch reviews for trust score calculation
+    // Fetch accepted reviews for trust score calculation
     const { data: reviews, error: reviewsError } = await supabase
       .from('reviews')
-      .select('rating_on_time, rating_quality, rating_communication, comment, created_at, direction')
+      .select('rating_on_time, rating_quality, rating_communication, comment, created_at, direction, state_code, county_name, inspection_category, is_spotlighted')
       .eq('reviewee_id', user_id)
       .eq('exclude_from_trust_score', false)
       .eq('is_hidden', false)
-      .eq('status', 'published')
+      .eq('workflow_status', 'accepted')
+      .neq('status', 'coaching')
       .order('created_at', { ascending: false });
 
     if (reviewsError) {
       console.error('Reviews fetch error:', reviewsError);
     }
 
+    // Fetch spotlighted reviews separately (only accepted + spotlighted)
+    const { data: spotlightedReviews, error: spotlightedError } = await supabase
+      .from('reviews')
+      .select(`
+        rating_on_time, rating_quality, rating_communication, comment, created_at, 
+        state_code, county_name, inspection_category,
+        reviewer:reviewer_id (
+          id
+        )
+      `)
+      .eq('reviewee_id', user_id)
+      .eq('workflow_status', 'accepted')
+      .eq('is_spotlighted', true)
+      .neq('status', 'coaching')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (spotlightedError) {
+      console.error('Spotlighted reviews fetch error:', spotlightedError);
+    }
+
+    // Fetch vendor profiles for spotlighted reviews
+    const spotlightedWithVendor = [];
+    if (spotlightedReviews && spotlightedReviews.length > 0) {
+      for (const review of spotlightedReviews) {
+        const reviewerId = (review.reviewer as any)?.id;
+        let vendorName = 'Anonymous Vendor';
+        
+        if (reviewerId) {
+          const { data: vendorProfile } = await supabase
+            .from('vendor_profile')
+            .select('anonymous_id, company_name')
+            .eq('user_id', reviewerId)
+            .maybeSingle();
+          
+          if (vendorProfile) {
+            vendorName = vendorProfile.company_name || vendorProfile.anonymous_id || 'Anonymous Vendor';
+          }
+        }
+        
+        spotlightedWithVendor.push({
+          ...review,
+          vendor_name: vendorName
+        });
+      }
+    }
+
     // Calculate trust score
-    let trustScore = 50; // Default middle
+    let trustScore = 0;
     let dimensions = { on_time: 0, quality: 0, communication: 0 };
     const reviewCount = reviews?.length || 0;
 
@@ -100,16 +148,24 @@ Deno.serve(async (req) => {
       dimensions.quality = countQuality > 0 ? totalQuality / countQuality : 0;
       dimensions.communication = countCommunication > 0 ? totalCommunication / countCommunication : 0;
 
-      // Average of all three dimensions, then scale to 0-100
-      const avgDimensions = (dimensions.on_time + dimensions.quality + dimensions.communication) / 3;
-      trustScore = Math.round((avgDimensions / 5) * 100);
+      // Trust Score is the average of the three dimensions (1-5 scale)
+      trustScore = (dimensions.on_time + dimensions.quality + dimensions.communication) / 3;
     }
 
     const getTrustLabel = (score: number) => {
-      if (score >= 80) return 'Excellent';
-      if (score >= 60) return 'Above Average';
-      if (score >= 40) return 'Average';
-      return 'Building Reputation';
+      if (score >= 4.5) return 'Excellent';
+      if (score >= 4.0) return 'Very Good';
+      if (score >= 3.5) return 'Good';
+      if (score >= 3.0) return 'Average';
+      if (score > 0) return 'Building Reputation';
+      return 'No Reviews Yet';
+    };
+
+    // Format area helper
+    const formatArea = (stateCode: string | null, countyName: string | null) => {
+      if (countyName && stateCode) return `${countyName}, ${stateCode}`;
+      if (stateCode) return stateCode;
+      return 'Overall';
     };
 
     // Recent reviews (up to 3)
@@ -121,7 +177,23 @@ Deno.serve(async (req) => {
         communication: r.rating_communication
       },
       comment: r.comment,
-      created_at: r.created_at
+      created_at: r.created_at,
+      area: formatArea(r.state_code, r.county_name),
+      work_type: r.inspection_category || 'Overall'
+    }));
+
+    // Spotlighted reviews formatted
+    const formattedSpotlighted = spotlightedWithVendor.map(r => ({
+      vendor_name: r.vendor_name,
+      dimension_scores: {
+        on_time: r.rating_on_time,
+        quality: r.rating_quality,
+        communication: r.rating_communication
+      },
+      comment: r.comment,
+      created_at: r.created_at,
+      area: formatArea(r.state_code, r.county_name),
+      work_type: r.inspection_category || 'Overall'
     }));
 
     let snapshot: any;
@@ -183,7 +255,8 @@ Deno.serve(async (req) => {
         inspection_types: repProfile.inspection_types || [],
         last_active: profile.last_seen_at,
         accepting_new_vendors: repProfile.is_accepting_new_vendors,
-        recent_reviews: recentReviews
+        recent_reviews: recentReviews,
+        spotlighted_reviews: formattedSpotlighted
       };
 
     } else if (role_type === 'vendor') {

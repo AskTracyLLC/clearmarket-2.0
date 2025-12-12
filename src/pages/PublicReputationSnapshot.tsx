@@ -73,9 +73,10 @@ export default function PublicReputationSnapshot() {
   const isRep = role_type === 'rep';
 
   const getTrustScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-500';
-    if (score >= 60) return 'text-blue-500';
-    if (score >= 40) return 'text-yellow-500';
+    if (score >= 4.5) return 'text-green-500';
+    if (score >= 4.0) return 'text-blue-500';
+    if (score >= 3.0) return 'text-yellow-500';
+    if (score > 0) return 'text-muted-foreground';
     return 'text-muted-foreground';
   };
 
@@ -139,11 +140,15 @@ export default function PublicReputationSnapshot() {
               <h3 className="font-semibold">Trust Score</h3>
               <div className="flex items-center gap-4">
                 <div className={`text-5xl font-bold ${getTrustScoreColor(data.trust_score)}`}>
-                  {data.trust_score}
+                  {data.trust_score > 0 ? data.trust_score.toFixed(1) : '—'}
                 </div>
                 <div className="space-y-1">
-                  <div className="font-medium">{data.trust_score_label}</div>
-                  <div className="text-sm text-muted-foreground">Based on {data.review_count} reviews</div>
+                  <div className="font-medium">
+                    {data.trust_score > 0 ? `${data.trust_score.toFixed(1)} / 5` : 'No Rating Yet'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Based on {data.review_count} accepted review{data.review_count !== 1 ? 's' : ''}
+                  </div>
                 </div>
               </div>
             </div>
@@ -281,6 +286,61 @@ export default function PublicReputationSnapshot() {
               </>
             )}
 
+            {/* Spotlighted Reviews */}
+            {isRep && data.spotlighted_reviews?.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-4">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                    Spotlighted Reviews
+                  </h3>
+                  <div className="space-y-4">
+                    {data.spotlighted_reviews.map((review: any, idx: number) => (
+                      <Card key={idx} className="border-primary/20 bg-primary/5">
+                        <CardContent className="pt-4 space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="text-sm font-medium">From: {review.vendor_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span>Area: {review.area}</span>
+                            <span>Work Type: {review.work_type}</span>
+                          </div>
+                          <div className="flex gap-4 text-sm">
+                            {review.dimension_scores.on_time && (
+                              <div>On-Time: {review.dimension_scores.on_time}/5</div>
+                            )}
+                            {review.dimension_scores.quality && (
+                              <div>Quality: {review.dimension_scores.quality}/5</div>
+                            )}
+                            {review.dimension_scores.communication && (
+                              <div>Communication: {review.dimension_scores.communication}/5</div>
+                            )}
+                          </div>
+                          {review.comment && (
+                            <p className="text-muted-foreground italic">"{review.comment}"</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* No spotlighted reviews message */}
+            {isRep && (!data.spotlighted_reviews || data.spotlighted_reviews.length === 0) && data.review_count > 0 && (
+              <>
+                <Separator />
+                <div className="text-center py-4 text-muted-foreground">
+                  <p className="text-sm">No spotlighted reviews yet.</p>
+                </div>
+              </>
+            )}
+
             {/* Recent Reviews */}
             {data.recent_reviews?.length > 0 && (
               <>
@@ -291,7 +351,11 @@ export default function PublicReputationSnapshot() {
                     {data.recent_reviews.map((review: any, idx: number) => (
                       <Card key={idx} className="border-muted">
                         <CardContent className="pt-4 space-y-2">
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex gap-3 text-sm text-muted-foreground">
+                              <span>Area: {review.area}</span>
+                              <span>Work Type: {review.work_type}</span>
+                            </div>
                             <div className="text-sm text-muted-foreground">
                               {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
                             </div>
