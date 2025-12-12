@@ -25,7 +25,90 @@ interface SendAlertRequest {
   repUserId: string;
 }
 
-// Build ClearMarket branded HTML email for external vendors
+interface CoverageArea {
+  state_name: string;
+  state_code: string;
+  county_name: string | null;
+}
+
+// Group coverage areas by state for display
+function groupCoverageByState(areas: CoverageArea[]): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  
+  for (const area of areas) {
+    const stateKey = area.state_name || area.state_code;
+    if (!grouped.has(stateKey)) {
+      grouped.set(stateKey, []);
+    }
+    if (area.county_name) {
+      grouped.get(stateKey)!.push(area.county_name);
+    }
+  }
+  
+  return grouped;
+}
+
+// Render coverage snapshot HTML section
+function renderCoverageSnapshotHtml(repName: string, areas: CoverageArea[]): string {
+  if (areas.length === 0) {
+    return "";
+  }
+
+  const grouped = groupCoverageByState(areas);
+  
+  let coverageListHtml = "";
+  for (const [stateName, counties] of grouped) {
+    if (counties.length === 0) {
+      // No specific counties = statewide
+      coverageListHtml += `<li style="margin-bottom: 6px; color: ${BRAND_COLORS.text};">${stateName} — <em>Statewide</em></li>`;
+    } else {
+      coverageListHtml += `<li style="margin-bottom: 6px; color: ${BRAND_COLORS.text};">${stateName} — ${counties.join(", ")}</li>`;
+    }
+  }
+
+  return `
+    <!-- Coverage Snapshot -->
+    <tr>
+      <td style="background-color: ${BRAND_COLORS.background}; padding: 24px 40px; border: 1px solid ${BRAND_COLORS.border}; border-top: none;">
+        <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: ${BRAND_COLORS.primary};">
+          Coverage Snapshot with ${repName}
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 13px; color: ${BRAND_COLORS.textMuted};">
+          These are the areas this rep currently covers for your company:
+        </p>
+        <ul style="margin: 0; padding-left: 20px; font-size: 14px;">
+          ${coverageListHtml}
+        </ul>
+      </td>
+    </tr>
+  `;
+}
+
+// Render coverage snapshot plain text section
+function renderCoverageSnapshotPlainText(repName: string, areas: CoverageArea[]): string {
+  if (areas.length === 0) {
+    return "";
+  }
+
+  const grouped = groupCoverageByState(areas);
+  
+  let lines: string[] = [];
+  lines.push(`\n---\n`);
+  lines.push(`Coverage Snapshot with ${repName}`);
+  lines.push(`These are the areas this rep currently covers for your company:\n`);
+  
+  for (const [stateName, counties] of grouped) {
+    if (counties.length === 0) {
+      lines.push(`• ${stateName} — Statewide`);
+    } else {
+      lines.push(`• ${stateName} — ${counties.join(", ")}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// Build ClearMarket branded HTML email for external vendors (no coverage snapshot for off-platform)
 function buildExternalVendorEmail(
   repName: string,
   alertTitle: string,
@@ -110,6 +193,81 @@ function buildExternalVendorEmail(
   `.trim();
 }
 
+// Build ClearMarket branded HTML email for ClearMarket vendors (with coverage snapshot)
+function buildClearMarketVendorEmail(
+  repName: string,
+  alertTitle: string,
+  alertBody: string,
+  appBaseUrl: string,
+  coverageAreas: CoverageArea[]
+): string {
+  const coverageSnapshotHtml = renderCoverageSnapshotHtml(repName, coverageAreas);
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${alertTitle}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: ${BRAND_COLORS.background};">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: ${BRAND_COLORS.background};">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, ${BRAND_COLORS.teal} 0%, ${BRAND_COLORS.background} 100%); padding: 32px 40px; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: ${BRAND_COLORS.text}; letter-spacing: -0.5px;">
+                ClearMarket
+              </h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="background-color: ${BRAND_COLORS.surface}; padding: 40px; border-left: 1px solid ${BRAND_COLORS.border}; border-right: 1px solid ${BRAND_COLORS.border};">
+              
+              <!-- From line -->
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: ${BRAND_COLORS.textMuted};">
+                From: <strong style="color: ${BRAND_COLORS.text};">${repName}</strong> via ClearMarket
+              </p>
+              
+              <!-- Subject/Title -->
+              <h2 style="margin: 0 0 24px 0; font-size: 22px; font-weight: 600; color: ${BRAND_COLORS.text}; line-height: 1.3;">
+                ${alertTitle}
+              </h2>
+              
+              <!-- Body content -->
+              <div style="color: ${BRAND_COLORS.text}; font-size: 16px; line-height: 1.6; white-space: pre-wrap;">
+                ${alertBody}
+              </div>
+              
+            </td>
+          </tr>
+          
+          ${coverageSnapshotHtml}
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: ${BRAND_COLORS.background}; padding: 24px 40px; border: 1px solid ${BRAND_COLORS.border}; border-top: ${coverageSnapshotHtml ? "none" : "1px solid " + BRAND_COLORS.border}; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 13px; color: ${BRAND_COLORS.textMuted};">
+                View and manage your network at <a href="${appBaseUrl}/dashboard" style="color: ${BRAND_COLORS.primary}; text-decoration: none;">useclearmarket.io</a>
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 // Build plain text version for external vendors
 function buildExternalVendorPlainText(
   repName: string,
@@ -132,6 +290,31 @@ ClearMarket helps vendors organize their inspector network, track coverage, and 
 
 Create a free vendor profile at ${appBaseUrl}/signup?role=vendor
 Manage your Field Reps in one place at ${appBaseUrl}
+  `.trim();
+}
+
+// Build plain text version for ClearMarket vendors (with coverage snapshot)
+function buildClearMarketVendorPlainText(
+  repName: string,
+  alertTitle: string,
+  alertBody: string,
+  appBaseUrl: string,
+  coverageAreas: CoverageArea[]
+): string {
+  const coverageSnapshotText = renderCoverageSnapshotPlainText(repName, coverageAreas);
+
+  return `
+From: ${repName} via ClearMarket
+
+${alertTitle}
+${'='.repeat(alertTitle.length)}
+
+${alertBody}
+${coverageSnapshotText}
+
+---
+
+View and manage your network at ${appBaseUrl}/dashboard
   `.trim();
 }
 
@@ -176,7 +359,7 @@ serve(async (req: Request): Promise<Response> => {
     // Get rep profile for name
     const { data: repProfile } = await supabase
       .from("rep_profile")
-      .select("anonymous_id, business_name")
+      .select("id, anonymous_id, business_name")
       .eq("user_id", repUserId)
       .single();
 
@@ -209,6 +392,23 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Processing alert: ${connectedVendorIds.length} ClearMarket vendors, ${manualContactEmails.length} manual contacts`);
 
+    // Determine alert title based on type
+    let alertTitle = "Network Alert";
+    switch (alert.alert_type) {
+      case "time_off_start":
+        alertTitle = "Time Off Notice";
+        break;
+      case "emergency":
+        alertTitle = "Emergency Alert";
+        break;
+      case "availability":
+        alertTitle = "Availability Update";
+        break;
+      case "scheduled":
+        alertTitle = "Scheduled Alert";
+        break;
+    }
+
     // Create in-app notifications for ClearMarket vendors
     for (const vendorId of connectedVendorIds) {
       await supabase.from("notifications").insert({
@@ -220,28 +420,64 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Send emails to manual vendor contacts
+    // Send personalized emails to ClearMarket vendors with coverage snapshots
     let emailsSent = 0;
     let emailsFailed = 0;
 
-    if (ENABLE_EMAIL_NOTIFICATIONS && resendApiKey && manualContactEmails.length > 0) {
-      // Determine alert title based on type
-      let alertTitle = "Network Alert";
-      switch (alert.alert_type) {
-        case "time_off_start":
-          alertTitle = "Time Off Notice";
-          break;
-        case "emergency":
-          alertTitle = "Emergency Alert";
-          break;
-        case "availability":
-          alertTitle = "Availability Update";
-          break;
-        case "scheduled":
-          alertTitle = "Scheduled Alert";
-          break;
-      }
+    if (ENABLE_EMAIL_NOTIFICATIONS && resendApiKey && connectedVendorIds.length > 0) {
+      // Get vendor emails
+      const { data: vendorProfiles } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("id", connectedVendorIds);
 
+      for (const vendor of vendorProfiles || []) {
+        // Get coverage for this specific rep↔vendor relationship
+        const { data: coverageData } = await supabase
+          .from("territory_assignments")
+          .select("state_name, state_code, county_name")
+          .eq("rep_id", repUserId)
+          .eq("vendor_id", vendor.id)
+          .eq("status", "active");
+
+        const coverageAreas: CoverageArea[] = coverageData || [];
+
+        const htmlBody = buildClearMarketVendorEmail(repName, alertTitle, alert.message, appBaseUrl, coverageAreas);
+        const textBody = buildClearMarketVendorPlainText(repName, alertTitle, alert.message, appBaseUrl, coverageAreas);
+
+        try {
+          const emailResponse = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${resendApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "ClearMarket <notifications@useclearmarket.io>",
+              to: [vendor.email],
+              subject: `${alertTitle} from ${repName}`,
+              html: htmlBody,
+              text: textBody,
+            }),
+          });
+
+          if (!emailResponse.ok) {
+            const errorText = await emailResponse.text();
+            console.error(`Resend API error for vendor ${vendor.id}:`, errorText);
+            emailsFailed++;
+          } else {
+            emailsSent++;
+            console.log(`Email sent to ClearMarket vendor ${vendor.id} with ${coverageAreas.length} coverage areas`);
+          }
+        } catch (emailError: any) {
+          console.error(`Error sending email to vendor ${vendor.id}:`, emailError);
+          emailsFailed++;
+        }
+      }
+    }
+
+    // Send emails to manual vendor contacts (no coverage snapshot - they're off-platform)
+    if (ENABLE_EMAIL_NOTIFICATIONS && resendApiKey && manualContactEmails.length > 0) {
       const htmlBody = buildExternalVendorEmail(repName, alertTitle, alert.message, appBaseUrl);
       const textBody = buildExternalVendorPlainText(repName, alertTitle, alert.message, appBaseUrl);
 
@@ -265,15 +501,15 @@ serve(async (req: Request): Promise<Response> => {
 
         if (!emailResponse.ok) {
           const errorText = await emailResponse.text();
-          console.error("Resend API error:", errorText);
-          emailsFailed = manualContactEmails.length;
+          console.error("Resend API error for manual contacts:", errorText);
+          emailsFailed += manualContactEmails.length;
         } else {
-          emailsSent = manualContactEmails.length;
-          console.log(`Emails sent to ${emailsSent} manual contacts via BCC`);
+          emailsSent += manualContactEmails.length;
+          console.log(`Emails sent to ${manualContactEmails.length} manual contacts via BCC`);
         }
       } catch (emailError: any) {
-        console.error("Error sending emails:", emailError);
-        emailsFailed = manualContactEmails.length;
+        console.error("Error sending emails to manual contacts:", emailError);
+        emailsFailed += manualContactEmails.length;
       }
     } else if (manualContactEmails.length > 0) {
       console.log("Email notifications disabled or no API key, skipping manual contact emails");
@@ -285,7 +521,7 @@ serve(async (req: Request): Promise<Response> => {
         inAppNotifications: connectedVendorIds.length,
         emailsSent,
         emailsFailed,
-        totalRecipients: connectedVendorIds.length + emailsSent,
+        totalRecipients: connectedVendorIds.length + manualContactEmails.length,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
