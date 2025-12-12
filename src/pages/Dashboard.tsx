@@ -706,7 +706,7 @@ const Dashboard = () => {
                     Today
                   </h2>
                   <TodayFeed 
-                    userId={user?.id || ''} 
+                    userId={inMimicMode ? (mimickedUser?.id || '') : (user?.id || '')} 
                     isRep={showingAsRep} 
                     isVendor={showingAsVendor} 
                   />
