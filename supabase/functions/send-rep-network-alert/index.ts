@@ -197,12 +197,13 @@ serve(async (req: Request): Promise<Response> => {
 
     const connectedVendorIds = connections?.map(c => c.vendor_id) || [];
 
-    // Get manual vendor contacts (off-platform)
+    // Get manual vendor contacts (off-platform) - exclude converted ones
     const { data: manualContacts } = await supabase
       .from("rep_vendor_contacts")
       .select("id, email, contact_name, company_name")
       .eq("rep_user_id", repUserId)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("is_converted_to_vendor", false);
 
     const manualContactEmails = manualContacts?.map(c => c.email) || [];
 

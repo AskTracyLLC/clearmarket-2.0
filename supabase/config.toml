@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.send-rep-network-alert]
 verify_jwt = true
+
+[functions.process-vendor-contact-matches]
+verify_jwt = false

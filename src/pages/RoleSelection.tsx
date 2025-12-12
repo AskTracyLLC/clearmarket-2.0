@@ -85,6 +85,10 @@ const RoleSelection = () => {
       return;
     }
 
+    // Track if we created a new vendor profile (for matching)
+    let createdVendorProfile = false;
+    let vendorCompanyName: string | undefined;
+
     // For hybrid users, create both profile records
     if (role === 'both') {
       // Create rep_profile if needed
@@ -101,15 +105,58 @@ const RoleSelection = () => {
       // Create vendor_profile if needed
       const { data: existingVendorProfile } = await supabase
         .from('vendor_profile')
-        .select('id')
+        .select('id, company_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (!existingVendorProfile) {
+        vendorCompanyName = 'My Company';
         await supabase.from('vendor_profile').insert({ 
           user_id: user.id, 
-          company_name: 'My Company' // Required field with default
+          company_name: vendorCompanyName
         });
+        createdVendorProfile = true;
+      }
+    }
+
+    // If vendor role selected (not hybrid), vendor_profile will be created later
+    // We'll check if a vendor profile exists now or was just created
+    if (role === 'vendor') {
+      const { data: existingVendorProfile } = await supabase
+        .from('vendor_profile')
+        .select('id, company_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingVendorProfile) {
+        // Profile will be created in VendorProfile page, but mark for later matching
+        createdVendorProfile = true;
+      } else {
+        vendorCompanyName = existingVendorProfile.company_name || undefined;
+      }
+    }
+
+    // Process manual vendor contact matches for new vendors
+    if ((role === 'vendor' || role === 'both') && user.email) {
+      try {
+        // Call edge function to process matches (non-blocking)
+        supabase.functions.invoke('process-vendor-contact-matches', {
+          body: {
+            vendorUserId: user.id,
+            vendorEmail: user.email,
+            vendorCompanyName: vendorCompanyName,
+          },
+        }).then(response => {
+          if (response.error) {
+            console.error('Error processing vendor contact matches:', response.error);
+          } else {
+            console.log('Vendor contact matches processed:', response.data);
+          }
+        }).catch(err => {
+          console.error('Exception processing vendor contact matches:', err);
+        });
+      } catch (err) {
+        console.error('Error initiating vendor contact matching:', err);
       }
     }
 
