@@ -131,7 +131,9 @@ export function ReviewDialog({
         reviewData.state_code = reviewContext.stateCode || null;
         reviewData.county_name = reviewContext.countyName || null;
         reviewData.inspection_category = reviewContext.inspectionCategory || null;
-        reviewData.inspection_type_id = reviewContext.inspectionTypeId || null;
+        // Ensure empty strings are converted to null for UUID fields
+        const typeId = reviewContext.inspectionTypeId;
+        reviewData.inspection_type_id = (typeId && typeId.trim() !== "") ? typeId : null;
       }
 
       // Always insert new review - no editing
