@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
 import { ReviewHelperTips } from "./ReviewHelperTips";
+import { ReviewContextChip } from "./ReviewContextChip";
+import { ReviewContextModal, ReviewContextValue } from "./ReviewContextModal";
 
 export interface Review {
   id: string;
@@ -76,6 +78,10 @@ export function ReviewDialog({
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [reviewToEdit, setReviewToEdit] = useState<Review | null>(null);
+  
+  // Context modal state
+  const [contextModalOpen, setContextModalOpen] = useState(false);
+  const [reviewContext, setReviewContext] = useState<ReviewContextValue | null>(null);
 
   // Reset form on open (no edit mode - reviews are immutable)
   useEffect(() => {
@@ -88,6 +94,7 @@ export function ReviewDialog({
     setCommunicationRating(0);
     setWouldWorkAgain(null);
     setComment("");
+    setReviewContext(null);
   }, [open]);
 
   const handleSubmit = async () => {
@@ -103,7 +110,7 @@ export function ReviewDialog({
 
     setSubmitting(true);
     try {
-      const reviewData = {
+      const reviewData: any = {
         reviewer_id: reviewerId,
         reviewee_id: revieweeId,
         direction,
@@ -112,11 +119,20 @@ export function ReviewDialog({
         rating_on_time: onTimeRating > 0 ? onTimeRating : null,
         rating_quality: qualityRating > 0 ? qualityRating : null,
         rating_communication: communicationRating > 0 ? communicationRating : null,
-        would_work_again: wouldWorkAgain,
+        // Only save would_work_again for exit reviews
+        would_work_again: isExitReview ? wouldWorkAgain : null,
         comment: comment.trim() || null,
         is_verified: repInterestId != null,
         status: 'pending_reviewee',
       };
+      
+      // Add context if selected
+      if (reviewContext && reviewContext.mode === "specific") {
+        reviewData.state_code = reviewContext.stateCode || null;
+        reviewData.county_name = reviewContext.countyName || null;
+        reviewData.inspection_category = reviewContext.inspectionCategory || null;
+        reviewData.inspection_type_id = reviewContext.inspectionTypeId || null;
+      }
 
       // Always insert new review - no editing
       const { data, error } = await supabase
@@ -158,6 +174,7 @@ export function ReviewDialog({
       setWouldWorkAgain(null);
       setComment("");
       setReviewToEdit(null);
+      setReviewContext(null);
     } catch (error: any) {
       console.error("Error submitting review:", error);
       toast({
@@ -234,96 +251,116 @@ export function ReviewDialog({
       };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {contextLabel || `${titlePrefix} for This ${titleSuffix}`}
-          </DialogTitle>
-          <DialogDescription>
-            {isVendorReviewing
-              ? "Help future-you remember how this rep performed. These ratings will also help build ClearMarket's trust metrics over time."
-              : "Share how it was working with this vendor. Your feedback helps you and others make better choices."
-            }
-            {!isExitReview && " All fields are optional."}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {contextLabel || `${titlePrefix} for This ${titleSuffix}`}
+            </DialogTitle>
+            <DialogDescription>
+              {isVendorReviewing
+                ? "Help future-you remember how this rep performed. These ratings will also help build ClearMarket's trust metrics over time."
+                : "Share how it was working with this vendor. Your feedback helps you and others make better choices."
+              }
+              {!isExitReview && " All fields are optional."}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Helper tips section */}
-          <ReviewHelperTips isVendorReviewing={isVendorReviewing} />
+          <div className="space-y-4 py-4">
+            {/* Context picker */}
+            <ReviewContextChip 
+              value={reviewContext} 
+              onEditClick={() => setContextModalOpen(true)} 
+            />
+            
+            {/* Helper tips section */}
+            <ReviewHelperTips isVendorReviewing={isVendorReviewing} />
 
-          <div className="space-y-2">
-            {renderStarRating(onTimeRating, setOnTimeRating, labels.onTimeLabel)}
-            <p className="text-xs text-muted-foreground">{labels.onTimeHelp}</p>
-          </div>
-          
-          <div className="space-y-2">
-            {renderStarRating(qualityRating, setQualityRating, labels.qualityLabel)}
-            <p className="text-xs text-muted-foreground">{labels.qualityHelp}</p>
-          </div>
-          
-          <div className="space-y-2">
-            {renderStarRating(communicationRating, setCommunicationRating, labels.commLabel)}
-            <p className="text-xs text-muted-foreground">{labels.commHelp}</p>
-          </div>
+            <div className="space-y-2">
+              {renderStarRating(onTimeRating, setOnTimeRating, labels.onTimeLabel)}
+              <p className="text-xs text-muted-foreground">{labels.onTimeHelp}</p>
+            </div>
+            
+            <div className="space-y-2">
+              {renderStarRating(qualityRating, setQualityRating, labels.qualityLabel)}
+              <p className="text-xs text-muted-foreground">{labels.qualityHelp}</p>
+            </div>
+            
+            <div className="space-y-2">
+              {renderStarRating(communicationRating, setCommunicationRating, labels.commLabel)}
+              <p className="text-xs text-muted-foreground">{labels.commHelp}</p>
+            </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="would_work_again"
-                checked={wouldWorkAgain === true}
-                onCheckedChange={(checked) => setWouldWorkAgain(checked === true ? true : null)}
-              />
-              <Label
-                htmlFor="would_work_again"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Would you work with this {isVendorReviewing ? "rep" : "vendor"} again?
+            {/* Only show "Would you work again?" for exit reviews */}
+            {isExitReview && (
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="would_work_again"
+                    checked={wouldWorkAgain === true}
+                    onCheckedChange={(checked) => setWouldWorkAgain(checked === true ? true : null)}
+                  />
+                  <Label
+                    htmlFor="would_work_again"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Would you work with this {isVendorReviewing ? "rep" : "vendor"} again?
+                  </Label>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="comment" className="text-sm font-medium">
+                Additional Comments (Optional)
               </Label>
+              <Textarea
+                id="comment"
+                placeholder={
+                  isVendorReviewing
+                    ? "Anything you want to remember about working with this rep?"
+                    : "Anything you want to remember about working with this vendor?"
+                }
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Short and clear is best. Focus on what actually happened. Reviews are visible to the other party.
+              </p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="comment" className="text-sm font-medium">
-              Additional Comments (Optional)
-            </Label>
-            <Textarea
-              id="comment"
-              placeholder={
-                isVendorReviewing
-                  ? "Anything you want to remember about working with this rep?"
-                  : "Anything you want to remember about working with this vendor?"
-              }
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-            <p className="text-xs text-muted-foreground">
-              Short and clear is best. Focus on what actually happened. Reviews are visible to the other party.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter className="flex gap-2">
-          {isExitReview && (
+          <DialogFooter className="flex gap-2">
+            {isExitReview && (
+              <Button
+                variant="outline"
+                onClick={handleSkip}
+                disabled={submitting}
+              >
+                Skip
+              </Button>
+            )}
             <Button
-              variant="outline"
-              onClick={handleSkip}
+              onClick={handleSubmit}
               disabled={submitting}
             >
-              Skip
+              {submitting ? "Submitting..." : "Submit Review"}
             </Button>
-          )}
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? "Submitting..." : "Submit Review"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <ReviewContextModal
+        open={contextModalOpen}
+        onOpenChange={setContextModalOpen}
+        vendorUserId={direction === 'vendor_to_rep' ? reviewerId : revieweeId}
+        repUserId={direction === 'vendor_to_rep' ? revieweeId : reviewerId}
+        currentValue={reviewContext || { mode: "overall", stateCode: null, countyName: null, inspectionCategory: null, inspectionTypeId: null, displayLabel: null }}
+        onApply={setReviewContext}
+      />
+    </>
   );
 }
