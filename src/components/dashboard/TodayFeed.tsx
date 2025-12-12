@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { 
   MessageSquare, 
   Bell, 
@@ -16,7 +17,9 @@ import {
   Megaphone,
   X,
   ExternalLink,
-  MessageCircle
+  MessageCircle,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import {
   Table,
@@ -28,7 +31,21 @@ import {
 } from "@/components/ui/table";
 import { NotInterestedDialog } from "@/components/NotInterestedDialog";
 import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay } from "date-fns";
-import { doesPostMatchRepRate } from "@/lib/rateMatching";
+import { doesPostMatchRepRate, getRelativeRateMatchLabel, getRateMatchStatusText } from "@/lib/rateMatching";
+import { getOrCreateConversation } from "@/lib/conversations";
+import { createNotification } from "@/lib/notifications";
+
+interface OpportunityMetadata {
+  postId: string;
+  isNew: boolean;
+  vendorId: string;
+  stateCode: string | null;
+  countyName: string | null;
+  description: string | null;
+  rateLabel: string;
+  payMin: number | null;
+  payMax: number | null;
+}
 
 interface FeedItem {
   id: string;
@@ -38,7 +55,7 @@ interface FeedItem {
   timestamp: string;
   isUnread?: boolean;
   link?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | OpportunityMetadata;
 }
 
 interface PendingOpportunity {
@@ -72,7 +89,25 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   const [pendingOpportunities, setPendingOpportunities] = useState<PendingOpportunity[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [repProfileId, setRepProfileId] = useState<string | null>(null);
+  const [repProfileData, setRepProfileData] = useState<{
+    user_id: string;
+    city: string | null;
+    state: string | null;
+    zip_code: string | null;
+    systems_used: string[] | null;
+    inspection_types: string[] | null;
+    is_accepting_new_vendors: boolean | null;
+    willing_to_travel_out_of_state: boolean | null;
+  } | null>(null);
+  const [repCoverageData, setRepCoverageData] = useState<{
+    state_code: string;
+    county_id: string | null;
+    county_name: string | null;
+    covers_entire_state: boolean;
+    base_price: number | null;
+  }[]>([]);
   const [notInterestedPost, setNotInterestedPost] = useState<{ id: string; title: string } | null>(null);
+  const [expressingInterest, setExpressingInterest] = useState<string | null>(null);
 
   const getFilterCategory = (type: FeedItem['type']): ActivityFilter => {
     if (type === 'alert') return 'alerts';
@@ -347,19 +382,42 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         // First, get the rep's coverage areas with inspection types AND base_price for rate matching
         const { data: repCoverage } = await supabase
           .from("rep_coverage_areas")
-          .select("state_code, county_id, covers_entire_state, inspection_types, base_price")
+          .select(`
+            state_code, county_id, covers_entire_state, inspection_types, base_price,
+            us_counties:county_id(county_name)
+          `)
           .eq("user_id", userId);
 
-        // Also get rep's profile-level inspection types as fallback
+        // Store coverage data for use in handleExpressInterest
+        const normalizedCoverage = (repCoverage || []).map(c => ({
+          state_code: c.state_code,
+          county_id: c.county_id,
+          county_name: (c.us_counties as { county_name: string } | null)?.county_name || null,
+          covers_entire_state: c.covers_entire_state,
+          base_price: c.base_price,
+        }));
+        setRepCoverageData(normalizedCoverage);
+
+        // Also get rep's profile-level info for Coverage Snapshot
         const { data: repProfile } = await supabase
           .from("rep_profile")
-          .select("id, inspection_types")
+          .select("id, user_id, city, state, zip_code, systems_used, inspection_types, is_accepting_new_vendors, willing_to_travel_out_of_state")
           .eq("user_id", userId)
           .single();
 
-        // Store rep profile ID for pending opportunities loading
-        if (repProfile?.id) {
+        // Store rep profile ID and data for pending opportunities loading and Coverage Snapshot
+        if (repProfile) {
           setRepProfileId(repProfile.id);
+          setRepProfileData({
+            user_id: repProfile.user_id,
+            city: repProfile.city,
+            state: repProfile.state,
+            zip_code: repProfile.zip_code,
+            systems_used: repProfile.systems_used,
+            inspection_types: repProfile.inspection_types,
+            is_accepting_new_vendors: repProfile.is_accepting_new_vendors,
+            willing_to_travel_out_of_state: repProfile.willing_to_travel_out_of_state,
+          });
         }
 
         const profileInspectionTypes = repProfile?.inspection_types || [];
@@ -384,7 +442,11 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
         const { data: opportunities } = await supabase
           .from("seeking_coverage_posts")
-          .select("id, title, state_code, county_id, covers_entire_state, created_at, pay_min, pay_max, inspection_type_ids")
+          .select(`
+            id, title, state_code, county_id, covers_entire_state, created_at, 
+            pay_min, pay_max, inspection_type_ids, description, vendor_id,
+            us_counties:county_id(county_name)
+          `)
           .eq("status", "active")
           .is("deleted_at", null)
           .gte("created_at", sevenDaysAgo.toISOString())
@@ -460,16 +522,48 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         });
 
         for (const opp of matchedOpportunities.slice(0, 5)) {
-          // Don't show vendor rate to reps - just show location and that it matches
+          // Get rate match label for this opportunity
+          const matchingCoverage = (repCoverage || []).find(c => {
+            if (c.state_code !== opp.state_code) return false;
+            if (opp.covers_entire_state || c.covers_entire_state) return true;
+            if (opp.county_id && c.county_id) return opp.county_id === c.county_id;
+            return !opp.county_id;
+          });
+          const repBaseRate = matchingCoverage?.base_price;
+          const rateLabel = getRelativeRateMatchLabel(repBaseRate, opp.pay_min, opp.pay_max);
+          const rateLabelText = getRateMatchStatusText(rateLabel);
+          
+          // Build location display
+          const countyData = opp.us_counties as { county_name: string } | null;
+          const countyName = countyData?.county_name || null;
+          const location = countyName 
+            ? `${countyName}, ${opp.state_code}`
+            : opp.state_code || 'Location TBD';
+          
+          // Get description snippet (first 100 chars)
+          const descSnippet = opp.description 
+            ? (opp.description.length > 100 ? opp.description.substring(0, 100) + '...' : opp.description)
+            : '';
+
           items.push({
             id: `opp-${opp.id}`,
             type: 'opportunity',
             title: opp.title,
-            description: `${opp.state_code || 'Location TBD'} · Matches your rate`,
+            description: `${location} · ${rateLabelText.label}`,
             timestamp: opp.created_at,
-            isUnread: true, // New opportunities are unread
+            isUnread: true,
             link: `/rep/seeking-coverage/${opp.id}`,
-            metadata: { postId: opp.id, isNew: true },
+            metadata: {
+              postId: opp.id,
+              isNew: true,
+              vendorId: opp.vendor_id,
+              stateCode: opp.state_code,
+              countyName,
+              description: descSnippet,
+              rateLabel: rateLabelText.label,
+              payMin: opp.pay_min,
+              payMax: opp.pay_max,
+            } as OpportunityMetadata,
           });
         }
       }
@@ -609,28 +703,185 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     }
   };
 
-  const handleExpressInterest = async (postId: string) => {
-    if (!repProfileId) return;
+  const handleExpressInterest = async (postId: string, metadata?: OpportunityMetadata) => {
+    if (!repProfileId || !repProfileData || !userId) return;
+    
+    setExpressingInterest(postId);
     
     try {
-      const { error } = await supabase
-        .from("rep_interest")
-        .insert({
-          rep_id: repProfileId,
-          post_id: postId,
-          status: "interested"
-        });
-
-      if (error) throw error;
+      // Find the opportunity item to get vendor info
+      const oppItem = feedItems.find(item => item.id === `opp-${postId}`);
+      const oppMeta = (oppItem?.metadata as OpportunityMetadata) || metadata;
+      
+      if (!oppMeta?.vendorId) {
+        // Fallback: fetch the post to get vendor_id
+        const { data: post } = await supabase
+          .from("seeking_coverage_posts")
+          .select("vendor_id, title, state_code, county_id, us_counties:county_id(county_name)")
+          .eq("id", postId)
+          .single();
+          
+        if (!post) {
+          toast.error("Could not find this opportunity");
+          return;
+        }
+        
+        // Use this post data
+        const countyData = post.us_counties as { county_name: string } | null;
+        await expressInterestWithSnapshot(
+          postId, 
+          post.vendor_id, 
+          post.title,
+          post.state_code || null,
+          countyData?.county_name || null
+        );
+      } else {
+        // Find the post title from the feed item
+        const title = oppItem?.title || '';
+        await expressInterestWithSnapshot(
+          postId, 
+          oppMeta.vendorId, 
+          title,
+          oppMeta.stateCode,
+          oppMeta.countyName
+        );
+      }
+      
+      toast.success("Interest sent with your coverage details!");
       
       // Reload feed and pending opportunities
       loadFeed();
       if (activityFilter === 'opportunities') {
         loadPendingOpportunities();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error expressing interest:", error);
+      toast.error("Failed to express interest. Please try again.");
+    } finally {
+      setExpressingInterest(null);
     }
+  };
+
+  const expressInterestWithSnapshot = async (
+    postId: string,
+    vendorId: string,
+    postTitle: string,
+    stateCode: string | null,
+    countyName: string | null
+  ) => {
+    if (!repProfileId || !repProfileData || !userId) return;
+    
+    // 1. Mark interest (upsert to avoid duplicates)
+    const { error: interestError } = await supabase
+      .from("rep_interest")
+      .upsert(
+        {
+          post_id: postId,
+          rep_id: repProfileId,
+          status: "interested",
+        },
+        { onConflict: "post_id,rep_id" }
+      );
+
+    if (interestError) throw interestError;
+
+    // 2. Create or get existing conversation
+    const { id: conversationId, error: convError } = await getOrCreateConversation(
+      userId,
+      vendorId,
+      { type: "seeking_coverage", postId }
+    );
+
+    if (convError || !conversationId) {
+      throw new Error(convError || "Failed to create conversation");
+    }
+
+    // 3. Find matching coverage for this post
+    const matchingCoverage = repCoverageData.find(c => {
+      if (c.state_code !== stateCode) return false;
+      if (c.covers_entire_state) return true;
+      if (countyName && c.county_name === countyName) return true;
+      return !countyName;
+    });
+
+    // 4. Build the Coverage Snapshot message
+    const locationDisplay = countyName 
+      ? `${countyName}, ${stateCode}`
+      : stateCode || "Location not specified";
+
+    const lines: string[] = [];
+    
+    // Rep's location
+    const repLocation = [repProfileData.city, repProfileData.state, repProfileData.zip_code]
+      .filter(Boolean)
+      .join(", ");
+    if (repLocation) {
+      lines.push(`Location: ${repLocation}`);
+    }
+
+    // Systems
+    if (repProfileData.systems_used?.length) {
+      lines.push(`Systems I Use: ${repProfileData.systems_used.join(", ")}`);
+    }
+
+    // Inspection Types
+    if (repProfileData.inspection_types?.length) {
+      lines.push(`Inspection Types: ${repProfileData.inspection_types.join(", ")}`);
+    }
+
+    // Coverage for this request
+    if (matchingCoverage) {
+      const coverageArea = matchingCoverage.county_name 
+        ? `${matchingCoverage.county_name}, ${matchingCoverage.state_code}`
+        : `${matchingCoverage.state_code} (entire state)`;
+      lines.push(`Coverage for this request: ${coverageArea}`);
+      
+      // Base rate
+      if (matchingCoverage.base_price !== null) {
+        lines.push(`Base Rate in this area: $${matchingCoverage.base_price}`);
+      } else {
+        lines.push(`Base Rate in this area: Not set`);
+      }
+    }
+
+    // Availability preferences
+    lines.push(`Accepting New Vendors: ${repProfileData.is_accepting_new_vendors !== false ? "Yes" : "No"}`);
+    lines.push(`Willing to Travel Out of State: ${repProfileData.willing_to_travel_out_of_state ? "Yes" : "No"}`);
+
+    let messageBody = `I'm interested in your request: ${postTitle} – ${locationDisplay}.\n\n`;
+    messageBody += `Coverage Snapshot:\n${lines.map(line => `• ${line}`).join("\n")}`;
+
+    // 5. Send the message
+    const { error: msgError } = await supabase.from("messages").insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      recipient_id: vendorId,
+      subject: "Interest in Seeking Coverage Post",
+      body: messageBody,
+    });
+
+    if (msgError) throw msgError;
+
+    // 6. Update conversation last_message
+    await supabase
+      .from("conversations")
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: messageBody.substring(0, 100) + (messageBody.length > 100 ? "..." : ""),
+        hidden_for_one: false,
+        hidden_for_two: false,
+      })
+      .eq("id", conversationId);
+
+    // 7. Create notification for vendor
+    await createNotification(
+      supabase,
+      vendorId,
+      "seeking_coverage_interest",
+      "Field Rep interested in your coverage request",
+      `A field rep has expressed interest in "${postTitle}" and sent you a message with their coverage details.`,
+      conversationId
+    );
   };
 
   const handleNotInterestedConfirm = async (reason?: string) => {
@@ -736,61 +987,87 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-2">
-                {filteredItems.map((item) => (
-                  <Card 
-                    key={item.id} 
-                    className="bg-card border-border border-l-2 border-l-primary"
-                  >
-                    <CardContent className="py-3 px-4">
-                      <div className="flex items-start gap-3">
-                        <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
-                          {getIcon(item.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span 
-                              className="text-sm font-medium text-foreground truncate cursor-pointer hover:underline"
-                              onClick={() => item.link && navigate(item.link)}
-                            >
-                              {item.title}
-                            </span>
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400">
-                              New
-                            </Badge>
+              <div className="space-y-3">
+                {filteredItems.map((item) => {
+                  const oppMeta = item.metadata as OpportunityMetadata | undefined;
+                  const postId = oppMeta?.postId || item.id.replace('opp-', '');
+                  const isExpressing = expressingInterest === postId;
+                  
+                  return (
+                    <Card 
+                      key={item.id} 
+                      className="bg-card border-border border-l-2 border-l-primary"
+                    >
+                      <CardContent className="py-4 px-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0 mt-0.5`}>
+                            {getIcon(item.type)}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate mb-2">
-                            {item.description}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              size="sm" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const postId = (item.metadata?.postId as string) || item.id.replace('opp-', '');
-                                handleExpressInterest(postId);
-                              }}
-                            >
-                              I'm interested
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const postId = (item.metadata?.postId as string) || item.id.replace('opp-', '');
-                                setNotInterestedPost({ id: postId, title: item.title });
-                              }}
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Not interested
-                            </Button>
+                          <div className="flex-1 min-w-0">
+                            {/* Title row */}
+                            <div className="flex items-center gap-2 mb-1">
+                              <span 
+                                className="text-sm font-semibold text-foreground cursor-pointer hover:underline"
+                                onClick={() => item.link && navigate(item.link)}
+                              >
+                                {item.title}
+                              </span>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400">
+                                New
+                              </Badge>
+                            </div>
+                            
+                            {/* Location + Rate match label */}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span>{item.description}</span>
+                            </div>
+                            
+                            {/* Description snippet if available */}
+                            {oppMeta?.description && (
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2 bg-muted/30 p-2 rounded-md italic">
+                                "{oppMeta.description}"
+                              </p>
+                            )}
+                            
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                disabled={isExpressing}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleExpressInterest(postId, oppMeta);
+                                }}
+                              >
+                                {isExpressing ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  "I'm interested"
+                                )}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                disabled={isExpressing}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNotInterestedPost({ id: postId, title: item.title });
+                                }}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Not interested
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -974,7 +1251,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
                                     <Clock className="h-3 w-3" />
                                     {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
                                   </div>
-                                  {item.metadata?.assignmentId && (
+                                  {(item.metadata as Record<string, unknown>)?.assignmentId && (
                                     <Button 
                                       size="sm" 
                                       variant="outline"

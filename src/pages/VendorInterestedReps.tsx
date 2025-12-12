@@ -56,6 +56,10 @@ interface SeekingCoveragePost {
   pay_max: number | null;
   pay_notes: string | null;
   vendor_id: string;
+  description: string | null;
+  systems_required_array: string[];
+  inspection_type_ids: string[] | null;
+  us_counties?: { county_name: string } | null;
 }
 
 export default function VendorInterestedReps() {
@@ -98,7 +102,10 @@ export default function VendorInterestedReps() {
       // Load the seeking coverage post
       const { data: postData, error: postError } = await supabase
         .from("seeking_coverage_posts")
-        .select("*")
+        .select(`
+          *, 
+          us_counties:county_id(county_name)
+        `)
         .eq("id", postId)
         .single();
 
@@ -307,15 +314,23 @@ export default function VendorInterestedReps() {
           </p>
         </div>
 
-        {/* Post Info Card */}
+        {/* Post Info Card - Your Offer */}
         <Card className="mb-8 bg-card-elevated">
           <CardHeader>
             <CardTitle className="text-lg">Your Offer</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Pricing:</p>
+                <p className="text-xs text-muted-foreground mb-1">Location:</p>
+                <p className="text-sm font-medium">
+                  {post.us_counties?.county_name 
+                    ? `${post.us_counties.county_name}, ${post.state_code}`
+                    : post.state_code || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Offered Rate:</p>
                 <p className="text-lg font-semibold text-primary">
                   {formatVendorOfferedRate(post.pay_min, post.pay_max, post.pay_type)}
                 </p>
@@ -323,11 +338,41 @@ export default function VendorInterestedReps() {
                   <p className="text-xs text-muted-foreground mt-1 italic">{post.pay_notes}</p>
                 )}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Location:</p>
-                <p className="text-sm">{post.state_code}</p>
-              </div>
             </div>
+            
+            {/* Systems Required */}
+            {post.systems_required_array && post.systems_required_array.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Systems Required:</p>
+                <div className="flex flex-wrap gap-2">
+                  {post.systems_required_array.map((sys, idx) => (
+                    <Badge key={idx} variant="outline" className="text-xs">{sys}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Inspection Types */}
+            {post.inspection_type_ids && post.inspection_type_ids.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Inspection Types:</p>
+                <div className="flex flex-wrap gap-2">
+                  {post.inspection_type_ids.map((type, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">{type}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Description snippet */}
+            {post.description && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Description:</p>
+                <p className="text-sm text-muted-foreground italic">
+                  "{post.description.length > 150 ? post.description.substring(0, 150) + '...' : post.description}"
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -57,47 +57,108 @@ export function doesPostMatchRepRate(
 }
 
 /**
+ * Rate match label types for rep-facing UI
+ */
+export type RateMatchLabel = 
+  | "matches" 
+  | "above" 
+  | "below" 
+  | "unknown";
+
+/**
+ * Determines the relative rate match status for rep-facing display.
+ * Never reveals vendor's numeric rate.
+ * 
+ * Rules:
+ * - If vendor offer == rep base rate: "Matches your rate"
+ * - If vendor offer > rep base rate: "Above your rate"
+ * - If vendor offer < rep base rate: "Below your rate"
+ * - If rep has no base rate: "Rate match unknown"
+ */
+export function getRelativeRateMatchLabel(
+  repRate: number | null | undefined,
+  payMin: number | null | undefined,
+  payMax: number | null | undefined
+): RateMatchLabel {
+  // If rep has no rate set, we can't compare
+  if (repRate === null || repRate === undefined) {
+    return "unknown";
+  }
+
+  // If post has no max pay set, we can't determine matching
+  if (payMax === null || payMax === undefined) {
+    return "unknown";
+  }
+
+  // For range posts, use max as the "offer" level
+  // For fixed posts (min is 0 or null), max is the fixed amount
+  const effectiveMin = payMin ?? 0;
+  
+  // If rep rate is within range - it matches
+  if (effectiveMin <= repRate && repRate <= payMax) {
+    return "matches";
+  }
+  
+  // If rep rate is below the minimum offered - vendor is offering more
+  if (repRate < effectiveMin) {
+    return "above";
+  }
+  
+  // If rep rate is above the max - vendor is offering less
+  return "below";
+}
+
+/**
+ * Gets human-readable status text for rep-facing UI
+ */
+export function getRateMatchStatusText(label: RateMatchLabel): {
+  label: string;
+  subMessage: string;
+  showPrompt?: boolean;
+} {
+  switch (label) {
+    case "matches":
+      return {
+        label: "Matches your rate",
+        subMessage: "This opportunity aligns with your pricing.",
+      };
+    case "above":
+      return {
+        label: "Above your rate",
+        subMessage: "This opportunity is above your base rate.",
+      };
+    case "below":
+      return {
+        label: "Below your rate",
+        subMessage: "This opportunity is below your base rate.",
+      };
+    case "unknown":
+      return {
+        label: "Rate match unknown",
+        subMessage: "You haven't set a base rate for this area yet.",
+        showPrompt: true,
+      };
+  }
+}
+
+/**
  * Gets a human-readable description of the rate match status for rep views.
  * This is used to display messaging without revealing vendor's rate range.
+ * @deprecated Use getRelativeRateMatchLabel and getRateMatchStatusText instead
  */
 export function getRateMatchStatus(
   repRate: number | null | undefined,
   payMin: number | null | undefined,
   payMax: number | null | undefined
 ): { matches: boolean; message: string; subMessage: string } {
-  const matches = doesPostMatchRepRate(repRate, payMin, payMax);
-
-  if (matches) {
-    return {
-      matches: true,
-      message: "Pay matches your base rate for this county",
-      subMessage: repRate !== null && repRate !== undefined
-        ? `Your base rate here: $${repRate.toFixed(2)} / order`
-        : "This opportunity meets your pricing for this county.",
-    };
-  }
-
-  // If doesn't match, give appropriate messaging
-  if (repRate === null || repRate === undefined) {
-    return {
-      matches: false,
-      message: "Rate match unknown",
-      subMessage: "You haven't set a base rate for this coverage area.",
-    };
-  }
-
-  if (payMax === null || payMax === undefined) {
-    return {
-      matches: false,
-      message: "Rate information unavailable",
-      subMessage: "This post doesn't have complete pricing information.",
-    };
-  }
-
-  // Rep's rate is too high for this post
+  const label = getRelativeRateMatchLabel(repRate, payMin, payMax);
+  const status = getRateMatchStatusText(label);
+  
   return {
-    matches: false,
-    message: "Offered pay is below your base rate",
-    subMessage: `Your base rate here: $${repRate.toFixed(2)} / order. This post doesn't meet your minimum.`,
+    matches: label === "matches" || label === "above",
+    message: status.label,
+    subMessage: repRate !== null && repRate !== undefined
+      ? `Your base rate: $${repRate.toFixed(2)} / order. ${status.subMessage}`
+      : status.subMessage,
   };
 }

@@ -54,6 +54,34 @@ export function DeclineRepDialog({
 
       if (updateError) throw updateError;
 
+      // Find the conversation for this post and post a system message
+      const { data: conversation } = await supabase
+        .from("conversations")
+        .select("id")
+        .or(`participant_one.eq.${vendorUserId},participant_two.eq.${vendorUserId}`)
+        .or(`participant_one.eq.${repUserId},participant_two.eq.${repUserId}`)
+        .eq("rep_interest_id", repInterestId)
+        .maybeSingle();
+
+      if (conversation?.id) {
+        // Post system message so rep knows they were declined
+        await supabase.from("messages").insert({
+          conversation_id: conversation.id,
+          sender_id: vendorUserId,
+          recipient_id: repUserId,
+          body: `Vendor declined your interest for this request: "${postTitle}". This decision only applies to this request, not your overall profile.`,
+        });
+
+        // Update conversation preview
+        await supabase
+          .from("conversations")
+          .update({
+            last_message_at: new Date().toISOString(),
+            last_message_preview: "Vendor declined your interest for this request.",
+          })
+          .eq("id", conversation.id);
+      }
+
       // Create notification for the rep
       const notificationBody = reason.trim()
         ? `This decision only applies to this request, not your overall profile.\n\nReason: "${reason.trim()}"`
