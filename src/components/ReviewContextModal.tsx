@@ -84,6 +84,15 @@ export function ReviewContextModal({
           .eq("status", "active");
 
         if (workingTermsRequests?.length) {
+          // Map inspection_type codes to readable labels
+          const inspTypeCodeMap: Record<string, string> = {
+            property: "Property Inspections",
+            loss_claims: "Loss / Insurance Claims",
+            commercial: "Commercial",
+            notary: "Notary Services",
+            other: "Other",
+          };
+
           for (const request of workingTermsRequests) {
             const { data: rows } = await supabase
               .from("working_terms_rows")
@@ -92,7 +101,11 @@ export function ReviewContextModal({
               .eq("status", "active");
 
             (rows || []).forEach((row: any) => {
-              const inspTypeLabel = row.inspection_type_id ? typeMap.get(row.inspection_type_id) : null;
+              // Use inspection_type field (code) and map to readable label
+              const inspTypeCode = row.inspection_type;
+              const inspTypeLabel = inspTypeCode 
+                ? (inspTypeCodeMap[inspTypeCode] || inspTypeCode) 
+                : null;
               const countyPart = row.county_name || "Entire state";
               const typePart = inspTypeLabel || row.inspection_category || "";
               
@@ -100,12 +113,13 @@ export function ReviewContextModal({
                 ? `${row.state_code} – ${countyPart} – ${typePart}`
                 : `${row.state_code} – ${countyPart}`;
 
+              // Use unique key with row id to prevent collapsing
               options.push({
                 id: `wt-${row.id}`,
                 stateCode: row.state_code,
                 countyName: row.county_name,
-                inspectionCategory: row.inspection_category,
-                inspectionTypeId: row.inspection_type_id,
+                inspectionCategory: inspTypeLabel || row.inspection_category,
+                inspectionTypeId: null,
                 displayLabel,
               });
             });
@@ -188,6 +202,26 @@ export function ReviewContextModal({
             }
           });
         }
+
+        // Sort options by: state, county (Entire state first), then inspection type
+        options.sort((a, b) => {
+          // First by state code
+          const stateCompare = a.stateCode.localeCompare(b.stateCode);
+          if (stateCompare !== 0) return stateCompare;
+          
+          // Then by county (null/"Entire state" first)
+          const aCounty = a.countyName || "";
+          const bCounty = b.countyName || "";
+          if (!aCounty && bCounty) return -1;
+          if (aCounty && !bCounty) return 1;
+          const countyCompare = aCounty.localeCompare(bCounty);
+          if (countyCompare !== 0) return countyCompare;
+          
+          // Finally by inspection type
+          const aType = a.inspectionCategory || "";
+          const bType = b.inspectionCategory || "";
+          return aType.localeCompare(bType);
+        });
 
         setCoverageOptions(options);
 
