@@ -55,6 +55,23 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { AdminMessageUserDialog } from "@/components/admin/AdminMessageUserDialog";
 import { logAdminAction } from "@/lib/adminAudit";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { ColumnChooser } from "@/components/ColumnChooser";
+import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
+
+// Column definitions for Admin User Management table
+const ADMIN_USERS_COLUMNS: ColumnDefinition[] = [
+  { id: "user", label: "User", description: "User name and email", required: true },
+  { id: "anonId", label: "Anon ID", description: "Anonymous identifier (e.g., FieldRep#1)" },
+  { id: "roles", label: "Roles", description: "User role badges (Rep, Vendor, Admin)" },
+  { id: "profile", label: "Profile", description: "Profile completion percentage" },
+  { id: "lastActive", label: "Last active", description: "When the user was last seen" },
+  { id: "community", label: "Community", description: "Community score based on activity" },
+  { id: "connections", label: "Connections", description: "Number of active vendor-rep connections" },
+  { id: "trust", label: "Trust", description: "Average review rating" },
+  { id: "actions", label: "Actions", description: "Available actions", required: true },
+];
+
+const ADMIN_USERS_DEFAULT_COLUMNS = ["user", "anonId", "roles", "profile", "lastActive", "community", "connections", "trust", "actions"];
 
 interface UserProfile {
   id: string;
@@ -124,7 +141,18 @@ export default function AdminUsers() {
   });
   const [deleteReason, setDeleteReason] = useState("");
 
-  // Permission-based access control
+  // Column visibility
+  const {
+    visibleColumns,
+    isColumnVisible,
+    savePreferences,
+    resetToDefaults,
+    isSaving: colSaving,
+  } = useColumnVisibility({
+    tableKey: "admin_user_management",
+    columns: ADMIN_USERS_COLUMNS,
+    defaultVisibleColumns: ADMIN_USERS_DEFAULT_COLUMNS,
+  });
   useEffect(() => {
     if (!permsLoading) {
       if (!permissions.canViewUsersAdmin) {
@@ -707,88 +735,115 @@ export default function AdminUsers() {
 
         {/* Users Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Users</CardTitle>
-            <CardDescription>
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""} found
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>Users</CardTitle>
+              <CardDescription>
+                {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""} found
+              </CardDescription>
+            </div>
+            <ColumnChooser
+              columns={ADMIN_USERS_COLUMNS}
+              visibleColumns={visibleColumns}
+              onSave={savePreferences}
+              onReset={resetToDefaults}
+              isSaving={colSaving}
+            />
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("user")}
-                    >
-                      <div className="flex items-center">
-                        User
-                        <SortIcon column="user" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("anonymous_id")}
-                    >
-                      <div className="flex items-center">
-                        Anon ID
-                        <SortIcon column="anonymous_id" />
-                      </div>
-                    </TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("profile")}
-                    >
-                      <div className="flex items-center">
-                        Profile
-                        <SortIcon column="profile" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("last_active")}
-                    >
-                      <div className="flex items-center">
-                        Last active
-                        <SortIcon column="last_active" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("community")}
-                    >
-                      <div className="flex items-center">
-                        Community
-                        <SortIcon column="community" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("connections")}
-                    >
-                      <div className="flex items-center justify-center">
-                        Connections
-                        <SortIcon column="connections" />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("trust_score")}
-                    >
-                      <div className="flex items-center justify-center">
-                        Trust
-                        <SortIcon column="trust_score" />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    {isColumnVisible("user") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("user")}
+                      >
+                        <div className="flex items-center">
+                          User
+                          <SortIcon column="user" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("anonId") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("anonymous_id")}
+                      >
+                        <div className="flex items-center">
+                          Anon ID
+                          <SortIcon column="anonymous_id" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("roles") && (
+                      <TableHead>Roles</TableHead>
+                    )}
+                    {isColumnVisible("profile") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("profile")}
+                      >
+                        <div className="flex items-center">
+                          Profile
+                          <SortIcon column="profile" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("lastActive") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("last_active")}
+                      >
+                        <div className="flex items-center">
+                          Last active
+                          <SortIcon column="last_active" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("community") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("community")}
+                      >
+                        <div className="flex items-center">
+                          Community
+                          <SortIcon column="community" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("connections") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("connections")}
+                      >
+                        <div className="flex items-center justify-center">
+                          Connections
+                          <SortIcon column="connections" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("trust") && (
+                      <TableHead
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("trust_score")}
+                      >
+                        <div className="flex items-center justify-center">
+                          Trust
+                          <SortIcon column="trust_score" />
+                        </div>
+                      </TableHead>
+                    )}
+                    {isColumnVisible("actions") && (
+                      <TableHead className="text-right">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="h-48">
+                      <TableCell colSpan={visibleColumns.length} className="h-48">
                         <div className="flex flex-col items-center justify-center text-center py-8">
                           {users.length === 0 ? (
                             <>
@@ -823,97 +878,113 @@ export default function AdminUsers() {
                   ) : (
                     filteredUsers.map((userProfile) => (
                       <TableRow key={userProfile.id}>
-                        <TableCell>
-                          <div className="flex items-start gap-2">
-                            <span
-                              className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
-                                userProfile.account_status === "active"
-                                  ? "bg-green-500"
-                                  : "bg-red-500"
-                              }`}
-                              title={userProfile.account_status === "active" ? "Active" : userProfile.account_status}
-                            />
-                            <div>
-                              <button
-                                onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
-                                className="font-medium text-left hover:underline hover:text-primary transition-colors"
-                              >
-                                {userProfile.full_name || "—"}
-                              </button>
-                              <p className="text-sm text-muted-foreground">{userProfile.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {getAnonymousId(userProfile)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {userProfile.is_fieldrep && (
-                              <Badge variant="secondary" className="text-xs">Rep</Badge>
-                            )}
-                            {userProfile.is_vendor_admin && (
-                              <Badge variant="secondary" className="text-xs">Vendor</Badge>
-                            )}
-                            {userProfile.is_admin && (
-                              <Badge variant="default" className="text-xs">Admin</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {(userProfile.is_fieldrep || userProfile.is_vendor_admin) ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-primary rounded-full transition-all"
-                                  style={{ width: `${profileCompleteness[userProfile.id] ?? 0}%` }}
-                                />
+                        {isColumnVisible("user") && (
+                          <TableCell>
+                            <div className="flex items-start gap-2">
+                              <span
+                                className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                                  userProfile.account_status === "active"
+                                    ? "bg-green-500"
+                                    : "bg-red-500"
+                                }`}
+                                title={userProfile.account_status === "active" ? "Active" : userProfile.account_status}
+                              />
+                              <div>
+                                <button
+                                  onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
+                                  className="font-medium text-left hover:underline hover:text-primary transition-colors"
+                                >
+                                  {userProfile.full_name || "—"}
+                                </button>
+                                <p className="text-sm text-muted-foreground">{userProfile.email}</p>
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                {profileCompleteness[userProfile.id] ?? 0}%
-                              </span>
                             </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {userProfile.last_seen_at
-                            ? format(new Date(userProfile.last_seen_at), "MMM d, yyyy")
-                            : "Never"}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <span className="font-medium">{userProfile.community_score}</span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="font-medium cursor-help">
-                                  {connectionCounts[userProfile.id] ?? 0}
+                          </TableCell>
+                        )}
+                        {isColumnVisible("anonId") && (
+                          <TableCell className="font-mono text-sm">
+                            {getAnonymousId(userProfile)}
+                          </TableCell>
+                        )}
+                        {isColumnVisible("roles") && (
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {userProfile.is_fieldrep && (
+                                <Badge variant="secondary" className="text-xs">Rep</Badge>
+                              )}
+                              {userProfile.is_vendor_admin && (
+                                <Badge variant="secondary" className="text-xs">Vendor</Badge>
+                              )}
+                              {userProfile.is_admin && (
+                                <Badge variant="default" className="text-xs">Admin</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                        {isColumnVisible("profile") && (
+                          <TableCell>
+                            {(userProfile.is_fieldrep || userProfile.is_vendor_admin) ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary rounded-full transition-all"
+                                    style={{ width: `${profileCompleteness[userProfile.id] ?? 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {profileCompleteness[userProfile.id] ?? 0}%
                                 </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Active connections with other ClearMarket users</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {trustScores[userProfile.id] ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <span className="font-medium">
-                                {trustScores[userProfile.id].score.toFixed(1)}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                ({trustScores[userProfile.id].count})
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
+                        {isColumnVisible("lastActive") && (
+                          <TableCell className="text-sm text-muted-foreground">
+                            {userProfile.last_seen_at
+                              ? format(new Date(userProfile.last_seen_at), "MMM d, yyyy")
+                              : "Never"}
+                          </TableCell>
+                        )}
+                        {isColumnVisible("community") && (
+                          <TableCell className="text-center">
+                            <span className="font-medium">{userProfile.community_score}</span>
+                          </TableCell>
+                        )}
+                        {isColumnVisible("connections") && (
+                          <TableCell className="text-center">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="font-medium cursor-help">
+                                    {connectionCounts[userProfile.id] ?? 0}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Active connections with other ClearMarket users</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
+                        )}
+                        {isColumnVisible("trust") && (
+                          <TableCell className="text-center">
+                            {trustScores[userProfile.id] ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="font-medium">
+                                  {trustScores[userProfile.id].score.toFixed(1)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({trustScores[userProfile.id].count})
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                        )}
+                        {isColumnVisible("actions") && (
                           <div className="flex items-center justify-end gap-1">
                             <TooltipProvider>
                               <Tooltip>
@@ -1002,6 +1073,7 @@ export default function AdminUsers() {
                             )}
                           </div>
                         </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}

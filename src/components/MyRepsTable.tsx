@@ -45,6 +45,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchPendingChangeRequestsForVendor } from "@/lib/workingTerms";
 import { canPostReview } from "@/lib/reviews";
 import RequestCoverageDialog from "@/components/RequestCoverageDialog";
+import { ColumnChooser } from "@/components/ColumnChooser";
+import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
+
+// Column definitions for My Field Reps table
+const MY_REPS_COLUMNS: ColumnDefinition[] = [
+  { id: "rep", label: "Rep", description: "Field rep name and identifier", required: true },
+  { id: "location", label: "Location", description: "City and state" },
+  { id: "connectedSince", label: "Connected since", description: "Date you connected with this rep" },
+  { id: "workingTerms", label: "Working terms", description: "Current agreement status" },
+  { id: "communityScore", label: "Community", description: "Rating based on community activity and helpfulness" },
+  { id: "notes", label: "Notes", description: "Your private notes about this rep" },
+  { id: "actions", label: "Actions", description: "Available actions", required: true },
+];
+
+const DEFAULT_VISIBLE_COLUMNS = ["rep", "location", "connectedSince", "workingTerms", "communityScore", "notes", "actions"];
 
 interface RepNote {
   id: string;
@@ -288,6 +303,20 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
     return !status || status === "declined" || status === "active";
   };
 
+  // Column visibility
+  const {
+    visibleColumns,
+    isColumnVisible,
+    savePreferences,
+    resetToDefaults,
+    isSaving,
+    isLoading: colLoading,
+  } = useColumnVisibility({
+    tableKey: "vendor_my_field_reps",
+    columns: MY_REPS_COLUMNS,
+    defaultVisibleColumns: DEFAULT_VISIBLE_COLUMNS,
+  });
+
   const SortableHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => (
     <Button
       variant="ghost"
@@ -336,6 +365,13 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
             <SelectItem value="5">5+</SelectItem>
           </SelectContent>
         </Select>
+        <ColumnChooser
+          columns={MY_REPS_COLUMNS}
+          visibleColumns={visibleColumns}
+          onSave={savePreferences}
+          onReset={resetToDefaults}
+          isSaving={isSaving}
+        />
       </div>
 
       {/* Table */}
@@ -343,27 +379,41 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[200px]">
-                <SortableHeader label="Rep" sortKeyName="name" />
-              </TableHead>
-              <TableHead className="hidden md:table-cell">Location</TableHead>
-              <TableHead className="hidden md:table-cell">
-                <SortableHeader label="Connected since" sortKeyName="connectedAt" />
-              </TableHead>
-              <TableHead>
-                <SortableHeader label="Working terms" sortKeyName="workingTermsStatus" />
-              </TableHead>
-              <TableHead className="hidden lg:table-cell">
-                <SortableHeader label="Community" sortKeyName="communityScore" />
-              </TableHead>
-              <TableHead className="w-[80px]">Notes</TableHead>
-              <TableHead className="w-[100px] text-right">Actions</TableHead>
+              {isColumnVisible("rep") && (
+                <TableHead className="w-[200px]">
+                  <SortableHeader label="Rep" sortKeyName="name" />
+                </TableHead>
+              )}
+              {isColumnVisible("location") && (
+                <TableHead className="hidden md:table-cell">Location</TableHead>
+              )}
+              {isColumnVisible("connectedSince") && (
+                <TableHead className="hidden md:table-cell">
+                  <SortableHeader label="Connected since" sortKeyName="connectedAt" />
+                </TableHead>
+              )}
+              {isColumnVisible("workingTerms") && (
+                <TableHead>
+                  <SortableHeader label="Working terms" sortKeyName="workingTermsStatus" />
+                </TableHead>
+              )}
+              {isColumnVisible("communityScore") && (
+                <TableHead className="hidden lg:table-cell">
+                  <SortableHeader label="Community" sortKeyName="communityScore" />
+                </TableHead>
+              )}
+              {isColumnVisible("notes") && (
+                <TableHead className="w-[80px]">Notes</TableHead>
+              )}
+              {isColumnVisible("actions") && (
+                <TableHead className="w-[100px] text-right">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAndSortedReps.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-muted-foreground">
                   {searchQuery || statusFilter !== "all" || communityScoreFilter !== "all"
                     ? "No field reps match your filters."
                     : "No connected field reps yet."}
@@ -378,147 +428,161 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                 return (
                   <TableRow key={rep.repUserId}>
                     {/* Rep Name & Avatar */}
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4 text-primary" />
+                    {isColumnVisible("rep") && (
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <button
+                              onClick={() => onViewProfile(rep.repUserId)}
+                              className="text-primary hover:underline font-medium text-sm flex items-center gap-1"
+                            >
+                              {rep.anonymousId}
+                            </button>
+                            {(rep.firstName || rep.lastInitial) && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {rep.firstName} {rep.lastInitial}.
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <button
-                            onClick={() => onViewProfile(rep.repUserId)}
-                            className="text-primary hover:underline font-medium text-sm flex items-center gap-1"
-                          >
-                            {rep.anonymousId}
-                          </button>
-                          {(rep.firstName || rep.lastInitial) && (
-                            <p className="text-xs text-muted-foreground truncate">
-                              {rep.firstName} {rep.lastInitial}.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    )}
                     
                     {/* Location */}
-                    <TableCell className="hidden md:table-cell text-sm">
-                      {rep.city && rep.state ? `${rep.city}, ${rep.state}` : rep.city || rep.state || "—"}
-                    </TableCell>
+                    {isColumnVisible("location") && (
+                      <TableCell className="hidden md:table-cell text-sm">
+                        {rep.city && rep.state ? `${rep.city}, ${rep.state}` : rep.city || rep.state || "—"}
+                      </TableCell>
+                    )}
                     
                     {/* Connected Since */}
-                    <TableCell className="hidden md:table-cell text-sm">
-                      {rep.connectedAt
-                        ? new Date(rep.connectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                        : "—"}
-                    </TableCell>
+                    {isColumnVisible("connectedSince") && (
+                      <TableCell className="hidden md:table-cell text-sm">
+                        {rep.connectedAt
+                          ? new Date(rep.connectedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : "—"}
+                      </TableCell>
+                    )}
                     
                     {/* Working Terms Status */}
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={statusInfo.variant}
-                          className={`text-xs ${statusInfo.label === "Active" ? "bg-green-600 hover:bg-green-700" : ""}`}
-                        >
-                          {statusInfo.label === "Active" && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                          {statusInfo.label === "Request sent" && <Clock className="w-3 h-3 mr-1" />}
-                          {statusInfo.label === "Changes requested" && <AlertCircle className="w-3 h-3 mr-1" />}
-                          {statusInfo.label}
-                        </Badge>
-                        {statusInfo.hasAction && (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-xs"
-                            onClick={() => handleViewWorkingTerms(rep.repUserId)}
+                    {isColumnVisible("workingTerms") && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={statusInfo.variant}
+                            className={`text-xs ${statusInfo.label === "Active" ? "bg-green-600 hover:bg-green-700" : ""}`}
                           >
-                            View
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
+                            {statusInfo.label === "Active" && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {statusInfo.label === "Request sent" && <Clock className="w-3 h-3 mr-1" />}
+                            {statusInfo.label === "Changes requested" && <AlertCircle className="w-3 h-3 mr-1" />}
+                            {statusInfo.label}
+                          </Badge>
+                          {statusInfo.hasAction && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={() => handleViewWorkingTerms(rep.repUserId)}
+                            >
+                              View
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     
                     {/* Community Score */}
-                    <TableCell className="hidden lg:table-cell">
-                      <Badge variant="outline" className="text-xs">
-                        {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
-                      </Badge>
-                    </TableCell>
+                    {isColumnVisible("communityScore") && (
+                      <TableCell className="hidden lg:table-cell">
+                        <Badge variant="outline" className="text-xs">
+                          {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
+                        </Badge>
+                      </TableCell>
+                    )}
                     
                     {/* Notes Icon */}
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => onOpenNotes(rep)}
-                      >
-                        <StickyNote className="h-4 w-4" />
-                        {notesCount > 0 && (
-                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                            {notesCount}
-                          </span>
-                        )}
-                      </Button>
-                    </TableCell>
+                    {isColumnVisible("notes") && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 relative"
+                          onClick={() => onOpenNotes(rep)}
+                        >
+                          <StickyNote className="h-4 w-4" />
+                          {notesCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                              {notesCount}
+                            </span>
+                          )}
+                        </Button>
+                      </TableCell>
+                    )}
                     
                     {/* Actions */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => onViewMessages(rep.repUserId, rep.conversationId)}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onViewProfile(rep.repUserId)}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => onViewMessages(rep.repUserId, rep.conversationId)}>
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              Open Messages
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleRequestTerms(rep)}
-                              disabled={!canRequestTerms(rep.repUserId)}
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              {workingTermsCache[rep.repUserId]?.status === "active" ? "Request New Terms" : "Request Terms"}
-                            </DropdownMenuItem>
-                            {workingTermsCache[rep.repUserId]?.status === "active" && (
-                              <DropdownMenuItem onClick={() => handleViewWorkingTerms(rep.repUserId)}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                View Working Terms
+                    {isColumnVisible("actions") && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => onViewMessages(rep.repUserId, rep.conversationId)}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => onViewProfile(rep.repUserId)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Profile
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem 
-                              onClick={() => onReviewRep(rep)}
-                              disabled={!canReview}
-                            >
-                              <Star className="mr-2 h-4 w-4" />
-                              Post Review
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => onDisconnect(rep.repUserId)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Unlink className="mr-2 h-4 w-4" />
-                              Disconnect
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
+                              <DropdownMenuItem onClick={() => onViewMessages(rep.repUserId, rep.conversationId)}>
+                                <MessageSquare className="mr-2 h-4 w-4" />
+                                Open Messages
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => handleRequestTerms(rep)}
+                                disabled={!canRequestTerms(rep.repUserId)}
+                              >
+                                <Send className="mr-2 h-4 w-4" />
+                                {workingTermsCache[rep.repUserId]?.status === "active" ? "Request New Terms" : "Request Terms"}
+                              </DropdownMenuItem>
+                              {workingTermsCache[rep.repUserId]?.status === "active" && (
+                                <DropdownMenuItem onClick={() => handleViewWorkingTerms(rep.repUserId)}>
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  View Working Terms
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem 
+                                onClick={() => onReviewRep(rep)}
+                                disabled={!canReview}
+                              >
+                                <Star className="mr-2 h-4 w-4" />
+                                Post Review
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => onDisconnect(rep.repUserId)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Unlink className="mr-2 h-4 w-4" />
+                                Disconnect
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })
