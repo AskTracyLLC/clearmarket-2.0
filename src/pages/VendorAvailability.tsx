@@ -13,6 +13,7 @@ import { ArrowLeft, Clock, Calendar, Plus, Pencil, Trash2, Repeat, DollarSign, C
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { AddCalendarEventDialog } from "@/components/AddCalendarEventDialog";
 import { VendorNetworkAlertsCard } from "@/components/VendorNetworkAlertsCard";
+import VendorStaffEmailsCard from "@/components/VendorStaffEmailsCard";
 import { CalendarMonthView, CalendarEventPreview } from "@/components/CalendarMonthView";
 import { CalendarDayDialog } from "@/components/CalendarDayDialog";
 import { format, parseISO, isBefore, startOfToday, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -738,6 +739,9 @@ const VendorAvailability = () => {
         {targetVendorId && (
           <VendorNetworkAlertsCard vendorId={targetVendorId} />
         )}
+
+        {/* Staff Email Recipients */}
+        <VendorStaffEmailsCard />
       </div>
 
       {/* Add/Edit Event Dialog */}
