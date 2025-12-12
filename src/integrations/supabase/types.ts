@@ -1677,12 +1677,15 @@ export type Database = {
       reviews: {
         Row: {
           comment: string | null
+          county_name: string | null
           created_at: string
           direction: string
           exclude_from_trust_score: boolean
           feedback_marked_at: string | null
           feedback_marked_by_user_id: string | null
           id: string
+          inspection_category: string | null
+          inspection_type_id: string | null
           is_exit_review: boolean
           is_feedback: boolean
           is_hidden: boolean
@@ -1694,18 +1697,23 @@ export type Database = {
           rep_interest_id: string | null
           reviewee_id: string
           reviewer_id: string
+          state_code: string | null
           status: string
           updated_at: string
           would_work_again: boolean | null
+          zip_code: string | null
         }
         Insert: {
           comment?: string | null
+          county_name?: string | null
           created_at?: string
           direction: string
           exclude_from_trust_score?: boolean
           feedback_marked_at?: string | null
           feedback_marked_by_user_id?: string | null
           id?: string
+          inspection_category?: string | null
+          inspection_type_id?: string | null
           is_exit_review?: boolean
           is_feedback?: boolean
           is_hidden?: boolean
@@ -1717,18 +1725,23 @@ export type Database = {
           rep_interest_id?: string | null
           reviewee_id: string
           reviewer_id: string
+          state_code?: string | null
           status?: string
           updated_at?: string
           would_work_again?: boolean | null
+          zip_code?: string | null
         }
         Update: {
           comment?: string | null
+          county_name?: string | null
           created_at?: string
           direction?: string
           exclude_from_trust_score?: boolean
           feedback_marked_at?: string | null
           feedback_marked_by_user_id?: string | null
           id?: string
+          inspection_category?: string | null
+          inspection_type_id?: string | null
           is_exit_review?: boolean
           is_feedback?: boolean
           is_hidden?: boolean
@@ -1740,9 +1753,11 @@ export type Database = {
           rep_interest_id?: string | null
           reviewee_id?: string
           reviewer_id?: string
+          state_code?: string | null
           status?: string
           updated_at?: string
           would_work_again?: boolean | null
+          zip_code?: string | null
         }
         Relationships: [
           {
@@ -1750,6 +1765,13 @@ export type Database = {
             columns: ["feedback_marked_by_user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_inspection_type_id_fkey"
+            columns: ["inspection_type_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_type_options"
             referencedColumns: ["id"]
           },
           {
