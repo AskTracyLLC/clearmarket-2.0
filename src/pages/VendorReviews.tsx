@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star } from "lucide-react";
+import { ArrowLeft, Eye, TrendingUp, TrendingDown, Minus, Star, GraduationCap } from "lucide-react";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { VendorReputationSnapshot } from "@/components/VendorReputationSnapshot";
@@ -105,10 +105,10 @@ export default function VendorReviews() {
 
       if (receivedError) throw receivedError;
 
-      // Fetch given reviews (vendor_to_rep)
+      // Fetch given reviews (vendor_to_rep) - include status for coaching detection
       const { data: given, error: givenError } = await supabase
         .from("reviews")
-        .select("*")
+        .select("*, status")
         .eq("reviewer_id", user.id)
         .eq("direction", "vendor_to_rep")
         .order("created_at", { ascending: false });
@@ -233,10 +233,28 @@ export default function VendorReviews() {
     const TrendIcon = trend.icon;
     const displayUserId = isReceived ? review.reviewer_id : review.reviewee_id;
     const displayAnonymousId = isReceived ? review.reviewerAnonymousId : review.revieweeAnonymousId;
+    const isCoaching = (review as any).status === "coaching";
 
     return (
-      <Card key={review.id} className="mb-3">
+      <Card key={review.id} className={`mb-3 ${isCoaching ? "border-amber-500/30 bg-amber-500/5" : ""}`}>
         <CardContent className="pt-6">
+          {/* Coaching banner for reviews vendor gave that were moved to coaching */}
+          {!isReceived && isCoaching && (
+            <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-start gap-2">
+                <GraduationCap className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-500">
+                    Private Feedback / Coaching
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    This review has been moved to Coaching by the Field Rep. It no longer affects their public rating, but remains visible to you and ClearMarket Admins.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground">
@@ -255,6 +273,11 @@ export default function VendorReviews() {
               {review.is_exit_review && (
                 <Badge variant="outline" className="text-xs">
                   Exit Review
+                </Badge>
+              )}
+              {isCoaching && (
+                <Badge variant="secondary" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                  Coaching
                 </Badge>
               )}
             </div>
