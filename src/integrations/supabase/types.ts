@@ -3123,6 +3123,85 @@ export type Database = {
           },
         ]
       }
+      vendor_staff_emails: {
+        Row: {
+          applies_to_all_states: boolean
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          receive_direct_messages: boolean
+          receive_network_alerts: boolean
+          role_label: string | null
+          staff_name: string | null
+          updated_at: string
+          vendor_profile_id: string
+        }
+        Insert: {
+          applies_to_all_states?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          receive_direct_messages?: boolean
+          receive_network_alerts?: boolean
+          role_label?: string | null
+          staff_name?: string | null
+          updated_at?: string
+          vendor_profile_id: string
+        }
+        Update: {
+          applies_to_all_states?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          receive_direct_messages?: boolean
+          receive_network_alerts?: boolean
+          role_label?: string | null
+          staff_name?: string | null
+          updated_at?: string
+          vendor_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_staff_emails_vendor_profile_id_fkey"
+            columns: ["vendor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_staff_state_coverage: {
+        Row: {
+          created_at: string
+          id: string
+          state_code: string
+          vendor_staff_email_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          state_code: string
+          vendor_staff_email_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          state_code?: string
+          vendor_staff_email_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_staff_state_coverage_vendor_staff_email_id_fkey"
+            columns: ["vendor_staff_email_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_staff_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       working_terms_change_requests: {
         Row: {
           created_at: string
@@ -3360,6 +3439,10 @@ export type Database = {
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
+      }
+      get_user_vendor_profile_id: {
+        Args: { p_user_id: string }
+        Returns: string
       }
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
       is_staff_user: { Args: { user_id: string }; Returns: boolean }
