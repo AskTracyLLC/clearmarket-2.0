@@ -3,10 +3,14 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, ArrowUpDown } from "lucide-react";
+import { 
+  ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, 
+  ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, ChevronDown
+} from "lucide-react";
 import { VendorPostPricingAlert } from "@/components/VendorPostPricingAlert";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
@@ -14,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { PageHeader } from "@/components/PageHeader";
 import AdminViewBanner from "@/components/AdminViewBanner";
+import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +32,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SeekingCoveragePost {
   id: string;
@@ -52,7 +77,10 @@ interface SeekingCoveragePost {
   } | null;
 }
 
-type SortMode = "newest" | "interest";
+type SortMode = "newest" | "oldest" | "interest";
+type SortColumn = "title" | "location" | "rate" | "interested" | "status" | "expires" | null;
+type SortDirection = "asc" | "desc";
+type InterestFilter = "all" | "with_interest" | "no_responses";
 
 const VendorSeekingCoverage = () => {
   const navigate = useNavigate();
@@ -69,8 +97,18 @@ const VendorSeekingCoverage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<SeekingCoveragePost | null>(null);
   const [viewingPost, setViewingPost] = useState<SeekingCoveragePost | null>(null);
+  
+  // Filters
   const [filterStatus, setFilterStatus] = useState<"all" | "open" | "closed" | "expired">("all");
+  const [stateFilter, setStateFilter] = useState<string>("all");
+  const [countySearch, setCountySearch] = useState("");
+  const [titleSearch, setTitleSearch] = useState("");
+  const [interestFilter, setInterestFilter] = useState<InterestFilter>("all");
+  
+  // Sorting
   const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   
   // Interested reps count per post
   const [interestedCounts, setInterestedCounts] = useState<Record<string, number>>({});
@@ -81,7 +119,7 @@ const VendorSeekingCoverage = () => {
   const isAdminViewingOther = profile?.is_admin && vendorIdParam && vendorIdParam !== user?.id;
   
   // Ref for scrolling to highlighted post
-  const highlightedPostRef = useRef<HTMLDivElement>(null);
+  const highlightedPostRef = useRef<HTMLTableRowElement>(null);
   
   // Scroll to highlighted post when it becomes available
   useEffect(() => {
@@ -207,14 +245,14 @@ const VendorSeekingCoverage = () => {
 
     setAllPosts(postsWithCounties);
 
-    // Load interested rep counts for all posts
+    // Load interested rep counts for all posts (exclude declined)
     if (posts && posts.length > 0) {
       const postIds = posts.map((p) => p.id);
       const { data: interestData } = await supabase
         .from("rep_interest")
         .select("post_id")
         .in("post_id", postIds)
-        .neq("status", "declined");
+        .neq("status", "declined_by_vendor");
 
       if (interestData) {
         const counts: Record<string, number> = {};
@@ -226,23 +264,30 @@ const VendorSeekingCoverage = () => {
     }
   };
 
-  // Compute summary stats for interest
-  const interestSummary = useMemo(() => {
-    const postsWithInterest = Object.keys(interestedCounts).filter(
-      (postId) => interestedCounts[postId] > 0
-    ).length;
-    const totalInterestedReps = Object.values(interestedCounts).reduce(
-      (sum, count) => sum + count,
-      0
-    );
-    return { postsWithInterest, totalInterestedReps };
-  }, [interestedCounts]);
+  // Get unique states from posts
+  const availableStates = useMemo(() => {
+    const states = new Set<string>();
+    allPosts.forEach(post => {
+      if (post.state_code) states.add(post.state_code);
+    });
+    return Array.from(states).sort();
+  }, [allPosts]);
 
-  // Filter and sort posts based on selected filter and sort mode
+  // Compute summary stats for open posts
+  const openPostStats = useMemo(() => {
+    const openPosts = allPosts.filter(p => p.status === "active");
+    const openTotal = openPosts.length;
+    const openWithInterest = openPosts.filter(p => (interestedCounts[p.id] || 0) > 0).length;
+    const openWithoutInterest = openTotal - openWithInterest;
+    return { openTotal, openWithInterest, openWithoutInterest };
+  }, [allPosts, interestedCounts]);
+
+  // Filter and sort posts
   useEffect(() => {
     const now = new Date();
     let filtered: SeekingCoveragePost[];
     
+    // Status filter
     switch (filterStatus) {
       case "open":
         filtered = allPosts.filter((p) => p.status === "active");
@@ -259,29 +304,117 @@ const VendorSeekingCoverage = () => {
         break;
     }
 
+    // State filter
+    if (stateFilter !== "all") {
+      filtered = filtered.filter(p => p.state_code === stateFilter);
+    }
+
+    // County search
+    if (countySearch.trim()) {
+      const search = countySearch.toLowerCase().trim();
+      filtered = filtered.filter(p => 
+        p.us_counties?.county_name?.toLowerCase().includes(search) ||
+        (p.covers_entire_state && "all counties".includes(search))
+      );
+    }
+
+    // Title search
+    if (titleSearch.trim()) {
+      const search = titleSearch.toLowerCase().trim();
+      filtered = filtered.filter(p => p.title.toLowerCase().includes(search));
+    }
+
+    // Interest filter
+    if (interestFilter === "with_interest") {
+      filtered = filtered.filter(p => (interestedCounts[p.id] || 0) > 0);
+    } else if (interestFilter === "no_responses") {
+      filtered = filtered.filter(p => (interestedCounts[p.id] || 0) === 0);
+    }
+
     // Apply sorting
-    if (sortMode === "interest") {
+    if (sortColumn) {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortColumn) {
+          case "title":
+            comparison = a.title.localeCompare(b.title);
+            break;
+          case "location":
+            const locA = `${a.state_code || ""}-${a.us_counties?.county_name || ""}`;
+            const locB = `${b.state_code || ""}-${b.us_counties?.county_name || ""}`;
+            comparison = locA.localeCompare(locB);
+            break;
+          case "rate":
+            const rateA = a.pay_max || a.pay_min || 0;
+            const rateB = b.pay_max || b.pay_min || 0;
+            comparison = rateA - rateB;
+            break;
+          case "interested":
+            comparison = (interestedCounts[a.id] || 0) - (interestedCounts[b.id] || 0);
+            break;
+          case "status":
+            comparison = a.status.localeCompare(b.status);
+            break;
+          case "expires":
+            const expA = a.auto_expires_at ? new Date(a.auto_expires_at).getTime() : 0;
+            const expB = b.auto_expires_at ? new Date(b.auto_expires_at).getTime() : 0;
+            comparison = expA - expB;
+            break;
+        }
+        
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    } else if (sortMode === "interest") {
       filtered.sort((a, b) => {
         const countA = interestedCounts[a.id] || 0;
         const countB = interestedCounts[b.id] || 0;
         if (countB !== countA) {
-          return countB - countA; // Higher interest first
+          return countB - countA;
         }
-        // Tiebreaker: newest first
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
+    } else if (sortMode === "oldest") {
+      filtered.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
     } else {
-      // Default: newest first
       filtered.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     }
 
     setFilteredPosts(filtered);
-  }, [filterStatus, allPosts, sortMode, interestedCounts]);
+  }, [filterStatus, allPosts, sortMode, sortColumn, sortDirection, interestedCounts, stateFilter, countySearch, titleSearch, interestFilter]);
+
+  const handleColumnSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("desc");
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-3.5 w-3.5 ml-1" />
+      : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
+  };
+
+  const handleQuickFilter = (type: "with_interest" | "no_responses") => {
+    setFilterStatus("open");
+    setInterestFilter(type);
+  };
+
+  const clearQuickFilters = () => {
+    setInterestFilter("all");
+  };
 
   const handleCreateNew = () => {
-    // Check vendor profile completion
     if (!vendorProfile) {
       toast({
         title: "Profile Required",
@@ -342,9 +475,7 @@ const VendorSeekingCoverage = () => {
       description: "Your seeking coverage request has been closed.",
     });
 
-    // Send auto-messages to interested reps with conversations
     await sendPostClosedMessages(postId);
-
     loadPosts();
   };
 
@@ -352,7 +483,6 @@ const VendorSeekingCoverage = () => {
     if (!user) return;
 
     try {
-      // Get the post details for template
       const { data: post } = await supabase
         .from("seeking_coverage_posts")
         .select("title")
@@ -361,16 +491,14 @@ const VendorSeekingCoverage = () => {
 
       if (!post) return;
 
-      // Find all interested reps for this post
       const { data: interests } = await supabase
         .from("rep_interest")
         .select("rep_id")
         .eq("post_id", postId)
-        .neq("status", "declined");
+        .neq("status", "declined_by_vendor");
 
       if (!interests || interests.length === 0) return;
 
-      // Get rep profile user IDs
       const repProfileIds = interests.map(i => i.rep_id);
       const { data: repProfiles } = await supabase
         .from("rep_profile")
@@ -379,7 +507,6 @@ const VendorSeekingCoverage = () => {
 
       if (!repProfiles || repProfiles.length === 0) return;
 
-      // Find conversations with these reps for this specific post
       const { data: conversations } = await supabase
         .from("conversations")
         .select("id, participant_one, participant_two")
@@ -392,7 +519,6 @@ const VendorSeekingCoverage = () => {
 
       if (!conversations || conversations.length === 0) return;
 
-      // Load vendor's custom template or use default
       const { data: customTemplates } = await supabase
         .from("vendor_message_templates")
         .select("body")
@@ -408,21 +534,16 @@ Coverage has now been established for {{POST_TITLE}}. Please keep an eye on Clea
 Thank you again for your interest!`;
 
       const templateBody = customTemplates?.body || defaultTemplate;
-
-      // Build a map of rep user ID to anonymous ID
       const repAnonMap = new Map(repProfiles.map(rp => [rp.user_id, rp.anonymous_id]));
 
-      // Send messages to each conversation
       for (const conv of conversations) {
         const repUserId = conv.participant_one === user.id ? conv.participant_two : conv.participant_one;
         const repAnon = repAnonMap.get(repUserId);
 
-        // Render template with placeholders
         const messageBody = templateBody
           .replace(/{{REP_ANON}}/g, repAnon || "")
           .replace(/{{POST_TITLE}}/g, post.title || "");
 
-        // Insert the message
         await supabase
           .from("messages")
           .insert({
@@ -433,7 +554,6 @@ Thank you again for your interest!`;
             read: false,
           });
 
-        // Update conversation metadata
         await supabase
           .from("conversations")
           .update({
@@ -444,7 +564,6 @@ Thank you again for your interest!`;
       }
     } catch (error) {
       console.error("Error sending post closed messages:", error);
-      // Don't show error to user - this is a background operation
     }
   };
 
@@ -475,7 +594,6 @@ Thank you again for your interest!`;
   };
 
   const handleDelete = async (postId: string) => {
-    // Show confirmation dialog
     if (!confirm("Are you sure you want to delete this Seeking Coverage post? This will hide it from all reps but preserve it in your internal history.")) {
       return;
     }
@@ -506,9 +624,8 @@ Thank you again for your interest!`;
 
   const getLocationDisplay = (post: SeekingCoveragePost) => {
     if (post.covers_entire_state) {
-      return `Statewide – ${post.state_code}`;
+      return `All counties, ${post.state_code}`;
     }
-
     const countyName = post.us_counties?.county_name || "Unknown County";
     return `${countyName}, ${post.state_code}`;
   };
@@ -518,19 +635,20 @@ Thank you again for your interest!`;
     const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
 
     if (post.status === "active" && !isExpired) {
-      return <Badge className="bg-green-600/20 text-green-600 border-green-600/30">Open</Badge>;
+      return <Badge className="bg-green-600/20 text-green-600 border-green-600/30 text-xs">Open</Badge>;
     } else if (post.status === "closed") {
-      return <Badge variant="outline" className="text-muted-foreground">Closed</Badge>;
+      return <Badge variant="outline" className="text-muted-foreground text-xs">Closed</Badge>;
+    } else if (post.status === "in_discussion") {
+      return <Badge className="bg-blue-600/20 text-blue-600 border-blue-600/30 text-xs">In discussion</Badge>;
     } else if (post.status === "expired" || isExpired) {
-      return <Badge className="bg-orange-600/20 text-orange-600 border-orange-600/30">Expired</Badge>;
+      return <Badge className="bg-orange-600/20 text-orange-600 border-orange-600/30 text-xs">Expired</Badge>;
     }
     return null;
   };
 
-  const isExpiringSoon = (post: SeekingCoveragePost) => {
-    if (!post.auto_expires_at || post.status !== "active") return false;
-    const daysUntilExpiry = differenceInDays(new Date(post.auto_expires_at), new Date());
-    return daysUntilExpiry >= 0 && daysUntilExpiry <= 7;
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "…";
   };
 
   if (authLoading || loading) {
@@ -543,7 +661,7 @@ Thank you again for your interest!`;
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Admin View Banner */}
         {profile?.is_admin && (
           <div className="mb-3 rounded-md bg-amber-900/40 border border-amber-500/40 px-3 py-2 text-xs text-amber-100 flex items-center gap-2">
@@ -570,7 +688,7 @@ Thank you again for your interest!`;
         />
 
         {/* Create New Button */}
-        <div className="mb-8">
+        <div className="mb-6">
           {isAdminViewingOther ? (
             <Button size="lg" disabled className="opacity-60 cursor-not-allowed" title="Admins can view vendor posts here; posting on their behalf is not available yet.">
               <PlusCircle className="h-5 w-5 mr-2" />
@@ -584,53 +702,131 @@ Thank you again for your interest!`;
           )}
         </div>
 
-        {/* Interest Summary Pills (only show when there is interest) */}
-        {interestSummary.postsWithInterest > 0 && (
-          <div className="mb-6 flex flex-wrap gap-3">
-            <Badge className="bg-primary/10 text-primary border-primary/20 px-3 py-1.5 text-sm">
-              <Users className="h-4 w-4 mr-2" />
-              {interestSummary.postsWithInterest} post{interestSummary.postsWithInterest !== 1 ? 's' : ''} with interested reps
-            </Badge>
-            <Badge className="bg-secondary/50 text-secondary-foreground border-secondary/30 px-3 py-1.5 text-sm">
-              <Users className="h-4 w-4 mr-2" />
-              {interestSummary.totalInterestedReps} rep{interestSummary.totalInterestedReps !== 1 ? 's' : ''} have shown interest
-            </Badge>
-          </div>
-        )}
-
-        {/* Filter Tabs + Sort Control */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
-          <Tabs value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
+        {/* Filter Tabs */}
+        <div className="mb-4">
+          <Tabs value={filterStatus} onValueChange={(v) => { setFilterStatus(v as typeof filterStatus); clearQuickFilters(); }}>
             <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="open">Open</TabsTrigger>
+              <TabsTrigger value="all">All ({allPosts.length})</TabsTrigger>
+              <TabsTrigger value="open">Open ({openPostStats.openTotal})</TabsTrigger>
               <TabsTrigger value="closed">Closed</TabsTrigger>
               <TabsTrigger value="expired">Expired</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
+
+        {/* Summary Chips for Open Posts */}
+        <div className="mb-4 flex flex-wrap gap-3">
+          <button
+            onClick={() => handleQuickFilter("with_interest")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+              interestFilter === "with_interest" && filterStatus === "open"
+                ? "bg-primary/20 border-primary/40 text-primary"
+                : "bg-card border-border hover:border-primary/40 hover:bg-primary/5"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <div className="text-left">
+              <p className="text-sm font-medium">Open with interested reps</p>
+              <p className="text-xs text-muted-foreground">{openPostStats.openWithInterest} posts</p>
+            </div>
+          </button>
           
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="interest">Interest at top</SelectItem>
-              </SelectContent>
-            </Select>
+          <button
+            onClick={() => handleQuickFilter("no_responses")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
+              interestFilter === "no_responses" && filterStatus === "open"
+                ? "bg-muted border-border text-foreground"
+                : "bg-card border-border hover:border-muted-foreground/40 hover:bg-muted/50"
+            }`}
+          >
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <div className="text-left">
+              <p className="text-sm font-medium">Open with no responses</p>
+              <p className="text-xs text-muted-foreground">{openPostStats.openWithoutInterest} posts</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="mb-4 p-3 bg-muted/30 rounded-lg border border-border">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* State Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">State:</span>
+              <Select value={stateFilter} onValueChange={setStateFilter}>
+                <SelectTrigger className="w-[100px] h-8 text-xs">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {availableStates.map(state => (
+                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* County Search */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">County:</span>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input 
+                  placeholder="Search..."
+                  value={countySearch}
+                  onChange={(e) => setCountySearch(e.target.value)}
+                  className="w-[120px] h-8 text-xs pl-7"
+                />
+              </div>
+            </div>
+
+            {/* Title Search */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Title:</span>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input 
+                  placeholder="Search..."
+                  value={titleSearch}
+                  onChange={(e) => setTitleSearch(e.target.value)}
+                  className="w-[140px] h-8 text-xs pl-7"
+                />
+              </div>
+            </div>
+
+            {/* Interest Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Interest:</span>
+              <Select value={interestFilter} onValueChange={(v) => setInterestFilter(v as InterestFilter)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="with_interest">With interested reps</SelectItem>
+                  <SelectItem value="no_responses">No responses</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2 ml-auto">
+              <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+              <Select value={sortMode} onValueChange={(v) => { setSortMode(v as SortMode); setSortColumn(null); }}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Sort by..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="interest">Interest at top</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
-        {/* Sort helper text */}
-        {sortMode === "interest" && (
-          <p className="text-sm text-muted-foreground mb-4 -mt-2">
-            Posts with interested reps are shown first.
-          </p>
-        )}
-
-        {/* Posts List */}
+        {/* Posts Table */}
         {filteredPosts.length === 0 ? (
           <Card className="p-12 text-center border-2 border-dashed">
             <div className="max-w-md mx-auto">
@@ -653,149 +849,246 @@ Thank you again for your interest!`;
             </div>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredPosts.map((post) => {
-              const isActive = post.status === "active";
-              const isClosed = post.status === "closed";
-              const now = new Date();
-              const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
-              const canReopen = (isClosed || post.status === "expired") && (!post.auto_expires_at || new Date(post.auto_expires_at) >= now);
-
-              const isHighlighted = highlightPostId === post.id;
-              
-              return (
-                <Card 
-                  key={post.id} 
-                  ref={isHighlighted ? highlightedPostRef : undefined}
-                  className={`p-6 ${isActive ? 'bg-card-elevated' : 'bg-muted/20 opacity-75'} border ${isHighlighted ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="text-xl font-semibold text-foreground">{post.title}</h3>
-                        {getStatusBadge(post)}
-                        {/* Prominent Interest Badge */}
-                        {interestedCounts[post.id] > 0 && (
-                          <Badge className="bg-primary/20 text-primary border-primary/30 font-semibold">
-                            <Users className="h-3.5 w-3.5 mr-1.5" />
-                            {interestedCounts[post.id]} Interested Rep{interestedCounts[post.id] !== 1 ? 's' : ''}
-                          </Badge>
-                        )}
-                        {/* Pricing Alert Badge */}
-                        {isActive && (
-                          <VendorPostPricingAlert
-                            stateCode={post.state_code}
-                            countyId={post.county_id}
-                            coversEntireState={post.covers_entire_state}
-                            payMin={post.pay_min}
-                            payMax={post.pay_max}
-                          />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-1">{getLocationDisplay(post)}</p>
-                      {isExpiringSoon(post) && (
-                        <div className="flex items-center gap-2 text-orange-600 text-sm mt-2">
-                          <AlertCircle className="h-4 w-4" />
-                          <span>Expiring soon ({differenceInDays(new Date(post.auto_expires_at!), new Date())} days left)</span>
-                        </div>
-                      )}
+          <div className="rounded-lg border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => handleColumnSort("title")}
+                  >
+                    <div className="flex items-center">
+                      Title
+                      {getSortIcon("title")}
                     </div>
-                  </div>
-
-                  {/* Inspection Types */}
-                  <div className="mb-3">
-                    <p className="text-xs text-muted-foreground mb-2">Inspection Types:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {post.inspection_types.map((type, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {type}
-                        </Badge>
-                      ))}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => handleColumnSort("location")}
+                  >
+                    <div className="flex items-center">
+                      Location
+                      {getSortIcon("location")}
                     </div>
-                  </div>
-
-                  {/* Systems Required */}
-                  <div className="mb-4">
-                    <p className="text-xs text-muted-foreground mb-2">Systems Required:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {post.systems_required_array.map((system, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {system}
-                        </Badge>
-                      ))}
+                  </TableHead>
+                  <TableHead className="hidden lg:table-cell">Inspection Types</TableHead>
+                  <TableHead className="hidden xl:table-cell">Systems</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => handleColumnSort("rate")}
+                  >
+                    <div className="flex items-center">
+                      Offered Rate
+                      {getSortIcon("rate")}
                     </div>
-                  </div>
-
-                  {/* Pricing */}
-                  {(post.pay_min || post.pay_max) && (
-                    <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="text-xs text-muted-foreground mb-1">Offered Rate:</p>
-                      <p className="text-lg font-semibold text-primary">
-                        {post.pay_type === "fixed" 
-                          ? `$${(post.pay_max || post.pay_min)?.toFixed(2)} / order`
-                          : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
-                        }
-                      </p>
-                      {post.pay_notes && (
-                        <p className="text-xs text-muted-foreground mt-1 italic">{post.pay_notes}</p>
-                      )}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/70 transition-colors text-center"
+                    onClick={() => handleColumnSort("interested")}
+                  >
+                    <div className="flex items-center justify-center">
+                      <Users className="h-3.5 w-3.5 mr-1" />
+                      Interest
+                      {getSortIcon("interested")}
                     </div>
-                  )}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => handleColumnSort("status")}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      {getSortIcon("status")}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="hidden md:table-cell cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => handleColumnSort("expires")}
+                  >
+                    <div className="flex items-center">
+                      Auto-expires
+                      {getSortIcon("expires")}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TooltipProvider>
+                  {filteredPosts.map((post) => {
+                    const isActive = post.status === "active";
+                    const isClosed = post.status === "closed";
+                    const now = new Date();
+                    const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
+                    const canReopen = (isClosed || post.status === "expired") && (!post.auto_expires_at || new Date(post.auto_expires_at) >= now);
+                    const isHighlighted = highlightPostId === post.id;
+                    const interestedCount = interestedCounts[post.id] || 0;
+                    const expiringSoon = post.auto_expires_at && isActive && differenceInDays(new Date(post.auto_expires_at), now) <= 7 && differenceInDays(new Date(post.auto_expires_at), now) >= 0;
 
-                  {/* Auto-Expiry */}
-                  {post.auto_expires_at && (
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {isExpired ? 'Expired on' : 'Auto-expires on'} {format(new Date(post.auto_expires_at), "MMM d, yyyy")}
-                    </p>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-4 border-t border-border">
-                    <Button variant="secondary" size="sm" onClick={() => setViewingPost(post)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </Button>
-                    {interestedCounts[post.id] > 0 && (
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        onClick={() => navigate(`/vendor/seeking-coverage/${post.id}/interested`)}
+                    return (
+                      <TableRow 
+                        key={post.id}
+                        ref={isHighlighted ? highlightedPostRef : undefined}
+                        className={`${isActive ? '' : 'opacity-60'} ${isHighlighted ? 'bg-primary/10 ring-1 ring-primary/30' : ''}`}
                       >
-                        <Users className="h-4 w-4 mr-2" />
-                        View Interested Reps
-                      </Button>
-                    )}
-                    {isActive && (
-                      <>
-                        <Button variant="secondary" size="sm" onClick={() => handleEdit(post)}>
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleClose(post.id)}>
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Close
-                        </Button>
-                      </>
-                    )}
-                    {!isActive && (
-                      <>
-                        {canReopen && (
-                          <Button variant="secondary" size="sm" onClick={() => handleReopen(post.id)}>
-                            <RotateCcw className="h-4 w-4 mr-2" />
-                            Reopen
-                          </Button>
-                        )}
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(post.id)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </Card>
-              );
-            })}
+                        {/* Title */}
+                        <TableCell className="font-medium max-w-[200px]">
+                          <button 
+                            onClick={() => setViewingPost(post)}
+                            className="text-left hover:text-primary transition-colors"
+                          >
+                            {truncateText(post.title, 30)}
+                          </button>
+                        </TableCell>
+
+                        {/* Location */}
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {getLocationDisplay(post)}
+                        </TableCell>
+
+                        {/* Inspection Types */}
+                        <TableCell className="hidden lg:table-cell max-w-[150px]">
+                          {post.inspection_types.length > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs text-muted-foreground cursor-help">
+                                  {truncateText(post.inspection_types.join(", "), 25)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-xs">
+                                <p className="text-xs">{post.inspection_types.join(", ")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Systems */}
+                        <TableCell className="hidden xl:table-cell max-w-[120px]">
+                          {post.systems_required_array.length > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-xs text-muted-foreground cursor-help">
+                                  {truncateText(post.systems_required_array.join(", "), 20)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-xs">
+                                <p className="text-xs">{post.systems_required_array.join(", ")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Offered Rate */}
+                        <TableCell className="text-sm font-medium text-primary whitespace-nowrap">
+                          {formatVendorOfferedRate(post.pay_min, post.pay_max, post.pay_type)}
+                        </TableCell>
+
+                        {/* Interested Reps */}
+                        <TableCell className="text-center">
+                          {interestedCount > 0 ? (
+                            <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
+                              {interestedCount}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {getStatusBadge(post)}
+                            {expiringSoon && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertCircle className="h-3.5 w-3.5 text-orange-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">Expiring in {differenceInDays(new Date(post.auto_expires_at!), now)} days</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Auto-expires */}
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground whitespace-nowrap">
+                          {post.auto_expires_at && (isActive || post.status === "expired") 
+                            ? format(new Date(post.auto_expires_at), "MMM d, yyyy")
+                            : "—"
+                          }
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 px-2">
+                                <span className="text-xs">Actions</span>
+                                <ChevronDown className="h-3 w-3 ml-1" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => setViewingPost(post)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Details
+                              </DropdownMenuItem>
+                              {interestedCount > 0 && (
+                                <DropdownMenuItem onClick={() => navigate(`/vendor/seeking-coverage/${post.id}/interested`)}>
+                                  <Users className="h-4 w-4 mr-2" />
+                                  View Interested Reps ({interestedCount})
+                                </DropdownMenuItem>
+                              )}
+                              {isActive && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleEdit(post)}>
+                                    <Edit2 className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleClose(post.id)}>
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Close
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {!isActive && (
+                                <>
+                                  {canReopen && (
+                                    <DropdownMenuItem onClick={() => handleReopen(post.id)}>
+                                      <RotateCcw className="h-4 w-4 mr-2" />
+                                      Reopen
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDelete(post.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TooltipProvider>
+              </TableBody>
+            </Table>
           </div>
+        )}
+
+        {/* Results count */}
+        {filteredPosts.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-3">
+            Showing {filteredPosts.length} of {allPosts.length} posts
+          </p>
         )}
       </div>
 
@@ -848,15 +1141,25 @@ Thank you again for your interest!`;
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div>
+                <p className="text-sm font-medium mb-1">Offered Rate</p>
+                <p className="text-lg font-semibold text-primary">
+                  {formatVendorOfferedRate(viewingPost.pay_min, viewingPost.pay_max, viewingPost.pay_type)}
+                </p>
+                {viewingPost.pay_notes && (
+                  <p className="text-xs text-muted-foreground mt-1 italic">{viewingPost.pay_notes}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-6">
                 <div>
                   <p className="text-sm font-medium">Status</p>
                   <div className="mt-1">{getStatusBadge(viewingPost)}</div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Accepting Responses</p>
+                  <p className="text-sm font-medium">Interested Reps</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {viewingPost.is_accepting_responses ? "Yes" : "No"}
+                    {interestedCounts[viewingPost.id] || 0}
                   </p>
                 </div>
               </div>
@@ -872,6 +1175,36 @@ Thank you again for your interest!`;
                   <p className="text-sm text-muted-foreground">{format(new Date(viewingPost.auto_expires_at), "MMM d, yyyy")}</p>
                 </div>
               )}
+
+              {/* Quick Actions in Dialog */}
+              <div className="flex gap-2 pt-4 border-t border-border">
+                {(interestedCounts[viewingPost.id] || 0) > 0 && (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => {
+                      setViewingPost(null);
+                      navigate(`/vendor/seeking-coverage/${viewingPost.id}/interested`);
+                    }}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    View Interested Reps
+                  </Button>
+                )}
+                {viewingPost.status === "active" && (
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => {
+                      setViewingPost(null);
+                      handleEdit(viewingPost);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
