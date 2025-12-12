@@ -60,6 +60,17 @@ const SAMPLE_PLACEHOLDERS: Record<string, string> = {
   app_base_url: "https://app.useclearmarket.io",
 };
 
+// Human-readable placeholder labels
+const PLACEHOLDER_LABELS: Record<string, string> = {
+  user_first_name: "Recipient's first name (the person getting this email)",
+  actor_name: "Sender name (vendor or field rep who triggered this email)",
+  snippet: "Extra message text or short note",
+  summary: "Summary of the notification",
+  primary_cta_label: "Button text",
+  primary_cta_url: "Button link URL",
+  app_base_url: "Base URL of the app",
+};
+
 export default function AdminEmailTemplates() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: permLoading } = useStaffPermissions();
@@ -429,6 +440,9 @@ export default function AdminEmailTemplates() {
                     onChange={(e) => setEditForm({ ...editForm, subject_template: e.target.value })}
                     placeholder="Email subject line"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    You can use the placeholders listed below. They'll be filled in automatically (for example, sender name, recipient name, etc.).
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -440,18 +454,26 @@ export default function AdminEmailTemplates() {
                     placeholder="Email body content with HTML"
                     className="font-mono text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    You can use the placeholders listed below. They'll be filled in automatically (for example, sender name, recipient name, etc.).
+                  </p>
                 </div>
 
                 {selectedTemplate?.placeholders_hint && (
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm text-muted-foreground">
-                      <strong>Available placeholders:</strong>{" "}
+                  <div className="bg-muted p-3 rounded-md space-y-2">
+                    <p className="text-sm font-medium">Available placeholders:</p>
+                    <div className="space-y-1">
                       {selectedTemplate.placeholders_hint.split(", ").map(p => (
-                        <code key={p} className="mx-1 px-1 py-0.5 bg-background rounded text-xs">
-                          {`{{${p}}}`}
-                        </code>
+                        <div key={p} className="flex items-start gap-2 text-sm">
+                          <code className="px-1.5 py-0.5 bg-background rounded text-xs shrink-0">
+                            {`{{${p}}}`}
+                          </code>
+                          <span className="text-muted-foreground">
+                            {PLACEHOLDER_LABELS[p] || p}
+                          </span>
+                        </div>
                       ))}
-                    </p>
+                    </div>
                   </div>
                 )}
               </TabsContent>
