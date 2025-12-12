@@ -1,9 +1,11 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
+import { MimicBanner } from "@/components/MimicBanner";
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -17,6 +19,7 @@ interface AuthenticatedLayoutProps {
 export function AuthenticatedLayout({ children, className = "" }: AuthenticatedLayoutProps) {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { mimickedUser } = useMimic();
   const [profile, setProfile] = useState<{
     is_admin?: boolean;
     is_vendor_admin?: boolean;
@@ -34,16 +37,19 @@ export function AuthenticatedLayout({ children, className = "" }: AuthenticatedL
     if (user) {
       loadProfile();
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, mimickedUser]);
 
   const loadProfile = async () => {
     if (!user) return;
 
     try {
+      // If in mimic mode, use mimicked user's profile for nav display
+      const targetUserId = mimickedUser?.id || user.id;
+      
       const { data: profileData } = await supabase
         .from("profiles")
         .select("is_admin, is_vendor_admin, is_fieldrep")
-        .eq("id", user.id)
+        .eq("id", targetUserId)
         .single();
 
       setProfile(profileData);
@@ -53,7 +59,7 @@ export function AuthenticatedLayout({ children, className = "" }: AuthenticatedL
         const { data: walletData } = await supabase
           .from("user_wallet")
           .select("credits")
-          .eq("user_id", user.id)
+          .eq("user_id", targetUserId)
           .maybeSingle();
         
         setVendorCredits(walletData?.credits ?? 0);
@@ -76,10 +82,11 @@ export function AuthenticatedLayout({ children, className = "" }: AuthenticatedL
 
   return (
     <div className="min-h-screen flex flex-col">
+      <MimicBanner />
       <AuthenticatedNav 
-        isAdmin={profile?.is_admin}
-        isVendor={profile?.is_vendor_admin}
-        isRep={profile?.is_fieldrep}
+        isAdmin={mimickedUser ? false : profile?.is_admin}
+        isVendor={mimickedUser ? mimickedUser.is_vendor_admin : profile?.is_vendor_admin}
+        isRep={mimickedUser ? mimickedUser.is_fieldrep : profile?.is_fieldrep}
         vendorCredits={vendorCredits}
       />
       <main className={`flex-1 ${className}`}>
