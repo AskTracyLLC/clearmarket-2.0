@@ -247,6 +247,28 @@ export async function acceptTerritoryAssignment(
         has_pending_assignment: false,
       })
       .eq("id", assignment.seeking_coverage_post_id);
+
+    // Mark other interested reps as not_selected (they weren't chosen for this post)
+    await supabase
+      .from("rep_interest")
+      .update({
+        status: "not_selected",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("post_id", assignment.seeking_coverage_post_id)
+      .eq("status", "interested")
+      .neq("rep_id", assignment.rep_id);
+
+    // Also decline any other pending territory assignments for this post
+    await supabase
+      .from("territory_assignments")
+      .update({
+        status: "declined",
+        decline_reason: "Post filled by another rep",
+      })
+      .eq("seeking_coverage_post_id", assignment.seeking_coverage_post_id)
+      .eq("status", "pending_rep")
+      .neq("id", assignmentId);
   }
 
   // Ensure vendor-rep connection exists (create if needed)
