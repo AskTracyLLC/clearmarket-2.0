@@ -121,12 +121,92 @@ export async function createTerritoryAssignment(params: {
 }
 
 /**
+ * Check if a vendor-rep connection exists
+ */
+export async function checkVendorRepConnection(
+  vendorId: string,
+  repId: string
+): Promise<{ exists: boolean; status: string | null }> {
+  const { data, error } = await supabase
+    .from("vendor_connections")
+    .select("id, status")
+    .eq("vendor_id", vendorId)
+    .eq("field_rep_id", repId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error checking connection:", error);
+    return { exists: false, status: null };
+  }
+
+  return { 
+    exists: !!data, 
+    status: data?.status || null 
+  };
+}
+
+/**
+ * Create or activate a vendor-rep connection
+ * This is called when a rep accepts a territory assignment
+ */
+async function ensureVendorRepConnection(
+  vendorId: string,
+  repId: string,
+  conversationId: string | null,
+  source: string = "seeking_coverage_assignment"
+): Promise<{ connectionId: string | null; wasCreated: boolean; error: string | null }> {
+  // Check if connection already exists
+  const { data: existing } = await supabase
+    .from("vendor_connections")
+    .select("id, status")
+    .eq("vendor_id", vendorId)
+    .eq("field_rep_id", repId)
+    .maybeSingle();
+
+  if (existing) {
+    // Connection exists - ensure it's active
+    if (existing.status !== "connected") {
+      await supabase
+        .from("vendor_connections")
+        .update({ 
+          status: "connected",
+          responded_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+    }
+    return { connectionId: existing.id, wasCreated: false, error: null };
+  }
+
+  // Create new connection
+  const { data: newConnection, error } = await supabase
+    .from("vendor_connections")
+    .insert({
+      vendor_id: vendorId,
+      field_rep_id: repId,
+      status: "connected",
+      requested_by: "vendor",
+      responded_at: new Date().toISOString(),
+      conversation_id: conversationId,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating connection:", error);
+    return { connectionId: null, wasCreated: false, error: error.message };
+  }
+
+  return { connectionId: newConnection.id, wasCreated: true, error: null };
+}
+
+/**
  * Accept a territory assignment (rep action)
  */
 export async function acceptTerritoryAssignment(
   assignmentId: string,
   repUserId: string
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; connectionCreated?: boolean }> {
   // Get assignment details
   const { data: assignment, error: fetchError } = await supabase
     .from("territory_assignments")
@@ -169,6 +249,14 @@ export async function acceptTerritoryAssignment(
       .eq("id", assignment.seeking_coverage_post_id);
   }
 
+  // Ensure vendor-rep connection exists (create if needed)
+  const { wasCreated: connectionCreated } = await ensureVendorRepConnection(
+    assignment.vendor_id,
+    assignment.rep_id,
+    assignment.conversation_id,
+    "seeking_coverage_assignment"
+  );
+
   // Create or update vendor_rep_agreements
   await ensureAgreementOnFile(
     assignment.vendor_id,
@@ -178,24 +266,37 @@ export async function acceptTerritoryAssignment(
     assignment.agreed_rate
   );
 
+  // Build notification body with connection info
+  const locationText = assignment.county_name 
+    ? `${assignment.county_name}, ${assignment.state_code}` 
+    : assignment.state_code;
+  
+  const notificationBody = connectionCreated
+    ? `Rep accepted the assignment for ${locationText} at $${assignment.agreed_rate}/order. They have been added to your network.`
+    : `Rep accepted the assignment for ${locationText} at $${assignment.agreed_rate}/order.`;
+
   // Notify vendor
   await supabase.from("notifications").insert({
     user_id: assignment.vendor_id,
     type: "territory_assignment_accepted",
     title: "Territory assignment accepted",
-    body: `Rep accepted the assignment for ${assignment.county_name ? `${assignment.county_name}, ` : ''}${assignment.state_code} at $${assignment.agreed_rate}/order.`,
+    body: notificationBody,
     ref_id: assignmentId,
   });
 
   // Post system message
   if (assignment.conversation_id) {
+    const connectionNote = connectionCreated 
+      ? "\n_Connection created from this Seeking Coverage assignment._" 
+      : "";
+    
     const systemMessage = formatSystemMessage("accepted", {
       countyName: assignment.county_name,
       stateCode: assignment.state_code,
       inspectionTypes: assignment.inspection_types || [],
       agreedRate: assignment.agreed_rate,
       effectiveDate: assignment.effective_date,
-    });
+    }) + connectionNote;
 
     await supabase.from("messages").insert({
       conversation_id: assignment.conversation_id,
@@ -213,7 +314,7 @@ export async function acceptTerritoryAssignment(
       .eq("id", assignment.conversation_id);
   }
 
-  return { error: null };
+  return { error: null, connectionCreated };
 }
 
 /**
@@ -388,6 +489,7 @@ export async function checkExistingActiveAssignment(
 
 /**
  * Ensure vendor_rep_agreements table is updated with new agreement
+ * Note: Connection is already created by ensureVendorRepConnection, so we just handle the agreement here
  */
 async function ensureAgreementOnFile(
   vendorId: string,
@@ -429,17 +531,7 @@ async function ensureAgreementOnFile(
       })
       .eq("id", existing.id);
   } else {
-    // Create new agreement and ensure connection
-    await supabase.from("vendor_connections").upsert({
-      vendor_id: vendorId,
-      field_rep_id: repId,
-      status: "connected",
-      requested_by: "vendor",
-      responded_at: new Date().toISOString(),
-    }, {
-      onConflict: "vendor_id,field_rep_id",
-    });
-
+    // Create new agreement - connection already exists from ensureVendorRepConnection
     await supabase.from("vendor_rep_agreements").insert({
       vendor_id: vendorId,
       field_rep_id: repId,

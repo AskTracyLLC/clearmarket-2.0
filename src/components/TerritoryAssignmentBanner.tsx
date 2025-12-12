@@ -43,14 +43,18 @@ export function TerritoryAssignmentBanner({
   async function handleAccept() {
     setAccepting(true);
     try {
-      const { error } = await acceptTerritoryAssignment(assignment.id, repUserId);
+      const { error, connectionCreated } = await acceptTerritoryAssignment(assignment.id, repUserId);
       if (error) {
         throw new Error(error);
       }
 
+      const description = connectionCreated
+        ? "Territory assignment confirmed. You've been added to this vendor's network with an agreement on file."
+        : "Territory assignment has been confirmed. Agreement is now on file.";
+
       toast({
         title: "Assignment accepted",
-        description: "Territory assignment has been confirmed. Agreement is now on file.",
+        description,
       });
 
       onUpdate();
