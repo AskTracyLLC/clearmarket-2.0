@@ -160,11 +160,25 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         // Also get rep's profile-level inspection types as fallback
         const { data: repProfile } = await supabase
           .from("rep_profile")
-          .select("inspection_types")
+          .select("id, inspection_types")
           .eq("user_id", userId)
           .single();
 
         const profileInspectionTypes = repProfile?.inspection_types || [];
+
+        // Get rep's existing interest records to filter out already-interacted opportunities
+        let interestSet = new Set<string>();
+        if (repProfile?.id) {
+          const { data: interests } = await supabase
+            .from("rep_interest")
+            .select("post_id, status")
+            .eq("rep_id", repProfile.id);
+          
+          // Exclude posts where rep has already acted (interested, not_interested, declined_by_vendor)
+          for (const int of interests || []) {
+            interestSet.add(int.post_id);
+          }
+        }
 
         // Get opportunities from last 7 days
         const sevenDaysAgo = new Date();
@@ -181,6 +195,9 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
 
         // Filter opportunities by coverage match, inspection type match, AND rate match
         const matchedOpportunities = (opportunities || []).filter(opp => {
+          // Skip if rep has already interacted with this post
+          if (interestSet.has(opp.id)) return false;
+          
           if (!repCoverage || repCoverage.length === 0) return false;
           
           // Find matching coverage areas for this post
@@ -252,9 +269,9 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
             title: opp.title,
             description: `${opp.state_code || 'Location TBD'} · Matches your rate`,
             timestamp: opp.created_at,
-            isUnread: false,
+            isUnread: true, // New opportunities are unread
             link: `/rep/seeking-coverage/${opp.id}`,
-            metadata: { postId: opp.id },
+            metadata: { postId: opp.id, isNew: true },
           });
         }
       }
@@ -381,14 +398,19 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     { value: 'updates', label: 'Updates' },
   ];
 
-  const getFilterDescription = (filter: ActivityFilter): string => {
+  const getFilterDescription = (filter: ActivityFilter): React.ReactNode => {
     switch (filter) {
       case 'all':
         return 'This view shows every alert, opportunity, and update in one list.';
       case 'alerts':
         return 'Alerts are time-sensitive items or things that may need a response from you, like coverage & pricing requests, working terms changes, or office/network alerts.';
       case 'opportunities':
-        return "These are posts from vendors looking for help in your work areas. You'll see opportunities based on the coverage you saved in your profile.";
+        return (
+          <>
+            These are posts from vendors looking for help in your work areas. You'll see opportunities based on the coverage you saved in your profile.{' '}
+            <Link to="/rep/pending-opportunities" className="underline hover:text-primary">View opportunities you've applied to →</Link>
+          </>
+        );
       case 'updates':
         return "Updates keep you in the loop on things that usually don't need a response, like ClearMarket announcements, FAQ changes, and comments on your posts.";
     }
