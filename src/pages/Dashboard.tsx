@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail } from "lucide-react";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -613,6 +613,15 @@ const Dashboard = () => {
                     Feature Flags
                   </CardTitle>
                   <CardDescription className="text-sm">Manage paid/beta features</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/email-templates")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Mail className="w-5 h-5 text-primary" />
+                    Email Templates
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage notification emails</CardDescription>
                 </CardHeader>
               </Card>
             </div>
