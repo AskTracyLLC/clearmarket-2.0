@@ -48,6 +48,45 @@ function groupCoverageByState(areas: CoverageArea[]): Map<string, string[]> {
   return grouped;
 }
 
+// Format a YYYY-MM-DD date as "MMMM Do, YYYY" (e.g., "December 12th, 2025")
+function formatRouteDate(dateStr: string): string {
+  try {
+    const [yearStr, monthStr, dayStr] = dateStr.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!year || !month || !day) return dateStr;
+
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const getOrdinal = (n: number) => {
+      const rem10 = n % 10;
+      const rem100 = n % 100;
+      if (rem10 === 1 && rem100 !== 11) return `${n}st`;
+      if (rem10 === 2 && rem100 !== 12) return `${n}nd`;
+      if (rem10 === 3 && rem100 !== 13) return `${n}rd`;
+      return `${n}th`;
+    };
+
+    return `${monthNames[month - 1]} ${getOrdinal(day)}, ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 // Render coverage snapshot HTML section
 function renderCoverageSnapshotHtml(repName: string, areas: CoverageArea[]): string {
   if (areas.length === 0) {
@@ -392,6 +431,23 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Processing alert: ${connectedVendorIds.length} ClearMarket vendors, ${manualContactEmails.length} manual contacts`);
 
+    // Prepare alert message with placeholder substitution for planned routes
+    let alertMessage: string = alert.message || "";
+    if (
+      alert.alert_type === "planned_route" &&
+      alert.route_date &&
+      alert.route_state &&
+      Array.isArray(alert.route_counties) &&
+      alert.route_counties.length > 0
+    ) {
+      const formattedDate = formatRouteDate(alert.route_date as string);
+      const countiesList = (alert.route_counties as string[]).join(", ");
+      alertMessage = alertMessage
+        .replace(/\{DATE\}/g, formattedDate)
+        .replace(/\{STATE\}/g, alert.route_state as string)
+        .replace(/\{COUNTIES\}/g, countiesList);
+    }
+
     // Determine alert title based on type
     let alertTitle = "Network Alert";
     switch (alert.alert_type) {
@@ -407,7 +463,19 @@ serve(async (req: Request): Promise<Response> => {
       case "scheduled":
         alertTitle = "Scheduled Alert";
         break;
+      case "planned_route":
+        if (alert.route_date) {
+          const formattedDate = formatRouteDate(alert.route_date as string);
+          alertTitle = `Field Rep Route Update for ${formattedDate}`;
+        } else {
+          alertTitle = "Field Rep Route Update";
+        }
+        break;
     }
+
+    const emailSubject = alert.alert_type === "planned_route"
+      ? alertTitle
+      : `${alertTitle} from ${repName}`;
 
     // Create in-app notifications for ClearMarket vendors
     for (const vendorId of connectedVendorIds) {
@@ -415,7 +483,7 @@ serve(async (req: Request): Promise<Response> => {
         user_id: vendorId,
         type: "vendor_alert",
         title: `${repProfile?.anonymous_id || "A Field Rep"} has shared an update`,
-        body: `${alert.message?.substring(0, 200) || ""}`,
+        body: `${alertMessage.substring(0, 200) || ""}`,
         ref_id: alert.id,
       });
     }
@@ -442,8 +510,8 @@ serve(async (req: Request): Promise<Response> => {
 
         const coverageAreas: CoverageArea[] = coverageData || [];
 
-        const htmlBody = buildClearMarketVendorEmail(repName, alertTitle, alert.message, appBaseUrl, coverageAreas);
-        const textBody = buildClearMarketVendorPlainText(repName, alertTitle, alert.message, appBaseUrl, coverageAreas);
+        const htmlBody = buildClearMarketVendorEmail(repName, alertTitle, alertMessage, appBaseUrl, coverageAreas);
+        const textBody = buildClearMarketVendorPlainText(repName, alertTitle, alertMessage, appBaseUrl, coverageAreas);
 
         try {
           const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -455,7 +523,7 @@ serve(async (req: Request): Promise<Response> => {
             body: JSON.stringify({
               from: "ClearMarket <notifications@useclearmarket.io>",
               to: [vendor.email],
-              subject: `${alertTitle} from ${repName}`,
+              subject: emailSubject,
               html: htmlBody,
               text: textBody,
             }),
@@ -478,8 +546,8 @@ serve(async (req: Request): Promise<Response> => {
 
     // Send emails to manual vendor contacts (no coverage snapshot - they're off-platform)
     if (ENABLE_EMAIL_NOTIFICATIONS && resendApiKey && manualContactEmails.length > 0) {
-      const htmlBody = buildExternalVendorEmail(repName, alertTitle, alert.message, appBaseUrl);
-      const textBody = buildExternalVendorPlainText(repName, alertTitle, alert.message, appBaseUrl);
+      const htmlBody = buildExternalVendorEmail(repName, alertTitle, alertMessage, appBaseUrl);
+      const textBody = buildExternalVendorPlainText(repName, alertTitle, alertMessage, appBaseUrl);
 
       // Send emails using BCC for privacy
       try {
@@ -493,7 +561,7 @@ serve(async (req: Request): Promise<Response> => {
             from: "ClearMarket <notifications@useclearmarket.io>",
             to: ["notifications@useclearmarket.io"], // Use a placeholder for "to"
             bcc: manualContactEmails, // All recipients in BCC
-            subject: `${alertTitle} from ${repName}`,
+            subject: emailSubject,
             html: htmlBody,
             text: textBody,
           }),
