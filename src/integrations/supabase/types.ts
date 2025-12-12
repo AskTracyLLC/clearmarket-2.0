@@ -2430,6 +2430,41 @@ export type Database = {
           },
         ]
       }
+      user_table_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          table_key: string
+          updated_at: string
+          user_id: string
+          visible_columns: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          table_key: string
+          updated_at?: string
+          user_id: string
+          visible_columns?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          table_key?: string
+          updated_at?: string
+          user_id?: string
+          visible_columns?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_table_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_wallet: {
         Row: {
           created_at: string
