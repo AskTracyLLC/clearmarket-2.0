@@ -1677,18 +1677,21 @@ export type Database = {
       review_settings: {
         Row: {
           created_at: string
+          enforce_waiting_period: boolean
           id: string
           min_days_between_reviews: number
           updated_at: string
         }
         Insert: {
           created_at?: string
+          enforce_waiting_period?: boolean
           id?: string
           min_days_between_reviews?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
+          enforce_waiting_period?: boolean
           id?: string
           min_days_between_reviews?: number
           updated_at?: string

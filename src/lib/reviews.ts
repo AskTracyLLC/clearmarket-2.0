@@ -70,14 +70,21 @@ export async function fetchTrustScoresForUsers(
 /**
  * Check if a user can post a new review to another user
  * Returns true if no existing review OR last review is older than the configured min days
+ * OR if the waiting period is disabled by admin
  */
 export async function canPostReview(
   reviewerId: string,
   revieweeId: string
-): Promise<{ canPost: boolean; daysRemaining: number | null; nextReviewDate: Date | null; minDays: number }> {
+): Promise<{ canPost: boolean; daysRemaining: number | null; nextReviewDate: Date | null; minDays: number; enforceWaitingPeriod: boolean }> {
   // Fetch dynamic settings
   const settings = await getReviewSettings();
   const minDays = settings.min_days_between_reviews;
+  const enforceWaitingPeriod = settings.enforce_waiting_period;
+
+  // If waiting period is disabled, always allow posting
+  if (!enforceWaitingPeriod) {
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays, enforceWaitingPeriod };
+  }
 
   const { data, error } = await supabase
     .from("reviews")
@@ -90,11 +97,11 @@ export async function canPostReview(
 
   if (error) {
     console.error("Error checking review eligibility:", error);
-    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays, enforceWaitingPeriod };
   }
 
   if (!data) {
-    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays, enforceWaitingPeriod };
   }
 
   const lastReviewDate = new Date(data.created_at);
@@ -107,22 +114,29 @@ export async function canPostReview(
   );
 
   if (daysSinceLastReview >= minDays) {
-    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays };
+    return { canPost: true, daysRemaining: null, nextReviewDate: null, minDays, enforceWaitingPeriod };
   }
 
-  return { canPost: false, daysRemaining: minDays - daysSinceLastReview, nextReviewDate, minDays };
+  return { canPost: false, daysRemaining: minDays - daysSinceLastReview, nextReviewDate, minDays, enforceWaitingPeriod };
 }
 
 /**
  * Check if a user can mark another review as feedback
  * Returns true if no feedback marked in the last N days (configured by admin)
+ * OR if the waiting period is disabled by admin
  */
 export async function canMarkFeedback(
   revieweeId: string
-): Promise<{ canMark: boolean; daysRemaining: number | null; nextAvailableDate: Date | null; minDays: number }> {
+): Promise<{ canMark: boolean; daysRemaining: number | null; nextAvailableDate: Date | null; minDays: number; enforceWaitingPeriod: boolean }> {
   // Fetch dynamic settings
   const settings = await getReviewSettings();
   const minDays = settings.min_days_between_reviews;
+  const enforceWaitingPeriod = settings.enforce_waiting_period;
+
+  // If waiting period is disabled, always allow marking
+  if (!enforceWaitingPeriod) {
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays, enforceWaitingPeriod };
+  }
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - minDays);
@@ -139,11 +153,11 @@ export async function canMarkFeedback(
 
   if (error) {
     console.error("Error checking feedback eligibility:", error);
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays, enforceWaitingPeriod };
   }
 
   if (!data || !data.feedback_marked_at) {
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays, enforceWaitingPeriod };
   }
 
   const lastFeedbackDate = new Date(data.feedback_marked_at);
@@ -156,10 +170,10 @@ export async function canMarkFeedback(
   );
 
   if (daysRemaining <= 0) {
-    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays };
+    return { canMark: true, daysRemaining: null, nextAvailableDate: null, minDays, enforceWaitingPeriod };
   }
 
-  return { canMark: false, daysRemaining, nextAvailableDate, minDays };
+  return { canMark: false, daysRemaining, nextAvailableDate, minDays, enforceWaitingPeriod };
 }
 
 /**

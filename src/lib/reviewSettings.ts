@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 export interface ReviewSettings {
   id: string;
   min_days_between_reviews: number;
+  enforce_waiting_period: boolean;
   created_at: string;
   updated_at: string;
 }
 
 const DEFAULT_MIN_DAYS = 30;
+const DEFAULT_ENFORCE_WAITING_PERIOD = true;
 
 /**
  * Fetch the global review settings. Returns default values if no row exists.
@@ -24,6 +26,7 @@ export async function getReviewSettings(): Promise<ReviewSettings> {
     return {
       id: "",
       min_days_between_reviews: DEFAULT_MIN_DAYS,
+      enforce_waiting_period: DEFAULT_ENFORCE_WAITING_PERIOD,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -33,19 +36,27 @@ export async function getReviewSettings(): Promise<ReviewSettings> {
     return {
       id: "",
       min_days_between_reviews: DEFAULT_MIN_DAYS,
+      enforce_waiting_period: DEFAULT_ENFORCE_WAITING_PERIOD,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
   }
 
-  return data as ReviewSettings;
+  return {
+    id: data.id,
+    min_days_between_reviews: data.min_days_between_reviews,
+    enforce_waiting_period: data.enforce_waiting_period ?? DEFAULT_ENFORCE_WAITING_PERIOD,
+    created_at: data.created_at,
+    updated_at: data.updated_at,
+  };
 }
 
 /**
  * Update the review settings (admin only)
  */
 export async function updateReviewSettings(
-  minDays: number
+  minDays: number,
+  enforceWaitingPeriod: boolean
 ): Promise<{ success: boolean; error?: string }> {
   // First get existing row
   const { data: existing, error: fetchError } = await supabase
@@ -63,7 +74,10 @@ export async function updateReviewSettings(
     // Update existing row
     const { error: updateError } = await supabase
       .from("review_settings")
-      .update({ min_days_between_reviews: minDays })
+      .update({ 
+        min_days_between_reviews: minDays,
+        enforce_waiting_period: enforceWaitingPeriod,
+      })
       .eq("id", existing.id);
 
     if (updateError) {
@@ -74,7 +88,10 @@ export async function updateReviewSettings(
     // Insert new row
     const { error: insertError } = await supabase
       .from("review_settings")
-      .insert({ min_days_between_reviews: minDays });
+      .insert({ 
+        min_days_between_reviews: minDays,
+        enforce_waiting_period: enforceWaitingPeriod,
+      });
 
     if (insertError) {
       console.error("Error inserting review settings:", insertError);
