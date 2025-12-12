@@ -7,15 +7,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, MapPin, XCircle, User, MessageSquare } from "lucide-react";
+import { ArrowLeft, MapPin, XCircle, User, MessageSquare, Ban } from "lucide-react";
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { DeclineRepDialog } from "@/components/DeclineRepDialog";
 
 interface InterestedRep {
   id: string; // rep_interest.id
   rep_id: string;
   status: string;
   created_at: string;
+  declined_reason: string | null;
+  declined_at: string | null;
   rep_profile: {
     user_id: string;
     anonymous_id: string | null;
@@ -65,6 +68,7 @@ export default function VendorInterestedReps() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [selectedRep, setSelectedRep] = useState<InterestedRep | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [declineDialogRep, setDeclineDialogRep] = useState<InterestedRep | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -117,6 +121,8 @@ export default function VendorInterestedReps() {
           rep_id,
           status,
           created_at,
+          declined_reason,
+          declined_at,
           rep_profile!inner (
             user_id,
             anonymous_id,
@@ -221,7 +227,7 @@ export default function VendorInterestedReps() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, declinedReason?: string | null) => {
     switch (status) {
       case "interested":
         return <Badge variant="secondary">Interested</Badge>;
@@ -229,6 +235,8 @@ export default function VendorInterestedReps() {
         return <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">Pending Rep Confirmation</Badge>;
       case "declined":
         return <Badge variant="outline" className="text-muted-foreground">Declined</Badge>;
+      case "declined_by_vendor":
+        return <Badge variant="outline" className="text-muted-foreground bg-muted/50">Declined for this request</Badge>;
       case "connected":
         return <Badge className="bg-green-600/20 text-green-600 border-green-600/30">Connected</Badge>;
       default:
@@ -339,134 +347,231 @@ export default function VendorInterestedReps() {
             </div>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {interestedReps.map((interest) => {
-              const repCoverage = interest.rep_coverage_areas[0];
-              const repMinimum = repCoverage?.base_price;
-
+          <div className="space-y-8">
+            {/* Active Interest Section */}
+            {(() => {
+              const activeReps = interestedReps.filter(r => r.status !== "declined_by_vendor");
+              const declinedReps = interestedReps.filter(r => r.status === "declined_by_vendor");
+              
               return (
-                <Card key={interest.id} className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-semibold text-foreground">
-                          {interest.rep_profile.anonymous_id || "FieldRep"}
-                        </h3>
-                        {getStatusBadge(interest.status)}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <MapPin className="h-4 w-4" />
-                        {interest.rep_profile.city}, {interest.rep_profile.state}
-                        {interest.rep_profile.zip_code && ` ${interest.rep_profile.zip_code}`}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Expressed interest on {new Date(interest.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+                <>
+                  {activeReps.length > 0 && (
+                    <div className="space-y-4">
+                      {activeReps.map((interest) => {
+                        const repCoverage = interest.rep_coverage_areas[0];
+                        const repMinimum = repCoverage?.base_price;
+                        const isDeclined = interest.status === "declined_by_vendor";
 
-                  {/* Systems */}
-                  {interest.rep_profile.systems_used && interest.rep_profile.systems_used.length > 0 && (
-                    <div className="mb-3">
-                      <p className="text-xs text-muted-foreground mb-2">Systems Used:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {interest.rep_profile.systems_used.slice(0, 5).map((system, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {system}
-                          </Badge>
-                        ))}
-                        {interest.rep_profile.systems_used.length > 5 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{interest.rep_profile.systems_used.length - 5} more
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Inspection Types */}
-                  {interest.rep_profile.inspection_types && interest.rep_profile.inspection_types.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs text-muted-foreground mb-2">Inspection Types:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {interest.rep_profile.inspection_types.map((type, idx) => (
-                          <Badge key={idx} variant="secondary" className="text-xs">
-                            {type}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pricing Section */}
-                  <div className="mb-4 p-3 bg-muted/30 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-2">Pricing for this county:</p>
-                    {repCoverage ? (
-                      <>
-                        <div className="space-y-1">
-                          <p className="text-sm">
-                            Base Rate: <span className="font-semibold">${repCoverage.base_price?.toFixed(2) || "Not set"}</span>
-                          </p>
-                          {repCoverage.rush_price && (
-                            <p className="text-sm">
-                              Rush Rate: <span className="font-semibold">${repCoverage.rush_price.toFixed(2)}</span>
-                            </p>
-                          )}
-                        </div>
-                        {vendorPay && repMinimum && (
-                          <>
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                              <p className="text-sm">
-                                Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
-                              </p>
+                        return (
+                          <Card key={interest.id} className="p-6">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-xl font-semibold text-foreground">
+                                    {interest.rep_profile.anonymous_id || "FieldRep"}
+                                  </h3>
+                                  {getStatusBadge(interest.status, interest.declined_reason)}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                                  <MapPin className="h-4 w-4" />
+                                  {interest.rep_profile.city}, {interest.rep_profile.state}
+                                  {interest.rep_profile.zip_code && ` ${interest.rep_profile.zip_code}`}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Expressed interest on {new Date(interest.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
                             </div>
-                            {vendorPay >= repMinimum && (
-                              <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
+
+                            {/* Systems */}
+                            {interest.rep_profile.systems_used && interest.rep_profile.systems_used.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs text-muted-foreground mb-2">Systems Used:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {interest.rep_profile.systems_used.slice(0, 5).map((system, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      {system}
+                                    </Badge>
+                                  ))}
+                                  {interest.rep_profile.systems_used.length > 5 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{interest.rep_profile.systems_used.length - 5} more
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             )}
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Base Rate: Not set</p>
-                    )}
-                  </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-4 border-t border-border">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewProfile(interest)}
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      View Profile
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleMessageRep(interest.rep_profile.user_id)}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Message Rep
-                    </Button>
-                  </div>
+                            {/* Inspection Types */}
+                            {interest.rep_profile.inspection_types && interest.rep_profile.inspection_types.length > 0 && (
+                              <div className="mb-4">
+                                <p className="text-xs text-muted-foreground mb-2">Inspection Types:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {interest.rep_profile.inspection_types.map((type, idx) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs">
+                                      {type}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
-                  {/* Status Management Buttons */}
-                  {interest.status === "declined" && (
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleStatusUpdate(interest.id, "interested")}
-                        disabled={updatingStatus === interest.id}
-                      >
-                        Restore to Interested
-                      </Button>
+                            {/* Pricing Section */}
+                            <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-2">Pricing for this county:</p>
+                              {repCoverage ? (
+                                <>
+                                  <div className="space-y-1">
+                                    <p className="text-sm">
+                                      Base Rate: <span className="font-semibold">${repCoverage.base_price?.toFixed(2) || "Not set"}</span>
+                                    </p>
+                                    {repCoverage.rush_price && (
+                                      <p className="text-sm">
+                                        Rush Rate: <span className="font-semibold">${repCoverage.rush_price.toFixed(2)}</span>
+                                      </p>
+                                    )}
+                                  </div>
+                                  {vendorPay && repMinimum && (
+                                    <>
+                                      <div className="mt-2 pt-2 border-t border-border/50">
+                                        <p className="text-sm">
+                                          Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
+                                        </p>
+                                      </div>
+                                      {vendorPay >= repMinimum && (
+                                        <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
+                                      )}
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">Base Rate: Not set</p>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewProfile(interest)}
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                View Profile
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleMessageRep(interest.rep_profile.user_id)}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                                Message Rep
+                              </Button>
+                              {interest.status !== "connected" && interest.status !== "declined_by_vendor" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-muted-foreground hover:text-destructive hover:border-destructive ml-auto"
+                                  onClick={() => setDeclineDialogRep(interest)}
+                                >
+                                  <Ban className="h-4 w-4 mr-2" />
+                                  Decline for this request
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Status Management Buttons */}
+                            {interest.status === "declined" && (
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleStatusUpdate(interest.id, "interested")}
+                                  disabled={updatingStatus === interest.id}
+                                >
+                                  Restore to Interested
+                                </Button>
+                              </div>
+                            )}
+                          </Card>
+                        );
+                      })}
                     </div>
                   )}
-                </Card>
+
+                  {/* Declined Section */}
+                  {declinedReps.length > 0 && (
+                    <div className="space-y-4">
+                      <h2 className="text-lg font-semibold text-muted-foreground border-b border-border pb-2">
+                        Declined for this request ({declinedReps.length})
+                      </h2>
+                      {declinedReps.map((interest) => {
+                        const repCoverage = interest.rep_coverage_areas[0];
+
+                        return (
+                          <Card key={interest.id} className="p-6 opacity-60">
+                            <div className="flex justify-between items-start mb-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-xl font-semibold text-foreground">
+                                    {interest.rep_profile.anonymous_id || "FieldRep"}
+                                  </h3>
+                                  {getStatusBadge(interest.status, interest.declined_reason)}
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                                  <MapPin className="h-4 w-4" />
+                                  {interest.rep_profile.city}, {interest.rep_profile.state}
+                                  {interest.rep_profile.zip_code && ` ${interest.rep_profile.zip_code}`}
+                                </div>
+                                {interest.declined_reason && (
+                                  <p className="text-xs text-muted-foreground mt-2 italic">
+                                    Declined: {interest.declined_reason}
+                                  </p>
+                                )}
+                                {!interest.declined_reason && (
+                                  <p className="text-xs text-muted-foreground mt-2 italic">
+                                    Declined for this request.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Buttons - Limited for declined */}
+                            <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewProfile(interest)}
+                              >
+                                <User className="h-4 w-4 mr-2" />
+                                View Profile
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleMessageRep(interest.rep_profile.user_id)}
+                              >
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                                Message Rep
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleStatusUpdate(interest.id, "interested")}
+                                disabled={updatingStatus === interest.id}
+                                className="ml-auto"
+                              >
+                                Restore to Interested
+                              </Button>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               );
-            })}
+            })()}
           </div>
         )}
       </div>
@@ -622,6 +727,22 @@ export default function VendorInterestedReps() {
           )}
         </DialogContent>
       </Dialog>
+      {/* Decline Rep Dialog */}
+      {declineDialogRep && post && user && (
+        <DeclineRepDialog
+          open={!!declineDialogRep}
+          onOpenChange={(open) => !open && setDeclineDialogRep(null)}
+          repInterestId={declineDialogRep.id}
+          repAnonymousId={declineDialogRep.rep_profile.anonymous_id || "FieldRep"}
+          postTitle={post.title}
+          vendorUserId={user.id}
+          repUserId={declineDialogRep.rep_profile.user_id}
+          onDeclined={() => {
+            setDeclineDialogRep(null);
+            loadData();
+          }}
+        />
+      )}
     </AuthenticatedLayout>
   );
 }

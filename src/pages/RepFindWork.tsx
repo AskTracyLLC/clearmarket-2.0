@@ -149,8 +149,8 @@ export default function RepFindWork() {
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
 
-  // Rep interest tracking
-  const [repInterest, setRepInterest] = useState<Set<string>>(new Set());
+  // Rep interest tracking - now includes status for declined detection
+  const [repInterest, setRepInterest] = useState<Map<string, string>>(new Map());
 
   // Detail dialog
   const [viewingPost, setViewingPost] = useState<MatchedPost | null>(null);
@@ -211,11 +211,11 @@ export default function RepFindWork() {
         if (repData) {
           const { data: interestData } = await supabase
             .from("rep_interest")
-            .select("post_id")
+            .select("post_id, status")
             .eq("rep_id", repData.id);
 
           if (interestData) {
-            setRepInterest(new Set(interestData.map((i: any) => i.post_id)));
+            setRepInterest(new Map(interestData.map((i: any) => [i.post_id, i.status])));
           }
         }
       }
@@ -531,7 +531,7 @@ export default function RepFindWork() {
   };
 
   const handleInterestExpressed = (postId: string) => {
-    setRepInterest((prev) => new Set([...prev, postId]));
+    setRepInterest((prev) => new Map([...prev, [postId, "interested"]]));
   };
 
   const formatDate = (dateString: string) => {
@@ -990,14 +990,25 @@ export default function RepFindWork() {
                           View Details
                         </Button>
                         {repInterest.has(post.id) ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="flex-1"
-                            disabled
-                          >
-                            Interest Sent
-                          </Button>
+                          repInterest.get(post.id) === "declined_by_vendor" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-muted-foreground"
+                              disabled
+                            >
+                              Not selected
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-1"
+                              disabled
+                            >
+                              Interest Sent
+                            </Button>
+                          )
                         ) : (
                           <Button
                             size="sm"
