@@ -202,23 +202,21 @@ function buildExternalVendorEmail(
           <!-- CTA Footer for non-users -->
           <tr>
             <td style="background-color: ${BRAND_COLORS.background}; padding: 32px 40px; border: 1px solid ${BRAND_COLORS.border}; border-top: none; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0 0 16px 0; font-size: 16px; color: ${BRAND_COLORS.text}; font-weight: 600;">
-                Like what you see?
-              </p>
-              <p style="margin: 0 0 24px 0; font-size: 14px; color: ${BRAND_COLORS.textMuted}; line-height: 1.5;">
-                ClearMarket helps vendors organize their inspector network, track coverage, and stay on top of communication.
+              <hr style="border: none; border-top: 1px solid ${BRAND_COLORS.border}; margin: 0 0 24px 0;" />
+              <p style="margin: 0 0 16px 0; font-size: 15px; color: ${BRAND_COLORS.text}; line-height: 1.5;">
+                Want easier access to reliable field reps? Join us on ClearMarket to view coverage, post requests, and grow your vendor network.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="background-color: ${BRAND_COLORS.primary}; border-radius: 8px;">
                     <a href="${appBaseUrl}/signup?role=vendor" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none;">
-                      Create a Free Vendor Profile
+                      Create your free vendor profile
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin: 16px 0 0 0; font-size: 13px; color: ${BRAND_COLORS.textMuted};">
-                Manage your Field Reps in one place at <a href="${appBaseUrl}" style="color: ${BRAND_COLORS.primary}; text-decoration: none;">useclearmarket.io</a>
+                <a href="${appBaseUrl}" style="color: ${BRAND_COLORS.primary}; text-decoration: none;">useclearmarket.io</a>
               </p>
             </td>
           </tr>
@@ -292,6 +290,7 @@ function buildClearMarketVendorEmail(
           <!-- Footer -->
           <tr>
             <td style="background-color: ${BRAND_COLORS.background}; padding: 24px 40px; border: 1px solid ${BRAND_COLORS.border}; border-top: ${coverageSnapshotHtml ? "none" : "1px solid " + BRAND_COLORS.border}; border-radius: 0 0 12px 12px;">
+              <hr style="border: none; border-top: 1px solid ${BRAND_COLORS.border}; margin: 0 0 16px 0;" />
               <p style="margin: 0; font-size: 13px; color: ${BRAND_COLORS.textMuted};">
                 View and manage your network at <a href="${appBaseUrl}/dashboard" style="color: ${BRAND_COLORS.primary}; text-decoration: none;">useclearmarket.io</a>
               </p>
@@ -324,11 +323,9 @@ ${alertBody}
 
 ---
 
-Like what you see?
-ClearMarket helps vendors organize their inspector network, track coverage, and stay on top of communication.
+Want easier access to reliable field reps? Join us on ClearMarket to view coverage, post requests, and grow your vendor network.
 
-Create a free vendor profile at ${appBaseUrl}/signup?role=vendor
-Manage your Field Reps in one place at ${appBaseUrl}
+Create your free vendor profile at ${appBaseUrl}/signup?role=vendor
   `.trim();
 }
 
