@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle, MapPin } from "lucide-react";
+import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle, MapPin, Clock, ChevronDown, ChevronUp, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -74,7 +74,28 @@ interface PlannedRoute {
   route_counties: string[];
 }
 
+interface AlertHistoryEntry {
+  id: string;
+  alert_type: string;
+  message: string;
+  route_date: string | null;
+  route_state: string | null;
+  route_counties: string[] | null;
+  scheduled_status: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+
 type AlertType = "planned" | "emergency" | "update" | "route";
+
+interface ScheduledAlert {
+  id: string;
+  message: string;
+  route_date: string;
+  route_state: string;
+  route_counties: string[];
+  scheduled_status: string;
+}
 
 export default function RepAvailability() {
   const { user, loading: authLoading } = useAuth();
@@ -108,6 +129,9 @@ export default function RepAvailability() {
   const [routeCounties, setRouteCounties] = useState<string[]>([]);
   const [coverageAreas, setCoverageAreas] = useState<CoverageArea[]>([]);
   const [pendingRoutes, setPendingRoutes] = useState<PlannedRoute[]>([]);
+  const [scheduledAlerts, setScheduledAlerts] = useState<ScheduledAlert[]>([]);
+  const [alertHistory, setAlertHistory] = useState<AlertHistoryEntry[]>([]);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -148,6 +172,8 @@ export default function RepAvailability() {
         loadAvailabilityEntries(),
         loadCoverageAreas(),
         loadPendingRoutes(),
+        loadScheduledAlerts(),
+        loadAlertHistory(),
       ]);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -213,6 +239,66 @@ export default function RepAvailability() {
       route_date: d.route_date,
       route_state: d.route_state || "",
       route_counties: d.route_counties || [],
+    })));
+  }
+
+  async function loadScheduledAlerts() {
+    if (!user) return;
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Load scheduled alerts that are pending confirmation for FUTURE dates (not today - those go to pendingRoutes)
+    const { data, error } = await supabase
+      .from("vendor_alerts")
+      .select("id, message, route_date, route_state, route_counties, scheduled_status")
+      .eq("rep_user_id", user.id)
+      .eq("is_scheduled", true)
+      .eq("scheduled_status", "pending_confirmation")
+      .gt("route_date", today)
+      .order("route_date", { ascending: true });
+
+    if (error) {
+      console.error("Error loading scheduled alerts:", error);
+      return;
+    }
+
+    setScheduledAlerts((data || []).map(d => ({
+      id: d.id,
+      message: d.message,
+      route_date: d.route_date,
+      route_state: d.route_state || "",
+      route_counties: d.route_counties || [],
+      scheduled_status: d.scheduled_status || "",
+    })));
+  }
+
+  async function loadAlertHistory() {
+    if (!user) return;
+
+    // Load sent or canceled alerts
+    const { data, error } = await supabase
+      .from("vendor_alerts")
+      .select("id, alert_type, message, route_date, route_state, route_counties, scheduled_status, sent_at, created_at")
+      .eq("rep_user_id", user.id)
+      .or("sent_at.not.is.null,scheduled_status.eq.canceled")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error("Error loading alert history:", error);
+      return;
+    }
+
+    setAlertHistory((data || []).map(d => ({
+      id: d.id,
+      alert_type: d.alert_type,
+      message: d.message,
+      route_date: d.route_date,
+      route_state: d.route_state,
+      route_counties: d.route_counties,
+      scheduled_status: d.scheduled_status,
+      sent_at: d.sent_at,
+      created_at: d.created_at,
     })));
   }
 
@@ -527,7 +613,7 @@ export default function RepAvailability() {
       case "update":
         return `Hi, I wanted to update you on my availability. [Provide details about your current status and when you'll be available for work.]`;
       case "route":
-        return `I'm planning to be in {COUNTIES}, {STATE} on {DATE}.\nIf you have any work or orders in this area, please let me know.`;
+        return `I'm planning to be in {COUNTIES}, {STATE} on {DATE}.\nPlease request extensions on any work due before this date if you still want me to cover it.`;
       default:
         return "";
     }
@@ -547,6 +633,49 @@ export default function RepAvailability() {
     setRouteState(stateCode);
     setRouteCounties(route.route_counties);
     setAlertMessage(route.message);
+  }
+
+  function handleEditScheduledAlert(alert: ScheduledAlert) {
+    setAlertType("route");
+    setEditingRouteId(alert.id);
+    setRouteDate(parseISO(alert.route_date));
+    
+    // Find state code from name
+    const stateCode = coverageStates.find(s => s.name === alert.route_state)?.code || "";
+    setRouteState(stateCode);
+    setRouteCounties(alert.route_counties);
+    setAlertMessage(alert.message);
+  }
+
+  async function handleCancelScheduledAlert(alertId: string) {
+    try {
+      const { error } = await supabase
+        .from("vendor_alerts")
+        .update({ scheduled_status: "canceled" })
+        .eq("id", alertId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Alert Canceled",
+        description: "The scheduled alert has been canceled.",
+      });
+
+      await Promise.all([loadScheduledAlerts(), loadAlertHistory()]);
+    } catch (error: any) {
+      console.error("Error canceling alert:", error);
+      toast({ title: "Error", description: error.message || "Failed to cancel.", variant: "destructive" });
+    }
+  }
+
+  function getAlertTypeLabel(alertType: string): string {
+    switch (alertType) {
+      case "planned_route": return "Planned Route";
+      case "time_off_start": return "Time Off";
+      case "emergency": return "Emergency";
+      case "availability": return "Availability Update";
+      default: return "Alert";
+    }
   }
 
   function toggleCounty(county: string) {
@@ -715,13 +844,60 @@ export default function RepAvailability() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Pending route confirmation banners */}
+            {/* Pending route confirmation banners (for today) */}
             <PlannedRouteConfirmBanner
               routes={pendingRoutes}
-              onConfirmed={() => loadPendingRoutes()}
+              onConfirmed={() => Promise.all([loadPendingRoutes(), loadAlertHistory()])}
               onEdit={handleEditRoute}
               repUserId={user?.id || ""}
             />
+
+            {/* Scheduled future alerts */}
+            {scheduledAlerts.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Scheduled Route Alerts
+                </h4>
+                {scheduledAlerts.map((alert) => (
+                  <Card key={alert.id} className="bg-yellow-500/10 border-yellow-500/30">
+                    <CardContent className="py-4">
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <p className="font-medium text-foreground">
+                            Planned Route
+                          </p>
+                          <p className="text-sm text-primary font-medium">
+                            Scheduled for {format(parseISO(alert.route_date), "MMMM do, yyyy")}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {alert.route_counties.join(", ")}, {alert.route_state}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditScheduledAlert(alert)}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleCancelScheduledAlert(alert.id)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             <Alert>
               <AlertTriangle className="w-4 h-4" />
@@ -883,7 +1059,71 @@ export default function RepAvailability() {
           </CardContent>
         </Card>
 
-        {/* Section 3: Manual Vendor Contacts */}
+        {/* Section 3: Past Alerts History */}
+        {alertHistory.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader className="py-4 cursor-pointer" onClick={() => setHistoryExpanded(!historyExpanded)}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-muted-foreground" />
+                  <CardTitle className="text-base">Past Alerts (History)</CardTitle>
+                </div>
+                <Button variant="ghost" size="sm">
+                  {historyExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </Button>
+              </div>
+              <CardDescription className="mt-1">
+                A log of alerts you've already sent to your vendors.
+              </CardDescription>
+            </CardHeader>
+            {historyExpanded && (
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  {alertHistory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className={cn(
+                        "p-3 rounded-md border text-sm",
+                        entry.scheduled_status === "canceled"
+                          ? "bg-muted/30 border-muted"
+                          : "bg-background border-border"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-foreground">
+                              {getAlertTypeLabel(entry.alert_type)}
+                              {entry.scheduled_status === "canceled" && (
+                                <span className="text-muted-foreground ml-2">– Canceled</span>
+                              )}
+                            </span>
+                          </div>
+                          {entry.route_date && entry.route_state && (
+                            <p className="text-muted-foreground">
+                              {entry.scheduled_status === "canceled" ? "Was scheduled for " : ""}
+                              {format(parseISO(entry.route_date), "MMMM do, yyyy")}
+                              {entry.route_counties && entry.route_counties.length > 0 && (
+                                <span> in {entry.route_counties.join(", ")}, {entry.route_state}</span>
+                              )}
+                            </p>
+                          )}
+                          {entry.sent_at && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Sent {format(parseISO(entry.sent_at), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* Section 4: Manual Vendor Contacts */}
         {user && <RepVendorContactsCard repUserId={user.id} />}
       </div>
 
