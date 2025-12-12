@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,6 +51,7 @@ interface PendingConnectionRequest {
 
 export default function MessagesList() {
   const { user, loading: authLoading } = useAuth();
+  const { effectiveUserId } = useMimic();
   const navigate = useNavigate();
   const sectionCounts = useSectionCounts();
   const [conversations, setConversations] = useState<ConversationWithParticipant[]>([]);
@@ -71,11 +73,13 @@ export default function MessagesList() {
       return;
     }
 
+    if (!effectiveUserId) return;
+
     loadUserRole();
     loadBlockedUsers();
     loadConversations();
     loadPendingRequests();
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, effectiveUserId]);
 
   async function loadBlockedUsers() {
     const blocked = await fetchBlockedUserIds();
@@ -83,25 +87,25 @@ export default function MessagesList() {
   }
 
   async function loadUserRole() {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_fieldrep")
-      .eq("id", user.id)
+      .eq("id", effectiveUserId)
       .maybeSingle();
 
     setIsRep(profile?.is_fieldrep || false);
   }
 
   async function loadPendingRequests() {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     // Check if user is a rep
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_fieldrep")
-      .eq("id", user.id)
+      .eq("id", effectiveUserId)
       .maybeSingle();
 
     if (!profile?.is_fieldrep) return;
@@ -116,7 +120,7 @@ export default function MessagesList() {
         requested_at,
         conversation_id
       `)
-      .eq("field_rep_id", user.id)
+      .eq("field_rep_id", effectiveUserId)
       .eq("status", "pending")
       .order("requested_at", { ascending: false });
 
@@ -248,12 +252,12 @@ export default function MessagesList() {
 
   async function handleArchive(conversationId: string, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const conv = conversations.find((c) => c.id === conversationId);
     if (!conv) return;
 
-    const isParticipantOne = conv.participant_one === user.id;
+    const isParticipantOne = conv.participant_one === effectiveUserId;
     
     try {
       const { error } = await supabase
@@ -283,7 +287,7 @@ export default function MessagesList() {
   }
 
   async function loadConversations() {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     setLoading(true);
     try {
@@ -308,7 +312,7 @@ export default function MessagesList() {
             status
           )
         `)
-        .or(`participant_one.eq.${user.id},participant_two.eq.${user.id}`)
+        .or(`participant_one.eq.${effectiveUserId},participant_two.eq.${effectiveUserId}`)
         .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (error) {
@@ -320,7 +324,7 @@ export default function MessagesList() {
       const { data: unreadMessages, error: unreadError } = await supabase
         .from("messages")
         .select("conversation_id")
-        .eq("recipient_id", user.id)
+        .eq("recipient_id", effectiveUserId)
         .eq("read", false);
 
       if (unreadError) {
@@ -336,7 +340,7 @@ export default function MessagesList() {
       // Get display names for other participants and attach unread counts
       const conversationsWithNames: ConversationWithParticipant[] = await Promise.all(
         (data || []).map(async (conv) => {
-          const otherUserId = conv.participant_one === user.id 
+          const otherUserId = conv.participant_one === effectiveUserId 
             ? conv.participant_two 
             : conv.participant_one;
           
@@ -354,7 +358,7 @@ export default function MessagesList() {
 
       // Filter out archived conversations (unless they have unread messages) and blocked users
       const filteredConversations = conversationsWithNames.filter((conv) => {
-        const isParticipantOne = conv.participant_one === user.id;
+        const isParticipantOne = conv.participant_one === effectiveUserId;
         const isArchived = isParticipantOne ? conv.hidden_for_one : conv.hidden_for_two;
         const isBlocked = blockedUserIds.includes(conv.otherParticipantUserId);
         // Show archived conversations if they have unread messages
@@ -367,7 +371,7 @@ export default function MessagesList() {
         const { data: profile } = await supabase
           .from("profiles")
           .select("is_fieldrep")
-          .eq("id", user.id)
+          .eq("id", effectiveUserId)
           .maybeSingle();
 
         if (profile?.is_fieldrep) {
@@ -378,7 +382,7 @@ export default function MessagesList() {
           const { data: pendingConnections } = await supabase
             .from("vendor_connections")
             .select("vendor_id")
-            .eq("field_rep_id", user.id)
+            .eq("field_rep_id", effectiveUserId)
             .eq("status", "pending")
             .in("vendor_id", vendorIds);
 
