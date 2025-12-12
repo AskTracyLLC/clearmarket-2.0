@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +13,15 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
+import { ReviewContextSelector } from "@/components/ReviewContextSelector";
+import { autoFillReviewContext, type ReviewContext } from "@/lib/reviewContext";
 
 interface VendorExitReviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repUserId: string;
   vendorUserId: string;
+  repInterestId?: string | null;
   onComplete?: () => void;
 }
 
@@ -27,6 +30,7 @@ export function VendorExitReviewDialog({
   onOpenChange,
   repUserId,
   vendorUserId,
+  repInterestId,
   onComplete,
 }: VendorExitReviewDialogProps) {
   const [onTimeRating, setOnTimeRating] = useState<number>(0);
@@ -34,6 +38,28 @@ export function VendorExitReviewDialog({
   const [communicationRating, setCommunicationRating] = useState<number>(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  
+  // Review context state
+  const [reviewContext, setReviewContext] = useState<ReviewContext>({
+    stateCode: null,
+    countyName: null,
+    zipCode: null,
+    inspectionCategory: null,
+    inspectionTypeId: null,
+  });
+  const [contextSource, setContextSource] = useState<string | null>(null);
+
+  // Auto-fill context when dialog opens
+  useEffect(() => {
+    if (!open) return;
+
+    async function loadContext() {
+      const result = await autoFillReviewContext(repUserId, vendorUserId, repInterestId);
+      setReviewContext(result.context);
+      setContextSource(result.source);
+    }
+    loadContext();
+  }, [open, repUserId, vendorUserId, repInterestId]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -47,6 +73,12 @@ export function VendorExitReviewDialog({
         rating_quality: qualityRating > 0 ? qualityRating : null,
         rating_communication: communicationRating > 0 ? communicationRating : null,
         comment: comment.trim() || null,
+        // Context fields
+        state_code: reviewContext.stateCode,
+        county_name: reviewContext.countyName,
+        zip_code: reviewContext.zipCode,
+        inspection_category: reviewContext.inspectionCategory,
+        inspection_type_id: reviewContext.inspectionTypeId,
       };
 
       const { data: savedReview, error } = await supabase
@@ -85,6 +117,14 @@ export function VendorExitReviewDialog({
       setQualityRating(0);
       setCommunicationRating(0);
       setComment("");
+      setReviewContext({
+        stateCode: null,
+        countyName: null,
+        zipCode: null,
+        inspectionCategory: null,
+        inspectionTypeId: null,
+      });
+      setContextSource(null);
     } catch (error: any) {
       console.error("Error submitting review:", error);
       toast({
@@ -134,7 +174,7 @@ export function VendorExitReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Exit Review – Field Rep</DialogTitle>
           <DialogDescription>
@@ -143,6 +183,13 @@ export function VendorExitReviewDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Review Context Selector */}
+          <ReviewContextSelector
+            value={reviewContext}
+            onChange={setReviewContext}
+            autoFilledFrom={contextSource || undefined}
+          />
+
           <div className="space-y-2">
             {renderStarRating(onTimeRating, setOnTimeRating, "On-Time Performance")}
             <p className="text-xs text-muted-foreground">Do they complete inspections by the agreed due dates without constant chasing?</p>
