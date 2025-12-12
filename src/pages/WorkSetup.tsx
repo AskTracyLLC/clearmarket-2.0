@@ -862,23 +862,23 @@ const WorkSetup = () => {
                   description: `Added ${rowsToInsert.length} counties for ${data.state_name}.`,
                 });
               } else {
-                // Single county mode
-                const payload: any = {
-                  user_id: user.id,
-                  state_code: data.state_code,
-                  state_name: data.state_name,
-                  county_id: data.county_id,
-                  county_name: data.county_name,
-                  coverage_mode: "selected_counties",
-                  covers_entire_state: false,
-                  covers_entire_county: true,
-                  base_price: data.base_price ? parseFloat(data.base_price) : null,
-                  rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
-                  region_note: data.region_note || null,
-                  inspection_types: data.inspection_types?.length ? data.inspection_types : null,
-                };
-
+                // Selected counties mode
                 if (data.id) {
+                  // Editing single row - update in place
+                  const payload: any = {
+                    user_id: user.id,
+                    state_code: data.state_code,
+                    state_name: data.state_name,
+                    county_id: data.county_id,
+                    county_name: data.county_name,
+                    coverage_mode: "selected_counties",
+                    covers_entire_state: false,
+                    covers_entire_county: true,
+                    base_price: data.base_price ? parseFloat(data.base_price) : null,
+                    rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
+                    region_note: data.region_note || null,
+                    inspection_types: data.inspection_types?.length ? data.inspection_types : null,
+                  };
                   const { error } = await supabase
                     .from("rep_coverage_areas")
                     .update(payload)
@@ -897,20 +897,61 @@ const WorkSetup = () => {
                     });
                   }
                 } else {
+                  // New entry with selected counties - need to look up county info and create rows
+                  const countyIds = data.included_county_ids || [];
+                  if (countyIds.length === 0) {
+                    toast({
+                      variant: "destructive",
+                      title: "Error",
+                      description: "Please select at least one county.",
+                    });
+                    return;
+                  }
+
+                  // Fetch county names for the selected IDs
+                  const { data: countiesData, error: countiesError } = await supabase
+                    .from("us_counties")
+                    .select("id, county_name")
+                    .in("id", countyIds);
+
+                  if (countiesError || !countiesData) {
+                    toast({
+                      variant: "destructive",
+                      title: "Error",
+                      description: "Failed to load county information.",
+                    });
+                    return;
+                  }
+
+                  const rowsToInsert = countiesData.map(county => ({
+                    user_id: user.id,
+                    state_code: data.state_code,
+                    state_name: data.state_name,
+                    county_id: county.id,
+                    county_name: county.county_name,
+                    coverage_mode: "selected_counties",
+                    covers_entire_state: false,
+                    covers_entire_county: true,
+                    base_price: data.base_price ? parseFloat(data.base_price) : null,
+                    rush_price: data.rush_price ? parseFloat(data.rush_price) : null,
+                    region_note: data.region_note || null,
+                    inspection_types: data.inspection_types?.length ? data.inspection_types : null,
+                  }));
+
                   const { error } = await supabase
                     .from("rep_coverage_areas")
-                    .insert([payload]);
+                    .insert(rowsToInsert);
 
                   if (error) {
                     toast({
                       variant: "destructive",
                       title: "Error",
-                      description: "Failed to add coverage area.",
+                      description: "Failed to add coverage areas.",
                     });
                   } else {
                     toast({
-                      title: "Coverage Area Added",
-                      description: "Your coverage area has been added.",
+                      title: "Coverage Areas Added",
+                      description: `Added ${rowsToInsert.length} county coverage area${rowsToInsert.length !== 1 ? "s" : ""}.`,
                     });
                   }
                 }

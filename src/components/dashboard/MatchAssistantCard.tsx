@@ -64,13 +64,28 @@ export function MatchAssistantCard() {
 
       for (const post of posts) {
         const matchingCoverage = repCoverage.find(coverage => {
+          // State must match
           if (post.state_code !== coverage.state_code) return false;
+          
+          // If post covers entire state, any coverage in that state matches
           if (post.covers_entire_state) return true;
+          
+          // If rep covers entire state, they match any post in that state
           if (coverage.covers_entire_state) return true;
+          
+          // County-level matching
           if (post.county_id && coverage.county_id) {
             return post.county_id === coverage.county_id;
           }
+          
+          // If post has no county specified, any coverage in the state matches
           if (!post.county_id) return true;
+          
+          // Skip rows with missing county data that aren't entire_state
+          if (!coverage.county_id && !coverage.covers_entire_state) {
+            return false;
+          }
+          
           return false;
         });
 

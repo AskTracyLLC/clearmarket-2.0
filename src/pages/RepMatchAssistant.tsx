@@ -132,13 +132,30 @@ export default function RepMatchAssistant() {
       for (const post of posts) {
         // Find matching coverage area for this post
         const matchingCoverage = repCoverage.find(coverage => {
+          // State must match
           if (post.state_code !== coverage.state_code) return false;
+          
+          // If post covers entire state, any coverage in that state matches
           if (post.covers_entire_state) return true;
+          
+          // If rep covers entire state, they match any post in that state
           if (coverage.covers_entire_state) return true;
+          
+          // County-level matching
+          // If post has a county and coverage has a county, they must match
           if (post.county_id && coverage.county_id) {
             return post.county_id === coverage.county_id;
           }
+          
+          // If post has no county specified, any coverage in the state matches
           if (!post.county_id) return true;
+          
+          // If coverage has no county_id (entire state or data issue), 
+          // and mode is not entire_state, skip this row as it's not a specific match
+          if (!coverage.county_id && !coverage.covers_entire_state) {
+            return false;
+          }
+          
           return false;
         });
 
