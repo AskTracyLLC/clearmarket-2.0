@@ -35,11 +35,16 @@ export function PlannedRouteConfirmBanner({
   async function handleSendNow(route: PlannedRoute) {
     setSending(route.id);
     try {
-      // Replace placeholders in message
-      const finalMessage = route.message
-        .replace(/\{DATE\}/g, format(parseISO(route.route_date), "MMMM d, yyyy"))
-        .replace(/\{STATE\}/g, route.route_state)
-        .replace(/\{COUNTIES\}/g, route.route_counties.join(", "));
+      // Replace placeholders in message if present; otherwise use message as-is
+      let finalMessage = route.message;
+      const hasPlaceholders = /\{DATE\}|\{STATE\}|\{COUNTIES\}/.test(route.message);
+
+      if (hasPlaceholders) {
+        finalMessage = route.message
+          .replace(/\{DATE\}/g, format(parseISO(route.route_date), "MMMM do, yyyy"))
+          .replace(/\{STATE\}/g, route.route_state)
+          .replace(/\{COUNTIES\}/g, route.route_counties.join(", "));
+      }
 
       // Update the alert record with final message and mark as sending
       const { error: updateError } = await supabase

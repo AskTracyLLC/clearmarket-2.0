@@ -400,11 +400,19 @@ export default function RepAvailability() {
       if (alertType === "route") {
         const routeDateStr = format(routeDate!, "yyyy-MM-dd");
         const stateName = coverageStates.find(s => s.code === routeState)?.name || routeState;
+        const formattedDate = format(routeDate!, "MMMM do, yyyy");
+        const countiesList = routeCounties.join(", ");
+
+        // Substitute placeholders so we store the final message, not the raw template
+        let finalMessage = alertMessage
+          .replace(/\{DATE\}/g, formattedDate)
+          .replace(/\{STATE\}/g, stateName)
+          .replace(/\{COUNTIES\}/g, countiesList);
 
         const alertData = {
           rep_user_id: user.id,
           alert_type: "planned_route",
-          message: alertMessage,
+          message: finalMessage,
           affected_start_date: routeDateStr,
           affected_end_date: routeDateStr,
           recipient_vendor_ids: vendorIds,
@@ -412,7 +420,7 @@ export default function RepAvailability() {
           route_state: stateName,
           route_counties: routeCounties,
           is_scheduled: true,
-          scheduled_status: editingRouteId ? "pending_confirmation" : "pending_confirmation",
+          scheduled_status: "pending_confirmation" as const,
         };
 
         if (editingRouteId) {
@@ -434,7 +442,7 @@ export default function RepAvailability() {
 
         toast({
           title: "Route Scheduled",
-          description: `Your planned route for ${format(routeDate!, "MMMM d, yyyy")} is saved. You'll be prompted to confirm and send it on that day.`,
+          description: `Your planned route for ${format(routeDate!, "MMMM do, yyyy")} is saved. You'll be prompted to confirm and send it on that day.`,
         });
 
         // Reset form

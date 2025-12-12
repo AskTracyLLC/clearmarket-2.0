@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format } from "date-fns";
 import { Megaphone, Calendar, DollarSign, Building2, User, ExternalLink, Send, Inbox } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertKudosButton } from "@/components/AlertKudosButton";
 
 interface NetworkAlert {
   id: string;
@@ -20,6 +22,18 @@ interface NetworkAlert {
   sender_id: string;
   is_read: boolean;
   ref_id?: string | null;
+}
+
+interface VendorAlertDetail {
+  id: string;
+  alert_type: string;
+  message: string;
+  created_at: string;
+  rep_user_id: string;
+  route_date: string | null;
+  route_state: string | null;
+  route_counties: string[] | null;
+  rep_name: string;
 }
 
 interface Props {
@@ -35,6 +49,9 @@ export function NetworkAlertsFeed({ userId, isVendor, isRep }: Props) {
   const [alerts, setAlerts] = useState<NetworkAlert[]>([]);
   const [filterType, setFilterType] = useState("all");
   const [viewMode, setViewMode] = useState<"received" | "sent">("received");
+  const [selectedAlert, setSelectedAlert] = useState<NetworkAlert | null>(null);
+  const [detailVendorAlert, setDetailVendorAlert] = useState<VendorAlertDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     loadAlerts();
@@ -180,6 +197,8 @@ export function NetworkAlertsFeed({ userId, isVendor, isRep }: Props) {
         return "Availability Update";
       case "scheduled":
         return "Scheduled Alert";
+      case "planned_route":
+        return "Planned Route";
       default:
         return "Network Alert";
     }
@@ -230,7 +249,13 @@ export function NetworkAlertsFeed({ userId, isVendor, isRep }: Props) {
       ));
     }
 
-    // Navigate based on sender role
+    // For rep alerts, open a detail drawer instead of navigating away
+    if (alert.type === "vendor_alert") {
+      await openVendorAlertDetail(alert);
+      return;
+    }
+
+    // Navigate based on sender role for other alert types
     if (alert.sender_role === "vendor") {
       navigate("/rep/my-vendors");
     } else {
