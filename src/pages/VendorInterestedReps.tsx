@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, XCircle, User, MessageSquare } from "lucide-react";
+import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface InterestedRep {
@@ -297,16 +298,6 @@ export default function VendorInterestedReps() {
             To connect with a rep, start a conversation and use the "Connect on this post" button in the message thread.
           </p>
         </div>
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Interested Field Reps</h1>
-          <p className="text-muted-foreground mb-4">
-            For: <span className="font-semibold">{post.title}</span>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            These reps expressed interest in this request. You can message them or decline if not a fit. 
-            To connect with a rep, start a conversation and use the "Connect on this post" button in the message thread.
-          </p>
-        </div>
 
         {/* Post Info Card */}
         <Card className="mb-8 bg-card-elevated">
@@ -318,10 +309,7 @@ export default function VendorInterestedReps() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Pricing:</p>
                 <p className="text-lg font-semibold text-primary">
-                  {post.pay_type === "fixed" 
-                    ? `$${post.pay_min?.toFixed(2)} / order`
-                    : `$${post.pay_min?.toFixed(2)} – $${post.pay_max?.toFixed(2)} / order`
-                  }
+                  {formatVendorOfferedRate(post.pay_min, post.pay_max, post.pay_type)}
                 </p>
                 {post.pay_notes && (
                   <p className="text-xs text-muted-foreground mt-1 italic">{post.pay_notes}</p>
