@@ -314,6 +314,14 @@ export async function acceptTerritoryAssignment(
       .eq("id", assignment.conversation_id);
   }
 
+  // Mark the rep's pending assignment notification as read
+  await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("ref_id", assignmentId)
+    .eq("type", "territory_assignment")
+    .eq("user_id", repUserId);
+
   return { error: null, connectionCreated };
 }
 
@@ -404,6 +412,14 @@ ${assignment.county_name ? `${assignment.county_name}, ` : ''}${assignment.state
       })
       .eq("id", assignment.conversation_id);
   }
+
+  // Mark the rep's pending assignment notification as read
+  await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("ref_id", assignmentId)
+    .eq("type", "territory_assignment")
+    .eq("user_id", repUserId);
 
   return { error: null };
 }

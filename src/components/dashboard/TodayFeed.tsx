@@ -969,9 +969,23 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
                                 <p className="text-sm text-muted-foreground truncate">
                                   {item.description}
                                 </p>
-                                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                                <div className="flex items-center justify-between mt-2">
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                                  </div>
+                                  {item.metadata?.assignmentId && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        item.link && navigate(item.link);
+                                      }}
+                                    >
+                                      Review assignment
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
