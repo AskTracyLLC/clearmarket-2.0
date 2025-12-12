@@ -1700,6 +1700,7 @@ export type Database = {
       }
       reviews: {
         Row: {
+          accepted_at: string | null
           coaching_note: string | null
           comment: string | null
           converted_to_coaching_at: string | null
@@ -1707,6 +1708,9 @@ export type Database = {
           county_name: string | null
           created_at: string
           direction: string
+          dispute_note: string | null
+          dispute_reason: string | null
+          disputed_at: string | null
           exclude_from_trust_score: boolean
           feedback_marked_at: string | null
           feedback_marked_by_user_id: string | null
@@ -1716,6 +1720,7 @@ export type Database = {
           is_exit_review: boolean
           is_feedback: boolean
           is_hidden: boolean
+          is_spotlighted: boolean | null
           is_verified: boolean
           moderation_notes: string | null
           rating_communication: number | null
@@ -1727,10 +1732,12 @@ export type Database = {
           state_code: string | null
           status: string
           updated_at: string
+          workflow_status: string | null
           would_work_again: boolean | null
           zip_code: string | null
         }
         Insert: {
+          accepted_at?: string | null
           coaching_note?: string | null
           comment?: string | null
           converted_to_coaching_at?: string | null
@@ -1738,6 +1745,9 @@ export type Database = {
           county_name?: string | null
           created_at?: string
           direction: string
+          dispute_note?: string | null
+          dispute_reason?: string | null
+          disputed_at?: string | null
           exclude_from_trust_score?: boolean
           feedback_marked_at?: string | null
           feedback_marked_by_user_id?: string | null
@@ -1747,6 +1757,7 @@ export type Database = {
           is_exit_review?: boolean
           is_feedback?: boolean
           is_hidden?: boolean
+          is_spotlighted?: boolean | null
           is_verified?: boolean
           moderation_notes?: string | null
           rating_communication?: number | null
@@ -1758,10 +1769,12 @@ export type Database = {
           state_code?: string | null
           status?: string
           updated_at?: string
+          workflow_status?: string | null
           would_work_again?: boolean | null
           zip_code?: string | null
         }
         Update: {
+          accepted_at?: string | null
           coaching_note?: string | null
           comment?: string | null
           converted_to_coaching_at?: string | null
@@ -1769,6 +1782,9 @@ export type Database = {
           county_name?: string | null
           created_at?: string
           direction?: string
+          dispute_note?: string | null
+          dispute_reason?: string | null
+          disputed_at?: string | null
           exclude_from_trust_score?: boolean
           feedback_marked_at?: string | null
           feedback_marked_by_user_id?: string | null
@@ -1778,6 +1794,7 @@ export type Database = {
           is_exit_review?: boolean
           is_feedback?: boolean
           is_hidden?: boolean
+          is_spotlighted?: boolean | null
           is_verified?: boolean
           moderation_notes?: string | null
           rating_communication?: number | null
@@ -1789,6 +1806,7 @@ export type Database = {
           state_code?: string | null
           status?: string
           updated_at?: string
+          workflow_status?: string | null
           would_work_again?: boolean | null
           zip_code?: string | null
         }

@@ -126,7 +126,8 @@ export function ReviewDialog({
         would_work_again: isExitReview ? wouldWorkAgain : null,
         comment: comment.trim() || null,
         is_verified: safeRepInterestId != null,
-        status: 'pending_reviewee',
+        status: 'published',
+        workflow_status: 'pending', // New reviews start as pending for rep to accept/dispute
       };
       
       // Add context if selected
@@ -236,18 +237,19 @@ export function ReviewDialog({
   const titlePrefix = isExitReview ? "Exit Review" : "Post Review";
   const titleSuffix = isVendorReviewing ? "Field Rep" : "Vendor";
 
-  // Role-aware labels
+  // Role-aware labels - Vendor reviewing Rep uses: On-Time, Quality of Work, Communication
+  // Rep reviewing Vendor uses: Helpfulness, Communication, Pay Reliability
   const labels = isVendorReviewing
     ? {
-        onTimeLabel: "On-Time Performance",
+        onTimeLabel: "On-Time",
         onTimeHelp: "Do they complete inspections by the agreed due dates without constant chasing?",
-        qualityLabel: "Quality of Inspection",
+        qualityLabel: "Quality of Work",
         qualityHelp: "Are photos, forms, and documentation complete and correct the first time?",
         commLabel: "Communication",
         commHelp: "Do they respond to messages, provide updates (appointments, delays), and flag issues early?",
       }
     : {
-        onTimeLabel: "Helpfulness & Support",
+        onTimeLabel: "Helpfulness",
         onTimeHelp: "Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?",
         qualityLabel: "Communication",
         qualityHelp: "Does this vendor respond to questions, give updates on changes, and set realistic expectations?",
