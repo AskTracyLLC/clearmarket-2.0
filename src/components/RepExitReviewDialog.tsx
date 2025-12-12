@@ -13,8 +13,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
-import { ReviewContextSelector } from "@/components/ReviewContextSelector";
-import { autoFillReviewContext, type ReviewContext } from "@/lib/reviewContext";
+import { ReviewContextModal, type ReviewContextValue } from "@/components/ReviewContextModal";
+import { ReviewContextChip } from "@/components/ReviewContextChip";
 
 interface RepExitReviewDialogProps {
   open: boolean;
@@ -39,27 +39,16 @@ export function RepExitReviewDialog({
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Review context state
-  const [reviewContext, setReviewContext] = useState<ReviewContext>({
-    stateCode: null,
-    countyName: null,
-    zipCode: null,
-    inspectionCategory: null,
-    inspectionTypeId: null,
-  });
-  const [contextSource, setContextSource] = useState<string | null>(null);
+  // Review context state - using new modal-based approach
+  const [reviewContext, setReviewContext] = useState<ReviewContextValue | null>(null);
+  const [contextModalOpen, setContextModalOpen] = useState(false);
 
-  // Auto-fill context when dialog opens
+  // Reset context when dialog opens
   useEffect(() => {
-    if (!open) return;
-
-    async function loadContext() {
-      const result = await autoFillReviewContext(repUserId, vendorUserId, repInterestId);
-      setReviewContext(result.context);
-      setContextSource(result.source);
+    if (open) {
+      setReviewContext(null);
     }
-    loadContext();
-  }, [open, repUserId, vendorUserId, repInterestId]);
+  }, [open]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -73,12 +62,11 @@ export function RepExitReviewDialog({
         rating_quality: communicationRating > 0 ? communicationRating : null,
         rating_communication: payReliabilityRating > 0 ? payReliabilityRating : null,
         comment: comment.trim() || null,
-        // Context fields
-        state_code: reviewContext.stateCode,
-        county_name: reviewContext.countyName,
-        zip_code: reviewContext.zipCode,
-        inspection_category: reviewContext.inspectionCategory,
-        inspection_type_id: reviewContext.inspectionTypeId,
+        // Context fields from modal selection
+        state_code: reviewContext?.stateCode || null,
+        county_name: reviewContext?.countyName || null,
+        inspection_category: reviewContext?.inspectionCategory || null,
+        inspection_type_id: reviewContext?.inspectionTypeId || null,
       };
 
       const { data: savedReview, error } = await supabase
@@ -117,14 +105,7 @@ export function RepExitReviewDialog({
       setCommunicationRating(0);
       setPayReliabilityRating(0);
       setComment("");
-      setReviewContext({
-        stateCode: null,
-        countyName: null,
-        zipCode: null,
-        inspectionCategory: null,
-        inspectionTypeId: null,
-      });
-      setContextSource(null);
+      setReviewContext(null);
     } catch (error: any) {
       console.error("Error submitting review:", error);
       toast({
@@ -173,69 +154,87 @@ export function RepExitReviewDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Exit Review – Vendor</DialogTitle>
-          <DialogDescription>
-            Share your experience with this vendor. Your feedback helps you and the ClearMarket community make better connections.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Exit Review – Vendor</DialogTitle>
+            <DialogDescription>
+              Share your experience with this vendor. Your feedback helps you and the ClearMarket community make better connections.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Review Context Selector */}
-          <ReviewContextSelector
-            value={reviewContext}
-            onChange={setReviewContext}
-            autoFilledFrom={contextSource || undefined}
-          />
-
-          <div className="space-y-2">
-            {renderStarRating(helpfulnessRating, setHelpfulnessRating, "Helpfulness & Support")}
-            <p className="text-xs text-muted-foreground">Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?</p>
-          </div>
-          
-          <div className="space-y-2">
-            {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
-            <p className="text-xs text-muted-foreground">Does this vendor respond to questions, give updates on changes, and set realistic expectations?</p>
-          </div>
-          
-          <div className="space-y-2">
-            {renderStarRating(payReliabilityRating, setPayReliabilityRating, "Pay Reliability")}
-            <p className="text-xs text-muted-foreground">Do they pay on time and honor the rates and terms they agreed to?</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="comment" className="text-sm font-medium">
-              Additional Notes (Optional)
-            </Label>
-            <Textarea
-              id="comment"
-              placeholder="Example: Paid on time but turn times were unrealistic…"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={4}
-              className="resize-none"
+          <div className="space-y-4 py-4">
+            {/* Review Context Chip - opens modal on click */}
+            <ReviewContextChip
+              value={reviewContext}
+              onEditClick={() => setContextModalOpen(true)}
             />
-          </div>
-        </div>
 
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSkip}
-            disabled={submitting}
-          >
-            Skip for now
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? "Submitting..." : "Submit Review"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <div className="space-y-2">
+              {renderStarRating(helpfulnessRating, setHelpfulnessRating, "Helpfulness & Support")}
+              <p className="text-xs text-muted-foreground">Does this vendor provide clear instructions, help troubleshoot issues, and back you up with clients when needed?</p>
+            </div>
+            
+            <div className="space-y-2">
+              {renderStarRating(communicationRating, setCommunicationRating, "Communication")}
+              <p className="text-xs text-muted-foreground">Does this vendor respond to questions, give updates on changes, and set realistic expectations?</p>
+            </div>
+            
+            <div className="space-y-2">
+              {renderStarRating(payReliabilityRating, setPayReliabilityRating, "Pay Reliability")}
+              <p className="text-xs text-muted-foreground">Do they pay on time and honor the rates and terms they agreed to?</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="comment" className="text-sm font-medium">
+                Additional Notes (Optional)
+              </Label>
+              <Textarea
+                id="comment"
+                placeholder="Example: Paid on time but turn times were unrealistic…"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSkip}
+              disabled={submitting}
+            >
+              Skip for now
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? "Submitting..." : "Submit Review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Context Selection Modal */}
+      <ReviewContextModal
+        open={contextModalOpen}
+        onOpenChange={setContextModalOpen}
+        repUserId={repUserId}
+        vendorUserId={vendorUserId}
+        currentValue={reviewContext || {
+          mode: "overall",
+          stateCode: null,
+          countyName: null,
+          inspectionCategory: null,
+          inspectionTypeId: null,
+          displayLabel: null,
+        }}
+        onApply={setReviewContext}
+      />
+    </>
   );
 }
