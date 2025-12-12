@@ -262,6 +262,25 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         .order("created_at", { ascending: false })
         .limit(15);
 
+      // Pre-fetch conversation IDs for territory assignment notifications
+      const territoryAssignmentRefIds = (notifications || [])
+        .filter(n => n.type === 'territory_assignment' && n.ref_id)
+        .map(n => n.ref_id as string);
+      
+      let assignmentConversationMap: Record<string, string> = {};
+      if (territoryAssignmentRefIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from("territory_assignments")
+          .select("id, conversation_id")
+          .in("id", territoryAssignmentRefIds);
+        
+        for (const a of assignments || []) {
+          if (a.conversation_id) {
+            assignmentConversationMap[a.id] = a.conversation_id;
+          }
+        }
+      }
+
       for (const notif of notifications || []) {
         // Skip if already processed as message
         if (notif.type === 'new_message') continue;
@@ -277,6 +296,12 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         } else if (notif.type === 'working_terms_submitted' && notif.ref_id) {
           link = `/vendor/working-terms-review/${notif.ref_id}`;
         } else if (notif.type === 'working_terms_confirmed') {
+          link = isRep ? '/rep/my-vendors' : '/vendor/my-reps';
+        } else if (notif.type === 'territory_assignment' && notif.ref_id) {
+          // Territory assignment pending - link to the conversation where they can accept/decline
+          const conversationId = assignmentConversationMap[notif.ref_id];
+          link = conversationId ? `/messages/${conversationId}` : '/messages';
+        } else if (notif.type === 'territory_assignment_accepted' || notif.type === 'territory_assignment_declined') {
           link = isRep ? '/rep/my-vendors' : '/vendor/my-reps';
         } else if (notif.type.includes('review')) {
           link = isRep ? '/rep/reviews' : '/vendor/reviews';
@@ -294,7 +319,14 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           itemType = 'review';
         } else if (notif.type.includes('connection')) {
           itemType = 'connection_request';
-        } else if (notif.type.includes('alert') || notif.type.includes('working_terms') || notif.type === 'admin_message') {
+        } else if (
+          notif.type.includes('alert') || 
+          notif.type.includes('working_terms') || 
+          notif.type === 'admin_message' ||
+          notif.type === 'territory_assignment' ||
+          notif.type === 'territory_assignment_accepted' ||
+          notif.type === 'territory_assignment_declined'
+        ) {
           itemType = 'alert';
         }
         
@@ -306,6 +338,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           timestamp: notif.created_at,
           isUnread: !notif.is_read,
           link,
+          metadata: notif.type === 'territory_assignment' ? { assignmentId: notif.ref_id } : undefined,
         });
       }
 
