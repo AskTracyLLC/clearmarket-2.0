@@ -1324,6 +1324,9 @@ export type Database = {
         Row: {
           connected_at: string | null
           created_at: string
+          declined_at: string | null
+          declined_by_user_id: string | null
+          declined_reason: string | null
           id: string
           last_reminder_sent_at: string | null
           post_id: string
@@ -1334,6 +1337,9 @@ export type Database = {
         Insert: {
           connected_at?: string | null
           created_at?: string
+          declined_at?: string | null
+          declined_by_user_id?: string | null
+          declined_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
           post_id: string
@@ -1344,6 +1350,9 @@ export type Database = {
         Update: {
           connected_at?: string | null
           created_at?: string
+          declined_at?: string | null
+          declined_by_user_id?: string | null
+          declined_reason?: string | null
           id?: string
           last_reminder_sent_at?: string | null
           post_id?: string
@@ -1352,6 +1361,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rep_interest_declined_by_user_id_fkey"
+            columns: ["declined_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rep_interest_post_id_fkey"
             columns: ["post_id"]

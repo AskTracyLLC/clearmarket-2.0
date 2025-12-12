@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock } from "lucide-react";
+import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
@@ -46,6 +46,7 @@ import {
   fetchActiveAssignmentForConversation 
 } from "@/lib/territoryAssignments";
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
+import { DeclineRepDialog } from "@/components/DeclineRepDialog";
 
 interface Message {
   id: string;
@@ -99,6 +100,7 @@ export default function MessageThread() {
   const [showAssignTerritoryDialog, setShowAssignTerritoryDialog] = useState(false);
   const [pendingAssignment, setPendingAssignment] = useState<TerritoryAssignment | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<TerritoryAssignment | null>(null);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
 
   // Bidirectional block check - used to hide Connect buttons
   const blockStatus = useBlockStatus(otherParticipantId || null);
@@ -282,7 +284,7 @@ export default function MessageThread() {
     try {
       const { data: interest, error } = await supabase
         .from("rep_interest")
-        .select("id, status, rep_id, post_id")
+        .select("id, status, rep_id, post_id, declined_reason, declined_at")
         .eq("id", conversation.rep_interest_id)
         .maybeSingle();
 
@@ -829,17 +831,36 @@ export default function MessageThread() {
                   </Badge>
                 )}
                 
+                {/* Declined status badge */}
+                {repInterest?.status === "declined_by_vendor" && (
+                  <Badge variant="outline" className="text-muted-foreground bg-muted/50">
+                    <Ban className="w-3 h-3 mr-1" />
+                    Declined for this request
+                  </Badge>
+                )}
+                
                 {/* Assign Territory Button - Vendor only, no connection required for Seeking Coverage conversations */}
-                {isVendor && conversationData?.seeking_post && !pendingAssignment && !activeAssignment && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setShowAssignTerritoryDialog(true)}
-                    className="ml-auto"
-                  >
-                    <ClipboardCheck className="w-4 h-4 mr-1" />
-                    Assign this area to rep
-                  </Button>
+                {isVendor && conversationData?.seeking_post && !pendingAssignment && !activeAssignment && repInterest?.status !== "declined_by_vendor" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setShowAssignTerritoryDialog(true)}
+                      className="ml-auto"
+                    >
+                      <ClipboardCheck className="w-4 h-4 mr-1" />
+                      Assign this area to rep
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-muted-foreground hover:text-destructive hover:border-destructive"
+                      onClick={() => setShowDeclineDialog(true)}
+                    >
+                      <Ban className="w-4 h-4 mr-1" />
+                      Decline
+                    </Button>
+                  </>
                 )}
                 
                 {/* Show active assignment date for vendor */}
@@ -851,6 +872,22 @@ export default function MessageThread() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Rep declined banner */}
+        {isRep && repInterest?.status === "declined_by_vendor" && (
+          <Alert className="mb-4 border-muted">
+            <Ban className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-medium">You were not selected for this request</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                This doesn't affect your overall relationship with this vendor.
+                {repInterest.declined_reason && (
+                  <span className="block mt-1 italic">Reason: "{repInterest.declined_reason}"</span>
+                )}
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Messages list */}
@@ -1002,6 +1039,23 @@ export default function MessageThread() {
           onSuccess={() => {
             loadTerritoryAssignments();
             loadMessages();
+          }}
+        />
+      )}
+
+      {/* Decline Rep Dialog */}
+      {repInterest && conversationData?.seeking_post && user && (
+        <DeclineRepDialog
+          open={showDeclineDialog}
+          onOpenChange={setShowDeclineDialog}
+          repInterestId={repInterest.id}
+          repAnonymousId={otherParticipantName}
+          postTitle={conversationData.seeking_post.title}
+          vendorUserId={user.id}
+          repUserId={otherParticipantId}
+          onDeclined={() => {
+            setShowDeclineDialog(false);
+            loadConversationData();
           }}
         />
       )}
