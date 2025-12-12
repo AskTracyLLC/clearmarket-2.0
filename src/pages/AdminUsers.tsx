@@ -36,7 +36,19 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2 } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -84,6 +96,8 @@ export default function AdminUsers() {
   const [vendorProfiles, setVendorProfiles] = useState<Record<string, { anonymousId: string; companyName: string | null }>>({});
   const [reportCounts, setReportCounts] = useState<Record<string, number>>({});
   const [profileCompleteness, setProfileCompleteness] = useState<Record<string, number>>({});
+  const [trustScores, setTrustScores] = useState<Record<string, { score: number; count: number }>>({});
+  const [connectionCounts, setConnectionCounts] = useState<Record<string, number>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -244,6 +258,62 @@ export default function AdminUsers() {
         );
       }
       setProfileCompleteness(completenessMap);
+
+      // Load trust scores from reviews
+      const { data: reviews } = await supabase
+        .from("reviews")
+        .select("reviewee_id, rating_on_time, rating_quality, rating_communication")
+        .eq("status", "published");
+
+      if (reviews) {
+        const trustMap: Record<string, { totalScore: number; count: number }> = {};
+        reviews.forEach((r) => {
+          if (!trustMap[r.reviewee_id]) {
+            trustMap[r.reviewee_id] = { totalScore: 0, count: 0 };
+          }
+          const ratings = [r.rating_on_time, r.rating_quality, r.rating_communication].filter(
+            (rating): rating is number => rating !== null
+          );
+          if (ratings.length > 0) {
+            const avg = ratings.reduce((sum, val) => sum + val, 0) / ratings.length;
+            trustMap[r.reviewee_id].totalScore += avg;
+            trustMap[r.reviewee_id].count += 1;
+          }
+        });
+        
+        const finalTrustScores: Record<string, { score: number; count: number }> = {};
+        Object.entries(trustMap).forEach(([userId, data]) => {
+          if (data.count > 0) {
+            finalTrustScores[userId] = {
+              score: data.totalScore / data.count,
+              count: data.count,
+            };
+          }
+        });
+        setTrustScores(finalTrustScores);
+      }
+
+      // Load connection counts from rep_interest (status = 'connected')
+      const { data: connections } = await supabase
+        .from("rep_interest")
+        .select("rep_id, post_id, status, seeking_coverage_posts!inner(vendor_id)")
+        .eq("status", "connected");
+
+      if (connections) {
+        const connectionMap: Record<string, number> = {};
+        connections.forEach((c: any) => {
+          // Count for the rep
+          const repUserId = c.rep_id;
+          connectionMap[repUserId] = (connectionMap[repUserId] || 0) + 1;
+          
+          // Count for the vendor
+          const vendorUserId = c.seeking_coverage_posts?.vendor_id;
+          if (vendorUserId) {
+            connectionMap[vendorUserId] = (connectionMap[vendorUserId] || 0) + 1;
+          }
+        });
+        setConnectionCounts(connectionMap);
+      }
     } catch (error) {
       console.error("Error loading users:", error);
       toast.error("Failed to load users");
@@ -515,6 +585,14 @@ export default function AdminUsers() {
             aVal = a.community_score;
             bVal = b.community_score;
             break;
+          case "connections":
+            aVal = connectionCounts[a.id] ?? 0;
+            bVal = connectionCounts[b.id] ?? 0;
+            break;
+          case "trust_score":
+            aVal = trustScores[a.id]?.score ?? 0;
+            bVal = trustScores[b.id]?.score ?? 0;
+            break;
         }
 
         if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
@@ -524,7 +602,7 @@ export default function AdminUsers() {
     }
 
     return result;
-  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles, sortColumn, sortDirection, profileCompleteness]);
+  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles, sortColumn, sortDirection, profileCompleteness, connectionCounts, trustScores]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -695,13 +773,31 @@ export default function AdminUsers() {
                         <SortIcon column="community" />
                       </div>
                     </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("connections")}
+                    >
+                      <div className="flex items-center justify-center">
+                        Connections
+                        <SortIcon column="connections" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 select-none"
+                      onClick={() => handleSort("trust_score")}
+                    >
+                      <div className="flex items-center justify-center">
+                        Trust Score
+                        <SortIcon column="trust_score" />
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-48">
+                      <TableCell colSpan={10} className="h-48">
                         <div className="flex flex-col items-center justify-center text-center py-8">
                           {users.length === 0 ? (
                             <>
@@ -784,6 +880,34 @@ export default function AdminUsers() {
                         <TableCell className="text-center">
                           <span className="font-medium">{userProfile.community_score}</span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="font-medium cursor-help">
+                                  {connectionCounts[userProfile.id] ?? 0}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Active connections with other ClearMarket users</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {trustScores[userProfile.id] ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="font-medium">
+                                {trustScores[userProfile.id].score.toFixed(1)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ({trustScores[userProfile.id].count})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button
@@ -809,59 +933,54 @@ export default function AdminUsers() {
                               </Button>
                             )}
                             {permissions.canEditUsersAdmin && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setMessageDialog({ open: true, user: userProfile })}
-                                  disabled={actionLoading === userProfile.id}
-                                  title="Message user"
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleSendResetLink(userProfile)}
-                                  disabled={actionLoading === userProfile.id}
-                                  title="Send password reset"
-                                >
-                                  <Mail className="h-4 w-4" />
-                                </Button>
-                                {userProfile.account_status === "active" ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => setDeactivateDialog({ open: true, user: userProfile })}
                                     disabled={actionLoading === userProfile.id}
-                                    title="Deactivate account"
-                                    className="text-orange-600 hover:text-orange-700"
                                   >
-                                    <UserX className="h-4 w-4" />
+                                    <MoreHorizontal className="h-4 w-4" />
                                   </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleReactivate(userProfile)}
-                                    disabled={actionLoading === userProfile.id}
-                                    title="Reactivate account"
-                                    className="text-green-600 hover:text-green-700"
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => setMessageDialog({ open: true, user: userProfile })}
                                   >
-                                    <UserCheck className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setDeleteDialog({ open: true, user: userProfile })}
-                                  disabled={actionLoading === userProfile.id || userProfile.is_admin}
-                                  title={userProfile.is_admin ? "Cannot delete admin accounts" : "Delete user permanently"}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-500/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
+                                    <MessageSquare className="h-4 w-4 mr-2" />
+                                    Message user
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleSendResetLink(userProfile)}
+                                  >
+                                    <Mail className="h-4 w-4 mr-2" />
+                                    Send password reset
+                                  </DropdownMenuItem>
+                                  {userProfile.account_status === "active" ? (
+                                    <DropdownMenuItem
+                                      onClick={() => setDeactivateDialog({ open: true, user: userProfile })}
+                                    >
+                                      <UserX className="h-4 w-4 mr-2" />
+                                      Deactivate account
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={() => handleReactivate(userProfile)}
+                                    >
+                                      <UserCheck className="h-4 w-4 mr-2" />
+                                      Reactivate account
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() => setDeleteDialog({ open: true, user: userProfile })}
+                                    disabled={userProfile.is_admin}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete user
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             )}
                           </div>
                         </TableCell>
