@@ -98,7 +98,8 @@ export function PlannedRouteAlertDialog({
     setRouteState("");
     setRouteCounties([]);
     setReason("");
-    setMessage("");
+    // Set initial template with placeholders shown until user makes selections
+    setMessage("I'm planning to be in {COUNTIES}, {STATE} on {DATE}.\nPlease request extensions on any work due before this date if you still want me to cover it.");
     setSendTiming("now");
   }
 
