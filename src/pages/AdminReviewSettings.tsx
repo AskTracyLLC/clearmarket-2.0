@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { getReviewSettings, updateReviewSettings } from "@/lib/reviewSettings";
@@ -18,7 +19,9 @@ export default function AdminReviewSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [minDays, setMinDays] = useState(30);
+  const [enforceWaitingPeriod, setEnforceWaitingPeriod] = useState(true);
   const [originalMinDays, setOriginalMinDays] = useState(30);
+  const [originalEnforceWaitingPeriod, setOriginalEnforceWaitingPeriod] = useState(true);
 
   useEffect(() => {
     if (!permLoading && !permissions.canViewAdminDashboard) {
@@ -39,7 +42,9 @@ export default function AdminReviewSettings() {
     try {
       const settings = await getReviewSettings();
       setMinDays(settings.min_days_between_reviews);
+      setEnforceWaitingPeriod(settings.enforce_waiting_period);
       setOriginalMinDays(settings.min_days_between_reviews);
+      setOriginalEnforceWaitingPeriod(settings.enforce_waiting_period);
     } catch (error) {
       console.error("Error loading settings:", error);
     } finally {
@@ -60,12 +65,15 @@ export default function AdminReviewSettings() {
 
     setSaving(true);
     try {
-      const result = await updateReviewSettings(minDays);
+      const result = await updateReviewSettings(minDays, enforceWaitingPeriod);
       if (result.success) {
         setOriginalMinDays(minDays);
+        setOriginalEnforceWaitingPeriod(enforceWaitingPeriod);
         toast({
           title: "Settings updated",
-          description: `Review settings updated. New minimum is ${minDays} days.`,
+          description: enforceWaitingPeriod 
+            ? `Review settings updated. Waiting period: ${minDays} days.`
+            : "Review settings updated. Waiting period is disabled.",
         });
       } else {
         toast({
@@ -79,7 +87,7 @@ export default function AdminReviewSettings() {
     }
   };
 
-  const hasChanges = minDays !== originalMinDays;
+  const hasChanges = minDays !== originalMinDays || enforceWaitingPeriod !== originalEnforceWaitingPeriod;
 
   if (permLoading || loading) {
     return (
@@ -118,7 +126,27 @@ export default function AdminReviewSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
+            {/* Toggle for enabling/disabling waiting period */}
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="enforceWaitingPeriod" className="text-base font-medium">
+                  Enforce waiting period
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {enforceWaitingPeriod 
+                    ? "Users must wait between reviews for the same connection."
+                    : "Waiting period is disabled. Users can post reviews anytime (testing mode)."}
+                </p>
+              </div>
+              <Switch
+                id="enforceWaitingPeriod"
+                checked={enforceWaitingPeriod}
+                onCheckedChange={setEnforceWaitingPeriod}
+              />
+            </div>
+
+            {/* Days input - only meaningful when waiting period is enforced */}
+            <div className={`space-y-2 ${!enforceWaitingPeriod ? "opacity-50" : ""}`}>
               <Label htmlFor="minDays">Minimum days between reviews per connection</Label>
               <Input
                 id="minDays"
@@ -128,6 +156,7 @@ export default function AdminReviewSettings() {
                 value={minDays}
                 onChange={(e) => setMinDays(parseInt(e.target.value) || 30)}
                 className="max-w-[200px]"
+                disabled={!enforceWaitingPeriod}
               />
               <p className="text-sm text-muted-foreground">
                 This controls how often a vendor or field rep can post a new review for the same connection. 
