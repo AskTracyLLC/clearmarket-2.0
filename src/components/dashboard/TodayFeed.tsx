@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,20 @@ import {
   AlertCircle,
   ChevronRight,
   Clock,
-  Megaphone
+  Megaphone,
+  X,
+  ExternalLink,
+  MessageCircle
 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { NotInterestedDialog } from "@/components/NotInterestedDialog";
 import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay } from "date-fns";
 import { doesPostMatchRepRate } from "@/lib/rateMatching";
 
@@ -27,6 +39,19 @@ interface FeedItem {
   isUnread?: boolean;
   link?: string;
   metadata?: Record<string, unknown>;
+}
+
+interface PendingOpportunity {
+  id: string;
+  postId: string;
+  postTitle: string;
+  vendorName: string;
+  location: string;
+  inspectionTypes: string[];
+  systemsRequired: string[];
+  status: 'interested' | 'in_conversation' | 'assignment_pending';
+  interestDate: string;
+  conversationId?: string;
 }
 
 interface TodayFeedProps {
@@ -42,6 +67,12 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   const [loading, setLoading] = useState(true);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+  
+  // Opportunities-specific state
+  const [pendingOpportunities, setPendingOpportunities] = useState<PendingOpportunity[]>([]);
+  const [loadingPending, setLoadingPending] = useState(false);
+  const [repProfileId, setRepProfileId] = useState<string | null>(null);
+  const [notInterestedPost, setNotInterestedPost] = useState<{ id: string; title: string } | null>(null);
 
   const getFilterCategory = (type: FeedItem['type']): ActivityFilter => {
     if (type === 'alert') return 'alerts';
@@ -58,6 +89,135 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   useEffect(() => {
     loadFeed();
   }, [userId, isRep, isVendor]);
+  
+  // Load pending opportunities when filter is 'opportunities' and user is a rep
+  useEffect(() => {
+    if (activityFilter === 'opportunities' && isRep && repProfileId) {
+      loadPendingOpportunities();
+    }
+  }, [activityFilter, isRep, repProfileId]);
+
+  const loadPendingOpportunities = async () => {
+    if (!repProfileId) return;
+    setLoadingPending(true);
+    
+    try {
+      // Get all opportunities where rep has expressed interest and is waiting on vendor
+      const { data: interests } = await supabase
+        .from("rep_interest")
+        .select(`
+          id, post_id, status, created_at,
+          seeking_coverage_posts!inner(
+            id, title, state_code, county_id, covers_entire_state,
+            inspection_type_ids, systems_required_array, vendor_id,
+            us_counties(county_name),
+            profiles!seeking_coverage_posts_vendor_id_fkey(full_name)
+          )
+        `)
+        .eq("rep_id", repProfileId)
+        .eq("status", "interested")
+        .order("created_at", { ascending: false });
+
+      // Get vendor profiles for names
+      const vendorIds = [...new Set((interests || []).map(i => 
+        (i.seeking_coverage_posts as { vendor_id: string })?.vendor_id
+      ).filter(Boolean))];
+
+      let vendorMap: Record<string, string> = {};
+      if (vendorIds.length > 0) {
+        const { data: vendors } = await supabase
+          .from("vendor_profile")
+          .select("user_id, company_name, anonymous_id")
+          .in("user_id", vendorIds);
+        
+        for (const v of vendors || []) {
+          vendorMap[v.user_id] = v.company_name || v.anonymous_id || 'Vendor';
+        }
+      }
+
+      // Check for existing conversations for each post
+      const postIds = (interests || []).map(i => i.post_id);
+      let conversationMap: Record<string, string> = {};
+      if (postIds.length > 0) {
+        const { data: convs } = await supabase
+          .from("conversations")
+          .select("id, origin_post_id")
+          .in("origin_post_id", postIds)
+          .or(`participant_one.eq.${userId},participant_two.eq.${userId}`);
+        
+        for (const c of convs || []) {
+          if (c.origin_post_id) {
+            conversationMap[c.origin_post_id] = c.id;
+          }
+        }
+      }
+
+      // Check for pending territory assignments
+      let assignmentPendingPosts = new Set<string>();
+      if (postIds.length > 0) {
+        const { data: assignments } = await supabase
+          .from("territory_assignments")
+          .select("seeking_coverage_post_id, status")
+          .in("seeking_coverage_post_id", postIds)
+          .eq("rep_id", userId)
+          .eq("status", "pending_rep");
+        
+        for (const a of assignments || []) {
+          if (a.seeking_coverage_post_id) {
+            assignmentPendingPosts.add(a.seeking_coverage_post_id);
+          }
+        }
+      }
+
+      const pending: PendingOpportunity[] = (interests || []).map(interest => {
+        const post = interest.seeking_coverage_posts as {
+          id: string;
+          title: string;
+          state_code: string | null;
+          county_id: string | null;
+          covers_entire_state: boolean;
+          inspection_type_ids: string[] | null;
+          systems_required_array: string[];
+          vendor_id: string;
+          us_counties: { county_name: string } | null;
+          profiles: { full_name: string | null } | null;
+        };
+        
+        const countyName = post.us_counties?.county_name;
+        const location = post.covers_entire_state 
+          ? `All counties, ${post.state_code}`
+          : countyName 
+            ? `${countyName}, ${post.state_code}`
+            : post.state_code || 'Location TBD';
+
+        let status: PendingOpportunity['status'] = 'interested';
+        if (assignmentPendingPosts.has(post.id)) {
+          status = 'assignment_pending';
+        } else if (conversationMap[post.id]) {
+          status = 'in_conversation';
+        }
+
+        return {
+          id: interest.id,
+          postId: post.id,
+          postTitle: post.title,
+          vendorName: vendorMap[post.vendor_id] || 'Vendor',
+          location,
+          inspectionTypes: post.inspection_type_ids || [],
+          systemsRequired: post.systems_required_array || [],
+          status,
+          interestDate: interest.created_at,
+          conversationId: conversationMap[post.id],
+        };
+      });
+
+      setPendingOpportunities(pending);
+    } catch (error) {
+      console.error("Error loading pending opportunities:", error);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
 
   const loadFeed = async () => {
     if (!userId) return;
@@ -163,6 +323,11 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           .select("id, inspection_types")
           .eq("user_id", userId)
           .single();
+
+        // Store rep profile ID for pending opportunities loading
+        if (repProfile?.id) {
+          setRepProfileId(repProfile.id);
+        }
 
         const profileInspectionTypes = repProfile?.inspection_types || [];
 
@@ -398,21 +563,84 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
     { value: 'updates', label: 'Updates' },
   ];
 
-  const getFilterDescription = (filter: ActivityFilter): React.ReactNode => {
+  const getFilterDescription = (filter: ActivityFilter): string => {
     switch (filter) {
       case 'all':
         return 'This view shows every alert, opportunity, and update in one list.';
       case 'alerts':
         return 'Alerts are time-sensitive items or things that may need a response from you, like coverage & pricing requests, working terms changes, or office/network alerts.';
       case 'opportunities':
-        return (
-          <>
-            These are posts from vendors looking for help in your work areas. You'll see opportunities based on the coverage you saved in your profile.{' '}
-            <Link to="/rep/pending-opportunities" className="underline hover:text-primary">View opportunities you've applied to →</Link>
-          </>
-        );
+        return 'These are posts from vendors looking for help in your work areas. New opportunities appear first, followed by opportunities you\'ve already applied to.';
       case 'updates':
         return "Updates keep you in the loop on things that usually don't need a response, like ClearMarket announcements, FAQ changes, and comments on your posts.";
+    }
+  };
+
+  const handleExpressInterest = async (postId: string) => {
+    if (!repProfileId) return;
+    
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .insert({
+          rep_id: repProfileId,
+          post_id: postId,
+          status: "interested"
+        });
+
+      if (error) throw error;
+      
+      // Reload feed and pending opportunities
+      loadFeed();
+      if (activityFilter === 'opportunities') {
+        loadPendingOpportunities();
+      }
+    } catch (error) {
+      console.error("Error expressing interest:", error);
+    }
+  };
+
+  const handleNotInterestedConfirm = async (reason?: string) => {
+    if (!repProfileId || !notInterestedPost) return;
+    
+    try {
+      const { error } = await supabase
+        .from("rep_interest")
+        .insert({
+          rep_id: repProfileId,
+          post_id: notInterestedPost.id,
+          status: "not_interested",
+          not_interested_reason: reason || null
+        });
+
+      if (error) throw error;
+      
+      setNotInterestedPost(null);
+      loadFeed();
+    } catch (error) {
+      console.error("Error marking not interested:", error);
+    }
+  };
+
+  const getStatusLabel = (status: PendingOpportunity['status']) => {
+    switch (status) {
+      case 'interested':
+        return 'Interest sent – waiting on vendor';
+      case 'in_conversation':
+        return 'In conversation';
+      case 'assignment_pending':
+        return 'Assignment pending';
+    }
+  };
+
+  const getStatusColor = (status: PendingOpportunity['status']) => {
+    switch (status) {
+      case 'interested':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400';
+      case 'in_conversation':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400';
+      case 'assignment_pending':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400';
     }
   };
 
@@ -456,100 +684,275 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         {getFilterDescription(activityFilter)}
       </p>
 
-      {/* Filtered items grouped by date */}
-      {filteredItems.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="py-6 text-center">
-            <p className="text-muted-foreground text-sm">
-              {activityFilter === 'opportunities' 
-                ? "No new opportunities in your coverage area yet. Try expanding your coverage or check back later."
-                : `No ${activityFilter === 'all' ? 'activity' : activityFilter} to show.`
-              }
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {(() => {
-            // Group items by date
-            const groupedItems: { [dateKey: string]: FeedItem[] } = {};
+      {/* Special two-section layout for Opportunities filter when user is a rep */}
+      {activityFilter === 'opportunities' && isRep ? (
+        <div className="space-y-6">
+          {/* Section 1: New Opportunities */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm font-semibold text-foreground">New opportunities</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
             
-            filteredItems.forEach((item) => {
-              const itemDate = parseISO(item.timestamp);
-              const dateKey = startOfDay(itemDate).toISOString();
-              if (!groupedItems[dateKey]) {
-                groupedItems[dateKey] = [];
-              }
-              groupedItems[dateKey].push(item);
-            });
-
-            // Sort date keys descending (newest first)
-            const sortedDateKeys = Object.keys(groupedItems).sort(
-              (a, b) => new Date(b).getTime() - new Date(a).getTime()
-            );
-
-            const getDateHeader = (dateKey: string): string => {
-              const date = new Date(dateKey);
-              if (isToday(date)) return "Today";
-              if (isYesterday(date)) return "Yesterday";
-              return format(date, "MMM d, yyyy");
-            };
-
-            return sortedDateKeys.map((dateKey, groupIndex) => (
-              <div key={dateKey}>
-                {/* Date header */}
-                <div className={`flex items-center gap-2 ${groupIndex > 0 ? 'mt-4 pt-4 border-t border-border' : ''}`}>
-                  <span className="text-sm font-semibold text-foreground">
-                    {getDateHeader(dateKey)}
-                  </span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                
-                {/* Items for this date */}
-                <div className="space-y-2 mt-2">
-                  {groupedItems[dateKey].map((item) => (
-                    <Card 
-                      key={item.id} 
-                      className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
-                        item.isUnread ? 'border-l-2 border-l-primary' : ''
-                      }`}
-                      onClick={() => item.link && navigate(item.link)}
-                    >
-                      <CardContent className="py-3 px-4">
-                        <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
-                            {getIcon(item.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-medium text-foreground truncate">
-                                {item.title}
-                              </span>
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
-                                {getTypeLabel(item.type)}
-                              </Badge>
-                              {item.isUnread && (
-                                <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {item.description}
-                            </p>
-                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
-                            </div>
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            {filteredItems.length === 0 ? (
+              <Card className="bg-card border-border">
+                <CardContent className="py-6 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    No new opportunities in your coverage area yet. Try expanding your coverage or check back later.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {filteredItems.map((item) => (
+                  <Card 
+                    key={item.id} 
+                    className="bg-card border-border border-l-2 border-l-primary"
+                  >
+                    <CardContent className="py-3 px-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
+                          {getIcon(item.type)}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span 
+                              className="text-sm font-medium text-foreground truncate cursor-pointer hover:underline"
+                              onClick={() => item.link && navigate(item.link)}
+                            >
+                              {item.title}
+                            </span>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400">
+                              New
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate mb-2">
+                            {item.description}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const postId = (item.metadata?.postId as string) || item.id.replace('opp-', '');
+                                handleExpressInterest(postId);
+                              }}
+                            >
+                              I'm interested
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const postId = (item.metadata?.postId as string) || item.id.replace('opp-', '');
+                                setNotInterestedPost({ id: postId, title: item.title });
+                              }}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Not interested
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ));
-          })()}
+            )}
+          </div>
+
+          {/* Section 2: Pending Opportunities (Table) */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-semibold text-foreground">Pending opportunities</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              These are opportunities you've applied to and are waiting on vendor review.
+            </p>
+            
+            {loadingPending ? (
+              <Card className="animate-pulse">
+                <CardContent className="py-4">
+                  <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-2/3"></div>
+                </CardContent>
+              </Card>
+            ) : pendingOpportunities.length === 0 ? (
+              <Card className="bg-card border-border">
+                <CardContent className="py-4 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    You haven't applied to any opportunities yet. When you click "I'm interested", they'll appear here.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="rounded-md border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Opportunity</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Interest Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingOpportunities.map((opp) => (
+                      <TableRow key={opp.id}>
+                        <TableCell>
+                          <span 
+                            className="font-medium text-foreground hover:underline cursor-pointer"
+                            onClick={() => navigate(`/rep/seeking-coverage/${opp.postId}`)}
+                          >
+                            {opp.postTitle}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {opp.vendorName}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {opp.location}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${getStatusColor(opp.status)}`}
+                          >
+                            {getStatusLabel(opp.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {format(parseISO(opp.interestDate), "MMM d, yyyy")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {opp.conversationId && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => navigate(`/messages/${opp.conversationId}`)}
+                                title="Open conversation"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => navigate(`/rep/seeking-coverage/${opp.postId}`)}
+                              title="View opportunity"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </div>
+      ) : (
+        /* Standard grouped-by-date view for other filters */
+        <>
+          {filteredItems.length === 0 ? (
+            <Card className="bg-card border-border">
+              <CardContent className="py-6 text-center">
+                <p className="text-muted-foreground text-sm">
+                  {`No ${activityFilter === 'all' ? 'activity' : activityFilter} to show.`}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {(() => {
+                // Group items by date
+                const groupedItems: { [dateKey: string]: FeedItem[] } = {};
+                
+                filteredItems.forEach((item) => {
+                  const itemDate = parseISO(item.timestamp);
+                  const dateKey = startOfDay(itemDate).toISOString();
+                  if (!groupedItems[dateKey]) {
+                    groupedItems[dateKey] = [];
+                  }
+                  groupedItems[dateKey].push(item);
+                });
+
+                // Sort date keys descending (newest first)
+                const sortedDateKeys = Object.keys(groupedItems).sort(
+                  (a, b) => new Date(b).getTime() - new Date(a).getTime()
+                );
+
+                const getDateHeader = (dateKey: string): string => {
+                  const date = new Date(dateKey);
+                  if (isToday(date)) return "Today";
+                  if (isYesterday(date)) return "Yesterday";
+                  return format(date, "MMM d, yyyy");
+                };
+
+                return sortedDateKeys.map((dateKey, groupIndex) => (
+                  <div key={dateKey}>
+                    {/* Date header */}
+                    <div className={`flex items-center gap-2 ${groupIndex > 0 ? 'mt-4 pt-4 border-t border-border' : ''}`}>
+                      <span className="text-sm font-semibold text-foreground">
+                        {getDateHeader(dateKey)}
+                      </span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    
+                    {/* Items for this date */}
+                    <div className="space-y-2 mt-2">
+                      {groupedItems[dateKey].map((item) => (
+                        <Card 
+                          key={item.id} 
+                          className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
+                            item.isUnread ? 'border-l-2 border-l-primary' : ''
+                          }`}
+                          onClick={() => item.link && navigate(item.link)}
+                        >
+                          <CardContent className="py-3 px-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
+                                {getIcon(item.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium text-foreground truncate">
+                                    {item.title}
+                                  </span>
+                                  <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
+                                    {getTypeLabel(item.type)}
+                                  </Badge>
+                                  {item.isUnread && (
+                                    <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {item.description}
+                                </p>
+                                <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </>
       )}
       
       <div className="pt-2 text-center">
@@ -557,6 +960,21 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
           View all activity
         </Button>
       </div>
+
+      {/* Not Interested Dialog */}
+      {notInterestedPost && repProfileId && (
+        <NotInterestedDialog
+          open={!!notInterestedPost}
+          onOpenChange={(open) => !open && setNotInterestedPost(null)}
+          postId={notInterestedPost.id}
+          postTitle={notInterestedPost.title}
+          repProfileId={repProfileId}
+          onConfirmed={() => {
+            setNotInterestedPost(null);
+            loadFeed();
+          }}
+        />
+      )}
     </div>
   );
 }
