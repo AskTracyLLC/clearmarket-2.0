@@ -985,7 +985,8 @@ export default function AdminUsers() {
                           </TableCell>
                         )}
                         {isColumnVisible("actions") && (
-                          <div className="flex items-center justify-end gap-1">
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1071,8 +1072,8 @@ export default function AdminUsers() {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
-                          </div>
-                        </TableCell>
+                            </div>
+                          </TableCell>
                         )}
                       </TableRow>
                     ))
