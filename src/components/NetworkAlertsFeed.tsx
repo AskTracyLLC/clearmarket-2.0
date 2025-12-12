@@ -187,6 +187,52 @@ export function NetworkAlertsFeed({ userId, isVendor, isRep }: Props) {
     }
   };
 
+  const openVendorAlertDetail = async (alert: NetworkAlert) => {
+    if (!alert.ref_id) return;
+    
+    setDetailLoading(true);
+    try {
+      const { data: vendorAlert, error } = await supabase
+        .from("vendor_alerts")
+        .select(`
+          id,
+          alert_type,
+          message,
+          created_at,
+          rep_user_id,
+          route_date,
+          route_state,
+          route_counties,
+          profiles!vendor_alerts_rep_user_id_fkey(full_name)
+        `)
+        .eq("id", alert.ref_id)
+        .single();
+
+      if (error) throw error;
+
+      setDetailVendorAlert({
+        id: vendorAlert.id,
+        alert_type: vendorAlert.alert_type,
+        message: vendorAlert.message,
+        created_at: vendorAlert.created_at,
+        rep_user_id: vendorAlert.rep_user_id,
+        route_date: vendorAlert.route_date,
+        route_state: vendorAlert.route_state,
+        route_counties: vendorAlert.route_counties,
+        rep_name: (vendorAlert.profiles as any)?.full_name || "Field Rep",
+      });
+    } catch (error) {
+      console.error("Failed to load alert details:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load alert details",
+        variant: "destructive",
+      });
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const getAlertTypeLabel = (type: string): string => {
     switch (type) {
       case "time_off_start":
