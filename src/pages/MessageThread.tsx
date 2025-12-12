@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical } from "lucide-react";
+import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
@@ -38,6 +38,13 @@ import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
 import { useBlockStatus } from "@/hooks/useBlockStatus";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { AssignTerritoryDialog } from "@/components/AssignTerritoryDialog";
+import { TerritoryAssignmentBanner } from "@/components/TerritoryAssignmentBanner";
+import { 
+  TerritoryAssignment, 
+  fetchPendingAssignmentForConversation,
+  fetchActiveAssignmentForConversation 
+} from "@/lib/territoryAssignments";
 
 interface Message {
   id: string;
@@ -88,6 +95,9 @@ export default function MessageThread() {
   const [blockReason, setBlockReason] = useState("");
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [alreadyReported, setAlreadyReported] = useState(false);
+  const [showAssignTerritoryDialog, setShowAssignTerritoryDialog] = useState(false);
+  const [pendingAssignment, setPendingAssignment] = useState<TerritoryAssignment | null>(null);
+  const [activeAssignment, setActiveAssignment] = useState<TerritoryAssignment | null>(null);
 
   // Bidirectional block check - used to hide Connect buttons
   const blockStatus = useBlockStatus(otherParticipantId || null);
@@ -109,13 +119,20 @@ export default function MessageThread() {
   }, [user, authLoading, conversationId, navigate]);
 
   useEffect(() => {
-    // Load agreement, block status, and report status when we have user and other participant
+    // Load agreement, block status, report status, and territory assignments when we have user and other participant
     if (user && otherParticipantId) {
       loadAgreement();
       checkBlockStatus();
       checkReportStatus();
     }
   }, [user, otherParticipantId, conversationId]);
+
+  useEffect(() => {
+    // Load territory assignments when conversation data is available
+    if (conversationId && conversationData?.origin_type === "seeking_coverage") {
+      loadTerritoryAssignments();
+    }
+  }, [conversationId, conversationData]);
 
   async function checkBlockStatus() {
     if (!otherParticipantId) return;
@@ -396,6 +413,16 @@ export default function MessageThread() {
     } catch (error) {
       console.error("Error loading agreement:", error);
     }
+  }
+
+  async function loadTerritoryAssignments() {
+    if (!conversationId) return;
+
+    const pending = await fetchPendingAssignmentForConversation(conversationId);
+    setPendingAssignment(pending);
+
+    const active = await fetchActiveAssignmentForConversation(conversationId);
+    setActiveAssignment(active);
   }
 
   async function loadVendorConnection(otherId: string, userIsVendor: boolean, userIsRep: boolean) {
@@ -706,6 +733,21 @@ export default function MessageThread() {
           </Alert>
         )}
 
+        {/* Territory Assignment Banner for Reps */}
+        {isRep && pendingAssignment && user && (
+          <div className="mb-4">
+            <TerritoryAssignmentBanner
+              assignment={pendingAssignment}
+              repUserId={user.id}
+              onUpdate={() => {
+                loadTerritoryAssignments();
+                loadAgreement();
+                loadMessages();
+              }}
+            />
+          </div>
+        )}
+
         {/* Seeking Coverage Context Header */}
         {conversationData?.origin_type === "seeking_coverage" && conversationData?.seeking_post && (
           <Card className="mb-4 bg-secondary/20 border-secondary/30">
@@ -726,7 +768,7 @@ export default function MessageThread() {
                   <Badge variant="outline" className="ml-2">{conversationData.seeking_post.state_code}</Badge>
                 )}
               </div>
-              {(conversationData.seeking_post.pay_min || conversationData.seeking_post.pay_max) && (
+              {isVendor && (conversationData.seeking_post.pay_min || conversationData.seeking_post.pay_max) && (
                 <div className="text-sm text-muted-foreground">
                   Pay: {conversationData.seeking_post.pay_type === "fixed" 
                     ? `$${conversationData.seeking_post.pay_min} / order`
@@ -738,27 +780,68 @@ export default function MessageThread() {
                 <div className="text-xs text-muted-foreground">{conversationData.seeking_post.pay_notes}</div>
               )}
               
-              {/* Connection Status */}
-              {vendorConnection && (
-                <div className="flex items-center gap-2 pt-2 border-t border-border mt-2">
-                  {vendorConnection.status === "connected" && (
-                    <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Connected
-                    </Badge>
-                  )}
-                  {vendorConnection.status === "pending" && (
-                    <Badge variant="outline">
-                      Pending connection
-                    </Badge>
-                  )}
-                  {agreement && (
-                    <Badge variant="outline" className="text-xs">
-                      Agreement on file
-                    </Badge>
-                  )}
-                </div>
-              )}
+              {/* Connection and Assignment Status */}
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border mt-2">
+                {vendorConnection?.status === "connected" && (
+                  <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                )}
+                {vendorConnection?.status === "pending" && (
+                  <Badge variant="outline">
+                    Pending connection
+                  </Badge>
+                )}
+                
+                {/* Territory Assignment Status */}
+                {pendingAssignment && (
+                  <Badge variant="outline" className="text-amber-500 border-amber-500/30">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Agreement pending
+                  </Badge>
+                )}
+                {activeAssignment && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-xs">
+                          Agreement on file
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Active since {format(parseISO(activeAssignment.effective_date), "MMM d, yyyy")}</p>
+                        <p>${activeAssignment.agreed_rate}/order</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                {!activeAssignment && !pendingAssignment && agreement && (
+                  <Badge variant="outline" className="text-xs">
+                    Agreement on file
+                  </Badge>
+                )}
+                
+                {/* Assign Territory Button - Vendor only */}
+                {isVendor && vendorConnection?.status === "connected" && !pendingAssignment && !activeAssignment && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowAssignTerritoryDialog(true)}
+                    className="ml-auto"
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-1" />
+                    Assign this area to rep
+                  </Button>
+                )}
+                
+                {/* Show active assignment date for vendor */}
+                {isVendor && activeAssignment && (
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    Active since {format(parseISO(activeAssignment.effective_date), "MMM d, yyyy")}
+                  </span>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -888,6 +971,33 @@ export default function MessageThread() {
         onSave={handleCreateAgreement}
         saving={creatingAgreement}
       />
+
+      {/* Assign Territory Dialog */}
+      {conversationData?.seeking_post && user && (
+        <AssignTerritoryDialog
+          open={showAssignTerritoryDialog}
+          onOpenChange={setShowAssignTerritoryDialog}
+          vendorId={user.id}
+          repId={otherParticipantId}
+          repName={otherParticipantName}
+          conversationId={conversationId || ""}
+          seekingCoveragePost={{
+            id: conversationData.seeking_post.id,
+            title: conversationData.seeking_post.title,
+            state_code: conversationData.seeking_post.state_code,
+            county_id: conversationData.seeking_post.county_id,
+            county_name: conversationData.seeking_post.us_counties?.county_name,
+            inspection_types: conversationData.seeking_post.inspection_types,
+            systems_required_array: conversationData.seeking_post.systems_required_array,
+            pay_max: conversationData.seeking_post.pay_max,
+            pay_min: conversationData.seeking_post.pay_min,
+          }}
+          onSuccess={() => {
+            loadTerritoryAssignments();
+            loadMessages();
+          }}
+        />
+      )}
     </AuthenticatedLayout>
   );
 }

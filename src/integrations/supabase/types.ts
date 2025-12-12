@@ -1797,6 +1797,7 @@ export type Database = {
         Row: {
           allow_willing_to_obtain_background_check: boolean | null
           auto_expires_at: string | null
+          closed_reason: string | null
           county_fips: string | null
           county_id: string | null
           covers_entire_state: boolean
@@ -1804,6 +1805,8 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           expires_at: string | null
+          filled_by_rep_id: string | null
+          has_pending_assignment: boolean | null
           id: string
           inspection_type: string | null
           inspection_type_ids: string[] | null
@@ -1827,6 +1830,7 @@ export type Database = {
         Insert: {
           allow_willing_to_obtain_background_check?: boolean | null
           auto_expires_at?: string | null
+          closed_reason?: string | null
           county_fips?: string | null
           county_id?: string | null
           covers_entire_state?: boolean
@@ -1834,6 +1838,8 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
+          filled_by_rep_id?: string | null
+          has_pending_assignment?: boolean | null
           id?: string
           inspection_type?: string | null
           inspection_type_ids?: string[] | null
@@ -1857,6 +1863,7 @@ export type Database = {
         Update: {
           allow_willing_to_obtain_background_check?: boolean | null
           auto_expires_at?: string | null
+          closed_reason?: string | null
           county_fips?: string | null
           county_id?: string | null
           covers_entire_state?: boolean
@@ -1864,6 +1871,8 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           expires_at?: string | null
+          filled_by_rep_id?: string | null
+          has_pending_assignment?: boolean | null
           id?: string
           inspection_type?: string | null
           inspection_type_ids?: string[] | null
@@ -1890,6 +1899,13 @@ export type Database = {
             columns: ["county_id"]
             isOneToOne: false
             referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeking_coverage_posts_filled_by_rep_id_fkey"
+            columns: ["filled_by_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -2076,6 +2092,134 @@ export type Database = {
           {
             foreignKeyName: "support_tickets_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      territory_assignments: {
+        Row: {
+          agreed_rate: number
+          conversation_id: string | null
+          county_id: string | null
+          county_name: string | null
+          created_at: string
+          created_by: string
+          decline_reason: string | null
+          effective_date: string
+          id: string
+          inspection_types: string[] | null
+          notes: string | null
+          rep_confirmed_at: string | null
+          rep_confirmed_by: string | null
+          rep_id: string
+          seeking_coverage_post_id: string | null
+          source: string
+          state_code: string
+          state_name: string
+          status: string
+          systems_required: string[] | null
+          updated_at: string
+          vendor_confirmed_at: string | null
+          vendor_id: string
+        }
+        Insert: {
+          agreed_rate: number
+          conversation_id?: string | null
+          county_id?: string | null
+          county_name?: string | null
+          created_at?: string
+          created_by: string
+          decline_reason?: string | null
+          effective_date?: string
+          id?: string
+          inspection_types?: string[] | null
+          notes?: string | null
+          rep_confirmed_at?: string | null
+          rep_confirmed_by?: string | null
+          rep_id: string
+          seeking_coverage_post_id?: string | null
+          source?: string
+          state_code: string
+          state_name: string
+          status?: string
+          systems_required?: string[] | null
+          updated_at?: string
+          vendor_confirmed_at?: string | null
+          vendor_id: string
+        }
+        Update: {
+          agreed_rate?: number
+          conversation_id?: string | null
+          county_id?: string | null
+          county_name?: string | null
+          created_at?: string
+          created_by?: string
+          decline_reason?: string | null
+          effective_date?: string
+          id?: string
+          inspection_types?: string[] | null
+          notes?: string | null
+          rep_confirmed_at?: string | null
+          rep_confirmed_by?: string | null
+          rep_id?: string
+          seeking_coverage_post_id?: string | null
+          source?: string
+          state_code?: string
+          state_name?: string
+          status?: string
+          systems_required?: string[] | null
+          updated_at?: string
+          vendor_confirmed_at?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "territory_assignments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_rep_confirmed_by_fkey"
+            columns: ["rep_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_seeking_coverage_post_id_fkey"
+            columns: ["seeking_coverage_post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
