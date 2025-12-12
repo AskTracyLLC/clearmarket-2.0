@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Users, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import RepConnectionCard from "@/components/RepConnectionCard";
 import { getOrCreateConversation } from "@/lib/conversations";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -29,8 +27,8 @@ import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
-
-
+import { MyRepsTable } from "@/components/MyRepsTable";
+import { ConnectionNotesModal } from "@/components/ConnectionNotesModal";
 
 interface ConnectedRep {
   repUserId: string;
@@ -57,17 +55,13 @@ interface ConnectedRep {
     created_at: string;
   }>;
   review?: Review | null;
-  // Agreement data (optional overlay)
   agreementId?: string | null;
   coverageSummary?: string | null;
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
-  
-  // Trust Score
   trustScore?: number | null;
   trustScoreCount?: number;
-  // Community Score
   communityScore?: number;
 }
 
@@ -81,7 +75,6 @@ const VendorMyReps = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
-  const [hasNotesByRep, setHasNotesByRep] = useState<Record<string, boolean>>({});
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editedNoteText, setEditedNoteText] = useState<string>("");
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
@@ -101,9 +94,12 @@ const VendorMyReps = () => {
     isExitReview: boolean;
     existingReview?: Review | null;
   } | null>(null);
-  const [stateFilter, setStateFilter] = useState<string>("all");
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
   const [reviewsDialogUserId, setReviewsDialogUserId] = useState<string | null>(null);
+  
+  // Notes modal state
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesModalRep, setNotesModalRep] = useState<ConnectedRep | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -144,7 +140,6 @@ const VendorMyReps = () => {
     if (!user) return;
 
     try {
-      // Query vendor_connections as primary source
       const { data: connections, error } = await supabase
         .from("vendor_connections")
         .select("id, vendor_id, field_rep_id, requested_at")
@@ -167,10 +162,8 @@ const VendorMyReps = () => {
         return;
       }
 
-      // Get field rep IDs
       const repUserIds = connections.map(c => c.field_rep_id);
 
-      // LEFT JOIN vendor_rep_agreements
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
         .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
@@ -178,13 +171,11 @@ const VendorMyReps = () => {
         .eq("status", "active")
         .in("field_rep_id", repUserIds);
 
-      // Build agreement map
       const agreementMap = new Map();
       (agreements || []).forEach(a => {
         agreementMap.set(a.field_rep_id, a);
       });
 
-      // Fetch rep profiles
       const { data: repProfiles } = await supabase
         .from("rep_profile")
         .select(`
@@ -201,7 +192,6 @@ const VendorMyReps = () => {
         `)
         .in("user_id", repUserIds);
 
-      // Build reps array
       const repsArray: ConnectedRep[] = [];
 
       for (const connection of connections) {
@@ -229,17 +219,15 @@ const VendorMyReps = () => {
           willingToTravelOutOfState: repProfile.willing_to_travel_out_of_state ?? false,
           connectedAt: agreement?.created_at || connection.requested_at,
           connectedPosts: [],
-          // Agreement data (optional)
           agreementId: agreement?.id || null,
           coverageSummary: agreement?.coverage_summary || null,
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
           statesCovered: agreement?.states_covered || null,
-          
         });
       }
 
-      // For each rep, check if conversation exists
+      // Fetch conversations
       for (const rep of repsArray) {
         const [p1, p2] = [user.id, rep.repUserId].sort();
         const { data: conv } = await supabase
@@ -266,19 +254,15 @@ const VendorMyReps = () => {
 
         if (!notesError && notesData) {
           const notesByRep: Record<string, any[]> = {};
-          const hasNotesMap: Record<string, boolean> = {};
           
           for (const n of notesData) {
             if (!notesByRep[n.rep_id]) notesByRep[n.rep_id] = [];
             notesByRep[n.rep_id].push(n);
-            hasNotesMap[n.rep_id] = true;
           }
 
           repsArray.forEach(rep => {
             rep.notes = notesByRep[rep.repUserId] || [];
           });
-          
-          setHasNotesByRep(hasNotesMap);
         }
 
         // Fetch reviews for all reps
@@ -293,7 +277,6 @@ const VendorMyReps = () => {
         if (reviewsData) {
           const reviewsByRep: Record<string, Review> = {};
           for (const review of reviewsData) {
-            // Keep only the most recent review per rep
             if (!reviewsByRep[review.reviewee_id]) {
               reviewsByRep[review.reviewee_id] = review as Review;
             }
@@ -357,7 +340,6 @@ const VendorMyReps = () => {
       return;
     }
 
-    // Create conversation
     const result = await getOrCreateConversation(user!.id, repUserId);
     if (result.error) {
       toast({
@@ -371,15 +353,21 @@ const VendorMyReps = () => {
     navigate(`/messages/${result.id}`);
   };
 
-  const handleAddNote = async (repUserId: string) => {
-    const text = noteDrafts[repUserId]?.trim();
+  const handleOpenNotes = (rep: ConnectedRep) => {
+    setNotesModalRep(rep);
+    setShowNotesModal(true);
+  };
+
+  const handleAddNote = async () => {
+    if (!notesModalRep) return;
+    const text = noteDrafts[notesModalRep.repUserId]?.trim();
     if (!text) return;
 
     const { data, error } = await supabase
       .from("connection_notes")
       .insert([{
         vendor_id: user!.id,
-        rep_id: repUserId,
+        rep_id: notesModalRep.repUserId,
         author_id: user!.id,
         side: "vendor",
         note: text,
@@ -392,10 +380,10 @@ const VendorMyReps = () => {
       return;
     }
 
-    // Optimistically update local state
+    // Update local state
     setConnectedReps(prev =>
       prev.map(r =>
-        r.repUserId === repUserId
+        r.repUserId === notesModalRep.repUserId
           ? {
               ...r,
               notes: [{ id: data.id, note: data.note, created_at: data.created_at }, ...(r.notes || [])],
@@ -403,8 +391,14 @@ const VendorMyReps = () => {
           : r
       )
     );
-    setNoteDrafts(prev => ({ ...prev, [repUserId]: "" }));
-    setHasNotesByRep(prev => ({ ...prev, [repUserId]: true }));
+    
+    // Also update the modal rep
+    setNotesModalRep(prev => prev ? {
+      ...prev,
+      notes: [{ id: data.id, note: data.note, created_at: data.created_at }, ...(prev.notes || [])],
+    } : null);
+    
+    setNoteDrafts(prev => ({ ...prev, [notesModalRep.repUserId]: "" }));
     toast({ title: "Note Added", description: "Your note has been saved." });
   };
 
@@ -418,7 +412,8 @@ const VendorMyReps = () => {
     setEditedNoteText("");
   };
 
-  const handleSaveEditedNote = async (noteId: string, repUserId: string) => {
+  const handleSaveEditedNote = async (noteId: string) => {
+    if (!notesModalRep) return;
     const text = editedNoteText.trim();
     if (!text) return;
 
@@ -435,7 +430,7 @@ const VendorMyReps = () => {
     // Update local state
     setConnectedReps(prev =>
       prev.map(r =>
-        r.repUserId === repUserId
+        r.repUserId === notesModalRep.repUserId
           ? {
               ...r,
               notes: r.notes?.map(n => n.id === noteId ? { ...n, note: text } : n),
@@ -443,6 +438,13 @@ const VendorMyReps = () => {
           : r
       )
     );
+    
+    // Also update the modal rep
+    setNotesModalRep(prev => prev ? {
+      ...prev,
+      notes: prev.notes?.map(n => n.id === noteId ? { ...n, note: text } : n),
+    } : null);
+    
     setEditingNoteId(null);
     setEditedNoteText("");
     toast({ title: "Note Updated", description: "Your note has been updated." });
@@ -458,10 +460,8 @@ const VendorMyReps = () => {
 
     setDisconnecting(true);
     try {
-      // Find the rep being disconnected
       const disconnectingRep = connectedReps.find(r => r.repUserId === disconnectingRepUserId);
 
-      // Update vendor_connections status to 'ended'
       const { error: connError } = await supabase
         .from("vendor_connections")
         .update({ status: "ended" })
@@ -470,7 +470,6 @@ const VendorMyReps = () => {
 
       if (connError) throw connError;
 
-      // If agreement exists, update its status to 'ended'
       if (disconnectingRep?.agreementId) {
         const { error: agreementError } = await supabase
           .from("vendor_rep_agreements")
@@ -480,7 +479,6 @@ const VendorMyReps = () => {
         if (agreementError) throw agreementError;
       }
 
-      // Remove from list
       setConnectedReps(prev => prev.filter(r => r.repUserId !== disconnectingRepUserId));
 
       setShowDisconnectDialog(false);
@@ -490,11 +488,9 @@ const VendorMyReps = () => {
         description: "This Field Rep has been removed from your active list.",
       });
 
-      // Show exit review dialog
       setExitReviewRepUserId(disconnectingRepUserId);
       setShowExitReviewDialog(true);
 
-      // Store data for potential repost dialog
       if (disconnectingRep) {
         setRepostData({
           coverageSummary: disconnectingRep.coverageSummary,
@@ -516,7 +512,6 @@ const VendorMyReps = () => {
   };
 
   const handleExitReviewComplete = () => {
-    // After exit review, show repost dialog
     setShowExitReviewDialog(false);
     if (repostData) {
       setShowRepostDialog(true);
@@ -534,33 +529,9 @@ const VendorMyReps = () => {
   };
 
   function handleReviewSaved() {
-    // Reload reps to get updated review
     loadConnectedReps();
     setReviewDialogData(null);
   }
-
-  // Extract unique states from all agreements for filter
-  const availableStates = React.useMemo(() => {
-    const statesSet = new Set<string>();
-    connectedReps.forEach(rep => {
-      if (rep.statesCovered && rep.statesCovered.length > 0) {
-        rep.statesCovered.forEach(state => statesSet.add(state));
-      }
-    });
-    return Array.from(statesSet).sort();
-  }, [connectedReps]);
-
-  // Filter reps by selected state
-  const filteredReps = React.useMemo(() => {
-    if (stateFilter === "all") {
-      return connectedReps;
-    }
-    return connectedReps.filter(rep => 
-      rep.statesCovered && rep.statesCovered.includes(stateFilter)
-    );
-  }, [connectedReps, stateFilter]);
-
-  // handleSaveAgreement removed - using new working terms flow
 
   if (loading || authLoading) {
     return (
@@ -574,7 +545,7 @@ const VendorMyReps = () => {
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-6 md:py-8 max-w-6xl">
         {profile?.is_admin && <AdminViewBanner />}
         
         {/* Header */}
@@ -618,66 +589,46 @@ const VendorMyReps = () => {
           </Card>
         ) : (
           <>
-            {/* State Filter */}
-            {availableStates.length > 0 && (
-              <div className="mb-4 flex items-center gap-2 flex-wrap">
-                <label className="text-sm font-medium">Filter by state:</label>
-                <select
-                  value={stateFilter}
-                  onChange={(e) => setStateFilter(e.target.value)}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value="all">All States</option>
-                  {availableStates.map(state => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4">
-              Active Agreements ({filteredReps.length})
+              Active Agreements ({connectedReps.length})
             </h2>
 
-            {filteredReps.length === 0 && stateFilter !== "all" ? (
-              <Card className="p-8 text-center">
-                <p className="text-muted-foreground">
-                  No field reps found covering {stateFilter}.
-                </p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {filteredReps.map((rep) => (
-                  <RepConnectionCard
-                    key={rep.repUserId}
-                    rep={rep}
-                    vendorId={user!.id}
-                    hasNotes={hasNotesByRep[rep.repUserId] || false}
-                    noteDraft={noteDrafts[rep.repUserId] || ""}
-                    onNoteDraftChange={(value) => setNoteDrafts(prev => ({ ...prev, [rep.repUserId]: value }))}
-                    onAddNote={() => handleAddNote(rep.repUserId)}
-                    editingNoteId={editingNoteId}
-                    editedNoteText={editedNoteText}
-                    onEditNote={handleEditNote}
-                    onCancelEdit={handleCancelEdit}
-                    onSaveEditedNote={(noteId) => handleSaveEditedNote(noteId, rep.repUserId)}
-                    onEditedNoteTextChange={setEditedNoteText}
-                    onViewProfile={() => handleViewProfile(rep.repUserId)}
-                    onReviewRep={() => handleReviewRep(rep)}
-                    onViewMessages={() => handleMessage(rep.repUserId, rep.conversationId)}
-                    onDisconnect={() => handleDisconnectClick(rep.repUserId)}
-                    onViewTrustScore={() => {
-                      setReviewsDialogUserId(rep.repUserId);
-                      setShowReviewsDialog(true);
-                    }}
-                    onWorkingTermsSaved={loadConnectedReps}
-                  />
-                ))}
-              </div>
-            )}
+            <MyRepsTable
+              reps={connectedReps}
+              vendorId={user!.id}
+              onViewProfile={handleViewProfile}
+              onViewMessages={handleMessage}
+              onReviewRep={handleReviewRep}
+              onDisconnect={handleDisconnectClick}
+              onViewTrustScore={(repUserId) => {
+                setReviewsDialogUserId(repUserId);
+                setShowReviewsDialog(true);
+              }}
+              onOpenNotes={handleOpenNotes}
+              onWorkingTermsSaved={loadConnectedReps}
+            />
           </>
         )}
       </div>
+
+      {/* Notes Modal */}
+      {notesModalRep && (
+        <ConnectionNotesModal
+          open={showNotesModal}
+          onOpenChange={setShowNotesModal}
+          repName={notesModalRep.anonymousId}
+          notes={notesModalRep.notes || []}
+          noteDraft={noteDrafts[notesModalRep.repUserId] || ""}
+          onNoteDraftChange={(value) => setNoteDrafts(prev => ({ ...prev, [notesModalRep.repUserId]: value }))}
+          onAddNote={handleAddNote}
+          editingNoteId={editingNoteId}
+          editedNoteText={editedNoteText}
+          onEditNote={handleEditNote}
+          onCancelEdit={handleCancelEdit}
+          onSaveEditedNote={handleSaveEditedNote}
+          onEditedNoteTextChange={setEditedNoteText}
+        />
+      )}
 
       {selectedRepUserId && (
         <PublicProfileDialog
@@ -729,8 +680,6 @@ const VendorMyReps = () => {
           />
         </>
       )}
-
-      {/* CreateAgreementDialog removed - using new working terms flow */}
 
       <ReviewsDetailDialog
         open={showReviewsDialog}
