@@ -132,22 +132,25 @@ export function PlannedRouteConfirmBanner({
           <MapPin className="h-4 w-4 text-primary" />
           <AlertDescription>
             <div className="flex flex-col gap-3">
-              <div>
-                <p className="font-medium text-foreground mb-1">
-                  Planned route today
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  You told us you'd be working in{" "}
-                  <span className="font-medium text-foreground">
-                    {route.route_counties.join(", ")}
-                  </span>
-                  {", "}
-                  <span className="font-medium text-foreground">
-                    {route.route_state}
-                  </span>{" "}
-                  today. Do you still want to send this update to your vendors?
-                </p>
-              </div>
+            <div>
+              <p className="font-medium text-foreground mb-1">
+                Planned route today
+              </p>
+              <p className="text-sm text-primary font-medium mb-1">
+                Scheduled for {format(parseISO(route.route_date), "MMMM do, yyyy")}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You told us you'd be working in{" "}
+                <span className="font-medium text-foreground">
+                  {route.route_counties.join(", ")}
+                </span>
+                {", "}
+                <span className="font-medium text-foreground">
+                  {route.route_state}
+                </span>{" "}
+                today. Do you still want to send this update to your vendors?
+              </p>
+            </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
