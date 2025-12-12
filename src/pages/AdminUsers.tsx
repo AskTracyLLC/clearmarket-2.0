@@ -732,20 +732,11 @@ export default function AdminUsers() {
                       onClick={() => handleSort("anonymous_id")}
                     >
                       <div className="flex items-center">
-                        Anonymous ID
+                        Anon ID
                         <SortIcon column="anonymous_id" />
                       </div>
                     </TableHead>
                     <TableHead>Roles</TableHead>
-                    <TableHead
-                      className="cursor-pointer hover:bg-muted/50 select-none"
-                      onClick={() => handleSort("status")}
-                    >
-                      <div className="flex items-center">
-                        Status
-                        <SortIcon column="status" />
-                      </div>
-                    </TableHead>
                     <TableHead
                       className="cursor-pointer hover:bg-muted/50 select-none"
                       onClick={() => handleSort("profile")}
@@ -760,7 +751,7 @@ export default function AdminUsers() {
                       onClick={() => handleSort("last_active")}
                     >
                       <div className="flex items-center">
-                        Last Active
+                        Last active
                         <SortIcon column="last_active" />
                       </div>
                     </TableHead>
@@ -787,7 +778,7 @@ export default function AdminUsers() {
                       onClick={() => handleSort("trust_score")}
                     >
                       <div className="flex items-center justify-center">
-                        Trust Score
+                        Trust
                         <SortIcon column="trust_score" />
                       </div>
                     </TableHead>
@@ -797,7 +788,7 @@ export default function AdminUsers() {
                 <TableBody>
                   {filteredUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="h-48">
+                      <TableCell colSpan={9} className="h-48">
                         <div className="flex flex-col items-center justify-center text-center py-8">
                           {users.length === 0 ? (
                             <>
@@ -833,9 +824,19 @@ export default function AdminUsers() {
                     filteredUsers.map((userProfile) => (
                       <TableRow key={userProfile.id}>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{userProfile.full_name || "—"}</p>
-                            <p className="text-sm text-muted-foreground">{userProfile.email}</p>
+                          <div className="flex items-start gap-2">
+                            <span
+                              className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                                userProfile.account_status === "active"
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                              title={userProfile.account_status === "active" ? "Active" : userProfile.account_status}
+                            />
+                            <div>
+                              <p className="font-medium">{userProfile.full_name || "—"}</p>
+                              <p className="text-sm text-muted-foreground">{userProfile.email}</p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-sm">
@@ -854,7 +855,6 @@ export default function AdminUsers() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{getStatusBadge(userProfile.account_status)}</TableCell>
                         <TableCell>
                           {(userProfile.is_fieldrep || userProfile.is_vendor_admin) ? (
                             <div className="flex items-center gap-2">
