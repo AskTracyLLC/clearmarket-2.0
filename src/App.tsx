@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
+import { MimicProvider } from "@/hooks/useMimic";
 import Index from "./pages/Index";
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
@@ -85,10 +86,11 @@ const App = () => (
       enableSystem
     >
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+        <MimicProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/signup" element={<SignUp />} />
@@ -160,8 +162,9 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+            </BrowserRouter>
+          </TooltipProvider>
+        </MimicProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

@@ -30,14 +30,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MimicBanner } from "@/components/MimicBanner";
+import { useMimic } from "@/hooks/useMimic";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const mimicUserId = searchParams.get("mimic");
+  const mimicUserIdFromUrl = searchParams.get("mimic");
   const { user, loading: authLoading } = useAuth();
   const { effectiveRole, isHybrid, isRep: hasRepRole, isVendor: hasVendorRole, loading: roleLoading } = useActiveRole();
   const { toast } = useToast();
+  const { mimickedUser, startMimic, isLoading: mimicLoading } = useMimic();
   
   // Auto-update last_seen_at heartbeat
   useLastSeenHeartbeat();
@@ -76,26 +78,35 @@ const Dashboard = () => {
     activeAgreementsCount: number;
   }>({ statesCount: 0, countiesCount: 0, activeAgreementsCount: 0 });
   
-  // Mimic mode state
-  const [mimickedUser, setMimickedUser] = useState<{
-    id: string;
-    full_name: string | null;
-    email: string;
-    is_fieldrep: boolean;
-    is_vendor_admin: boolean;
-  } | null>(null);
   const [isAdminUser, setIsAdminUser] = useState(false);
 
+  // When URL has mimic param and user is admin, start mimic session
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/signin");
       return;
     }
 
-    if (user) {
+    if (user && mimicUserIdFromUrl && !mimickedUser) {
+      // Check if user is admin and start mimic
+      supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.is_admin) {
+            startMimic(mimicUserIdFromUrl);
+          }
+        });
+    }
+  }, [user, authLoading, mimicUserIdFromUrl]);
+
+  useEffect(() => {
+    if (!authLoading && user) {
       loadProfile();
     }
-  }, [user, authLoading, navigate, mimicUserId]);
+  }, [user, authLoading, mimickedUser, mimicLoading]);
 
   const loadProfile = async () => {
     if (!user) return;
@@ -116,36 +127,27 @@ const Dashboard = () => {
     const currentUserIsAdmin = currentUserData?.is_admin === true;
     setIsAdminUser(currentUserIsAdmin);
     
-    // If mimic mode is active and user is admin, load the mimicked user's data
-    if (mimicUserId && currentUserIsAdmin) {
-      const { data: mimicData, error: mimicError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', mimicUserId)
-        .single();
-      
-      if (mimicError || !mimicData) {
-        console.error('Error loading mimicked user:', mimicError);
-        toast({
-          title: "Error",
-          description: "Could not load user to mimic",
-          variant: "destructive",
-        });
-        navigate("/admin/users");
-        return;
-      }
-      
-      setMimickedUser({
-        id: mimicData.id,
-        full_name: mimicData.full_name,
-        email: mimicData.email,
-        is_fieldrep: mimicData.is_fieldrep,
-        is_vendor_admin: mimicData.is_vendor_admin,
+    // If mimic mode is active (from context), use mimicked user's data
+    if (mimickedUser) {
+      // Use mimicked user's profile data for dashboard display
+      setProfile({
+        ...currentUserData,
+        is_fieldrep: mimickedUser.is_fieldrep,
+        is_vendor_admin: mimickedUser.is_vendor_admin,
+        full_name: mimickedUser.full_name,
+        email: mimickedUser.email,
       });
       
-      // Use mimicked user's profile data for dashboard display
-      setProfile(mimicData);
-      await loadUserDashboardData(mimicData);
+      // Load the full mimicked user profile for dashboard data
+      const { data: mimicProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', mimickedUser.id)
+        .single();
+      
+      if (mimicProfile) {
+        await loadUserDashboardData(mimicProfile);
+      }
     } else {
       // Normal flow - load current user's dashboard
       setProfile(currentUserData);
@@ -477,14 +479,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Mimic Mode Banner */}
-      {mimickedUser && (
-        <MimicBanner 
-          mimickedUserName={mimickedUser.full_name || ""}
-          mimickedUserEmail={mimickedUser.email}
-          mimickedUserId={mimickedUser.id}
-        />
-      )}
+      {/* Mimic Mode Banner - from context, no props needed */}
+      <MimicBanner />
       
       <AuthenticatedNav 
         isAdmin={profile?.is_admin}
