@@ -4,6 +4,8 @@ import { getReviewSettings } from "./reviewSettings";
 /**
  * Fetch Trust Scores for multiple users
  * Excludes reviews marked as feedback (is_feedback = true)
+ * Excludes reviews with status = 'coaching'
+ * Only includes reviews with workflow_status = 'accepted'
  * @param userIds Array of user IDs to fetch scores for
  * @returns Map of userId to { average, count }
  */
@@ -22,13 +24,15 @@ export async function fetchTrustScoresForUsers(
       exclude_from_trust_score,
       is_hidden,
       is_feedback,
-      status
+      status,
+      workflow_status
     `)
     .in("reviewee_id", userIds)
     .eq("exclude_from_trust_score", false)
     .eq("is_hidden", false)
     .eq("is_feedback", false) // Exclude feedback reviews from scoring
-    .neq("status", "coaching"); // Exclude coaching reviews from scoring
+    .neq("status", "coaching") // Exclude coaching reviews from scoring
+    .eq("workflow_status", "accepted"); // Only include accepted reviews
 
   if (error) {
     console.error("Error fetching trust scores", error);
@@ -233,4 +237,135 @@ export async function markReviewAsFeedback(
   }
 
   return { success: true };
+}
+
+/**
+ * Accept a review - it will now count toward Trust Score
+ */
+export async function acceptReview(
+  reviewId: string,
+  revieweeId: string,
+  spotlight: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("reviews")
+    .update({
+      workflow_status: "accepted",
+      accepted_at: new Date().toISOString(),
+      is_spotlighted: spotlight,
+    })
+    .eq("id", reviewId)
+    .eq("reviewee_id", revieweeId)
+    .eq("workflow_status", "pending");
+
+  if (error) {
+    console.error("Error accepting review:", error);
+    return { success: false, error: "Failed to accept review" };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Dispute a review - it will be flagged for admin review
+ */
+export async function disputeReview(
+  reviewId: string,
+  revieweeId: string,
+  reason: string,
+  note: string
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from("reviews")
+    .update({
+      workflow_status: "disputed",
+      disputed_at: new Date().toISOString(),
+      dispute_reason: reason,
+      dispute_note: note,
+    })
+    .eq("id", reviewId)
+    .eq("reviewee_id", revieweeId)
+    .eq("workflow_status", "pending");
+
+  if (error) {
+    console.error("Error disputing review:", error);
+    return { success: false, error: "Failed to dispute review" };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Toggle spotlight status on an accepted review
+ */
+export async function toggleReviewSpotlight(
+  reviewId: string,
+  revieweeId: string
+): Promise<{ success: boolean; isSpotlighted?: boolean; error?: string }> {
+  // First get current spotlight status
+  const { data: review, error: fetchError } = await supabase
+    .from("reviews")
+    .select("is_spotlighted")
+    .eq("id", reviewId)
+    .eq("reviewee_id", revieweeId)
+    .eq("workflow_status", "accepted")
+    .single();
+
+  if (fetchError || !review) {
+    return { success: false, error: "Review not found or not accepted" };
+  }
+
+  const newSpotlight = !review.is_spotlighted;
+
+  const { error } = await supabase
+    .from("reviews")
+    .update({ is_spotlighted: newSpotlight })
+    .eq("id", reviewId)
+    .eq("reviewee_id", revieweeId);
+
+  if (error) {
+    console.error("Error toggling spotlight:", error);
+    return { success: false, error: "Failed to update spotlight" };
+  }
+
+  return { success: true, isSpotlighted: newSpotlight };
+}
+
+/**
+ * Get review counts by workflow status for a user
+ */
+export async function getReviewWorkflowCounts(
+  revieweeId: string
+): Promise<{ pending: number; accepted: number; disputed: number; coaching: number }> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("workflow_status, status")
+    .eq("reviewee_id", revieweeId)
+    .eq("direction", "vendor_to_rep");
+
+  if (error) {
+    console.error("Error fetching review counts:", error);
+    return { pending: 0, accepted: 0, disputed: 0, coaching: 0 };
+  }
+
+  const counts = {
+    pending: 0,
+    accepted: 0,
+    disputed: 0,
+    coaching: 0,
+  };
+
+  for (const review of data || []) {
+    if (review.status === "coaching") {
+      counts.coaching++;
+    } else if (review.workflow_status === "pending") {
+      counts.pending++;
+    } else if (review.workflow_status === "accepted") {
+      counts.accepted++;
+    } else if (review.workflow_status === "disputed") {
+      counts.disputed++;
+    }
+  }
+
+  return counts;
 }
