@@ -26,6 +26,11 @@ interface VendorAlert {
   created_at: string;
   affected_start_date: string | null;
   affected_end_date: string | null;
+  is_scheduled: boolean;
+  scheduled_status: string | null;
+  route_date: string | null;
+  route_state: string | null;
+  route_counties: string[] | null;
 }
 
 export default function RepCalendar() {
@@ -100,7 +105,7 @@ export default function RepCalendar() {
       // Load vendor alerts sent by this rep
       const { data: alerts, error: alertsError } = await supabase
         .from("vendor_alerts")
-        .select("id, alert_type, message, created_at, affected_start_date, affected_end_date")
+        .select("id, alert_type, message, created_at, affected_start_date, affected_end_date, is_scheduled, scheduled_status, route_date, route_state, route_counties")
         .eq("rep_user_id", user.id);
 
       if (alertsError) throw alertsError;
@@ -139,6 +144,23 @@ export default function RepCalendar() {
 
     // Add alerts
     vendorAlerts.forEach((alert) => {
+      // Skip canceled routes
+      if (alert.scheduled_status === "canceled") return;
+      
+      // For planned routes, use route_date
+      if (alert.alert_type === "planned_route" && alert.route_date) {
+        const routeLabel = alert.route_counties?.length
+          ? `Route: ${alert.route_state} – ${alert.route_counties.slice(0, 2).join(", ")}${alert.route_counties.length > 2 ? "..." : ""}`
+          : `Route: ${alert.route_state}`;
+        events.push({
+          id: alert.id,
+          date: alert.route_date,
+          type: "planned_route" as any,
+          label: routeLabel,
+        });
+        return;
+      }
+      
       const alertDate = alert.affected_start_date || alert.created_at.split("T")[0];
       if (alertDate) {
         events.push({
@@ -232,8 +254,19 @@ export default function RepCalendar() {
                       {event.type === "time_off" && "Time Off"}
                       {event.type === "alert" && "Alert"}
                       {event.type === "office_closed" && "Office Closed"}
+                      {event.type === "planned_route" && "Planned Route"}
                     </Badge>
                     <span className="text-sm text-foreground">{event.label}</span>
+                    {event.type === "planned_route" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => navigate("/rep/availability")}
+                      >
+                        View
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

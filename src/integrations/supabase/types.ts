@@ -2647,6 +2647,52 @@ export type Database = {
           },
         ]
       }
+      vendor_alert_kudos: {
+        Row: {
+          alert_id: string
+          created_at: string
+          id: string
+          rep_id: string
+          vendor_id: string
+        }
+        Insert: {
+          alert_id: string
+          created_at?: string
+          id?: string
+          rep_id: string
+          vendor_id: string
+        }
+        Update: {
+          alert_id?: string
+          created_at?: string
+          id?: string
+          rep_id?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_alert_kudos_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_alert_kudos_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_alert_kudos_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_alerts: {
         Row: {
           affected_end_date: string | null
@@ -2654,9 +2700,15 @@ export type Database = {
           alert_type: string
           created_at: string
           id: string
+          is_scheduled: boolean
           message: string
           recipient_vendor_ids: string[]
           rep_user_id: string
+          route_counties: string[] | null
+          route_date: string | null
+          route_state: string | null
+          scheduled_status: string | null
+          sent_at: string | null
         }
         Insert: {
           affected_end_date?: string | null
@@ -2664,9 +2716,15 @@ export type Database = {
           alert_type: string
           created_at?: string
           id?: string
+          is_scheduled?: boolean
           message: string
           recipient_vendor_ids?: string[]
           rep_user_id: string
+          route_counties?: string[] | null
+          route_date?: string | null
+          route_state?: string | null
+          scheduled_status?: string | null
+          sent_at?: string | null
         }
         Update: {
           affected_end_date?: string | null
@@ -2674,9 +2732,15 @@ export type Database = {
           alert_type?: string
           created_at?: string
           id?: string
+          is_scheduled?: boolean
           message?: string
           recipient_vendor_ids?: string[]
           rep_user_id?: string
+          route_counties?: string[] | null
+          route_date?: string | null
+          route_state?: string | null
+          scheduled_status?: string | null
+          sent_at?: string | null
         }
         Relationships: [
           {
