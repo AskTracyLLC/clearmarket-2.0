@@ -33,6 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { format, parseISO } from "date-fns";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { RepVendorContactsCard } from "@/components/RepVendorContactsCard";
 
 interface AvailabilityEntry {
   id: string;
@@ -294,7 +295,7 @@ export default function RepAvailability() {
 
     setSendingAlert(true);
     try {
-      // Get connected vendors from vendor_connections
+      // Get connected vendors count from vendor_connections
       const { data: connections, error: connectionsError } = await supabase
         .from("vendor_connections")
         .select("vendor_id")
@@ -303,26 +304,25 @@ export default function RepAvailability() {
 
       if (connectionsError) throw connectionsError;
 
-      if (!connections || connections.length === 0) {
+      // Get manual vendor contacts count
+      const { count: manualContactCount } = await supabase
+        .from("rep_vendor_contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("rep_user_id", user.id)
+        .eq("is_active", true);
+
+      const vendorIds = connections?.map(c => c.vendor_id) || [];
+      const totalRecipients = vendorIds.length + (manualContactCount || 0);
+
+      if (totalRecipients === 0) {
         toast({
-          title: "No Connected Vendors",
-          description: "You don't have any connected vendors to send alerts to.",
+          title: "No Recipients",
+          description: "You don't have any connected vendors or manual contacts to send alerts to.",
           variant: "default",
         });
         setSendingAlert(false);
         return;
       }
-
-      const vendorIds = connections.map(c => c.vendor_id);
-
-      // Get rep profile for anonymous ID
-      const { data: repProfile } = await supabase
-        .from("rep_profile")
-        .select("anonymous_id")
-        .eq("user_id", user.id)
-        .single();
-
-      const repAnonId = repProfile?.anonymous_id || "FieldRep#???";
 
       // Prepare alert message with basic placeholder replacement
       let finalMessage = alertMessage;
@@ -334,7 +334,7 @@ export default function RepAvailability() {
       }
 
       // Insert vendor alert log
-      const { error: alertError } = await supabase
+      const { data: alertRecord, error: alertError } = await supabase
         .from("vendor_alerts")
         .insert({
           rep_user_id: user.id,
@@ -343,25 +343,36 @@ export default function RepAvailability() {
           affected_start_date: alertStartDate || null,
           affected_end_date: alertEndDate || null,
           recipient_vendor_ids: vendorIds,
-        });
+        })
+        .select()
+        .single();
 
       if (alertError) throw alertError;
 
-      // Create notifications for each vendor
-      for (const vendorId of vendorIds) {
-        await supabase
-          .from("notifications")
-          .insert({
-            user_id: vendorId,
-            type: "vendor_alert",
-            title: `${repAnonId} has shared an availability update`,
-            body: finalMessage.substring(0, 200),
-          });
+      // Call edge function to send notifications and emails
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+        "send-rep-network-alert",
+        {
+          body: {
+            alertId: alertRecord.id,
+            repUserId: user.id,
+          },
+        }
+      );
+
+      if (sendError) throw sendError;
+
+      const inAppCount = sendResult?.inAppNotifications || 0;
+      const emailCount = sendResult?.emailsSent || 0;
+      let description = `Notification sent to ${inAppCount} ClearMarket vendor${inAppCount !== 1 ? 's' : ''}`;
+      if (emailCount > 0) {
+        description += ` and ${emailCount} manual contact${emailCount !== 1 ? 's' : ''}`;
       }
+      description += '.';
 
       toast({
         title: "Alert Sent",
-        description: `Notification sent to ${vendorIds.length} connected vendor${vendorIds.length !== 1 ? 's' : ''}.`,
+        description,
       });
 
       // Reset form
@@ -594,7 +605,7 @@ export default function RepAvailability() {
             <Alert>
               <AlertTriangle className="w-4 h-4" />
               <AlertDescription>
-                This alert will be sent to all vendors you're currently connected with. Use it to keep them informed about your availability.
+                This alert will go to vendors in your ClearMarket network plus any vendor contacts you've added below.
               </AlertDescription>
             </Alert>
 
@@ -668,6 +679,9 @@ export default function RepAvailability() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Section 3: Manual Vendor Contacts */}
+        {user && <RepVendorContactsCard repUserId={user.id} />}
       </div>
 
       {/* Add/Edit Time Off Dialog */}

@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.admin-delete-user]
 verify_jwt = true
+
+[functions.send-rep-network-alert]
+verify_jwt = true
