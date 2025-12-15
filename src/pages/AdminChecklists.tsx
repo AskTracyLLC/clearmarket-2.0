@@ -812,14 +812,14 @@ export default function AdminChecklists() {
                       <div>
                         <CardTitle className="text-base">
                           {selectedTemplate ? (
-                            <>Editing: {selectedTemplate.name}</>
+                            <>Editing template: {selectedTemplate.name}</>
                           ) : (
                             "Select a template"
                           )}
                         </CardTitle>
                         <CardDescription className="text-sm">
                           {selectedTemplate 
-                            ? "Reorder, rename, or update items. Changes affect all users assigned to this template."
+                            ? "Changes here affect all users assigned to this checklist."
                             : "Choose a template from the list"}
                         </CardDescription>
                       </div>
@@ -838,7 +838,7 @@ export default function AdminChecklists() {
                       </div>
                     ) : items.length === 0 ? (
                       <div className="p-8 text-center text-muted-foreground">
-                        No items in this template yet.
+                        This template does not have any steps yet. Add items to define the checklist.
                       </div>
                     ) : (
                       <ScrollArea className="h-[400px]">
@@ -846,9 +846,9 @@ export default function AdminChecklists() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-10"></TableHead>
-                              <TableHead>Item</TableHead>
-                              <TableHead>Auto-Track Key</TableHead>
-                              <TableHead className="text-center">Required</TableHead>
+                              <TableHead>Step title</TableHead>
+                              <TableHead>Auto</TableHead>
+                              <TableHead className="text-center">Required step</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -881,7 +881,7 @@ export default function AdminChecklists() {
                                   <div>
                                     <p className="font-medium text-sm">{item.title}</p>
                                     {item.description && (
-                                      <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                      <p className="text-xs text-muted-foreground truncate max-w-xs" title="Helper text (shown under the step)">
                                         {item.description}
                                       </p>
                                     )}
@@ -892,12 +892,12 @@ export default function AdminChecklists() {
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger>
-                                          <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                                            {item.auto_track_key}
-                                          </code>
+                                          <Badge variant="outline" className="text-xs">
+                                            Auto
+                                          </Badge>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          <p>Auto-tracked: marked complete when this action is detected in the app</p>
+                                          <p>This step completes automatically when the related action happens in the app.</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -948,7 +948,7 @@ export default function AdminChecklists() {
             <div>
               <h2 className="text-lg font-semibold">Completion Overview</h2>
               <p className="text-sm text-muted-foreground">
-                Use these stats to see where users are dropping off, so you can improve instructions or fix bugs.
+                See how far users progress and which steps may need improvement.
               </p>
             </div>
 
@@ -1033,7 +1033,7 @@ export default function AdminChecklists() {
             {!selectedTemplate && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Select a template from the Templates tab to see per-item insights.
+                  No users are assigned to this checklist yet.
                 </CardContent>
               </Card>
             )}
@@ -1044,7 +1044,7 @@ export default function AdminChecklists() {
             <div>
               <h2 className="text-lg font-semibold">Checklist Feedback</h2>
               <p className="text-sm text-muted-foreground">
-                Beta testers can submit feedback for specific checklist items. Review their comments and screenshots here.
+                Review issues and screenshots submitted by users for each checklist step.
               </p>
             </div>
 
@@ -1052,7 +1052,7 @@ export default function AdminChecklists() {
               <CardContent className="p-0">
                 {feedback.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
-                    No feedback submitted yet.
+                    No feedback has been submitted yet.
                   </div>
                 ) : (
                   <ScrollArea className="h-[500px]">
@@ -1061,8 +1061,8 @@ export default function AdminChecklists() {
                         <TableRow>
                           <TableHead>Item</TableHead>
                           <TableHead>User</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Message</TableHead>
+                          <TableHead>Feedback type</TableHead>
+                          <TableHead>Comment</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -1211,7 +1211,7 @@ export default function AdminChecklists() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>Title</Label>
+                <Label>Step title</Label>
                 <Input
                   value={formItemTitle}
                   onChange={(e) => setFormItemTitle(e.target.value)}
@@ -1219,11 +1219,11 @@ export default function AdminChecklists() {
                 />
               </div>
               <div>
-                <Label>Description</Label>
+                <Label>Helper text (shown under the step)</Label>
                 <Textarea
                   value={formItemDescription}
                   onChange={(e) => setFormItemDescription(e.target.value)}
-                  placeholder="Optional description or help text"
+                  placeholder="Optional helper text shown under the step"
                   rows={2}
                 />
               </div>
@@ -1235,11 +1235,11 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Auto-tracked items are marked complete when the related action is detected in the app.
+                  Leave empty for manual completion. Auto steps complete automatically when the related action happens in the app.
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <Label>Required for completion</Label>
+                <Label>Required step</Label>
                 <Switch checked={formItemIsRequired} onCheckedChange={setFormItemIsRequired} />
               </div>
             </div>
@@ -1261,19 +1261,19 @@ export default function AdminChecklists() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>Title</Label>
+                <Label>Step title</Label>
                 <Input
                   value={formItemTitle}
                   onChange={(e) => setFormItemTitle(e.target.value)}
-                  placeholder="Item title"
+                  placeholder="Step title"
                 />
               </div>
               <div>
-                <Label>Description</Label>
+                <Label>Helper text (shown under the step)</Label>
                 <Textarea
                   value={formItemDescription}
                   onChange={(e) => setFormItemDescription(e.target.value)}
-                  placeholder="Optional description or help text"
+                  placeholder="Optional helper text shown under the step"
                   rows={2}
                 />
               </div>
@@ -1285,11 +1285,11 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Auto-tracked items are marked complete when the related action is detected in the app.
+                  Leave empty for manual completion. Auto steps complete automatically when the related action happens in the app.
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <Label>Required for completion</Label>
+                <Label>Required step</Label>
                 <Switch checked={formItemIsRequired} onCheckedChange={setFormItemIsRequired} />
               </div>
             </div>
@@ -1318,8 +1318,8 @@ export default function AdminChecklists() {
                     <Label className="text-muted-foreground text-xs">User</Label>
                     <p className="text-sm">{selectedFeedback.user_email}</p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Type</Label>
+                   <div>
+                    <Label className="text-muted-foreground text-xs">Feedback type</Label>
                     <p className="text-sm">{FEEDBACK_TYPE_LABELS[selectedFeedback.feedback_type] || selectedFeedback.feedback_type}</p>
                   </div>
                   <div>
@@ -1334,12 +1334,12 @@ export default function AdminChecklists() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Message</Label>
+                  <Label className="text-muted-foreground text-xs">Comment</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedFeedback.message}</p>
                 </div>
-                {selectedFeedback.attachment_urls && selectedFeedback.attachment_urls.length > 0 && (
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Attachments</Label>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Attachments</Label>
+                  {selectedFeedback.attachment_urls && selectedFeedback.attachment_urls.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {selectedFeedback.attachment_urls.map((url, idx) => (
                         <a 
@@ -1357,8 +1357,10 @@ export default function AdminChecklists() {
                         </a>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">No attachments added.</p>
+                  )}
+                </div>
               </div>
             )}
             <DialogFooter>
