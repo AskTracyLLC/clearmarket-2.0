@@ -172,6 +172,97 @@ export type Database = {
           },
         ]
       }
+      checklist_items: {
+        Row: {
+          auto_track_key: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_required: boolean
+          role: Database["public"]["Enums"]["checklist_role"]
+          sort_order: number
+          template_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          auto_track_key?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          role?: Database["public"]["Enums"]["checklist_role"]
+          sort_order?: number
+          template_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          auto_track_key?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          role?: Database["public"]["Enums"]["checklist_role"]
+          sort_order?: number
+          template_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          owner_id: string | null
+          owner_type: Database["public"]["Enums"]["checklist_owner_type"]
+          requires_paid_plan: boolean
+          role: Database["public"]["Enums"]["checklist_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          owner_id?: string | null
+          owner_type?: Database["public"]["Enums"]["checklist_owner_type"]
+          requires_paid_plan?: boolean
+          role: Database["public"]["Enums"]["checklist_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          owner_id?: string | null
+          owner_type?: Database["public"]["Enums"]["checklist_owner_type"]
+          requires_paid_plan?: boolean
+          role?: Database["public"]["Enums"]["checklist_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_comments: {
         Row: {
           author_id: string
@@ -2500,6 +2591,102 @@ export type Database = {
           },
         ]
       }
+      user_checklist_assignments: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          id: string
+          template_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          template_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          id?: string
+          template_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_checklist_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_checklist_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_checklist_items: {
+        Row: {
+          assignment_id: string
+          completed_at: string | null
+          completed_by:
+            | Database["public"]["Enums"]["checklist_completed_by"]
+            | null
+          created_at: string
+          id: string
+          item_id: string
+          status: Database["public"]["Enums"]["checklist_item_status"]
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          completed_at?: string | null
+          completed_by?:
+            | Database["public"]["Enums"]["checklist_completed_by"]
+            | null
+          created_at?: string
+          id?: string
+          item_id: string
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          completed_at?: string | null
+          completed_by?:
+            | Database["public"]["Enums"]["checklist_completed_by"]
+            | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_checklist_items_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "user_checklist_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_checklist_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_reports: {
         Row: {
           admin_notes: string | null
@@ -3496,9 +3683,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_default_checklists: {
+        Args: { p_role: string; p_user_id: string }
+        Returns: undefined
+      }
       calculate_community_score: {
         Args: { p_user_id: string }
         Returns: number
+      }
+      complete_checklist_item_by_key: {
+        Args: { p_auto_track_key: string; p_user_id: string }
+        Returns: undefined
       }
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
@@ -3520,6 +3715,10 @@ export type Database = {
       }
     }
     Enums: {
+      checklist_completed_by: "system" | "user"
+      checklist_item_status: "pending" | "completed"
+      checklist_owner_type: "system" | "vendor"
+      checklist_role: "field_rep" | "vendor" | "both"
       site_page_type: "tos" | "privacy" | "support"
       vendor_connection_initiator: "vendor" | "field_rep"
       vendor_connection_status:
@@ -3656,6 +3855,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      checklist_completed_by: ["system", "user"],
+      checklist_item_status: ["pending", "completed"],
+      checklist_owner_type: ["system", "vendor"],
+      checklist_role: ["field_rep", "vendor", "both"],
       site_page_type: ["tos", "privacy", "support"],
       vendor_connection_initiator: ["vendor", "field_rep"],
       vendor_connection_status: [
