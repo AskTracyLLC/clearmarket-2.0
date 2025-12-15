@@ -22,6 +22,7 @@ import { CoverageAreaDialog, CoverageArea, CoverageMode } from "@/components/Cov
 import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { checklist } from "@/lib/checklistTracking";
 
 // Validation schema for rep work setup
 // NOTE: Legacy inspection type fields (inspection_types_other) have been deprecated.
@@ -861,6 +862,11 @@ const WorkSetup = () => {
                   title: "Coverage Areas Added",
                   description: `Added ${rowsToInsert.length} counties for ${data.state_name}.`,
                 });
+                
+                // Track coverage pricing set for checklist
+                if (data.base_price) {
+                  checklist.coveragePricingSet(user.id);
+                }
               } else {
                 // Selected counties mode
                 if (data.id) {
@@ -895,6 +901,11 @@ const WorkSetup = () => {
                       title: "Coverage Area Updated",
                       description: "Your coverage area has been updated.",
                     });
+                    
+                    // Track coverage pricing set for checklist
+                    if (data.base_price) {
+                      checklist.coveragePricingSet(user.id);
+                    }
                   }
                 } else {
                   // New entry with selected counties - need to look up county info and create rows
@@ -953,6 +964,11 @@ const WorkSetup = () => {
                       title: "Coverage Areas Added",
                       description: `Added ${rowsToInsert.length} county coverage area${rowsToInsert.length !== 1 ? "s" : ""}.`,
                     });
+                    
+                    // Track coverage pricing set for checklist
+                    if (data.base_price) {
+                      checklist.coveragePricingSet(user.id);
+                    }
                   }
                 }
               }

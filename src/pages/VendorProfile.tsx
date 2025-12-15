@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { VendorChecklistManager } from "@/components/VendorChecklistManager";
+import { checklist } from "@/lib/checklistTracking";
 
 // Validation schema for vendor profile (MVP)
 const vendorProfileSchema = z.object({
@@ -235,6 +236,11 @@ const VendorProfile = () => {
         .eq("id", vendorProfile.id);
 
       if (error) throw error;
+
+      // Track vendor profile completion for checklist
+      if (user && data.company_name && data.city && data.state) {
+        checklist.vendorProfileCompleted(user.id);
+      }
 
       toast({
         title: "Success",

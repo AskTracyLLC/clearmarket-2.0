@@ -172,6 +172,87 @@ export type Database = {
           },
         ]
       }
+      checklist_item_feedback: {
+        Row: {
+          attachment_urls: string[] | null
+          created_at: string
+          feedback_type: Database["public"]["Enums"]["checklist_feedback_type"]
+          id: string
+          item_id: string
+          message: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["checklist_feedback_status"]
+          template_id: string
+          user_checklist_item_id: string | null
+          user_id: string
+        }
+        Insert: {
+          attachment_urls?: string[] | null
+          created_at?: string
+          feedback_type: Database["public"]["Enums"]["checklist_feedback_type"]
+          id?: string
+          item_id: string
+          message: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["checklist_feedback_status"]
+          template_id: string
+          user_checklist_item_id?: string | null
+          user_id: string
+        }
+        Update: {
+          attachment_urls?: string[] | null
+          created_at?: string
+          feedback_type?: Database["public"]["Enums"]["checklist_feedback_type"]
+          id?: string
+          item_id?: string
+          message?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["checklist_feedback_status"]
+          template_id?: string
+          user_checklist_item_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_item_feedback_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_feedback_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_feedback_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_feedback_user_checklist_item_id_fkey"
+            columns: ["user_checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "user_checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_item_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_items: {
         Row: {
           auto_track_key: string | null
@@ -3716,6 +3797,13 @@ export type Database = {
     }
     Enums: {
       checklist_completed_by: "system" | "user"
+      checklist_feedback_status: "open" | "acknowledged" | "resolved"
+      checklist_feedback_type:
+        | "bug"
+        | "confusing"
+        | "completed_not_marked"
+        | "suggestion"
+        | "other"
       checklist_item_status: "pending" | "completed"
       checklist_owner_type: "system" | "vendor"
       checklist_role: "field_rep" | "vendor" | "both"
@@ -3856,6 +3944,14 @@ export const Constants = {
   public: {
     Enums: {
       checklist_completed_by: ["system", "user"],
+      checklist_feedback_status: ["open", "acknowledged", "resolved"],
+      checklist_feedback_type: [
+        "bug",
+        "confusing",
+        "completed_not_marked",
+        "suggestion",
+        "other",
+      ],
       checklist_item_status: ["pending", "completed"],
       checklist_owner_type: ["system", "vendor"],
       checklist_role: ["field_rep", "vendor", "both"],

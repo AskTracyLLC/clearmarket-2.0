@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Zap, ExternalLink } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Zap, ExternalLink, MessageSquareWarning } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ChecklistProgress, CHECKLIST_ITEM_CTAS } from "@/lib/checklists";
 import { cn } from "@/lib/utils";
+import { ChecklistFeedbackDialog } from "./ChecklistFeedbackDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface GettingStartedChecklistProps {
   checklist: ChecklistProgress;
@@ -24,14 +27,32 @@ export function GettingStartedChecklist({
   defaultExpanded = true,
   className,
 }: GettingStartedChecklistProps) {
+  const { user } = useAuth();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [completing, setCompleting] = useState<string | null>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackItem, setFeedbackItem] = useState<{
+    userItemId: string;
+    itemId: string;
+    title: string;
+    description?: string;
+  } | null>(null);
 
   const handleComplete = async (userItemId: string) => {
     if (!onMarkComplete) return;
     setCompleting(userItemId);
     await onMarkComplete(userItemId);
     setCompleting(null);
+  };
+
+  const openFeedbackDialog = (
+    userItemId: string,
+    itemId: string,
+    title: string,
+    description?: string
+  ) => {
+    setFeedbackItem({ userItemId, itemId, title, description });
+    setFeedbackDialogOpen(true);
   };
 
   const { items, percent, completedRequiredCount, requiredCount, template } = checklist;
@@ -137,34 +158,65 @@ export function GettingStartedChecklist({
                       )}
                     </div>
 
-                    {/* Action Button */}
-                    {!isCompleted && (
-                      <div className="flex-shrink-0">
-                        {cta ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            asChild
-                            className="text-xs h-7"
-                          >
-                            <Link to={cta.link}>
-                              {cta.label}
-                              <ExternalLink className="h-3 w-3 ml-1" />
-                            </Link>
-                          </Button>
-                        ) : !isAutoTracked && onMarkComplete ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleComplete(userItem.id)}
-                            disabled={isLoading || !userItem.id}
-                            className="text-xs h-7"
-                          >
-                            {isLoading ? "..." : "Mark Done"}
-                          </Button>
-                        ) : null}
-                      </div>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      {/* Feedback Icon */}
+                      {user && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                onClick={() =>
+                                  openFeedbackDialog(
+                                    userItem.id,
+                                    definition.id,
+                                    definition.title,
+                                    definition.description || undefined
+                                  )
+                                }
+                              >
+                                <MessageSquareWarning className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Report an issue with this step</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
+                      {/* CTA or Mark Done Button */}
+                      {!isCompleted && (
+                        <>
+                          {cta ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                              className="text-xs h-7"
+                            >
+                              <Link to={cta.link}>
+                                {cta.label}
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </Link>
+                            </Button>
+                          ) : !isAutoTracked && onMarkComplete ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleComplete(userItem.id)}
+                              disabled={isLoading || !userItem.id}
+                              className="text-xs h-7"
+                            >
+                              {isLoading ? "..." : "Mark Done"}
+                            </Button>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -172,6 +224,23 @@ export function GettingStartedChecklist({
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Feedback Dialog */}
+      {user && feedbackItem && (
+        <ChecklistFeedbackDialog
+          open={feedbackDialogOpen}
+          onClose={() => {
+            setFeedbackDialogOpen(false);
+            setFeedbackItem(null);
+          }}
+          userId={user.id}
+          userChecklistItemId={feedbackItem.userItemId}
+          templateId={template.id}
+          itemId={feedbackItem.itemId}
+          itemTitle={feedbackItem.title}
+          itemDescription={feedbackItem.description}
+        />
+      )}
     </Card>
   );
 }
