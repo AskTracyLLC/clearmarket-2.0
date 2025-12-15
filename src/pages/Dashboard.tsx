@@ -654,6 +654,15 @@ const Dashboard = () => {
                   <CardDescription className="text-sm">Manage review cadence</CardDescription>
                 </CardHeader>
               </Card>
+              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/checklists")}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ClipboardList className="w-5 h-5 text-primary" />
+                    Checklists
+                  </CardTitle>
+                  <CardDescription className="text-sm">Manage onboarding checklists</CardDescription>
+                </CardHeader>
+              </Card>
             </div>
             
             {/* Review Summary Card */}
