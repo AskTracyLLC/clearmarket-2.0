@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -35,8 +36,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { ClipboardList, Plus, Pencil, Trash2, GripVertical, Users } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { 
+  ClipboardList, Plus, Pencil, Trash2, Users, BarChart3, 
+  MessageSquareWarning, AlertTriangle, CheckCircle2, TrendingDown,
+  ExternalLink, Eye, ChevronRight
+} from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface ChecklistTemplate {
   id: string;
@@ -65,7 +72,37 @@ interface CompletionStats {
   totalAssigned: number;
   fullyCompleted: number;
   avgPercentComplete: number;
+  atLeast5Steps: number;
 }
+
+interface ItemStats {
+  itemId: string;
+  title: string;
+  completedCount: number;
+  totalAssigned: number;
+  percent: number;
+  feedbackCount: number;
+}
+
+interface FeedbackItem {
+  id: string;
+  template_name: string;
+  item_title: string;
+  user_email: string;
+  feedback_type: string;
+  message: string;
+  attachment_urls: string[] | null;
+  created_at: string;
+  status: string;
+}
+
+const FEEDBACK_TYPE_LABELS: Record<string, string> = {
+  bug: "Something is broken",
+  confusing: "This step is confusing",
+  completed_not_marked: "Completed but not marked",
+  suggestion: "Suggestion",
+  other: "Other",
+};
 
 export default function AdminChecklists() {
   const { user, loading: authLoading } = useAuth();
@@ -75,14 +112,19 @@ export default function AdminChecklists() {
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [stats, setStats] = useState<CompletionStats[]>([]);
+  const [itemStats, setItemStats] = useState<ItemStats[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("templates");
 
   // Dialog states
   const [editTemplateOpen, setEditTemplateOpen] = useState(false);
   const [addTemplateOpen, setAddTemplateOpen] = useState(false);
   const [editItemOpen, setEditItemOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
+  const [feedbackDetailOpen, setFeedbackDetailOpen] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<ChecklistTemplate | null>(null);
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null);
 
@@ -111,12 +153,14 @@ export default function AdminChecklists() {
   useEffect(() => {
     if (user && permissions.canViewAdminDashboard) {
       loadTemplates();
+      loadFeedback();
     }
   }, [user, permissions]);
 
   useEffect(() => {
     if (selectedTemplateId) {
       loadItems(selectedTemplateId);
+      loadItemStats(selectedTemplateId);
     }
   }, [selectedTemplateId]);
 
@@ -165,7 +209,6 @@ export default function AdminChecklists() {
 
   const loadCompletionStats = async (templateIds: string[]) => {
     try {
-      // Get assignment counts and completion for each template
       const statsPromises = templateIds.map(async (templateId) => {
         // Count total assignments
         const { count: totalAssigned } = await supabase
@@ -186,6 +229,7 @@ export default function AdminChecklists() {
 
         let fullyCompleted = 0;
         let totalPercent = 0;
+        let atLeast5Steps = 0;
 
         if (assignments && assignments.length > 0) {
           assignments.forEach((a: any) => {
@@ -194,6 +238,7 @@ export default function AdminChecklists() {
             const percent = items.length > 0 ? (completed / items.length) * 100 : 0;
             totalPercent += percent;
             if (percent === 100) fullyCompleted++;
+            if (completed >= 5) atLeast5Steps++;
           });
         }
 
@@ -203,7 +248,8 @@ export default function AdminChecklists() {
           fullyCompleted,
           avgPercentComplete: assignments && assignments.length > 0 
             ? Math.round(totalPercent / assignments.length) 
-            : 0
+            : 0,
+          atLeast5Steps,
         };
       });
 
@@ -214,8 +260,131 @@ export default function AdminChecklists() {
     }
   };
 
+  const loadItemStats = async (templateId: string) => {
+    try {
+      // Get all items for template
+      const { data: items, error: itemsError } = await supabase
+        .from("checklist_items")
+        .select("id, title")
+        .eq("template_id", templateId)
+        .order("sort_order");
+
+      if (itemsError) throw itemsError;
+
+      // Get total assignments for this template
+      const { count: totalAssigned } = await supabase
+        .from("user_checklist_assignments")
+        .select("*", { count: "exact", head: true })
+        .eq("template_id", templateId);
+
+      // Get completion counts per item
+      const itemStatsPromises = (items || []).map(async (item) => {
+        const { count: completedCount } = await supabase
+          .from("user_checklist_items")
+          .select("*", { count: "exact", head: true })
+          .eq("item_id", item.id)
+          .eq("status", "completed");
+
+        const { count: feedbackCount } = await supabase
+          .from("checklist_item_feedback")
+          .select("*", { count: "exact", head: true })
+          .eq("item_id", item.id);
+
+        return {
+          itemId: item.id,
+          title: item.title,
+          completedCount: completedCount || 0,
+          totalAssigned: totalAssigned || 0,
+          percent: totalAssigned && totalAssigned > 0 
+            ? Math.round(((completedCount || 0) / totalAssigned) * 100) 
+            : 0,
+          feedbackCount: feedbackCount || 0,
+        };
+      });
+
+      const results = await Promise.all(itemStatsPromises);
+      setItemStats(results);
+    } catch (error) {
+      console.error("Error loading item stats:", error);
+    }
+  };
+
+  const loadFeedback = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("checklist_item_feedback")
+        .select(`
+          id,
+          feedback_type,
+          message,
+          attachment_urls,
+          created_at,
+          status,
+          template:checklist_templates(name),
+          item:checklist_items(title),
+          user:profiles(email)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const formattedFeedback: FeedbackItem[] = (data || []).map((f: any) => ({
+        id: f.id,
+        template_name: f.template?.name || "Unknown",
+        item_title: f.item?.title || "Unknown",
+        user_email: f.user?.email || "Unknown",
+        feedback_type: f.feedback_type,
+        message: f.message,
+        attachment_urls: f.attachment_urls,
+        created_at: f.created_at,
+        status: f.status,
+      }));
+
+      setFeedback(formattedFeedback);
+    } catch (error) {
+      console.error("Error loading feedback:", error);
+    }
+  };
+
   const getStatsForTemplate = (templateId: string) => {
     return stats.find(s => s.templateId === templateId);
+  };
+
+  const getRepStats = () => {
+    const repTemplates = templates.filter(t => t.role === "field_rep");
+    const repStats = stats.filter(s => repTemplates.some(t => t.id === s.templateId));
+    const totalAssigned = repStats.reduce((sum, s) => sum + s.totalAssigned, 0);
+    const atLeast5 = repStats.reduce((sum, s) => sum + s.atLeast5Steps, 0);
+    const avgCompletion = repStats.length > 0 
+      ? Math.round(repStats.reduce((sum, s) => sum + s.avgPercentComplete, 0) / repStats.length)
+      : 0;
+    return { totalAssigned, atLeast5, avgCompletion, percent5Steps: totalAssigned > 0 ? Math.round((atLeast5 / totalAssigned) * 100) : 0 };
+  };
+
+  const getVendorStats = () => {
+    const vendorTemplates = templates.filter(t => t.role === "vendor");
+    const vendorStats = stats.filter(s => vendorTemplates.some(t => t.id === s.templateId));
+    const totalAssigned = vendorStats.reduce((sum, s) => sum + s.totalAssigned, 0);
+    const atLeast5 = vendorStats.reduce((sum, s) => sum + s.atLeast5Steps, 0);
+    const avgCompletion = vendorStats.length > 0 
+      ? Math.round(vendorStats.reduce((sum, s) => sum + s.avgPercentComplete, 0) / vendorStats.length)
+      : 0;
+    return { totalAssigned, atLeast5, avgCompletion, percent5Steps: totalAssigned > 0 ? Math.round((atLeast5 / totalAssigned) * 100) : 0 };
+  };
+
+  const getMostSkippedItem = (role: "field_rep" | "vendor") => {
+    const roleItems = itemStats.filter(is => {
+      const item = items.find(i => i.id === is.itemId);
+      return item && (item.role === role || item.role === "both");
+    });
+    
+    if (roleItems.length === 0) return null;
+    
+    // Find item with lowest completion percentage (most skipped)
+    return roleItems.reduce((lowest, current) => 
+      current.percent < lowest.percent ? current : lowest
+    , roleItems[0]);
   };
 
   // Template CRUD
@@ -369,6 +538,7 @@ export default function AdminChecklists() {
         setEditItemOpen(false);
       }
       await loadItems(selectedTemplateId);
+      await loadItemStats(selectedTemplateId);
     } catch (error) {
       console.error("Error saving item:", error);
       toast.error("Failed to save item");
@@ -392,6 +562,7 @@ export default function AdminChecklists() {
       toast.success("Item deleted");
       if (selectedTemplateId) {
         await loadItems(selectedTemplateId);
+        await loadItemStats(selectedTemplateId);
       }
     } catch (error) {
       console.error("Error deleting item:", error);
@@ -427,7 +598,15 @@ export default function AdminChecklists() {
     }
   };
 
+  const openFeedbackDetail = (fb: FeedbackItem) => {
+    setSelectedFeedback(fb);
+    setFeedbackDetailOpen(true);
+  };
+
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+  const repStats = getRepStats();
+  const vendorStats = getVendorStats();
+  const openFeedbackCount = feedback.filter(f => f.status === "open").length;
 
   if (authLoading || permsLoading || loading) {
     return (
@@ -441,222 +620,501 @@ export default function AdminChecklists() {
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <ClipboardList className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">Checklists</h1>
-            </div>
-            <p className="text-muted-foreground">
-              Manage system onboarding checklists for Field Reps and Vendors.
-            </p>
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <ClipboardList className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">Checklists & Onboarding</h1>
           </div>
-          <Button onClick={openAddTemplateDialog}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Template
-          </Button>
+          <p className="text-muted-foreground">
+            Manage platform checklists, vendor templates, and see where users are getting stuck.
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Templates List */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Templates</CardTitle>
-                <CardDescription className="text-sm">Select a template to edit its items</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-border">
-                  {templates.length === 0 ? (
-                    <div className="p-4 text-center text-muted-foreground text-sm">
-                      No templates yet.
-                    </div>
-                  ) : (
-                    templates.map((template) => {
-                      const templateStats = getStatsForTemplate(template.id);
-                      const isSelected = selectedTemplateId === template.id;
-                      return (
-                        <div
-                          key={template.id}
-                          className={`p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                            isSelected ? "bg-muted" : ""
-                          }`}
-                          onClick={() => setSelectedTemplateId(template.id)}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{template.name}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">
-                                  {template.role === "field_rep" ? "Rep" : template.role === "vendor" ? "Vendor" : "Both"}
-                                </Badge>
-                                {template.is_default && (
-                                  <Badge variant="secondary" className="text-xs">Default</Badge>
-                                )}
-                              </div>
-                              {templateStats && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  <Users className="inline w-3 h-3 mr-1" />
-                                  {templateStats.totalAssigned} assigned · {templateStats.avgPercentComplete}% avg
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditTemplateDialog(template);
-                                }}
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTemplate(template);
-                                }}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+        {/* Completion Overview Cards */}
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Field Reps</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold">{repStats.percent5Steps}%</p>
+                <p className="text-xs text-muted-foreground">
+                  completed at least 5 steps ({repStats.atLeast5} of {repStats.totalAssigned})
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Avg. completion: {repStats.avgCompletion}%
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Vendors</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold">{vendorStats.percent5Steps}%</p>
+                <p className="text-xs text-muted-foreground">
+                  completed at least 5 steps ({vendorStats.atLeast5} of {vendorStats.totalAssigned})
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Avg. completion: {vendorStats.avgCompletion}%
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Feedback</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold">{openFeedbackCount}</p>
+                  <Badge variant={openFeedbackCount > 0 ? "destructive" : "secondary"} className="text-xs">
+                    Open
+                  </Badge>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <p className="text-xs text-muted-foreground">
+                  {feedback.length} total feedback reports
+                </p>
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="h-auto p-0 text-xs"
+                  onClick={() => setActiveTab("feedback")}
+                >
+                  View feedback →
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Items Editor */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">
-                      {selectedTemplate ? selectedTemplate.name : "Select a template"}
-                    </CardTitle>
-                    <CardDescription className="text-sm">
-                      {selectedTemplate ? `${items.length} items` : "Choose a template from the list"}
-                    </CardDescription>
-                  </div>
-                  {selectedTemplate && (
-                    <Button size="sm" onClick={openAddItemDialog}>
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Item
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {!selectedTemplate ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    Select a template to view and edit its items.
-                  </div>
-                ) : items.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    No items in this template yet.
-                  </div>
-                ) : (
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="templates">Templates & Items</TabsTrigger>
+            <TabsTrigger value="insights">Completion Insights</TabsTrigger>
+            <TabsTrigger value="feedback" className="relative">
+              Feedback
+              {openFeedbackCount > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
+                  {openFeedbackCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Templates Tab */}
+          <TabsContent value="templates" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Checklist Templates</h2>
+                <p className="text-sm text-muted-foreground">
+                  These templates control what users see in their Getting Started checklist. System templates apply to all users.
+                </p>
+              </div>
+              <Button onClick={openAddTemplateDialog}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Template
+              </Button>
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Templates List */}
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Templates</CardTitle>
+                    <CardDescription className="text-sm">Select to edit items</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <ScrollArea className="h-[400px]">
+                      <div className="divide-y divide-border">
+                        {templates.length === 0 ? (
+                          <div className="p-4 text-center text-muted-foreground text-sm">
+                            No templates yet.
+                          </div>
+                        ) : (
+                          templates.map((template) => {
+                            const templateStats = getStatsForTemplate(template.id);
+                            const isSelected = selectedTemplateId === template.id;
+                            return (
+                              <div
+                                key={template.id}
+                                className={`p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
+                                  isSelected ? "bg-muted border-l-2 border-l-primary" : ""
+                                }`}
+                                onClick={() => setSelectedTemplateId(template.id)}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-sm truncate">{template.name}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {template.role === "field_rep" ? "Rep" : template.role === "vendor" ? "Vendor" : "Both"}
+                                      </Badge>
+                                      {template.is_default && (
+                                        <Badge variant="secondary" className="text-xs">Default</Badge>
+                                      )}
+                                    </div>
+                                    {templateStats && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        <Users className="inline w-3 h-3 mr-1" />
+                                        {templateStats.totalAssigned} assigned · {templateStats.avgPercentComplete}% avg
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditTemplateDialog(template);
+                                      }}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteTemplate(template);
+                                      }}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Items Editor */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base">
+                          {selectedTemplate ? (
+                            <>Editing: {selectedTemplate.name}</>
+                          ) : (
+                            "Select a template"
+                          )}
+                        </CardTitle>
+                        <CardDescription className="text-sm">
+                          {selectedTemplate 
+                            ? "Reorder, rename, or update items. Changes affect all users assigned to this template."
+                            : "Choose a template from the list"}
+                        </CardDescription>
+                      </div>
+                      {selectedTemplate && (
+                        <Button size="sm" onClick={openAddItemDialog}>
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Item
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {!selectedTemplate ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        Select a template to view and edit its items.
+                      </div>
+                    ) : items.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">
+                        No items in this template yet.
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[400px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-10"></TableHead>
+                              <TableHead>Item</TableHead>
+                              <TableHead>Auto-Track Key</TableHead>
+                              <TableHead className="text-center">Required</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {items.map((item, index) => (
+                              <TableRow key={item.id}>
+                                <TableCell className="w-10">
+                                  <div className="flex flex-col gap-0.5">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0"
+                                      disabled={index === 0}
+                                      onClick={() => handleMoveItem(item, "up")}
+                                    >
+                                      ▲
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0"
+                                      disabled={index === items.length - 1}
+                                      onClick={() => handleMoveItem(item, "down")}
+                                    >
+                                      ▼
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium text-sm">{item.title}</p>
+                                    {item.description && (
+                                      <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                        {item.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {item.auto_track_key ? (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <code className="text-xs bg-muted px-2 py-0.5 rounded">
+                                            {item.auto_track_key}
+                                          </code>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>Auto-tracked: marked complete when this action is detected in the app</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">Manual</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {item.is_required ? (
+                                    <Badge variant="default" className="text-xs">Yes</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">No</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => openEditItemDialog(item)}
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => handleDeleteItem(item)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Insights Tab */}
+          <TabsContent value="insights" className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Completion Overview</h2>
+              <p className="text-sm text-muted-foreground">
+                Use these stats to see where users are dropping off, so you can improve instructions or fix bugs.
+              </p>
+            </div>
+
+            {selectedTemplate && itemStats.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">{selectedTemplate.name} - Per-Item Completion</CardTitle>
+                  <CardDescription>
+                    See which steps are slowing people down
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-10"></TableHead>
                         <TableHead>Item</TableHead>
-                        <TableHead>Auto-Track Key</TableHead>
-                        <TableHead className="text-center">Required</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                        <TableHead className="text-center">Completed</TableHead>
+                        <TableHead className="text-center">% Complete</TableHead>
+                        <TableHead className="text-center">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger className="flex items-center gap-1 justify-center w-full">
+                                Feedback
+                                <MessageSquareWarning className="w-3 h-3" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Number of feedback reports tied to this step (bugs, confusion, etc.)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.map((item, index) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="w-10">
-                            <div className="flex flex-col gap-0.5">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0"
-                                disabled={index === 0}
-                                onClick={() => handleMoveItem(item, "up")}
+                      {itemStats.map((is) => {
+                        const isLowCompletion = is.percent < 50 && is.totalAssigned > 5;
+                        return (
+                          <TableRow key={is.itemId}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {isLowCompletion && (
+                                  <TrendingDown className="w-4 h-4 text-destructive" />
+                                )}
+                                <span className={isLowCompletion ? "text-destructive" : ""}>
+                                  {is.title}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {is.completedCount} / {is.totalAssigned}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge 
+                                variant={is.percent >= 75 ? "default" : is.percent >= 50 ? "secondary" : "destructive"}
                               >
-                                ▲
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 w-5 p-0"
-                                disabled={index === items.length - 1}
-                                onClick={() => handleMoveItem(item, "down")}
-                              >
-                                ▼
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{item.title}</p>
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground truncate max-w-xs">
-                                  {item.description}
-                                </p>
+                                {is.percent}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {is.feedbackCount > 0 ? (
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="h-auto p-0"
+                                  onClick={() => setActiveTab("feedback")}
+                                >
+                                  {is.feedbackCount} report{is.feedbackCount !== 1 ? "s" : ""}
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {item.auto_track_key ? (
-                              <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                                {item.auto_track_key}
-                              </code>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">Manual</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.is_required ? (
-                              <Badge variant="default" className="text-xs">Yes</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">No</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openEditItemDialog(item)}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteItem(item)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            {!selectedTemplate && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Select a template from the Templates tab to see per-item insights.
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Feedback Tab */}
+          <TabsContent value="feedback" className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Checklist Feedback</h2>
+              <p className="text-sm text-muted-foreground">
+                Beta testers can submit feedback for specific checklist items. Review their comments and screenshots here.
+              </p>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                {feedback.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No feedback submitted yet.
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[500px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item</TableHead>
+                          <TableHead>User</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Message</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {feedback.map((fb) => (
+                          <TableRow key={fb.id}>
+                            <TableCell>
+                              <div className="max-w-[200px]">
+                                <p className="text-xs text-muted-foreground truncate">{fb.template_name}</p>
+                                <p className="text-sm font-medium truncate">{fb.item_title}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm truncate max-w-[150px] block">{fb.user_email}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={fb.feedback_type === "bug" ? "destructive" : "secondary"} className="text-xs">
+                                {fb.feedback_type === "bug" ? "Bug" : 
+                                 fb.feedback_type === "confusing" ? "Confusing" :
+                                 fb.feedback_type === "completed_not_marked" ? "Not marked" :
+                                 fb.feedback_type === "suggestion" ? "Suggestion" : "Other"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm truncate max-w-[200px]">{fb.message}</p>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(fb.created_at), "MMM d, yyyy")}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openFeedbackDetail(fb)}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Edit Template Dialog */}
         <Dialog open={editTemplateOpen} onOpenChange={setEditTemplateOpen}>
@@ -777,7 +1235,7 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Use keys like: password_reset, profile_completed, first_community_post, etc.
+                  Leave empty for manual completion. Auto-tracked items are marked complete when the related action is detected in the app.
                 </p>
               </div>
               <div className="flex items-center justify-between">
@@ -827,7 +1285,7 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Use keys like: password_reset, profile_completed, first_community_post, etc.
+                  Leave empty for manual completion. Auto-tracked items are marked complete when the related action is detected in the app.
                 </p>
               </div>
               <div className="flex items-center justify-between">
@@ -839,6 +1297,73 @@ export default function AdminChecklists() {
               <Button variant="outline" onClick={() => setAddItemOpen(false)}>Cancel</Button>
               <Button onClick={() => handleSaveItem(true)} disabled={saving}>
                 {saving ? "Adding..." : "Add Item"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Feedback Detail Dialog */}
+        <Dialog open={feedbackDetailOpen} onOpenChange={setFeedbackDetailOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Feedback Details</DialogTitle>
+              <DialogDescription>
+                {selectedFeedback?.template_name} → {selectedFeedback?.item_title}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedFeedback && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">User</Label>
+                    <p className="text-sm">{selectedFeedback.user_email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Type</Label>
+                    <p className="text-sm">{FEEDBACK_TYPE_LABELS[selectedFeedback.feedback_type] || selectedFeedback.feedback_type}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Date</Label>
+                    <p className="text-sm">{format(new Date(selectedFeedback.created_at), "MMM d, yyyy 'at' h:mm a")}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Status</Label>
+                    <Badge variant={selectedFeedback.status === "open" ? "destructive" : "secondary"}>
+                      {selectedFeedback.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Message</Label>
+                  <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedFeedback.message}</p>
+                </div>
+                {selectedFeedback.attachment_urls && selectedFeedback.attachment_urls.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Attachments</Label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      {selectedFeedback.attachment_urls.map((url, idx) => (
+                        <a 
+                          key={idx} 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <img 
+                            src={url} 
+                            alt={`Attachment ${idx + 1}`}
+                            className="w-full h-24 object-cover rounded border hover:opacity-80 transition-opacity"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFeedbackDetailOpen(false)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>
