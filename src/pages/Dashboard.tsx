@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail, ClipboardList } from "lucide-react";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -33,6 +33,8 @@ import { MimicBanner } from "@/components/MimicBanner";
 import { useMimic } from "@/hooks/useMimic";
 import { AdminReviewSummaryCard } from "@/components/admin/AdminReviewSummaryCard";
 import { PlannedRouteAlertDialog } from "@/components/PlannedRouteAlertDialog";
+import { GettingStartedChecklist } from "@/components/GettingStartedChecklist";
+import { useChecklist } from "@/hooks/useChecklist";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -82,6 +84,9 @@ const Dashboard = () => {
   
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [showRouteDialog, setShowRouteDialog] = useState(false);
+  
+  // Getting Started Checklist
+  const { primaryChecklist, vendorChecklists, markComplete, loading: checklistLoading } = useChecklist();
 
   // When URL has mimic param and user is admin, start mimic session
   useEffect(() => {
@@ -758,8 +763,42 @@ const Dashboard = () => {
                   )}
                 </div>
 
-                {/* Setup Section - Collapsible, hidden on mobile (shown in At a Glance instead) */}
-                {checklistData.items.length > 0 && (
+                {/* Getting Started Checklist - New two-level system */}
+                {primaryChecklist && primaryChecklist.percent < 100 && (
+                  <div className="hidden lg:block">
+                    <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5 text-primary" />
+                      Getting Started
+                    </h2>
+                    <GettingStartedChecklist
+                      checklist={primaryChecklist}
+                      onMarkComplete={markComplete}
+                      onActionClick={(actionId) => {
+                        if (actionId === "open_route_dialog") {
+                          setShowRouteDialog(true);
+                        }
+                      }}
+                      defaultExpanded={primaryChecklist.percent < 50}
+                    />
+                  </div>
+                )}
+
+                {/* Vendor-assigned checklists for reps */}
+                {showingAsRep && vendorChecklists.length > 0 && (
+                  <div className="hidden lg:block space-y-3">
+                    {vendorChecklists.map((checklist) => (
+                      <GettingStartedChecklist
+                        key={checklist.assignment.id}
+                        checklist={checklist}
+                        onMarkComplete={markComplete}
+                        defaultExpanded={false}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Legacy Profile Setup Section - Collapsible, hidden on mobile */}
+                {checklistData.items.length > 0 && !primaryChecklist && (
                   <Collapsible open={showSetupSection} onOpenChange={setShowSetupSection} className="hidden lg:block">
                     <Card className="bg-card border-border">
                       <CollapsibleTrigger className="w-full">
