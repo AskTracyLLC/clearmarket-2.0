@@ -40,11 +40,13 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPendingChangeRequestsForVendor } from "@/lib/workingTerms";
 import { canPostReview } from "@/lib/reviews";
 import RequestCoverageDialog from "@/components/RequestCoverageDialog";
+import { AssignChecklistDialog } from "@/components/AssignChecklistDialog";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
 
@@ -135,6 +137,10 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   // Request dialog state
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [requestDialogRep, setRequestDialogRep] = useState<ConnectedRep | null>(null);
+  
+  // Checklist assignment dialog state
+  const [showChecklistDialog, setShowChecklistDialog] = useState(false);
+  const [checklistDialogRep, setChecklistDialogRep] = useState<ConnectedRep | null>(null);
 
   // Load working terms statuses for all reps
   useEffect(() => {
@@ -289,6 +295,11 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   const handleRequestTerms = (rep: ConnectedRep) => {
     setRequestDialogRep(rep);
     setShowRequestDialog(true);
+  };
+
+  const handleAssignChecklist = (rep: ConnectedRep) => {
+    setChecklistDialogRep(rep);
+    setShowChecklistDialog(true);
   };
 
   const handleViewWorkingTerms = (repUserId: string) => {
@@ -570,6 +581,10 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                                 <Star className="mr-2 h-4 w-4" />
                                 Post Review
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleAssignChecklist(rep)}>
+                                <ClipboardList className="mr-2 h-4 w-4" />
+                                Assign Checklist
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => onDisconnect(rep.repUserId)}
@@ -603,6 +618,20 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
             setShowRequestDialog(false);
             setRequestDialogRep(null);
             onWorkingTermsSaved?.();
+          }}
+        />
+      )}
+
+      {/* Assign Checklist Dialog */}
+      {checklistDialogRep && (
+        <AssignChecklistDialog
+          open={showChecklistDialog}
+          onOpenChange={setShowChecklistDialog}
+          repUserId={checklistDialogRep.repUserId}
+          repName={checklistDialogRep.anonymousId}
+          onAssigned={() => {
+            setShowChecklistDialog(false);
+            setChecklistDialogRep(null);
           }}
         />
       )}

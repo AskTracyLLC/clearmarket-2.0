@@ -47,6 +47,7 @@ import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { checklist } from "@/lib/checklistTracking";
 import {
   MessageSquare,
   Bell,
@@ -206,6 +207,9 @@ const CommunityPostDetail = () => {
         await notifyPostAuthorOfComment(post.id, post.author_id, user.id, post.title);
       }
       loadPost();
+      
+      // Track checklist event for first community reply
+      checklist.firstCommunityReply(user.id);
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }

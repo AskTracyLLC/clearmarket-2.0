@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Lock, CheckCircle, AlertCircle } from "lucide-react";
 import { z } from "zod";
+import { checklist } from "@/lib/checklistTracking";
 
 const passwordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -75,6 +76,12 @@ const UpdatePassword = () => {
           variant: "destructive",
         });
       } else {
+        // Track checklist event for password reset
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          checklist.passwordReset(user.id);
+        }
+        
         setUpdated(true);
         // Auto redirect after 3 seconds
         setTimeout(() => {

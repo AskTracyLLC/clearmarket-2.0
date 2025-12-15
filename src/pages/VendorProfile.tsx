@@ -13,11 +13,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES } from "@/lib/constants";
-import { ArrowLeft, Save, AlertCircle, Plus, Minus, ExternalLink } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Plus, Minus, ExternalLink, ClipboardList } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { VendorChecklistManager } from "@/components/VendorChecklistManager";
 
 // Validation schema for vendor profile (MVP)
 const vendorProfileSchema = z.object({
@@ -516,6 +517,20 @@ const VendorProfile = () => {
               </>
               )}
             </div>
+
+            {/* Section: Onboarding Checklists */}
+            {user && (
+              <div className="space-y-4 pb-6 border-b border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold text-foreground">Onboarding Checklists</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create custom onboarding checklists and assign them to your field reps to track their progress.
+                </p>
+                <VendorChecklistManager />
+              </div>
+            )}
 
             {/* Save button */}
             <div className="flex justify-end pt-4 border-t border-border">

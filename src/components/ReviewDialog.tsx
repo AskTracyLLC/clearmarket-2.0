@@ -17,6 +17,7 @@ import { Star } from "lucide-react";
 import { ReviewHelperTips } from "./ReviewHelperTips";
 import { ReviewContextChip } from "./ReviewContextChip";
 import { ReviewContextModal, ReviewContextValue } from "./ReviewContextModal";
+import { checklist } from "@/lib/checklistTracking";
 
 export interface Review {
   id: string;
@@ -172,6 +173,13 @@ export function ReviewDialog({
 
       onSaved?.(savedReview);
       onOpenChange(false);
+      
+      // Track checklist event based on direction
+      if (direction === 'rep_to_vendor') {
+        checklist.firstVendorReviewSubmitted(reviewerId);
+      } else {
+        checklist.firstRepReviewSubmitted(reviewerId);
+      }
       
       // Reset form
       setOnTimeRating(0);
