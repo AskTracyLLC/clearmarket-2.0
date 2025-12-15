@@ -32,6 +32,7 @@ import {
   getBackgroundCheckStatusInfo,
   BackgroundCheck 
 } from "@/lib/backgroundChecks";
+import { checklist } from "@/lib/checklistTracking";
 
 // Validation schema for rep profile (MVP)
 const repProfileSchema = z.object({
@@ -442,6 +443,11 @@ const RepProfile = () => {
     }
 
     // Note: Background check is submitted separately via "Send for Verification" button
+
+    // Track profile completion for checklist
+    if (user && data.city && data.state && data.zip_code && data.inspection_types.length > 0) {
+      checklist.profileCompleted(user.id);
+    }
 
     toast({
       title: "Profile Updated",

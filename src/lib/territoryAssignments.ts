@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { checklist } from "./checklistTracking";
 
 export interface TerritoryAssignment {
   id: string;
@@ -351,6 +352,10 @@ export async function acceptTerritoryAssignment(
     .eq("ref_id", assignmentId)
     .eq("type", "territory_assignment")
     .eq("user_id", repUserId);
+
+  // Track checklist events for both rep and vendor
+  checklist.firstAgreementAccepted(repUserId);
+  checklist.firstAgreementActivated(assignment.vendor_id);
 
   return { error: null, connectionCreated };
 }

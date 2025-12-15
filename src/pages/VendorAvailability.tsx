@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RecurrenceType, getRecurrenceDescription, getUpcomingPayDatesForSchedule } from "@/lib/recurringEvents";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { checklist } from "@/lib/checklistTracking";
 
 const WEEKDAYS = [
   { value: 0, label: "Sunday" },
@@ -279,6 +280,11 @@ const VendorAvailability = () => {
         description: "Office hours updated successfully.",
       });
 
+      // Track vendor calendar update for checklist
+      if (user) {
+        checklist.vendorCalendarUpdated(user.id);
+      }
+
       loadData(targetVendorId);
     } catch (error) {
       console.error("Error saving hours:", error);
@@ -308,6 +314,11 @@ const VendorAvailability = () => {
     const targetVendorId = viewingVendorId || user?.id;
     if (targetVendorId) {
       loadData(targetVendorId);
+      
+      // Track vendor calendar update for checklist
+      if (user && !viewingVendorId) {
+        checklist.vendorCalendarUpdated(user.id);
+      }
     }
     setShowAddEventDialog(false);
     setEditingEvent(null);

@@ -47,6 +47,7 @@ import {
 } from "@/lib/territoryAssignments";
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import { DeclineRepDialog } from "@/components/DeclineRepDialog";
+import { checklist } from "@/lib/checklistTracking";
 
 interface Message {
   id: string;
@@ -536,6 +537,11 @@ export default function MessageThread() {
       setAgreement(newAgreement);
       setShowAgreementDialog(false);
       
+      // Track first agreement created for checklist
+      if (isVendor && user) {
+        checklist.firstAgreementCreated(user.id);
+      }
+      
       const toastTitle = data.markPostFilled ? "Agreement created & post filled" : "Agreement created";
       const toastDescription = data.markPostFilled
         ? "The Seeking Coverage post is now marked as filled, and this rep was added to your My Field Reps list."
@@ -606,6 +612,11 @@ export default function MessageThread() {
 
       setMessageText("");
       await loadMessages();
+      
+      // Track first message sent by vendor for checklist
+      if (isVendor) {
+        checklist.firstRepMessageSent(user.id);
+      }
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
