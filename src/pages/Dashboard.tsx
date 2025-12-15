@@ -660,8 +660,13 @@ const Dashboard = () => {
                     <ClipboardList className="w-5 h-5 text-primary" />
                     Checklists
                   </CardTitle>
-                  <CardDescription className="text-sm">Manage onboarding checklists</CardDescription>
+                  <CardDescription className="text-sm">Track beta user onboarding progress</CardDescription>
                 </CardHeader>
+                <CardContent className="pt-0 pb-3">
+                  <p className="text-xs text-muted-foreground">
+                    View templates, edit items, and see which steps are slowing people down.
+                  </p>
+                </CardContent>
               </Card>
             </div>
             
