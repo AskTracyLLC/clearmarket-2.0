@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { checklist } from "@/lib/checklistTracking";
 
 interface AlertKudosButtonProps {
   alertId: string;
@@ -74,6 +75,9 @@ export function AlertKudosButton({ alertId, repId, vendorId, disabled }: AlertKu
           title: "Thanks for the feedback!",
           description: "Your kudos helps this rep's communication score.",
         });
+        
+        // Track checklist event for first route alert acknowledged
+        checklist.firstRouteAlertAcknowledged(vendorId);
       }
     } catch (error: any) {
       console.error("Error toggling kudos:", error);

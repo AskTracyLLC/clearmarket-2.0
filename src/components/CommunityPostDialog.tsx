@@ -21,6 +21,7 @@ import {
 } from "@/lib/community";
 import { CommunityImageUpload, UploadedImage } from "@/components/CommunityImageUpload";
 import { supabase } from "@/integrations/supabase/client";
+import { checklist } from "@/lib/checklistTracking";
 
 interface CommunityPostDialogProps {
   open: boolean;
@@ -169,6 +170,11 @@ export function CommunityPostDialog({
         setCategory(categories[0]?.value || "question");
         onOpenChange(false);
         onSuccess?.();
+        
+        // Track checklist event for first community post
+        if (channel === "community") {
+          checklist.firstCommunityPost(userId);
+        }
       } else {
         toast({
           title: "Error",

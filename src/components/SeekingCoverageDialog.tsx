@@ -37,6 +37,7 @@ import { US_STATES, SYSTEMS_LIST } from "@/lib/constants";
 import { evaluateMatchAlertsForNewPost } from "@/lib/matchAlerts";
 import { useCreditConfirm } from "@/hooks/useCreditConfirm";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
+import { checklist } from "@/lib/checklistTracking";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -463,6 +464,9 @@ export const SeekingCoverageDialog = ({
       });
       onSave();
       navigate("/vendor/seeking-coverage");
+      
+      // Track checklist event for first seeking coverage post
+      checklist.firstSeekingCoveragePost(user.id);
     }
 
     setSaving(false);

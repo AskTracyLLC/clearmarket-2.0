@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { createNotification } from "@/lib/notifications";
+import { checklist } from "@/lib/checklistTracking";
 
 interface PostInfo {
   id: string;
@@ -210,6 +211,9 @@ export function ExpressInterestDialog({
       toast.success("Your interest and coverage details were sent to the vendor.");
       onInterestExpressed(post.id);
       onOpenChange(false);
+      
+      // Track checklist event for first seeking coverage response
+      checklist.firstSeekingCoverageResponse(repProfile.user_id);
     } catch (error: any) {
       console.error("Error expressing interest:", error);
       toast.error("Failed to send interest. Please try again.");

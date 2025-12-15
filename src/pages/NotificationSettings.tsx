@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { checklist } from "@/lib/checklistTracking";
 
 type NotificationPreferences = {
   user_id: string;
@@ -35,6 +36,7 @@ export default function NotificationSettings() {
   const navigate = useNavigate();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasTrackedSave = useRef(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -107,6 +109,11 @@ export default function NotificationSettings() {
       toast.error("Failed to update notification settings");
     } else {
       toast.success("Notification settings updated");
+      // Track checklist event (only once per session)
+      if (!hasTrackedSave.current) {
+        hasTrackedSave.current = true;
+        checklist.notificationSettingsSaved(user.id);
+      }
     }
   }
 
