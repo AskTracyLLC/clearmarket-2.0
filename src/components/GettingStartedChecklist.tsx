@@ -11,6 +11,7 @@ import { ChecklistProgress, CHECKLIST_ITEM_CTAS } from "@/lib/checklists";
 import { cn } from "@/lib/utils";
 import { ChecklistFeedbackDialog } from "./ChecklistFeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { gettingStartedChecklistCopy } from "@/copy/gettingStartedChecklistCopy";
 
 interface GettingStartedChecklistProps {
   checklist: ChecklistProgress;
@@ -37,6 +38,8 @@ export function GettingStartedChecklist({
     title: string;
     description?: string;
   } | null>(null);
+
+  const copy = gettingStartedChecklistCopy;
 
   const handleComplete = async (userItemId: string) => {
     if (!onMarkComplete) return;
@@ -69,12 +72,12 @@ export function GettingStartedChecklist({
                   {template.name}
                   {isComplete && (
                     <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
-                      Complete
+                      {copy.widget.completeBadge}
                     </Badge>
                   )}
                 </CardTitle>
                 <CardDescription className="text-sm mt-1">
-                  {completedRequiredCount} of {requiredCount} required items completed
+                  {completedRequiredCount} of {requiredCount} {copy.widget.progressLabel}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">
@@ -134,14 +137,23 @@ export function GettingStartedChecklist({
                           {definition.title}
                         </span>
                         {isAutoTracked && !isCompleted && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                            <Zap className="h-3 w-3 mr-1" />
-                            Auto
-                          </Badge>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 cursor-help">
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  {copy.itemRow.autoBadge}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{copy.itemRow.autoTooltip}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                         {definition.is_required && !isCompleted && (
                           <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
-                            Required
+                            {copy.itemRow.requiredBadge}
                           </Badge>
                         )}
                       </div>
@@ -152,8 +164,8 @@ export function GettingStartedChecklist({
                       )}
                       {isCompleted && userItem.completed_at && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Completed {new Date(userItem.completed_at).toLocaleDateString()}
-                          {userItem.completed_by === "system" && " (auto-tracked)"}
+                          {copy.itemRow.completed} {new Date(userItem.completed_at).toLocaleDateString()}
+                          {userItem.completed_by === "system" && ` ${copy.itemRow.autoTrackedSuffix}`}
                         </p>
                       )}
                     </div>
@@ -182,7 +194,7 @@ export function GettingStartedChecklist({
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Report an issue with this step</p>
+                              <p>{copy.itemRow.feedbackTooltip}</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -211,7 +223,7 @@ export function GettingStartedChecklist({
                               disabled={isLoading || !userItem.id}
                               className="text-xs h-7"
                             >
-                              {isLoading ? "..." : "Mark Done"}
+                              {isLoading ? copy.itemRow.markDoneLoading : copy.itemRow.markDoneButton}
                             </Button>
                           ) : null}
                         </>
