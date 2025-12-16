@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -95,6 +96,7 @@ const VendorSeekingCoverage = () => {
   const highlightPostId = searchParams.get("highlightPostId");
   const vendorIdParam = searchParams.get("vendorId");
   const { user, loading: authLoading } = useAuth();
+  const { effectiveUserId, mimickedUser } = useMimic();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [vendorProfile, setVendorProfile] = useState<any>(null);
@@ -123,7 +125,7 @@ const VendorSeekingCoverage = () => {
   // For admin viewing another vendor's posts
   const [targetVendorId, setTargetVendorId] = useState<string | null>(null);
   const [targetVendorName, setTargetVendorName] = useState<string | null>(null);
-  const isAdminViewingOther = profile?.is_admin && vendorIdParam && vendorIdParam !== user?.id;
+  const isAdminViewingOther = profile?.is_admin && (vendorIdParam && vendorIdParam !== user?.id) || !!mimickedUser;
   
   // Ref for scrolling to highlighted post
   const highlightedPostRef = useRef<HTMLTableRowElement>(null);
@@ -141,15 +143,15 @@ const VendorSeekingCoverage = () => {
       return;
     }
 
-    if (user) {
+    if (user && effectiveUserId) {
       loadData();
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, effectiveUserId]);
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user || !effectiveUserId) return;
 
-    // Load profile
+    // Load logged-in user's profile (for admin check)
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
@@ -170,26 +172,27 @@ const VendorSeekingCoverage = () => {
     }
 
     // Determine which vendor's posts to load
+    // Mimic mode takes precedence, then vendorIdParam for admins, then current user
     const isAdmin = profileData.is_admin === true;
-    const effectiveVendorId = isAdmin && vendorIdParam ? vendorIdParam : user.id;
-    setTargetVendorId(effectiveVendorId);
+    const targetId = mimickedUser?.id || (isAdmin && vendorIdParam ? vendorIdParam : effectiveUserId);
+    setTargetVendorId(targetId);
 
     // Load vendor profile (for the target vendor, not necessarily current user)
     const { data: vendorData } = await supabase
       .from("vendor_profile")
       .select("*")
-      .eq("user_id", effectiveVendorId)
+      .eq("user_id", targetId)
       .maybeSingle();
 
     setVendorProfile(vendorData);
     
-    // If admin viewing another vendor, store their name for display
-    if (isAdmin && vendorIdParam && vendorIdParam !== user.id) {
-      setTargetVendorName(vendorData?.company_name || null);
+    // If admin viewing another vendor (via mimic or vendorIdParam), store their name for display
+    if (isAdmin && (mimickedUser || (vendorIdParam && vendorIdParam !== user.id))) {
+      setTargetVendorName(vendorData?.company_name || mimickedUser?.full_name || null);
     }
 
     // Load seeking coverage posts with auto-expiry logic
-    await loadPosts(effectiveVendorId);
+    await loadPosts(targetId);
 
     setLoading(false);
   };
