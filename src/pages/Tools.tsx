@@ -1,0 +1,129 @@
+import { useState } from "react";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Calendar, DollarSign } from "lucide-react";
+import { Link } from "react-router-dom";
+
+type ToolModule = "clearbooking" | "cleartrack" | null;
+
+const Tools = () => {
+  const [openModal, setOpenModal] = useState<ToolModule>(null);
+
+  const modules = [
+    {
+      id: "clearbooking" as const,
+      title: "ClearBooking",
+      subtitle: "Scheduling + appointment execution accountability",
+      icon: Calendar,
+      helpSlug: "/help/clearbooking",
+      description: "ClearBooking is designed to bring appointment communication and follow-ups into one place, so you're not scrambling across multiple systems to figure out what's happening on an order. ClearBooking is not a dispatching program or service — orders will still be worked and updated in the vendor's required system. This is simply a streamlined command center to improve efficiency and accountability. More details coming soon.",
+    },
+    {
+      id: "cleartrack" as const,
+      title: "ClearTrack",
+      subtitle: "Completed work + payment reconciliation",
+      icon: DollarSign,
+      helpSlug: "/help/cleartrack",
+      description: "ClearTrack helps you keep track of completed work and whether or not it's been paid. More details coming soon.",
+    },
+  ];
+
+  return (
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Tools</h1>
+          <p className="text-muted-foreground mt-2">
+            The Clear ecosystem — additional modules to streamline your workflow.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {modules.map((module) => (
+            <Card
+              key={module.id}
+              className="cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => setOpenModal(module.id)}
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <module.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{module.title}</CardTitle>
+                      <CardDescription className="mt-1">{module.subtitle}</CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">Coming soon</Badge>
+                </div>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+
+        {/* ClearBooking Modal */}
+        <Dialog open={openModal === "clearbooking"} onOpenChange={(open) => !open && setOpenModal(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle>ClearBooking</DialogTitle>
+                  <DialogDescription>Scheduling + appointment execution accountability</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Badge variant="secondary">Coming soon</Badge>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {modules[0].description}
+              </p>
+              <div className="pt-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/help/clearbooking">Learn more</Link>
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ClearTrack Modal */}
+        <Dialog open={openModal === "cleartrack"} onOpenChange={(open) => !open && setOpenModal(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <DollarSign className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle>ClearTrack</DialogTitle>
+                  <DialogDescription>Completed work + payment reconciliation</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Badge variant="secondary">Coming soon</Badge>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {modules[1].description}
+              </p>
+              <div className="pt-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/help/cleartrack">Learn more</Link>
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AuthenticatedLayout>
+  );
+};
+
+export default Tools;
