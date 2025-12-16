@@ -77,7 +77,11 @@ export function NotificationFeedItem({
     if (!notification.is_read) {
       await supabase
         .from("notifications")
-        .update({ is_read: true })
+        .update({ 
+          is_read: true,
+          status: 'read',
+          read_at: new Date().toISOString()
+        })
         .eq("id", notification.id);
     }
 
@@ -113,7 +117,10 @@ export function NotificationFeedItem({
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ review_later: true })
+        .update({ 
+          review_later: true,
+          status: 'snoozed'
+        })
         .eq("id", notification.id);
 
       if (error) throw error;
