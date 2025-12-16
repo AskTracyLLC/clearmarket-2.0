@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
-import * as SelectPrimitive from "@radix-ui/react-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Search, X } from "lucide-react";
 
@@ -28,10 +32,8 @@ interface MobileMultiSelectProps {
 /**
  * MobileMultiSelect
  *
- * Uses Radix Select under the hood (same interaction model as our State dropdown),
- * but keeps the menu open for multi-select by preventing default selection behavior.
- *
- * This avoids iOS/Android scroll-lock issues seen with nested popovers inside dialogs.
+ * Uses Popover for reliable mobile touch support.
+ * Each row is a button with onClick for consistent tap handling.
  */
 export const MobileMultiSelect = ({
   options,
@@ -65,98 +67,100 @@ export const MobileMultiSelect = ({
     return `${selectedIds.length} selected`;
   }, [placeholder, selectedIds.length]);
 
+  const handleToggle = (id: string) => {
+    onToggle(id);
+  };
+
   return (
     <div className={cn("space-y-2", className)}>
-      <SelectPrimitive.Root open={open} onOpenChange={setOpen} value="__multi__">
-        <SelectPrimitive.Trigger asChild disabled={disabled}>
-          <Button variant="outline" className="w-full justify-between bg-background">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild disabled={disabled}>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between bg-background"
+          >
             <span className="text-sm truncate">{triggerLabel}</span>
             <ChevronDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
           </Button>
-        </SelectPrimitive.Trigger>
+        </PopoverTrigger>
 
-        <SelectPrimitive.Portal>
-          <SelectPrimitive.Content
-            position="popper"
-            sideOffset={4}
-            align="start"
-            className={cn(
-              "relative z-50 w-[min(420px,calc(100vw-2rem))] rounded-md border bg-popover text-popover-foreground shadow-md",
-              "flex flex-col",
-              "max-h-[60dvh] overflow-hidden",
-              "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-              "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2",
-            )}
-          >
-            {/* Header */}
-            <div className="shrink-0 p-2 border-b border-border bg-muted/50">
-              <p className="text-xs font-medium text-muted-foreground px-2">
-                {headerText || `Select items (${options.length} total)`}
-              </p>
+        <PopoverContent
+          className={cn(
+            "w-[min(420px,calc(100vw-2rem))] p-0",
+            "flex flex-col",
+            "max-h-[60dvh]"
+          )}
+          align="start"
+          sideOffset={4}
+        >
+          {/* Header */}
+          <div className="shrink-0 p-2 border-b border-border bg-muted/50">
+            <p className="text-xs font-medium text-muted-foreground px-2">
+              {headerText || `Select items (${options.length} total)`}
+            </p>
+          </div>
+
+          {/* Search */}
+          {showSearch && options.length > 10 && (
+            <div className="shrink-0 p-2 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={searchPlaceholder}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9 text-sm"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                />
+              </div>
             </div>
+          )}
 
-            {/* Search */}
-            {showSearch && options.length > 10 && (
-              <div className="shrink-0 p-2 border-b border-border bg-popover">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={searchPlaceholder}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 h-9 text-sm"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    onKeyDown={(e) => {
-                      // Prevent Select typeahead from stealing focus / closing
-                      e.stopPropagation();
-                    }}
-                  />
-                </div>
+          {/* List - scrollable */}
+          <div
+            className="flex-1 p-2 overflow-y-auto overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {filteredOptions.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {searchQuery ? "No matches found" : emptyMessage}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {filteredOptions.map((opt) => {
+                  const checked = selectedIds.includes(opt.id);
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleToggle(opt.id)}
+                      className={cn(
+                        "relative flex w-full items-center rounded-sm px-2 py-2.5 text-sm outline-none",
+                        "hover:bg-accent focus:bg-accent active:bg-accent",
+                        "cursor-pointer select-none",
+                        "transition-colors"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 pointer-events-none">
+                        <Checkbox
+                          checked={checked}
+                          tabIndex={-1}
+                          className="pointer-events-none"
+                        />
+                        <span className="truncate">{opt.label}</span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
-
-            {/* List */}
-            <SelectPrimitive.Viewport
-              className="flex-1 p-2 max-h-[50dvh] overflow-y-auto overscroll-contain touch-pan-y"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              {filteredOptions.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  {searchQuery ? "No matches found" : emptyMessage}
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {filteredOptions.map((opt) => {
-                    const checked = selectedIds.includes(opt.id);
-                    return (
-                      <SelectPrimitive.Item
-                        key={opt.id}
-                        value={opt.id}
-                        // Prevent Radix Select from closing on selection
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          onToggle(opt.id);
-                        }}
-                        className={cn(
-                          "relative flex w-full select-none items-center rounded-sm px-2 py-2 text-sm outline-none",
-                          "hover:bg-accent focus:bg-accent",
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Checkbox checked={checked} className="pointer-events-none" />
-                          <span className="truncate">{opt.label}</span>
-                        </div>
-                      </SelectPrimitive.Item>
-                    );
-                  })}
-                </div>
-              )}
-            </SelectPrimitive.Viewport>
-          </SelectPrimitive.Content>
-        </SelectPrimitive.Portal>
-      </SelectPrimitive.Root>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Selected badges */}
       {selectedLabels.length > 0 && (
