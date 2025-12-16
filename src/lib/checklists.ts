@@ -66,7 +66,7 @@ export interface ChecklistProgress {
 
 // CTA mappings for checklist items
 export const CHECKLIST_ITEM_CTAS: Record<string, { label: string; link: string }> = {
-  password_reset: { label: "Reset Password", link: "/settings" },
+  password_reset: { label: "Change Password", link: "/settings?tab=security" },
   profile_completed: { label: "Complete Profile", link: "/rep/profile" },
   coverage_pricing_set: { label: "Set Pricing", link: "/work-setup" },
   first_community_post: { label: "Open Community", link: "/community" },
