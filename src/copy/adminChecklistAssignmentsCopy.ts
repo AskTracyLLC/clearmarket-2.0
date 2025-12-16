@@ -10,60 +10,38 @@ export const adminChecklistAssignmentsCopy = {
   },
 
   fieldReps: {
-    sectionTitle: "Field Reps",
-    sectionHelper: "Select field reps to assign this checklist. Filter by state, status, or search by name/email.",
-    filters: {
-      stateLabel: "State",
-      statePlaceholder: "All states",
-      activeOnlyLabel: "Only show active reps",
-      searchPlaceholder: "Search by name or email...",
+    header: "Field Reps",
+    helper: "Select field reps to assign this checklist.",
+    searchPlaceholder: "Search by name...",
+    masterLabel: "Select all field reps",
+    empty: {
+      noUsers: "No field reps found.",
+      noMatches: "No field reps match your search.",
     },
-    columns: {
-      name: "Name",
-      email: "Email",
-      coverageAreas: "Coverage Area(s)",
-      status: "Status",
-      assigned: "Assigned",
+    footer: {
+      noneSelected: "No field reps selected",
+      someSelected: "{count} field rep(s) selected",
     },
-    emptyState: "No field reps match your filters.",
   },
 
   vendors: {
-    sectionTitle: "Vendors",
-    sectionHelper: "Select vendors to assign this checklist. Use the state grouping to quickly assign by region.",
-    filters: {
-      stateLabel: "State",
-      statePlaceholder: "All states",
-      groupByStateLabel: "Group by State",
-      activeOnlyLabel: "Only show active vendors",
-      searchPlaceholder: "Search by company or email...",
+    header: "Vendors",
+    helper: "Select vendors to assign this checklist.",
+    searchPlaceholder: "Search by vendor name...",
+    masterLabel: "Select all vendors",
+    empty: {
+      noUsers: "No vendors found.",
+      noMatches: "No vendors match your search.",
     },
-    columns: {
-      companyName: "Company Name",
-      email: "Email",
-      focusAreas: "Focus Areas",
-      status: "Status",
-      assigned: "Assigned",
+    footer: {
+      noneSelected: "No vendors selected",
+      someSelected: "{count} vendor(s) selected",
     },
-    emptyState: "No vendors match your filters.",
-  },
-
-  bulkControls: {
-    selectAll: "Select All",
-    clearSelection: "Clear Selection",
-    selectAllInState: "Select all",
-    clearInState: "Clear",
-    selectedCount: "{count} user(s) selected",
-    noSelection: "No users selected",
-  },
-
-  assignButton: {
-    label: "Assign Checklist",
-    labelAssigning: "Assigning...",
-    disabled: "Select at least one user to assign",
   },
 
   actions: {
+    assignButton: "Assign Checklist",
+    assignDisabled: "Select at least one user to assign",
     confirm: {
       title: "Confirm Assignment",
       description: "You are about to assign this checklist to {count} user(s). They will see it in their Getting Started section.",
