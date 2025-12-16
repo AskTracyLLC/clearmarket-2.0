@@ -513,8 +513,12 @@ export const SeekingCoverageDialog = ({
             <Select 
               value={watch("state_code")} 
               onValueChange={(value) => {
+                const currentState = watch("state_code");
                 setValue("state_code", value);
-                setValue("county_id", null);
+                // Only clear county if the state actually changed (user interaction)
+                if (value !== currentState) {
+                  setValue("county_id", null);
+                }
               }}
             >
               <SelectTrigger>
