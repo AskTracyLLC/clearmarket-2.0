@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ClipboardList, CalendarIcon, ArrowLeft, X } from "lucide-react";
+import { ClipboardList, CalendarIcon, ArrowLeft, X, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { adminChecklistLogCopy } from "@/copy/adminChecklistLogCopy";
 
@@ -60,6 +60,9 @@ interface FilterTemplate {
   name: string;
 }
 
+type SortColumn = "timestamp" | "template" | "user" | "vendor" | "source";
+type SortDirection = "asc" | "desc";
+
 export default function AdminChecklistLog() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -75,6 +78,10 @@ export default function AdminChecklistLog() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [selectedSource, setSelectedSource] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<SortColumn>("timestamp");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Filter options
   const [vendors, setVendors] = useState<FilterVendor[]>([]);
@@ -222,8 +229,27 @@ export default function AdminChecklistLog() {
     }
   };
 
-  const filteredEvents = useMemo(() => {
-    return events.filter(e => {
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const sortedAndFilteredEvents = useMemo(() => {
+    // First filter
+    const filtered = events.filter(e => {
       // Vendor filter
       if (selectedVendorId && e.vendor_id !== selectedVendorId) return false;
       // Template filter
@@ -239,7 +265,32 @@ export default function AdminChecklistLog() {
       }
       return true;
     });
-  }, [events, selectedVendorId, selectedTemplateId, selectedSource, searchQuery]);
+
+    // Then sort
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortColumn) {
+        case "timestamp":
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "template":
+          comparison = (a.template_name || "").localeCompare(b.template_name || "");
+          break;
+        case "user":
+          comparison = (a.user_name || a.user_email || "").localeCompare(b.user_name || b.user_email || "");
+          break;
+        case "vendor":
+          comparison = (a.vendor_company || a.vendor_name || "System/Admin").localeCompare(b.vendor_company || b.vendor_name || "System/Admin");
+          break;
+        case "source":
+          comparison = a.source.localeCompare(b.source);
+          break;
+      }
+      
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [events, selectedVendorId, selectedTemplateId, selectedSource, searchQuery, sortColumn, sortDirection]);
 
   const clearFilters = () => {
     setDateFrom(startOfMonth(new Date()));
@@ -417,7 +468,7 @@ export default function AdminChecklistLog() {
           <CardContent className="p-0">
             {loading ? (
               <div className="py-12 text-center text-muted-foreground">Loading...</div>
-            ) : filteredEvents.length === 0 ? (
+            ) : sortedAndFilteredEvents.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground">
                 {adminChecklistLogCopy.table.empty}
               </div>
@@ -426,15 +477,55 @@ export default function AdminChecklistLog() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{adminChecklistLogCopy.table.columns.timestamp}</TableHead>
-                      <TableHead>{adminChecklistLogCopy.table.columns.template}</TableHead>
-                      <TableHead>{adminChecklistLogCopy.table.columns.user}</TableHead>
-                      <TableHead>{adminChecklistLogCopy.table.columns.vendor}</TableHead>
-                      <TableHead>{adminChecklistLogCopy.table.columns.source}</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("timestamp")}
+                      >
+                        <div className="flex items-center">
+                          {adminChecklistLogCopy.table.columns.timestamp}
+                          <SortIcon column="timestamp" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("template")}
+                      >
+                        <div className="flex items-center">
+                          {adminChecklistLogCopy.table.columns.template}
+                          <SortIcon column="template" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("user")}
+                      >
+                        <div className="flex items-center">
+                          {adminChecklistLogCopy.table.columns.user}
+                          <SortIcon column="user" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("vendor")}
+                      >
+                        <div className="flex items-center">
+                          {adminChecklistLogCopy.table.columns.vendor}
+                          <SortIcon column="vendor" />
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 select-none"
+                        onClick={() => handleSort("source")}
+                      >
+                        <div className="flex items-center">
+                          {adminChecklistLogCopy.table.columns.source}
+                          <SortIcon column="source" />
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEvents.map(event => (
+                    {sortedAndFilteredEvents.map(event => (
                       <TableRow key={event.id}>
                         <TableCell className="text-sm">
                           {format(new Date(event.created_at), "MMM d, yyyy, h:mm a")}
