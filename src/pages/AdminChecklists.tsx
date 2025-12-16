@@ -1488,7 +1488,7 @@ export default function AdminChecklists() {
                               </div>
                             ) : (
                               <ScrollArea className="h-[280px]">
-                                <div className="space-y-1">
+                                <div className="grid grid-cols-3 gap-x-4 gap-y-1">
                                   {filteredReps.map(user => {
                                     // Get unique states from coverage areas
                                     const statesSet = new Set<string>();
@@ -1508,7 +1508,7 @@ export default function AdminChecklists() {
                                     return (
                                       <div 
                                         key={user.id}
-                                        className={`flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted/50 ${user.already_assigned ? "opacity-50" : "cursor-pointer"}`}
+                                        className={`flex items-start gap-2 py-1.5 px-1 rounded hover:bg-muted/50 ${user.already_assigned ? "opacity-50" : "cursor-pointer"}`}
                                         onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
                                       >
                                         <Checkbox
@@ -1516,15 +1516,16 @@ export default function AdminChecklists() {
                                           disabled={user.already_assigned}
                                           onCheckedChange={() => toggleUserSelection(user.id)}
                                           onClick={(e) => e.stopPropagation()}
+                                          className="mt-0.5 shrink-0"
                                         />
-                                        <span className="text-sm">
+                                        <span className="text-sm break-words">
                                           {displayName}{statesLabel}
+                                          {user.already_assigned && (
+                                            <Badge variant="outline" className="text-xs ml-1">
+                                              {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
+                                            </Badge>
+                                          )}
                                         </span>
-                                        {user.already_assigned && (
-                                          <Badge variant="outline" className="text-xs ml-auto">
-                                            {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
-                                          </Badge>
-                                        )}
                                       </div>
                                     );
                                   })}
@@ -1620,7 +1621,7 @@ export default function AdminChecklists() {
                               </div>
                             ) : (
                               <ScrollArea className="h-[280px]">
-                                <div className="space-y-1">
+                                <div className="grid grid-cols-3 gap-x-4 gap-y-1">
                                   {filteredVendors.map(user => {
                                     // Get unique states from coverage areas
                                     const statesSet = new Set<string>();
@@ -1640,7 +1641,7 @@ export default function AdminChecklists() {
                                     return (
                                       <div 
                                         key={user.id}
-                                        className={`flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted/50 ${user.already_assigned ? "opacity-50" : "cursor-pointer"}`}
+                                        className={`flex items-start gap-2 py-1.5 px-1 rounded hover:bg-muted/50 ${user.already_assigned ? "opacity-50" : "cursor-pointer"}`}
                                         onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
                                       >
                                         <Checkbox
@@ -1648,15 +1649,16 @@ export default function AdminChecklists() {
                                           disabled={user.already_assigned}
                                           onCheckedChange={() => toggleUserSelection(user.id)}
                                           onClick={(e) => e.stopPropagation()}
+                                          className="mt-0.5 shrink-0"
                                         />
-                                        <span className="text-sm">
+                                        <span className="text-sm break-words">
                                           {displayName}{statesLabel}
+                                          {user.already_assigned && (
+                                            <Badge variant="outline" className="text-xs ml-1">
+                                              {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
+                                            </Badge>
+                                          )}
                                         </span>
-                                        {user.already_assigned && (
-                                          <Badge variant="outline" className="text-xs ml-auto">
-                                            {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
-                                          </Badge>
-                                        )}
                                       </div>
                                     );
                                   })}
