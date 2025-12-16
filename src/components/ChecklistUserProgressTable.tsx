@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MessageSquareWarning } from "lucide-react";
+import { MessageSquareWarning, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { checklistUserProgressCopy } from "@/copy/checklistUserProgressCopy";
 
@@ -35,11 +35,16 @@ interface ChecklistUserProgressTableProps {
   vendorId?: string; // If provided, only show connected reps for this vendor
 }
 
+type SortColumn = "user" | "role" | "completion" | "steps" | "lastUpdated" | "feedback";
+type SortDirection = "asc" | "desc";
+
 export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUserProgressTableProps) {
   const [users, setUsers] = useState<UserProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
+  const [sortColumn, setSortColumn] = useState<SortColumn>("completion");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const copy = checklistUserProgressCopy;
 
@@ -149,8 +154,27 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
     }
   };
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(user => {
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 ml-1" />
+      : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const sortedAndFilteredUsers = useMemo(() => {
+    // First filter
+    const filtered = users.filter(user => {
       // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -166,7 +190,37 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
       
       return true;
     });
-  }, [users, searchQuery, showOnlyIncomplete]);
+
+    // Then sort
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortColumn) {
+        case "user":
+          comparison = (a.userName || a.userEmail).localeCompare(b.userName || b.userEmail);
+          break;
+        case "role":
+          comparison = a.role.localeCompare(b.role);
+          break;
+        case "completion":
+          comparison = a.percent - b.percent;
+          break;
+        case "steps":
+          comparison = a.completedCount - b.completedCount;
+          break;
+        case "lastUpdated":
+          const dateA = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
+          const dateB = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        case "feedback":
+          comparison = (a.hasFeedback ? 1 : 0) - (b.hasFeedback ? 1 : 0);
+          break;
+      }
+      
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [users, searchQuery, showOnlyIncomplete, sortColumn, sortDirection]);
 
   if (loading) {
     return (
@@ -213,23 +267,71 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{copy.table.columns.user}</TableHead>
-              <TableHead>{copy.table.columns.role}</TableHead>
-              <TableHead>{copy.table.columns.completion}</TableHead>
-              <TableHead>{copy.table.columns.steps}</TableHead>
-              <TableHead>{copy.table.columns.lastUpdated}</TableHead>
-              <TableHead>{copy.table.columns.feedback}</TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("user")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.user}
+                  <SortIcon column="user" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("role")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.role}
+                  <SortIcon column="role" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("completion")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.completion}
+                  <SortIcon column="completion" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("steps")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.steps}
+                  <SortIcon column="steps" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("lastUpdated")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.lastUpdated}
+                  <SortIcon column="lastUpdated" />
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort("feedback")}
+              >
+                <div className="flex items-center">
+                  {copy.table.columns.feedback}
+                  <SortIcon column="feedback" />
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {sortedAndFilteredUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   No users match your filters.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
+              sortedAndFilteredUsers.map((user) => (
                 <TableRow key={user.userId}>
                   <TableCell>
                     <div>
