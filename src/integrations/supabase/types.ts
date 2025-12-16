@@ -423,6 +423,7 @@ export type Database = {
           helpful_count: number
           id: string
           not_helpful_count: number
+          parent_comment_id: string | null
           post_id: string
           status: string
           updated_at: string
@@ -434,6 +435,7 @@ export type Database = {
           helpful_count?: number
           id?: string
           not_helpful_count?: number
+          parent_comment_id?: string | null
           post_id: string
           status?: string
           updated_at?: string
@@ -445,6 +447,7 @@ export type Database = {
           helpful_count?: number
           id?: string
           not_helpful_count?: number
+          parent_comment_id?: string | null
           post_id?: string
           status?: string
           updated_at?: string
@@ -455,6 +458,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "community_comments"
             referencedColumns: ["id"]
           },
           {

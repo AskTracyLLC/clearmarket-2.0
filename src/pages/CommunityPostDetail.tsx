@@ -94,6 +94,8 @@ const CommunityPostDetail = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [replyToComment, setReplyToComment] = useState<CommunityComment | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -190,19 +192,28 @@ const CommunityPostDetail = () => {
     setWatchLoading(false);
   };
 
-  const handleSubmitComment = async () => {
-    if (!user || !post || !newComment.trim()) return;
+  const handleSubmitComment = async (parentCommentId?: string | null) => {
+    if (!user || !post) return;
+    
+    const commentBody = parentCommentId ? replyText.trim() : newComment.trim();
+    if (!commentBody) return;
+    
     if (post.status === "locked") {
       toast({ title: "Post is locked", description: "New comments are disabled.", variant: "destructive" });
       return;
     }
 
     setSubmitting(true);
-    const result = await createCommunityComment(post.id, user.id, newComment.trim());
+    const result = await createCommunityComment(post.id, user.id, commentBody, parentCommentId);
 
     if (result.success) {
       toast({ title: communityCopy.replyForm.successToast });
-      setNewComment("");
+      if (parentCommentId) {
+        setReplyText("");
+        setReplyToComment(null);
+      } else {
+        setNewComment("");
+      }
       // Notify post author if not self
       if (post.author_id !== user.id) {
         await notifyPostAuthorOfComment(post.id, post.author_id, user.id, post.title);
@@ -215,6 +226,37 @@ const CommunityPostDetail = () => {
       toast({ title: communityCopy.replyForm.errorToast, description: result.error, variant: "destructive" });
     }
     setSubmitting(false);
+  };
+
+  // Helper to get nesting level (max 2)
+  const getCommentLevel = (comment: CommunityComment): number => {
+    if (!comment.parent_comment_id) return 0;
+    const parent = comments.find(c => c.id === comment.parent_comment_id);
+    if (!parent) return 1;
+    if (!parent.parent_comment_id) return 1;
+    return 2;
+  };
+
+  // Get the reply target - if replying to a level 2 comment, reply to its parent instead
+  const getReplyTargetId = (comment: CommunityComment): string => {
+    const level = getCommentLevel(comment);
+    if (level < 2) return comment.id;
+    // Level 2 - reply to parent instead
+    return comment.parent_comment_id || comment.id;
+  };
+
+  // Organize comments into tree structure
+  const getThreadedComments = () => {
+    const rootComments = comments.filter(c => !c.parent_comment_id);
+    const childComments = comments.filter(c => c.parent_comment_id);
+    
+    const getChildren = (parentId: string): CommunityComment[] => {
+      return childComments
+        .filter(c => c.parent_comment_id === parentId)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    };
+    
+    return { rootComments, getChildren };
   };
 
   const handleReportPost = () => {
@@ -482,7 +524,7 @@ const CommunityPostDetail = () => {
                   maxLength={2000}
                 />
                 <div className="flex justify-end mt-2">
-                  <Button onClick={handleSubmitComment} disabled={submitting || !newComment.trim()}>
+                  <Button onClick={() => handleSubmitComment()} disabled={submitting || !newComment.trim()}>
                     {submitting ? "Posting..." : communityCopy.replyForm.submitButton}
                   </Button>
                 </div>
@@ -495,73 +537,141 @@ const CommunityPostDetail = () => {
             <p className="text-muted-foreground text-center py-8">No comments yet. Be the first to comment!</p>
           ) : (
             <div className="space-y-4">
-              {comments.map((comment) => (
-                <Card key={comment.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <button
-                            onClick={() => handleViewProfile(comment.author_id)}
-                            className="hover:text-foreground flex items-center gap-1"
-                          >
-                            <Eye className="w-3 h-3" />
-                            {comment.author_anonymous_id || "User"}
-                          </button>
-                          <span>·</span>
-                          <span>
-                            {comment.author_role === "field_rep"
-                              ? "Field Rep"
-                              : comment.author_role === "vendor"
-                              ? "Vendor"
-                              : comment.author_role === "both"
-                              ? "Both"
-                              : ""}
-                          </span>
-                          <span>·</span>
-                          <span>{format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
-                          <span>·</span>
-                          {comment.author_community_score !== null && comment.author_community_score !== undefined && comment.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
-                            <Badge variant="secondary" className="text-[11px] gap-1">
-                              <Award className="w-3 h-3" />
-                              Trusted
-                            </Badge>
-                          )}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
-                                  <HelpCircle className="w-3 h-3" />
-                                  {formatCommunityScore(comment.author_community_score ?? 0)}
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-[200px]">
-                                <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+              {(() => {
+                const { rootComments, getChildren } = getThreadedComments();
+                
+                const renderComment = (comment: CommunityComment, level: number = 0) => {
+                  const children = getChildren(comment.id);
+                  const isReplyingTo = replyToComment?.id === comment.id;
+                  const canReply = level < 2 && !isLocked;
+                  
+                  return (
+                    <div key={comment.id} className={level > 0 ? "ml-6 border-l-2 border-border pl-4" : ""}>
+                      <Card className={level > 0 ? "bg-muted/30" : ""}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-2">
+                                <button
+                                  onClick={() => handleViewProfile(comment.author_id)}
+                                  className="hover:text-foreground flex items-center gap-1"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  {comment.author_anonymous_id || "User"}
+                                </button>
+                                <span>·</span>
+                                <span>
+                                  {comment.author_role === "field_rep"
+                                    ? "Field Rep"
+                                    : comment.author_role === "vendor"
+                                    ? "Vendor"
+                                    : comment.author_role === "both"
+                                    ? "Both"
+                                    : ""}
+                                </span>
+                                <span>·</span>
+                                <span>{format(new Date(comment.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                                <span>·</span>
+                                {comment.author_community_score !== null && comment.author_community_score !== undefined && comment.author_community_score >= TRUSTED_CONTRIBUTOR_MIN_SCORE && (
+                                  <Badge variant="secondary" className="text-[11px] gap-1">
+                                    <Award className="w-3 h-3" />
+                                    Trusted
+                                  </Badge>
+                                )}
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
+                                        <HelpCircle className="w-3 h-3" />
+                                        {formatCommunityScore(comment.author_community_score ?? 0)}
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-[200px]">
+                                      <p className="text-xs">Community Score is based on how other members rate this user's posts and comments as Helpful or Not Helpful.</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              <p className="text-foreground whitespace-pre-wrap">{comment.body}</p>
+                              <div className="mt-2 flex items-center gap-3">
+                                <CommunityVoteButtons
+                                  targetType="comment"
+                                  targetId={comment.id}
+                                  userId={user.id}
+                                  helpfulCount={comment.helpful_count}
+                                  notHelpfulCount={comment.not_helpful_count}
+                                  currentVote={commentVotes[comment.id]}
+                                  onVoteChange={loadPost}
+                                  size="sm"
+                                />
+                                {canReply && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    onClick={() => {
+                                      setReplyToComment(isReplyingTo ? null : comment);
+                                      setReplyText("");
+                                    }}
+                                  >
+                                    <MessageSquare className="w-3 h-3 mr-1" />
+                                    {isReplyingTo ? "Cancel" : "Reply"}
+                                  </Button>
+                                )}
+                              </div>
+                              
+                              {/* Reply composer */}
+                              {isReplyingTo && (
+                                <div className="mt-3 p-3 bg-muted/50 rounded-md">
+                                  <Textarea
+                                    value={replyText}
+                                    onChange={(e) => setReplyText(e.target.value)}
+                                    placeholder={`Reply to ${comment.author_anonymous_id || "User"}...`}
+                                    rows={2}
+                                    maxLength={2000}
+                                    autoFocus
+                                  />
+                                  <div className="flex justify-end gap-2 mt-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setReplyToComment(null);
+                                        setReplyText("");
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSubmitComment(comment.id)}
+                                      disabled={submitting || !replyText.trim()}
+                                    >
+                                      {submitting ? "Posting..." : "Reply"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {comment.author_id !== user.id && (
+                              <ReportFlagButton onClick={() => handleReportComment(comment)} />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Render children */}
+                      {children.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {children.map(child => renderComment(child, level + 1))}
                         </div>
-                        <p className="text-foreground whitespace-pre-wrap">{comment.body}</p>
-                        <div className="mt-2">
-                          <CommunityVoteButtons
-                            targetType="comment"
-                            targetId={comment.id}
-                            userId={user.id}
-                            helpfulCount={comment.helpful_count}
-                            notHelpfulCount={comment.not_helpful_count}
-                            currentVote={commentVotes[comment.id]}
-                            onVoteChange={loadPost}
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-                      {comment.author_id !== user.id && (
-                        <ReportFlagButton onClick={() => handleReportComment(comment)} />
                       )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                  );
+                };
+                
+                return rootComments.map(comment => renderComment(comment, 0));
+              })()}
             </div>
           )}
         </div>

@@ -31,6 +31,7 @@ export interface CommunityComment {
   status: string;
   helpful_count: number;
   not_helpful_count: number;
+  parent_comment_id?: string | null;
   author_anonymous_id?: string;
   author_role?: string;
   author_community_score?: number | null;
@@ -328,7 +329,8 @@ export async function fetchCommunityPost(postId: string): Promise<CommunityPost 
 export async function createCommunityComment(
   postId: string,
   authorId: string,
-  body: string
+  body: string,
+  parentCommentId?: string | null
 ): Promise<{ success: boolean; commentId?: string; error?: string }> {
   try {
     const { data, error } = await supabase
@@ -337,6 +339,7 @@ export async function createCommunityComment(
         post_id: postId,
         author_id: authorId,
         body,
+        parent_comment_id: parentCommentId || null,
       })
       .select("id")
       .single();
@@ -449,6 +452,7 @@ export async function fetchCommentsForPost(postId: string): Promise<CommunityCom
 
       return {
         ...c,
+        parent_comment_id: c.parent_comment_id || null,
         author_anonymous_id: anonymousId,
         author_role: role,
         author_community_score: profile?.communityScore ?? null,
