@@ -239,7 +239,10 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <DialogHeader>
           <DialogTitle>{editData ? coveragePricingCopy.common.editButton + " Coverage Area" : coveragePricingCopy.common.addCoverageButton}</DialogTitle>
         </DialogHeader>
