@@ -335,10 +335,10 @@ export async function assignTemplateToRep(
     return null;
   }
 
-  // Get all items for template
+  // Get all items for template (including auto_track_key for sync)
   const { data: items } = await supabase
     .from("checklist_items")
-    .select("id")
+    .select("id, auto_track_key")
     .eq("template_id", templateId);
 
   if (items && items.length > 0) {
@@ -349,6 +349,30 @@ export async function assignTemplateToRep(
     }));
 
     await supabase.from("user_checklist_items").insert(userItems);
+
+    // Retroactively check auto-tracked items and mark complete if already done
+    const itemsWithAutoTrack = items.filter(i => i.auto_track_key);
+    if (itemsWithAutoTrack.length > 0) {
+      const { evaluateAutoTrackKeyForUser } = await import("@/lib/checklistTracking");
+      
+      for (const item of itemsWithAutoTrack) {
+        if (!item.auto_track_key) continue;
+        
+        const isAlreadyDone = await evaluateAutoTrackKeyForUser(supabase, repUserId, item.auto_track_key);
+        
+        if (isAlreadyDone) {
+          await supabase
+            .from("user_checklist_items")
+            .update({
+              status: "completed",
+              completed_at: new Date().toISOString(),
+              completed_by: "system",
+            })
+            .eq("assignment_id", assignment.id)
+            .eq("item_id", item.id);
+        }
+      }
+    }
   }
 
   // Log the assignment event if params provided
@@ -539,4 +563,76 @@ export async function autoAssignVendorChecklists(
       assignedBy: null, // System/auto assignment
     });
   }
+}
+
+/**
+ * Sync auto-tracked checklist items for a user
+ * Checks if any pending auto-tracked items are already satisfied and marks them complete
+ * This enables retroactive completion for work done before checklist was assigned
+ */
+export async function syncAutoTrackedItems(
+  client: SupabaseClient,
+  userId: string
+): Promise<number> {
+  // Import evaluator dynamically to avoid circular dependency
+  const { evaluateAutoTrackKeyForUser } = await import("@/lib/checklistTracking");
+  
+  // Get all user's assignments
+  const { data: assignments, error: assignError } = await client
+    .from("user_checklist_assignments")
+    .select("id, template_id")
+    .eq("user_id", userId);
+
+  if (assignError || !assignments || assignments.length === 0) {
+    return 0;
+  }
+
+  let syncedCount = 0;
+
+  for (const assignment of assignments) {
+    // Get items with auto_track_key that are still pending
+    const { data: pendingItems, error: itemsError } = await client
+      .from("user_checklist_items")
+      .select(`
+        id,
+        item_id,
+        status,
+        checklist_items!inner(auto_track_key)
+      `)
+      .eq("assignment_id", assignment.id)
+      .eq("status", "pending")
+      .not("checklist_items.auto_track_key", "is", null);
+
+    if (itemsError || !pendingItems || pendingItems.length === 0) {
+      continue;
+    }
+
+    for (const item of pendingItems) {
+      // Handle the joined checklist_items data - it comes as an object when using inner join
+      const checklistItem = item.checklist_items as unknown as { auto_track_key: string | null } | null;
+      const autoTrackKey = checklistItem?.auto_track_key;
+      if (!autoTrackKey) continue;
+
+      // Evaluate if condition is already met
+      const isAlreadyDone = await evaluateAutoTrackKeyForUser(client, userId, autoTrackKey);
+
+      if (isAlreadyDone) {
+        // Mark as completed
+        const { error: updateError } = await client
+          .from("user_checklist_items")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            completed_by: "system",
+          })
+          .eq("id", item.id);
+
+        if (!updateError) {
+          syncedCount++;
+        }
+      }
+    }
+  }
+
+  return syncedCount;
 }
