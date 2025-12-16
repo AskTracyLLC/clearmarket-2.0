@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell } from "lucide-react";
+import { Bell, Shield, Mail, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { checklist } from "@/lib/checklistTracking";
 
 type NotificationPreferences = {
   user_id: string;
@@ -34,8 +36,13 @@ type NotificationPreferences = {
 export default function Settings() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const defaultTab = searchParams.get("tab") || "notifications";
 
   useEffect(() => {
     if (authLoading) return;
@@ -111,6 +118,30 @@ export default function Settings() {
     }
   }
 
+  async function handleSendPasswordReset() {
+    if (!user?.email) return;
+    
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        setResetSent(true);
+        // Track checklist event
+        checklist.passwordReset(user.id);
+        toast.success("Password reset link sent to your email");
+      }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <AuthenticatedLayout>
@@ -138,11 +169,15 @@ export default function Settings() {
             showBackToDashboard
           />
 
-          <Tabs defaultValue="notifications" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="notifications" className="gap-2">
                 <Bell className="h-4 w-4" />
                 Notifications
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-2">
+                <Shield className="h-4 w-4" />
+                Security
               </TabsTrigger>
             </TabsList>
 
@@ -411,6 +446,59 @@ export default function Settings() {
                         </div>
                       </div>
                     </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>
+                    Update your password to keep your account secure.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {resetSent ? (
+                    <div className="flex items-start gap-3 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-green-500">Reset link sent!</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Check your email at <strong>{user?.email}</strong> for the password reset link. 
+                          The link will expire in 1 hour.
+                        </p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2 text-xs"
+                          onClick={() => setResetSent(false)}
+                        >
+                          Send another link
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg border">
+                        <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <p className="text-sm">
+                            We'll send a password reset link to <strong>{user?.email}</strong>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Click the link in the email to set a new password.
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={handleSendPasswordReset} 
+                        disabled={sendingReset}
+                      >
+                        {sendingReset ? "Sending..." : "Send Password Reset Link"}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
