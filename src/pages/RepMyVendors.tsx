@@ -64,6 +64,8 @@ interface ConnectedVendor {
   pricingSummary?: string | null;
   baseRate?: number | null;
   statesCovered?: string[] | null;
+  effectiveDate?: string | null;
+  workType?: string | null;
   
   trustScore?: number | null;
   trustScoreCount?: number;
@@ -316,7 +318,7 @@ const RepMyVendors = () => {
 
       const { data: agreements } = await supabase
         .from("vendor_rep_agreements")
-        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, created_at")
+        .select("id, vendor_id, field_rep_id, coverage_summary, pricing_summary, base_rate, states_covered, effective_date, work_type, created_at")
         .eq("field_rep_id", user.id)
         .eq("status", "active")
         .in("vendor_id", vendorUserIds);
@@ -375,7 +377,8 @@ const RepMyVendors = () => {
           pricingSummary: agreement?.pricing_summary || null,
           baseRate: agreement?.base_rate || null,
           statesCovered: agreement?.states_covered || null,
-          
+          effectiveDate: agreement?.effective_date || null,
+          workType: agreement?.work_type || null,
         });
       }
 
