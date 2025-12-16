@@ -346,7 +346,8 @@ export default function AdminChecklists() {
           status,
           template:checklist_templates(name),
           item:checklist_items(title),
-          user:profiles(email)
+          user:profiles!checklist_item_feedback_user_id_fkey(email),
+          resolved_by_profile:profiles!checklist_item_feedback_resolved_by_fkey(email)
         `)
         .order("created_at", { ascending: false })
         .limit(100);
