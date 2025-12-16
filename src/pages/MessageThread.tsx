@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +61,7 @@ interface Message {
 export default function MessageThread() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user, loading: authLoading } = useAuth();
+  const { effectiveUserId } = useMimic();
   const navigate = useNavigate();
   
   const [messages, setMessages] = useState<Message[]>([]);
@@ -120,16 +122,16 @@ export default function MessageThread() {
     }
 
     loadConversationData();
-  }, [user, authLoading, conversationId, navigate]);
+  }, [effectiveUserId, authLoading, conversationId, navigate]);
 
   useEffect(() => {
-    // Load agreement, block status, report status, and territory assignments when we have user and other participant
-    if (user && otherParticipantId) {
+    // Load agreement, block status, report status, and territory assignments when we have effective user and other participant
+    if (effectiveUserId && otherParticipantId) {
       loadAgreement();
       checkBlockStatus();
       checkReportStatus();
     }
-  }, [user, otherParticipantId, conversationId]);
+  }, [effectiveUserId, otherParticipantId, conversationId]);
 
   useEffect(() => {
     // Load territory assignments when conversation data is available
@@ -146,9 +148,9 @@ export default function MessageThread() {
   }
 
   async function checkReportStatus() {
-    if (!user || !otherParticipantId) return;
+    if (!effectiveUserId || !otherParticipantId) return;
     
-    const reported = await checkAlreadyReported(user.id, otherParticipantId, conversationId);
+    const reported = await checkAlreadyReported(effectiveUserId, otherParticipantId, conversationId);
     setAlreadyReported(reported);
   }
 
@@ -158,15 +160,15 @@ export default function MessageThread() {
   }, [messages]);
 
   async function loadConversationData() {
-    if (!user || !conversationId) return;
+    if (!effectiveUserId || !conversationId) return;
 
     setLoading(true);
     try {
-      // Check if current user is a vendor or rep
+      // Check if current user (or mimicked user) is a vendor or rep
       const { data: profile } = await supabase
         .from("profiles")
         .select("is_vendor_admin, is_fieldrep")
-        .eq("id", user.id)
+        .eq("id", effectiveUserId)
         .single();
       
       setIsVendor(profile?.is_vendor_admin || false);
@@ -177,7 +179,7 @@ export default function MessageThread() {
         const { data: repProfile } = await supabase
           .from("rep_profile")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", effectiveUserId)
           .maybeSingle();
         
         if (repProfile) {
@@ -231,8 +233,8 @@ export default function MessageThread() {
         return;
       }
 
-      // Verify user is a participant
-      if (conversation.participant_one !== user.id && conversation.participant_two !== user.id) {
+      // Verify user (or mimicked user) is a participant
+      if (conversation.participant_one !== effectiveUserId && conversation.participant_two !== effectiveUserId) {
         toast({
           title: "Access Denied",
           description: "You are not authorized to view this conversation",
@@ -246,7 +248,7 @@ export default function MessageThread() {
       setConversationData(conversation);
 
       // Determine other participant
-      const otherId = conversation.participant_one === user.id 
+      const otherId = conversation.participant_one === effectiveUserId 
         ? conversation.participant_two 
         : conversation.participant_one;
       
@@ -376,7 +378,7 @@ export default function MessageThread() {
   }
 
   async function loadMessages() {
-    if (!conversationId || !user) return;
+    if (!conversationId || !effectiveUserId) return;
 
     const { data, error } = await supabase
       .from("messages")
@@ -396,19 +398,19 @@ export default function MessageThread() {
       .from("messages")
       .update({ read: true })
       .eq("conversation_id", conversationId)
-      .eq("recipient_id", user.id)
+      .eq("recipient_id", effectiveUserId)
       .eq("read", false);
   }
 
   async function loadAgreement() {
-    if (!user || !otherParticipantId) return;
+    if (!effectiveUserId || !otherParticipantId) return;
 
     try {
       // Check if agreement exists between this vendor and rep
       const { data, error } = await supabase
         .from("vendor_rep_agreements")
         .select("*")
-        .or(`and(vendor_id.eq.${user.id},field_rep_id.eq.${otherParticipantId}),and(vendor_id.eq.${otherParticipantId},field_rep_id.eq.${user.id})`)
+        .or(`and(vendor_id.eq.${effectiveUserId},field_rep_id.eq.${otherParticipantId}),and(vendor_id.eq.${otherParticipantId},field_rep_id.eq.${effectiveUserId})`)
         .maybeSingle();
 
       if (!error && data) {
@@ -430,13 +432,13 @@ export default function MessageThread() {
   }
 
   async function loadVendorConnection(otherId: string, userIsVendor: boolean, userIsRep: boolean) {
-    if (!user) return;
+    if (!effectiveUserId) return;
     
     setLoadingVendorConnection(true);
     try {
       // Determine vendor and rep IDs based on current user's role
-      const vendorId = userIsVendor ? user.id : otherId;
-      const repId = userIsRep ? user.id : otherId;
+      const vendorId = userIsVendor ? effectiveUserId : otherId;
+      const repId = userIsRep ? effectiveUserId : otherId;
 
       const { data, error } = await supabase
         .from("vendor_connections")
@@ -748,11 +750,11 @@ export default function MessageThread() {
         )}
 
         {/* Territory Assignment Banner for Reps */}
-        {isRep && pendingAssignment && user && (
+        {isRep && pendingAssignment && effectiveUserId && (
           <div className="mb-4">
             <TerritoryAssignmentBanner
               assignment={pendingAssignment}
-              repUserId={user.id}
+              repUserId={effectiveUserId}
               onUpdate={() => {
                 loadTerritoryAssignments();
                 loadAgreement();
@@ -940,9 +942,9 @@ export default function MessageThread() {
         {/* Message input */}
         <form onSubmit={handleSendMessage} className="space-y-4">
           <div className="flex gap-2">
-            {isRep && user && (
+            {isRep && effectiveUserId && (
               <TemplateSelector
-                userId={user.id}
+                userId={effectiveUserId}
                 userRole="rep"
                 onTemplateSelect={(body) => setMessageText(body)}
                 context={currentUserProfile ? {
@@ -955,9 +957,9 @@ export default function MessageThread() {
                 } : undefined}
               />
             )}
-            {isVendor && user && (
+            {isVendor && effectiveUserId && (
               <TemplateSelector
-                userId={user.id}
+                userId={effectiveUserId}
                 userRole="vendor"
                 onTemplateSelect={(body) => setMessageText(body)}
               />
@@ -1028,11 +1030,11 @@ export default function MessageThread() {
       />
 
       {/* Assign Territory Dialog */}
-      {conversationData?.seeking_post && user && (
+      {conversationData?.seeking_post && effectiveUserId && (
         <AssignTerritoryDialog
           open={showAssignTerritoryDialog}
           onOpenChange={setShowAssignTerritoryDialog}
-          vendorId={user.id}
+          vendorId={effectiveUserId}
           repId={otherParticipantId}
           repName={otherParticipantName}
           conversationId={conversationId || ""}
@@ -1055,14 +1057,14 @@ export default function MessageThread() {
       )}
 
       {/* Decline Rep Dialog */}
-      {repInterest && conversationData?.seeking_post && user && (
+      {repInterest && conversationData?.seeking_post && effectiveUserId && (
         <DeclineRepDialog
           open={showDeclineDialog}
           onOpenChange={setShowDeclineDialog}
           repInterestId={repInterest.id}
           repAnonymousId={otherParticipantName}
           postTitle={conversationData.seeking_post.title}
-          vendorUserId={user.id}
+          vendorUserId={effectiveUserId}
           repUserId={otherParticipantId}
           onDeclined={() => {
             setShowDeclineDialog(false);
