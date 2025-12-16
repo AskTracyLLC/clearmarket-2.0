@@ -45,8 +45,19 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { adminChecklistsCopy } from "@/copy/adminChecklistsCopy";
+import { adminChecklistAssignmentsCopy } from "@/copy/adminChecklistAssignmentsCopy";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ChecklistTemplate {
   id: string;
@@ -106,6 +117,9 @@ interface AssignableUser {
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
   state: string | null;
+  coverageAreas: string[];
+  companyName: string | null;
+  accountStatus: string;
   already_assigned: boolean;
 }
 
@@ -164,7 +178,12 @@ export default function AdminChecklists() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [vendorStates, setVendorStates] = useState<string[]>([]);
+  const [repStates, setRepStates] = useState<string[]>([]);
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
+  const [showActiveOnly, setShowActiveOnly] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [groupByState, setGroupByState] = useState(false);
+  const [confirmAssignOpen, setConfirmAssignOpen] = useState(false);
 
   // Permission check
   useEffect(() => {
@@ -644,11 +663,14 @@ export default function AdminChecklists() {
       
       const assignedUserIds = new Set((existingAssignments || []).map(a => a.user_id));
 
-      // Load users based on role filter
+      // Load users based on role filter - include account_status
       let query = supabase
         .from("profiles")
-        .select("id, email, full_name, is_fieldrep, is_vendor_admin")
-        .eq("account_status", "active");
+        .select("id, email, full_name, is_fieldrep, is_vendor_admin, account_status");
+
+      if (showActiveOnly) {
+        query = query.eq("account_status", "active");
+      }
 
       if (assignRoleFilter === "field_rep") {
         query = query.eq("is_fieldrep", true);
@@ -659,8 +681,8 @@ export default function AdminChecklists() {
       const { data: users, error } = await query.order("email");
       if (error) throw error;
 
-      // For field reps, get their state from rep_profile
-      // For vendors, get their state from vendor_profile
+      // For field reps, get their state and coverage areas from rep_profile and rep_coverage_areas
+      // For vendors, get their state and company from vendor_profile
       let usersWithState: AssignableUser[] = [];
 
       if (assignRoleFilter === "field_rep") {
@@ -668,7 +690,23 @@ export default function AdminChecklists() {
           .from("rep_profile")
           .select("user_id, state");
         
+        // Get coverage areas for all reps
+        const { data: coverageAreas } = await supabase
+          .from("rep_coverage_areas")
+          .select("user_id, state_name, county_name");
+        
         const repStateMap = new Map((repProfiles || []).map(rp => [rp.user_id, rp.state]));
+        
+        // Group coverage areas by user
+        const coverageMap = new Map<string, string[]>();
+        (coverageAreas || []).forEach(ca => {
+          const areas = coverageMap.get(ca.user_id) || [];
+          const areaLabel = ca.county_name ? `${ca.county_name}, ${ca.state_name}` : ca.state_name;
+          if (!areas.includes(areaLabel)) {
+            areas.push(areaLabel);
+          }
+          coverageMap.set(ca.user_id, areas);
+        });
         
         usersWithState = (users || []).map(u => ({
           id: u.id,
@@ -677,14 +715,39 @@ export default function AdminChecklists() {
           is_fieldrep: u.is_fieldrep,
           is_vendor_admin: u.is_vendor_admin,
           state: repStateMap.get(u.id) || null,
+          coverageAreas: coverageMap.get(u.id) || [],
+          companyName: null,
+          accountStatus: u.account_status || "active",
           already_assigned: assignedUserIds.has(u.id),
         }));
+
+        // Collect unique states for rep filter
+        const states = [...new Set(usersWithState.map(u => u.state).filter(Boolean))] as string[];
+        states.sort();
+        setRepStates(states);
       } else {
         const { data: vendorProfiles } = await supabase
           .from("vendor_profile")
-          .select("user_id, state");
+          .select("user_id, state, company_name");
+
+        // Get vendor coverage areas
+        const { data: vendorCoverage } = await supabase
+          .from("vendor_coverage_areas")
+          .select("user_id, state_name, county_name");
         
         const vendorStateMap = new Map((vendorProfiles || []).map(vp => [vp.user_id, vp.state]));
+        const vendorCompanyMap = new Map((vendorProfiles || []).map(vp => [vp.user_id, vp.company_name]));
+        
+        // Group coverage areas by user
+        const coverageMap = new Map<string, string[]>();
+        (vendorCoverage || []).forEach(ca => {
+          const areas = coverageMap.get(ca.user_id) || [];
+          const areaLabel = ca.county_name ? `${ca.county_name}, ${ca.state_name}` : ca.state_name;
+          if (!areas.includes(areaLabel)) {
+            areas.push(areaLabel);
+          }
+          coverageMap.set(ca.user_id, areas);
+        });
         
         usersWithState = (users || []).map(u => ({
           id: u.id,
@@ -693,6 +756,9 @@ export default function AdminChecklists() {
           is_fieldrep: u.is_fieldrep,
           is_vendor_admin: u.is_vendor_admin,
           state: vendorStateMap.get(u.id) || null,
+          coverageAreas: coverageMap.get(u.id) || [],
+          companyName: vendorCompanyMap.get(u.id) || null,
+          accountStatus: u.account_status || "active",
           already_assigned: assignedUserIds.has(u.id),
         }));
 
@@ -713,16 +779,33 @@ export default function AdminChecklists() {
     }
   };
 
-  // Reload users when template or role filter changes
+  // Reload users when template, role filter, or active filter changes
   useEffect(() => {
     if (activeTab === "assign" && assignTemplateId) {
       loadUsersForAssignment();
     }
-  }, [assignTemplateId, assignRoleFilter, activeTab]);
+  }, [assignTemplateId, assignRoleFilter, activeTab, showActiveOnly]);
+
+  // Reset search and state filter when role filter changes
+  useEffect(() => {
+    setSearchQuery("");
+    setAssignStateFilter("all");
+  }, [assignRoleFilter]);
 
   const filteredUsers = assignableUsers.filter(u => {
-    if (assignRoleFilter === "vendor" && assignStateFilter !== "all") {
-      return u.state === assignStateFilter;
+    // State filter
+    if (assignStateFilter !== "all" && u.state !== assignStateFilter) {
+      return false;
+    }
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesName = u.full_name?.toLowerCase().includes(query);
+      const matchesEmail = u.email.toLowerCase().includes(query);
+      const matchesCompany = u.companyName?.toLowerCase().includes(query);
+      if (!matchesName && !matchesEmail && !matchesCompany) {
+        return false;
+      }
     }
     return true;
   });
@@ -793,21 +876,22 @@ export default function AdminChecklists() {
   };
 
   const handleBulkAssign = async () => {
-    if (!assignTemplateId) return;
+    if (!selectedTemplateId) return;
     
     if (selectedUserIds.size === 0) {
-      toast.error(adminChecklistsCopy.assignSection.validationNoSelection);
+      toast.error(adminChecklistAssignmentsCopy.assignButton.disabled);
       return;
     }
 
     setAssigning(true);
+    setConfirmAssignOpen(false);
     
     try {
       // Get all items for the template
       const { data: templateItems, error: itemsError } = await supabase
         .from("checklist_items")
         .select("id")
-        .eq("template_id", assignTemplateId);
+        .eq("template_id", selectedTemplateId);
 
       if (itemsError) throw itemsError;
 
@@ -819,7 +903,7 @@ export default function AdminChecklists() {
           .from("user_checklist_assignments")
           .insert({
             user_id: userId,
-            template_id: assignTemplateId,
+            template_id: selectedTemplateId,
           })
           .select("id")
           .maybeSingle();
@@ -847,7 +931,7 @@ export default function AdminChecklists() {
         }
       }
 
-      toast.success(`${adminChecklistsCopy.assignSection.successToast} (${assignedCount} users)`);
+      toast.success(`${adminChecklistAssignmentsCopy.actions.toast.success} (${assignedCount} users)`);
       setSelectedUserIds(new Set());
       // Reload to update "already assigned" status
       await loadUsersForAssignment();
@@ -855,7 +939,7 @@ export default function AdminChecklists() {
       await loadCompletionStats(templates.map(t => t.id));
     } catch (error) {
       console.error("Error assigning checklist:", error);
-      toast.error(adminChecklistsCopy.assignSection.errorToast);
+      toast.error(adminChecklistAssignmentsCopy.actions.toast.error);
     } finally {
       setAssigning(false);
     }
@@ -1375,267 +1459,465 @@ export default function AdminChecklists() {
             </Card>
           </TabsContent>
 
-          {/* Assign to Users Tab */}
+          {/* Assign Tab */}
           <TabsContent value="assign" className="space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold">{adminChecklistsCopy.assignSection.title}</h2>
-              <p className="text-sm text-muted-foreground">
-                {adminChecklistsCopy.assignSection.helper}
-              </p>
-            </div>
+            {!selectedTemplateId ? (
+              // No template selected state
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">{adminChecklistAssignmentsCopy.noTemplateSelected.title}</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                    {adminChecklistAssignmentsCopy.noTemplateSelected.description}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => setActiveTab("templates")}
+                  >
+                    Go to Templates
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div>
+                  <h2 className="text-xl font-semibold">{adminChecklistAssignmentsCopy.tabTitle}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {adminChecklistAssignmentsCopy.tabHelper}
+                  </p>
+                </div>
 
-            {/* Template Selector */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div>
-                    <Label>{adminChecklistsCopy.assignSection.templateLabel}</Label>
-                    <Select 
-                      value={assignTemplateId || ""} 
-                      onValueChange={(v) => setAssignTemplateId(v)}
+                {/* Template Info Card */}
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ClipboardList className="w-5 h-5 text-primary" />
+                        <div>
+                          <p className="font-medium">{selectedTemplate?.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedTemplate?.role === "field_rep" ? "Field Rep checklist" : 
+                             selectedTemplate?.role === "vendor" ? "Vendor checklist" : "Both roles"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setActiveTab("templates")}>
+                        Change Template
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Role Toggle - Only show for "both" templates */}
+                {selectedTemplate?.role === "both" && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant={assignRoleFilter === "field_rep" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setAssignRoleFilter("field_rep")}
                     >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder={adminChecklistsCopy.assignSection.templatePlaceholder} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {templates.map(t => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name} ({t.role === "field_rep" ? "Rep" : t.role === "vendor" ? "Vendor" : "Both"})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {adminChecklistAssignmentsCopy.fieldReps.sectionTitle}
+                    </Button>
+                    <Button
+                      variant={assignRoleFilter === "vendor" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setAssignRoleFilter("vendor")}
+                    >
+                      {adminChecklistAssignmentsCopy.vendors.sectionTitle}
+                    </Button>
                   </div>
+                )}
 
-                  {assignTemplateId && (
-                    <>
-                      {/* Role Filter */}
-                      <div>
-                        <Label>{adminChecklistsCopy.assignSection.roleLabel}</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Button
-                            variant={assignRoleFilter === "field_rep" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              setAssignRoleFilter("field_rep");
-                              setAssignStateFilter("all");
-                            }}
-                          >
-                            {adminChecklistsCopy.assignSection.roleFieldReps}
-                          </Button>
-                          <Button
-                            variant={assignRoleFilter === "vendor" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => {
-                              setAssignRoleFilter("vendor");
-                              setAssignStateFilter("all");
-                            }}
-                          >
-                            {adminChecklistsCopy.assignSection.roleVendors}
-                          </Button>
+                {/* Field Reps Section */}
+                {(assignRoleFilter === "field_rep" && (selectedTemplate?.role === "field_rep" || selectedTemplate?.role === "both")) && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{adminChecklistAssignmentsCopy.fieldReps.sectionTitle}</CardTitle>
+                      <CardDescription>{adminChecklistAssignmentsCopy.fieldReps.sectionHelper}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Filters */}
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex-1 min-w-[200px]">
+                          <Label className="text-xs">{adminChecklistAssignmentsCopy.fieldReps.filters.stateLabel}</Label>
+                          <Select value={assignStateFilter} onValueChange={setAssignStateFilter}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder={adminChecklistAssignmentsCopy.fieldReps.filters.statePlaceholder} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">{adminChecklistAssignmentsCopy.fieldReps.filters.statePlaceholder}</SelectItem>
+                              {repStates.map(state => (
+                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                          <Label className="text-xs">Search</Label>
+                          <Input
+                            className="mt-1"
+                            placeholder={adminChecklistAssignmentsCopy.fieldReps.filters.searchPlaceholder}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="activeOnly"
+                              checked={showActiveOnly}
+                              onCheckedChange={(checked) => setShowActiveOnly(checked === true)}
+                            />
+                            <Label htmlFor="activeOnly" className="text-sm cursor-pointer">
+                              {adminChecklistAssignmentsCopy.fieldReps.filters.activeOnlyLabel}
+                            </Label>
+                          </div>
                         </div>
                       </div>
 
-                      {/* State Filter (Vendors only) */}
-                      {assignRoleFilter === "vendor" && vendorStates.length > 0 && (
-                        <div>
-                          <Label>{adminChecklistsCopy.assignSection.stateLabel}</Label>
+                      {/* Bulk Controls */}
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={selectAllUsers}>
+                            {adminChecklistAssignmentsCopy.bulkControls.selectAll}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={clearAllSelection}>
+                            {adminChecklistAssignmentsCopy.bulkControls.clearSelection}
+                          </Button>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {filteredUsers.length} users
+                        </span>
+                      </div>
+
+                      {/* User Table */}
+                      {loadingUsers ? (
+                        <div className="py-8 text-center text-muted-foreground">Loading users...</div>
+                      ) : filteredUsers.length === 0 ? (
+                        <div className="py-8 text-center text-muted-foreground">
+                          {adminChecklistAssignmentsCopy.fieldReps.emptyState}
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-[350px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.fieldReps.columns.name}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.fieldReps.columns.email}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.fieldReps.columns.coverageAreas}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.fieldReps.columns.status}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.fieldReps.columns.assigned}</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredUsers.map(user => (
+                                <TableRow 
+                                  key={user.id} 
+                                  className={user.already_assigned ? "opacity-50" : "cursor-pointer hover:bg-muted/50"}
+                                  onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
+                                >
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedUserIds.has(user.id)}
+                                      disabled={user.already_assigned}
+                                      onCheckedChange={() => toggleUserSelection(user.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{user.full_name || "—"}</TableCell>
+                                  <TableCell>{user.email}</TableCell>
+                                  <TableCell>
+                                    <div className="max-w-[200px]">
+                                      {user.coverageAreas.length > 0 ? (
+                                        <span className="text-sm truncate block" title={user.coverageAreas.join(", ")}>
+                                          {user.coverageAreas.slice(0, 2).join(", ")}
+                                          {user.coverageAreas.length > 2 && ` +${user.coverageAreas.length - 2} more`}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={user.accountStatus === "active" ? "default" : "secondary"} className="text-xs">
+                                      {user.accountStatus === "active" ? adminChecklistAssignmentsCopy.badges.active : adminChecklistAssignmentsCopy.badges.inactive}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {user.already_assigned && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Vendors Section */}
+                {(assignRoleFilter === "vendor" && (selectedTemplate?.role === "vendor" || selectedTemplate?.role === "both")) && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">{adminChecklistAssignmentsCopy.vendors.sectionTitle}</CardTitle>
+                      <CardDescription>{adminChecklistAssignmentsCopy.vendors.sectionHelper}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Filters */}
+                      <div className="flex flex-wrap gap-4">
+                        <div className="flex-1 min-w-[200px]">
+                          <Label className="text-xs">{adminChecklistAssignmentsCopy.vendors.filters.stateLabel}</Label>
                           <Select value={assignStateFilter} onValueChange={setAssignStateFilter}>
                             <SelectTrigger className="mt-1">
-                              <SelectValue />
+                              <SelectValue placeholder={adminChecklistAssignmentsCopy.vendors.filters.statePlaceholder} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="all">{adminChecklistsCopy.assignSection.stateAll}</SelectItem>
+                              <SelectItem value="all">{adminChecklistAssignmentsCopy.vendors.filters.statePlaceholder}</SelectItem>
                               {vendorStates.map(state => (
                                 <SelectItem key={state} value={state}>{state}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* User List */}
-            {assignTemplateId && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">
-                      {assignRoleFilter === "field_rep" ? "Field Reps" : "Vendors"}
-                      <span className="text-muted-foreground font-normal ml-2">
-                        ({filteredUsers.length} users)
-                      </span>
-                    </CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={selectAllUsers}>
-                        {adminChecklistsCopy.assignSection.selectAll}
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={clearAllSelection}>
-                        {adminChecklistsCopy.assignSection.clearSelection}
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {loadingUsers ? (
-                    <div className="p-8 text-center text-muted-foreground">Loading users...</div>
-                  ) : filteredUsers.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                      {adminChecklistsCopy.assignSection.noUsersMatch}
-                    </div>
-                  ) : assignRoleFilter === "field_rep" ? (
-                    // Flat table for field reps
-                    <ScrollArea className="h-[400px]">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-10"></TableHead>
-                            <TableHead>{adminChecklistsCopy.assignSection.columns.name}</TableHead>
-                            <TableHead>{adminChecklistsCopy.assignSection.columns.email}</TableHead>
-                            <TableHead>{adminChecklistsCopy.assignSection.columns.state}</TableHead>
-                            <TableHead>{adminChecklistsCopy.assignSection.columns.status}</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredUsers.map(user => (
-                            <TableRow 
-                              key={user.id} 
-                              className={user.already_assigned ? "opacity-50" : "cursor-pointer hover:bg-muted/50"}
-                              onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
-                            >
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedUserIds.has(user.id)}
-                                  disabled={user.already_assigned}
-                                  onCheckedChange={() => toggleUserSelection(user.id)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {user.full_name || "—"}
-                              </TableCell>
-                              <TableCell>{user.email}</TableCell>
-                              <TableCell>{user.state || "—"}</TableCell>
-                              <TableCell>
-                                {user.already_assigned && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {adminChecklistsCopy.assignSection.alreadyAssignedNote}
-                                  </Badge>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </ScrollArea>
-                  ) : (
-                    // Grouped by state for vendors
-                    <ScrollArea className="h-[400px]">
-                      <div className="divide-y divide-border">
-                        {Object.entries(groupedVendorsByState()).map(([state, users]) => (
-                          <Collapsible 
-                            key={state} 
-                            open={expandedStates.has(state)}
-                            onOpenChange={() => toggleStateExpanded(state)}
-                          >
-                            <CollapsibleTrigger className="w-full">
-                              <div className="flex items-center justify-between p-3 hover:bg-muted/50">
-                                <div className="flex items-center gap-2">
-                                  {expandedStates.has(state) ? (
-                                    <ChevronDown className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4" />
-                                  )}
-                                  <span className="font-medium">State: {state}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    ({users.length} vendors)
-                                  </span>
-                                </div>
-                                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 text-xs"
-                                    onClick={() => selectAllInState(state)}
-                                  >
-                                    {adminChecklistsCopy.assignSection.selectAllInState}
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-7 text-xs"
-                                    onClick={() => clearSelectionInState(state)}
-                                  >
-                                    {adminChecklistsCopy.assignSection.clearInState}
-                                  </Button>
-                                </div>
-                              </div>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <Table>
-                                <TableBody>
-                                  {users.map(user => (
-                                    <TableRow 
-                                      key={user.id}
-                                      className={user.already_assigned ? "opacity-50" : "cursor-pointer hover:bg-muted/50"}
-                                      onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
-                                    >
-                                      <TableCell className="w-10 pl-8">
-                                        <Checkbox
-                                          checked={selectedUserIds.has(user.id)}
-                                          disabled={user.already_assigned}
-                                          onCheckedChange={() => toggleUserSelection(user.id)}
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </TableCell>
-                                      <TableCell className="font-medium">
-                                        {user.full_name || "—"}
-                                      </TableCell>
-                                      <TableCell>{user.email}</TableCell>
-                                      <TableCell>
-                                        {user.already_assigned && (
-                                          <Badge variant="secondary" className="text-xs">
-                                            {adminChecklistsCopy.assignSection.alreadyAssignedNote}
-                                          </Badge>
-                                        )}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ))}
+                        <div className="flex-1 min-w-[200px]">
+                          <Label className="text-xs">Search</Label>
+                          <Input
+                            className="mt-1"
+                            placeholder={adminChecklistAssignmentsCopy.vendors.filters.searchPlaceholder}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-end gap-4">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="activeOnlyVendors"
+                              checked={showActiveOnly}
+                              onCheckedChange={(checked) => setShowActiveOnly(checked === true)}
+                            />
+                            <Label htmlFor="activeOnlyVendors" className="text-sm cursor-pointer">
+                              {adminChecklistAssignmentsCopy.vendors.filters.activeOnlyLabel}
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="groupByState"
+                              checked={groupByState}
+                              onCheckedChange={(checked) => setGroupByState(checked === true)}
+                            />
+                            <Label htmlFor="groupByState" className="text-sm cursor-pointer">
+                              {adminChecklistAssignmentsCopy.vendors.filters.groupByStateLabel}
+                            </Label>
+                          </div>
+                        </div>
                       </div>
-                    </ScrollArea>
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Assign Button */}
-            {assignTemplateId && (
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="text-sm text-muted-foreground">
-                  {selectedUserIds.size > 0 ? (
-                    <span>{selectedUserIds.size} user{selectedUserIds.size !== 1 ? "s" : ""} selected</span>
-                  ) : (
-                    <span>No users selected</span>
-                  )}
+                      {/* Bulk Controls */}
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={selectAllUsers}>
+                            {adminChecklistAssignmentsCopy.bulkControls.selectAll}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={clearAllSelection}>
+                            {adminChecklistAssignmentsCopy.bulkControls.clearSelection}
+                          </Button>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {filteredUsers.length} vendors
+                        </span>
+                      </div>
+
+                      {/* Vendor List */}
+                      {loadingUsers ? (
+                        <div className="py-8 text-center text-muted-foreground">Loading vendors...</div>
+                      ) : filteredUsers.length === 0 ? (
+                        <div className="py-8 text-center text-muted-foreground">
+                          {adminChecklistAssignmentsCopy.vendors.emptyState}
+                        </div>
+                      ) : !groupByState ? (
+                        // Flat table
+                        <ScrollArea className="h-[350px]">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-10"></TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.vendors.columns.companyName}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.vendors.columns.email}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.vendors.columns.focusAreas}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.vendors.columns.status}</TableHead>
+                                <TableHead>{adminChecklistAssignmentsCopy.vendors.columns.assigned}</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredUsers.map(user => (
+                                <TableRow 
+                                  key={user.id} 
+                                  className={user.already_assigned ? "opacity-50" : "cursor-pointer hover:bg-muted/50"}
+                                  onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
+                                >
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedUserIds.has(user.id)}
+                                      disabled={user.already_assigned}
+                                      onCheckedChange={() => toggleUserSelection(user.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{user.companyName || user.full_name || "—"}</TableCell>
+                                  <TableCell>{user.email}</TableCell>
+                                  <TableCell>
+                                    <div className="max-w-[200px]">
+                                      {user.coverageAreas.length > 0 ? (
+                                        <span className="text-sm truncate block" title={user.coverageAreas.join(", ")}>
+                                          {user.coverageAreas.slice(0, 2).join(", ")}
+                                          {user.coverageAreas.length > 2 && ` +${user.coverageAreas.length - 2} more`}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={user.accountStatus === "active" ? "default" : "secondary"} className="text-xs">
+                                      {user.accountStatus === "active" ? adminChecklistAssignmentsCopy.badges.active : adminChecklistAssignmentsCopy.badges.inactive}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {user.already_assigned && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </ScrollArea>
+                      ) : (
+                        // Grouped by state
+                        <ScrollArea className="h-[350px]">
+                          <div className="divide-y divide-border">
+                            {Object.entries(groupedVendorsByState()).map(([state, users]) => (
+                              <Collapsible 
+                                key={state} 
+                                open={expandedStates.has(state)}
+                                onOpenChange={() => toggleStateExpanded(state)}
+                              >
+                                <CollapsibleTrigger className="w-full">
+                                  <div className="flex items-center justify-between p-3 hover:bg-muted/50">
+                                    <div className="flex items-center gap-2">
+                                      {expandedStates.has(state) ? (
+                                        <ChevronDown className="w-4 h-4" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4" />
+                                      )}
+                                      <span className="font-medium">{state}</span>
+                                      <span className="text-sm text-muted-foreground">
+                                        ({users.length} vendor{users.length !== 1 ? "s" : ""})
+                                      </span>
+                                    </div>
+                                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-7 text-xs"
+                                        onClick={() => selectAllInState(state)}
+                                      >
+                                        {adminChecklistAssignmentsCopy.bulkControls.selectAllInState}
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-7 text-xs"
+                                        onClick={() => clearSelectionInState(state)}
+                                      >
+                                        {adminChecklistAssignmentsCopy.bulkControls.clearInState}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <Table>
+                                    <TableBody>
+                                      {users.map(user => (
+                                        <TableRow 
+                                          key={user.id}
+                                          className={user.already_assigned ? "opacity-50" : "cursor-pointer hover:bg-muted/50"}
+                                          onClick={() => !user.already_assigned && toggleUserSelection(user.id)}
+                                        >
+                                          <TableCell className="w-10 pl-8">
+                                            <Checkbox
+                                              checked={selectedUserIds.has(user.id)}
+                                              disabled={user.already_assigned}
+                                              onCheckedChange={() => toggleUserSelection(user.id)}
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </TableCell>
+                                          <TableCell className="font-medium">
+                                            {user.companyName || user.full_name || "—"}
+                                          </TableCell>
+                                          <TableCell>{user.email}</TableCell>
+                                          <TableCell>
+                                            {user.already_assigned && (
+                                              <Badge variant="outline" className="text-xs">
+                                                {adminChecklistAssignmentsCopy.badges.alreadyAssigned}
+                                              </Badge>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Assign Button */}
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div className="text-sm text-muted-foreground">
+                    {selectedUserIds.size > 0 ? (
+                      <span>{adminChecklistAssignmentsCopy.bulkControls.selectedCount.replace("{count}", String(selectedUserIds.size))}</span>
+                    ) : (
+                      <span>{adminChecklistAssignmentsCopy.bulkControls.noSelection}</span>
+                    )}
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button 
+                            onClick={() => setConfirmAssignOpen(true)} 
+                            disabled={assigning || selectedUserIds.size === 0}
+                          >
+                            {assigning 
+                              ? adminChecklistAssignmentsCopy.assignButton.labelAssigning 
+                              : adminChecklistAssignmentsCopy.assignButton.label}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      {selectedUserIds.size === 0 && (
+                        <TooltipContent>
+                          <p>{adminChecklistAssignmentsCopy.assignButton.disabled}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <Button 
-                  onClick={handleBulkAssign} 
-                  disabled={assigning || selectedUserIds.size === 0}
-                >
-                  {assigning 
-                    ? adminChecklistsCopy.assignSection.assigningButton 
-                    : adminChecklistsCopy.assignSection.assignButton}
-                </Button>
-              </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
@@ -1894,6 +2176,24 @@ export default function AdminChecklists() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Confirm Assignment Dialog */}
+        <AlertDialog open={confirmAssignOpen} onOpenChange={setConfirmAssignOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{adminChecklistAssignmentsCopy.actions.confirm.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {adminChecklistAssignmentsCopy.actions.confirm.description.replace("{count}", String(selectedUserIds.size))}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{adminChecklistAssignmentsCopy.actions.confirm.cancelButton}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkAssign}>
+                {adminChecklistAssignmentsCopy.actions.confirm.confirmButton}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AuthenticatedLayout>
   );
