@@ -411,11 +411,38 @@ export default function VendorInterestedReps() {
                           <Card key={interest.id} className="p-6">
                             <div className="flex justify-between items-start mb-4">
                               <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
+                                <div className="flex items-center gap-3 mb-2 flex-wrap">
                                   <h3 className="text-xl font-semibold text-foreground">
                                     {interest.rep_profile.anonymous_id || "FieldRep"}
                                   </h3>
                                   {getStatusBadge(interest.status, interest.declined_reason)}
+                                  {/* Rate comparison badge */}
+                                  {(() => {
+                                    const postMax = post.pay_max;
+                                    const repRate = repCoverage?.base_price;
+                                    if (postMax != null && repRate != null) {
+                                      if (repRate > postMax) {
+                                        return (
+                                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                            Above posted max
+                                          </Badge>
+                                        );
+                                      } else if (repRate < postMax) {
+                                        return (
+                                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                                            Below posted max
+                                          </Badge>
+                                        );
+                                      } else {
+                                        return (
+                                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
+                                            Rate match
+                                          </Badge>
+                                        );
+                                      }
+                                    }
+                                    return null;
+                                  })()}
                                 </div>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                                   <MapPin className="h-4 w-4" />
@@ -476,16 +503,20 @@ export default function VendorInterestedReps() {
                                       </p>
                                     )}
                                   </div>
-                                  {vendorPay && repMinimum && (
+                                  {vendorPay != null && repMinimum != null && (
                                     <>
                                       <div className="mt-2 pt-2 border-t border-border/50">
                                         <p className="text-sm">
                                           Your offer: <span className="font-semibold">${vendorPay.toFixed(2)}</span> / order
                                         </p>
                                       </div>
-                                      {vendorPay >= repMinimum && (
-                                        <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's minimum</p>
-                                      )}
+                                      {repMinimum > vendorPay ? (
+                                        <p className="text-xs text-amber-600 mt-1">
+                                          ⚠ Rep base ${repMinimum.toFixed(2)} is above your posted max ${vendorPay.toFixed(2)}
+                                        </p>
+                                      ) : vendorPay >= repMinimum ? (
+                                        <p className="text-xs text-green-600 mt-1">✓ Pricing aligned with this rep's base rate</p>
+                                      ) : null}
                                     </>
                                   )}
                                 </>

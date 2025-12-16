@@ -260,7 +260,7 @@ export default function MessageThread() {
 
       // If this is a Seeking Coverage conversation, load other party's public profile and rep_interest
       if (conversation.origin_type === "seeking_coverage") {
-        await loadOtherPartyProfile(otherId);
+        await loadOtherPartyProfile(otherId, conversation.seeking_post);
         await loadRepInterest(conversation);
       }
 
@@ -302,7 +302,7 @@ export default function MessageThread() {
     }
   }
 
-  async function loadOtherPartyProfile(userId: string) {
+  async function loadOtherPartyProfile(userId: string, seekingPost?: any) {
     try {
       // Check if they're a rep or vendor
       const { data: repProfile } = await supabase
@@ -327,13 +327,15 @@ export default function MessageThread() {
       if (repProfile) {
         // Load coverage for this rep's state if available
         let coverageData = null;
-        if (conversationData?.seeking_post?.state_code) {
+        const stateCode = seekingPost?.state_code;
+        if (stateCode) {
           const { data: coverage } = await supabase
             .from("rep_coverage_areas")
             .select(`
               county_name,
               base_price,
               rush_price,
+              county_id,
               us_counties:county_id (
                 county_name,
                 state_code,
@@ -344,7 +346,7 @@ export default function MessageThread() {
           
           // Filter by state in JS since state_code is unreliable
           coverageData = coverage?.filter(c => 
-            c.us_counties?.state_code === conversationData.seeking_post.state_code
+            c.us_counties?.state_code === stateCode
           );
         }
 
@@ -793,6 +795,45 @@ export default function MessageThread() {
                   )}
                 </div>
               )}
+              {/* Rate comparison indicator - vendor only */}
+              {isVendor && otherPartyProfile?.type === "rep" && (() => {
+                const postMax = conversationData.seeking_post.pay_max;
+                const postCountyId = conversationData.seeking_post.county_id;
+                const postCountyName = conversationData.seeking_post.us_counties?.county_name;
+                // Find the rep's coverage for this specific county
+                const repCoverage = otherPartyProfile.coverage?.find((c: any) => 
+                  c.county_id === postCountyId || 
+                  (postCountyName && (c.us_counties?.county_name === postCountyName || c.county_name === postCountyName))
+                );
+                // Fallback to first coverage in state if no specific county match
+                const repRate = repCoverage?.base_price ?? otherPartyProfile.coverage?.[0]?.base_price;
+                
+                if (postMax != null && repRate != null) {
+                  if (repRate > postMax) {
+                    return (
+                      <div className="flex items-center gap-2 px-2 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-md">
+                        <span className="text-amber-600 text-sm font-medium">⚠ Rate above posted amount</span>
+                        <span className="text-xs text-muted-foreground">
+                          Rep base: ${repRate.toFixed(2)}/order · Your posted max: ${postMax.toFixed(2)}/order
+                        </span>
+                      </div>
+                    );
+                  } else if (repRate < postMax) {
+                    return (
+                      <div className="text-xs text-green-600">
+                        ✓ Rep base rate (${repRate.toFixed(2)}) is below your posted max (${postMax.toFixed(2)})
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="text-xs text-green-600">
+                        ✓ Rep base rate matches your posted max (${postMax.toFixed(2)})
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
               {conversationData.seeking_post.pay_notes && (
                 <div className="text-xs text-muted-foreground">{conversationData.seeking_post.pay_notes}</div>
               )}
