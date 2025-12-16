@@ -239,11 +239,13 @@ export type Database = {
           attachment_urls: string[] | null
           created_at: string
           feedback_type: Database["public"]["Enums"]["checklist_feedback_type"]
+          fixed_at: string | null
           id: string
           item_id: string
           message: string
           resolved_at: string | null
           resolved_by: string | null
+          reviewed_at: string | null
           status: Database["public"]["Enums"]["checklist_feedback_status"]
           template_id: string
           user_checklist_item_id: string | null
@@ -253,11 +255,13 @@ export type Database = {
           attachment_urls?: string[] | null
           created_at?: string
           feedback_type: Database["public"]["Enums"]["checklist_feedback_type"]
+          fixed_at?: string | null
           id?: string
           item_id: string
           message: string
           resolved_at?: string | null
           resolved_by?: string | null
+          reviewed_at?: string | null
           status?: Database["public"]["Enums"]["checklist_feedback_status"]
           template_id: string
           user_checklist_item_id?: string | null
@@ -267,11 +271,13 @@ export type Database = {
           attachment_urls?: string[] | null
           created_at?: string
           feedback_type?: Database["public"]["Enums"]["checklist_feedback_type"]
+          fixed_at?: string | null
           id?: string
           item_id?: string
           message?: string
           resolved_at?: string | null
           resolved_by?: string | null
+          reviewed_at?: string | null
           status?: Database["public"]["Enums"]["checklist_feedback_status"]
           template_id?: string
           user_checklist_item_id?: string | null
@@ -3880,7 +3886,7 @@ export type Database = {
     }
     Enums: {
       checklist_completed_by: "system" | "user"
-      checklist_feedback_status: "open" | "acknowledged" | "resolved"
+      checklist_feedback_status: "open" | "reviewed" | "fixed"
       checklist_feedback_type:
         | "bug"
         | "confusing"
@@ -4027,7 +4033,7 @@ export const Constants = {
   public: {
     Enums: {
       checklist_completed_by: ["system", "user"],
-      checklist_feedback_status: ["open", "acknowledged", "resolved"],
+      checklist_feedback_status: ["open", "reviewed", "fixed"],
       checklist_feedback_type: [
         "bug",
         "confusing",
