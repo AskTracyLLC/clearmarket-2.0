@@ -51,7 +51,10 @@ interface VendorConnectionCardProps {
     agreementId?: string | null;
     coverageSummary?: string | null;
     pricingSummary?: string | null;
+    baseRate?: number | null;
     statesCovered?: string[] | null;
+    effectiveDate?: string | null;
+    workType?: string | null;
     trustScore?: number | null;
     trustScoreCount?: number;
     communityScore?: number;
@@ -370,8 +373,16 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
                 <Info className="w-3 h-3" />
               </span>
               {!loadingStatus && getStatusDisplay()}
+              {/* Show agreement badge if we have agreement data but no working_terms_request */}
+              {!loadingStatus && !workingTermsStatus && vendor.agreementId && (
+                <Badge variant="default" className="text-xs gap-1 bg-green-600">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Agreement on file
+                </Badge>
+              )}
             </div>
             
+            {/* Priority 1: Active working_terms_request */}
             {workingTermsStatus?.status === "active" ? (
               <div className="text-sm space-y-2">
                 <Button
@@ -414,6 +425,39 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
               <p className="text-sm text-muted-foreground">
                 Your terms have been sent. Waiting for {vendor.companyName} to review.
               </p>
+            ) : vendor.agreementId ? (
+              /* Priority 2: We have agreement data from vendor_rep_agreements (territory assignment) */
+              <div className="text-sm space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-foreground">
+                  {vendor.baseRate && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Base rate:</span>
+                      <p className="font-medium">${vendor.baseRate.toFixed(2)} per order</p>
+                    </div>
+                  )}
+                  {vendor.effectiveDate && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Effective date:</span>
+                      <p className="font-medium">{new Date(vendor.effectiveDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {vendor.statesCovered && vendor.statesCovered.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">States covered:</span>
+                      <p className="font-medium">{vendor.statesCovered.join(", ")}</p>
+                    </div>
+                  )}
+                  {vendor.workType && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Work type:</span>
+                      <p className="font-medium">{vendor.workType}</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground italic">
+                  Informational only — not a contract, guarantee of work, or employment agreement.
+                </p>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 No working terms set with this vendor.
