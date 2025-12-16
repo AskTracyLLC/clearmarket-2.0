@@ -20,8 +20,10 @@ import {
   FileText,
   Clock,
   CheckCircle2,
-  Info
+  Info,
+  FileCheck
 } from "lucide-react";
+import { AgreementDetailsDialog } from "@/components/AgreementDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canPostReview } from "@/lib/reviews";
@@ -106,6 +108,8 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const [notesOpen, setNotesOpen] = useState(false);
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [canReview, setCanReview] = useState(true);
@@ -117,9 +121,25 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
   useEffect(() => {
     if (user) {
       loadWorkingTermsStatus();
+      loadConnectionId();
       checkReviewEligibility();
     }
   }, [vendor.vendorUserId, user]);
+
+  const loadConnectionId = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("vendor_connections")
+      .select("id")
+      .eq("vendor_id", vendor.vendorUserId)
+      .eq("field_rep_id", user.id)
+      .eq("status", "connected")
+      .maybeSingle();
+    
+    if (data) {
+      setConnectionId(data.id);
+    }
+  };
 
   const checkReviewEligibility = async () => {
     if (!user) return;
@@ -208,7 +228,8 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
     : vendor.coverageSummary || "Coverage not specified";
 
   return (
-    <Card className="w-full">
+    <>
+      <Card className="w-full">
       <CardContent className="p-4 md:p-6 space-y-4">
         {/* Vendor Summary Section */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -361,6 +382,16 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
           >
             <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
             Messages
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAgreementDialog(true)}
+            disabled={!connectionId}
+            className="w-full md:w-auto text-xs md:text-sm"
+          >
+            <FileCheck className="w-3.5 h-3.5 mr-1.5" />
+            Agreement
           </Button>
         </div>
 
@@ -531,6 +562,16 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
         </div>
       </CardContent>
     </Card>
+
+    {connectionId && (
+      <AgreementDetailsDialog
+        open={showAgreementDialog}
+        onOpenChange={setShowAgreementDialog}
+        connectionId={connectionId}
+        connectionLabel={vendor.anonymousId}
+      />
+    )}
+    </>
   );
 };
 
