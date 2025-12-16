@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,7 +33,7 @@ interface MobileMultiSelectProps {
  * MobileMultiSelect
  *
  * Uses Popover for reliable mobile touch support.
- * Each row is a button with onClick for consistent tap handling.
+ * Each row is a button for consistent tap handling.
  */
 export const MobileMultiSelect = ({
   options,
@@ -49,6 +49,9 @@ export const MobileMultiSelect = ({
 }: MobileMultiSelectProps) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Prevent double-toggle on mobile where both pointer + touch events can fire.
+  const lastToggleRef = useRef<{ id: string; at: number } | null>(null);
 
   const filteredOptions = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -69,6 +72,14 @@ export const MobileMultiSelect = ({
 
   const handleToggle = (id: string) => {
     onToggle(id);
+  };
+
+  const handleRowToggle = (id: string) => {
+    const now = Date.now();
+    const last = lastToggleRef.current;
+    if (last && last.id === id && now - last.at < 250) return;
+    lastToggleRef.current = { id, at: now };
+    handleToggle(id);
   };
 
   return (
@@ -137,15 +148,25 @@ export const MobileMultiSelect = ({
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => handleToggle(opt.id)}
+                      onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRowToggle(opt.id);
+                      }}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleRowToggle(opt.id);
+                      }}
                       className={cn(
+                        "pointer-events-auto touch-manipulation",
                         "relative flex w-full items-center rounded-sm px-2 py-2.5 text-sm outline-none",
                         "hover:bg-accent focus:bg-accent active:bg-accent",
                         "cursor-pointer select-none",
                         "transition-colors"
                       )}
                     >
-                      <div className="flex items-center gap-2 pointer-events-none">
+                      <div className="flex items-center gap-2">
                         <Checkbox
                           checked={checked}
                           tabIndex={-1}
@@ -182,3 +203,4 @@ export const MobileMultiSelect = ({
     </div>
   );
 };
+
