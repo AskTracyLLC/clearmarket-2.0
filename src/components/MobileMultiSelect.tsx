@@ -80,21 +80,16 @@ export const MobileMultiSelect = ({
             position="popper"
             sideOffset={4}
             align="start"
-            style={{
-              maxHeight: "min(60vh, 360px)",
-              overflowY: "auto",
-              WebkitOverflowScrolling: "touch",
-              touchAction: "pan-y",
-              overscrollBehavior: "contain",
-            }}
             className={cn(
               "relative z-50 w-[min(420px,calc(100vw-2rem))] rounded-md border bg-popover text-popover-foreground shadow-md",
+              "flex flex-col",
+              "max-h-[60dvh] overflow-hidden",
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
               "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2",
             )}
           >
             {/* Header */}
-            <div className="p-2 border-b border-border bg-muted/50">
+            <div className="shrink-0 p-2 border-b border-border bg-muted/50">
               <p className="text-xs font-medium text-muted-foreground px-2">
                 {headerText || `Select items (${options.length} total)`}
               </p>
@@ -102,7 +97,7 @@ export const MobileMultiSelect = ({
 
             {/* Search */}
             {showSearch && options.length > 10 && (
-              <div className="p-2 border-b border-border bg-popover">
+              <div className="shrink-0 p-2 border-b border-border bg-popover">
                 <div className="relative">
                   <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -124,14 +119,8 @@ export const MobileMultiSelect = ({
 
             {/* List */}
             <SelectPrimitive.Viewport
-              className="p-2"
-              style={{
-                maxHeight: "min(60vh, 360px)",
-                overflowY: "auto",
-                WebkitOverflowScrolling: "touch",
-                touchAction: "pan-y",
-                overscrollBehavior: "contain",
-              }}
+              className="flex-1 p-2 max-h-[50dvh] overflow-y-auto overscroll-contain touch-pan-y"
+              style={{ WebkitOverflowScrolling: "touch" }}
             >
               {filteredOptions.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">

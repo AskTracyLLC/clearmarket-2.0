@@ -239,259 +239,255 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-2xl max-h-[85vh] overflow-y-auto overscroll-contain touch-pan-y"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        <DialogHeader>
-          <DialogTitle>{editData ? coveragePricingCopy.common.editButton + " Coverage Area" : coveragePricingCopy.common.addCoverageButton}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl h-[90dvh] flex flex-col p-0">
+        <div className="shrink-0 border-b border-border px-6 py-4">
+          <DialogHeader className="p-0">
+            <DialogTitle>
+              {editData ? coveragePricingCopy.common.editButton + " Coverage Area" : coveragePricingCopy.common.addCoverageButton}
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-6 py-4">
-          {/* State (required) */}
-          <div className="space-y-2">
-            <Label htmlFor="state">{coveragePricingCopy.common.stateLabel} *</Label>
-            <Select value={stateCode} onValueChange={setStateCode} disabled={isEditingSingleRow}>
-              <SelectTrigger id="state">
-                <SelectValue placeholder="Select state..." />
-              </SelectTrigger>
-              <SelectContent>
-                {US_STATES.map(state => (
-                  <SelectItem key={state.value} value={state.value}>
-                    {state.value} - {state.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {stateCode && counties.length === 0 && coverageMode !== "entire_state" && (
-              <Alert variant="destructive" className="mt-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  No counties are loaded for this state yet. Please choose another state or contact support.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          {/* Coverage Mode (radio) - disabled when editing single row */}
-          {!isEditingSingleRow && (
-            <div className="space-y-3">
-              <Label>Coverage Mode *</Label>
-              <RadioGroup value={coverageMode} onValueChange={(v: CoverageMode) => setCoverageMode(v)}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="entire_state" id="mode-entire" />
-                  <Label htmlFor="mode-entire" className="font-normal cursor-pointer">
-                    Entire state (all counties)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="entire_state_except" id="mode-except" />
-                  <Label htmlFor="mode-except" className="font-normal cursor-pointer">
-                    Entire state except specific counties
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="selected_counties" id="mode-selected" />
-                  <Label htmlFor="mode-selected" className="font-normal cursor-pointer">
-                    Only selected counties
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {/* County Selector - for exclusions */}
-          {!isEditingSingleRow && coverageMode === "entire_state_except" && (
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain touch-pan-y px-6 py-4"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="space-y-6">
+            {/* State (required) */}
             <div className="space-y-2">
-              <Label>Exclude Counties</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Select any counties where you do not want to work. We'll cover the rest of the state.
-              </p>
-              <MobileMultiSelect
-                options={countyOptions}
-                selectedIds={excludedCountyIds}
-                onToggle={(id) => toggleCountySelection(id, "exclude")}
-                placeholder={stateCode ? "Select counties to exclude..." : "Select a state first"}
-                headerText={`Select counties to exclude (${counties.length} total)`}
-                disabled={!stateCode}
-                searchPlaceholder="Search counties..."
-              />
-            </div>
-          )}
-
-          {/* County Selector - for inclusions */}
-          {!isEditingSingleRow && coverageMode === "selected_counties" && (
-            <div className="space-y-2">
-              <Label>Select Counties *</Label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Choose all counties that share the same rate and work type. When you save, ClearMarket will add one row for each county.
-              </p>
-              <MobileMultiSelect
-                options={countyOptions}
-                selectedIds={includedCountyIds}
-                onToggle={(id) => toggleCountySelection(id, "include")}
-                placeholder={stateCode ? "Select counties to include..." : "Select a state first"}
-                headerText={`Select counties to include (${counties.length} total)`}
-                disabled={!stateCode}
-                searchPlaceholder="Search counties..."
-              />
-            </div>
-          )}
-
-          {/* Show current county when editing single row */}
-          {isEditingSingleRow && editData?.county_name && (
-            <div className="space-y-2">
-              <Label>County</Label>
-              <p className="text-sm text-foreground">{editData.county_name}</p>
-              <p className="text-xs text-muted-foreground">
-                Editing an individual county row. To change coverage mode, delete and re-add.
-              </p>
-            </div>
-          )}
-
-          {/* Base Price */}
-          <div className="space-y-2">
-            <Label htmlFor="base-price">Base Rate (USD) *</Label>
-            <Input
-              id="base-price"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="e.g., 35.00"
-              value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Your Base Rate is the minimum you're willing to accept per inspection in this area. 
-              Vendors whose rates fall below this will not see you as a match.
-            </p>
-          </div>
-
-          {/* Rush Price */}
-          <div className="space-y-2">
-            <Label htmlFor="rush-price">Rush Rate (USD, optional)</Label>
-            <Input
-              id="rush-price"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="e.g., 50.00"
-              value={rushPrice}
-              onChange={(e) => setRushPrice(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Optional higher rate for rush work (stored for future use).
-            </p>
-          </div>
-
-          {/* Region Note */}
-          <div className="space-y-2">
-            <Label htmlFor="region-note">Region notes (optional)</Label>
-            <Input
-              id="region-note"
-              placeholder="e.g., Focus on SE Wisconsin / Milwaukee–Racine corridor"
-              value={regionNote}
-              onChange={(e) => setRegionNote(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Any special notes about this area.
-            </p>
-          </div>
-
-          {/* Inspection Types (optional region-specific override) */}
-          <div className="space-y-4">
-            <div>
-              <Label>Inspection Types for this region (optional)</Label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Choose the specific inspection types you want to cover in this state/county. 
-                Leave blank to use everything you selected in your main profile.
-              </p>
+              <Label htmlFor="state">{coveragePricingCopy.common.stateLabel} *</Label>
+              <Select value={stateCode} onValueChange={setStateCode} disabled={isEditingSingleRow}>
+                <SelectTrigger id="state">
+                  <SelectValue placeholder="Select state..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map((state) => (
+                    <SelectItem key={state.value} value={state.value}>
+                      {state.value} - {state.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {stateCode && counties.length === 0 && coverageMode !== "entire_state" && (
+                <Alert variant="destructive" className="mt-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    No counties are loaded for this state yet. Please choose another state or contact support.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
-            {/* Warning for removed types */}
-            {removedTypes.length > 0 && (
-              <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <AlertDescription className="text-sm text-muted-foreground">
-                  Some older inspection types linked to this region are no longer in your main profile. 
-                  They've been removed from this list.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* No profile types warning */}
-            {profileInspectionTypes.length === 0 && (
-              <Alert variant="default" className="border-muted">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm text-muted-foreground">
-                  You haven't selected any inspection types in your main profile yet. 
-                  Please save some inspection types on your profile first.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Grouped inspection types from profile */}
-            {Object.keys(availableInspectionTypesByCategory).length > 0 && (
-              <div className="space-y-4">
-                {Object.entries(availableInspectionTypesByCategory).map(([category, types]) => (
-                  <div key={category} className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">{category}</Label>
-                    <div className="ml-1 space-y-1.5">
-                      {types.map((type) => (
-                        <div key={type.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`inspection-${type.id}`}
-                            checked={inspectionTypes.includes(type.label)}
-                            onCheckedChange={() => handleInspectionTypeToggle(type.label)}
-                          />
-                          <Label 
-                            htmlFor={`inspection-${type.id}`} 
-                            className="cursor-pointer font-normal text-sm"
-                          >
-                            {type.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+            {/* Coverage Mode (radio) - disabled when editing single row */}
+            {!isEditingSingleRow && (
+              <div className="space-y-3">
+                <Label>Coverage Mode *</Label>
+                <RadioGroup value={coverageMode} onValueChange={(v: CoverageMode) => setCoverageMode(v)}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="entire_state" id="mode-entire" />
+                    <Label htmlFor="mode-entire" className="font-normal cursor-pointer">
+                      Entire state (all counties)
+                    </Label>
                   </div>
-                ))}
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="entire_state_except" id="mode-except" />
+                    <Label htmlFor="mode-except" className="font-normal cursor-pointer">
+                      Entire state except specific counties
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="selected_counties" id="mode-selected" />
+                    <Label htmlFor="mode-selected" className="font-normal cursor-pointer">
+                      Only selected counties
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
             )}
 
-            {/* Profile-level "Other" types */}
-            {profileOtherTypes.length > 0 && (
+            {/* County Selector - for exclusions */}
+            {!isEditingSingleRow && coverageMode === "entire_state_except" && (
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-foreground">Other</Label>
-                <div className="ml-1 space-y-1.5">
-                  {profileOtherTypes.map((otherType) => (
-                    <div key={otherType} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`inspection-other-${otherType}`}
-                        checked={inspectionTypes.includes(otherType)}
-                        onCheckedChange={() => handleInspectionTypeToggle(otherType)}
-                      />
-                      <Label 
-                        htmlFor={`inspection-other-${otherType}`} 
-                        className="cursor-pointer font-normal text-sm"
-                      >
-                        {otherType.replace("Other: ", "")}
-                      </Label>
+                <Label>Exclude Counties</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select any counties where you do not want to work. We'll cover the rest of the state.
+                </p>
+                <MobileMultiSelect
+                  options={countyOptions}
+                  selectedIds={excludedCountyIds}
+                  onToggle={(id) => toggleCountySelection(id, "exclude")}
+                  placeholder={stateCode ? "Select counties to exclude..." : "Select a state first"}
+                  headerText={`Select counties to exclude (${counties.length} total)`}
+                  disabled={!stateCode}
+                  searchPlaceholder="Search counties..."
+                />
+              </div>
+            )}
+
+            {/* County Selector - for inclusions */}
+            {!isEditingSingleRow && coverageMode === "selected_counties" && (
+              <div className="space-y-2">
+                <Label>Select Counties *</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Choose all counties that share the same rate and work type. When you save, ClearMarket will add one row for each county.
+                </p>
+                <MobileMultiSelect
+                  options={countyOptions}
+                  selectedIds={includedCountyIds}
+                  onToggle={(id) => toggleCountySelection(id, "include")}
+                  placeholder={stateCode ? "Select counties to include..." : "Select a state first"}
+                  headerText={`Select counties to include (${counties.length} total)`}
+                  disabled={!stateCode}
+                  searchPlaceholder="Search counties..."
+                />
+              </div>
+            )}
+
+            {/* Show current county when editing single row */}
+            {isEditingSingleRow && editData?.county_name && (
+              <div className="space-y-2">
+                <Label>County</Label>
+                <p className="text-sm text-foreground">{editData.county_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Editing an individual county row. To change coverage mode, delete and re-add.
+                </p>
+              </div>
+            )}
+
+            {/* Base Price */}
+            <div className="space-y-2">
+              <Label htmlFor="base-price">Base Rate (USD) *</Label>
+              <Input
+                id="base-price"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="e.g., 35.00"
+                value={basePrice}
+                onChange={(e) => setBasePrice(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your Base Rate is the minimum you're willing to accept per inspection in this area.
+                Vendors whose rates fall below this will not see you as a match.
+              </p>
+            </div>
+
+            {/* Rush Price */}
+            <div className="space-y-2">
+              <Label htmlFor="rush-price">Rush Rate (USD, optional)</Label>
+              <Input
+                id="rush-price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="e.g., 50.00"
+                value={rushPrice}
+                onChange={(e) => setRushPrice(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Optional higher rate for rush work (stored for future use).</p>
+            </div>
+
+            {/* Region Note */}
+            <div className="space-y-2">
+              <Label htmlFor="region-note">Region notes (optional)</Label>
+              <Input
+                id="region-note"
+                placeholder="e.g., Focus on SE Wisconsin / Milwaukee–Racine corridor"
+                value={regionNote}
+                onChange={(e) => setRegionNote(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Any special notes about this area.</p>
+            </div>
+
+            {/* Inspection Types (optional region-specific override) */}
+            <div className="space-y-4">
+              <div>
+                <Label>Inspection Types for this region (optional)</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose the specific inspection types you want to cover in this state/county. Leave blank to use everything you selected in your main
+                  profile.
+                </p>
+              </div>
+
+              {/* Warning for removed types */}
+              {removedTypes.length > 0 && (
+                <Alert variant="default" className="border-amber-500/50 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Some older inspection types linked to this region are no longer in your main profile. They've been removed from this list.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* No profile types warning */}
+              {profileInspectionTypes.length === 0 && (
+                <Alert variant="default" className="border-muted">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    You haven't selected any inspection types in your main profile yet. Please save some inspection types on your profile first.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Grouped inspection types from profile */}
+              {Object.keys(availableInspectionTypesByCategory).length > 0 && (
+                <div className="space-y-4">
+                  {Object.entries(availableInspectionTypesByCategory).map(([category, types]) => (
+                    <div key={category} className="space-y-2">
+                      <Label className="text-sm font-medium text-foreground">{category}</Label>
+                      <div className="ml-1 space-y-1.5">
+                        {types.map((type) => (
+                          <div key={type.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`inspection-${type.id}`}
+                              checked={inspectionTypes.includes(type.label)}
+                              onCheckedChange={() => handleInspectionTypeToggle(type.label)}
+                            />
+                            <Label htmlFor={`inspection-${type.id}`} className="cursor-pointer font-normal text-sm">
+                              {type.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Profile-level "Other" types */}
+              {profileOtherTypes.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-foreground">Other</Label>
+                  <div className="ml-1 space-y-1.5">
+                    {profileOtherTypes.map((otherType) => (
+                      <div key={otherType} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`inspection-other-${otherType}`}
+                          checked={inspectionTypes.includes(otherType)}
+                          onCheckedChange={() => handleInspectionTypeToggle(otherType)}
+                        />
+                        <Label htmlFor={`inspection-other-${otherType}`} className="cursor-pointer font-normal text-sm">
+                          {otherType.replace("Other: ", "")}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={!stateCode}>
-            Save Coverage Area
-          </Button>
-        </DialogFooter>
+        <div className="shrink-0 border-t border-border px-6 py-4">
+          <DialogFooter className="p-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={!stateCode}>
+              Save Coverage Area
+            </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
