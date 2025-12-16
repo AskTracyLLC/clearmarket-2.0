@@ -24,6 +24,9 @@ export interface TerritoryAssignment {
   rep_confirmed_at: string | null;
   rep_confirmed_by: string | null;
   source: string;
+  rate_override: boolean;
+  rate_override_reason: string | null;
+  rate_override_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +48,8 @@ export async function createTerritoryAssignment(params: {
   agreedRate: number;
   effectiveDate: string;
   notes?: string | null;
+  rateOverride?: boolean;
+  rateOverrideReason?: string | null;
 }): Promise<{ assignment: TerritoryAssignment | null; error: string | null }> {
   const { data, error } = await supabase
     .from("territory_assignments")
@@ -65,6 +70,9 @@ export async function createTerritoryAssignment(params: {
       status: "pending_rep",
       created_by: params.vendorId,
       vendor_confirmed_at: new Date().toISOString(),
+      rate_override: params.rateOverride || false,
+      rate_override_reason: params.rateOverrideReason || null,
+      rate_override_at: params.rateOverride ? new Date().toISOString() : null,
     })
     .select()
     .single();

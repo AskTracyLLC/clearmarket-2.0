@@ -59,6 +59,7 @@ export function AssignTerritoryDialog({
     format(new Date(), "yyyy-MM-dd")
   );
   const [notes, setNotes] = useState<string>("");
+  const [overrideReason, setOverrideReason] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [existingAssignment, setExistingAssignment] = useState<any>(null);
   const [repBaseRate, setRepBaseRate] = useState<number | null>(null);
@@ -130,6 +131,10 @@ export function AssignTerritoryDialog({
     }
   }
 
+  const isOverBudget = seekingCoveragePost.pay_max 
+    ? parseFloat(agreedRate) > seekingCoveragePost.pay_max 
+    : false;
+
   async function handleSubmit() {
     const rate = parseFloat(agreedRate);
     if (isNaN(rate) || rate <= 0) {
@@ -141,10 +146,11 @@ export function AssignTerritoryDialog({
       return;
     }
 
-    if (seekingCoveragePost.pay_max && rate > seekingCoveragePost.pay_max) {
+    // Soft validation: if over budget, require an override reason
+    if (isOverBudget && !overrideReason.trim()) {
       toast({
-        title: "Rate exceeds budget",
-        description: `The agreed rate must be at or below your posted maximum ($${seekingCoveragePost.pay_max}).`,
+        title: "Override note required",
+        description: "Please add a brief note explaining the higher rate.",
         variant: "destructive",
       });
       return;
@@ -166,6 +172,8 @@ export function AssignTerritoryDialog({
         agreedRate: rate,
         effectiveDate,
         notes: notes.trim() || null,
+        rateOverride: isOverBudget,
+        rateOverrideReason: isOverBudget ? overrideReason.trim() : null,
       });
 
       if (error) {
@@ -259,9 +267,14 @@ export function AssignTerritoryDialog({
                 placeholder="0.00"
               />
             </div>
-            {seekingCoveragePost.pay_max && (
+            {seekingCoveragePost.pay_max && !isOverBudget && (
               <p className="text-xs text-muted-foreground">
-                Must be at or below your posted maximum (${seekingCoveragePost.pay_max})
+                Posted max: ${seekingCoveragePost.pay_max}. You can override if needed.
+              </p>
+            )}
+            {isOverBudget && (
+              <p className="text-xs text-amber-500">
+                You're above your posted max of ${seekingCoveragePost.pay_max}. That's okay, just add a note below.
               </p>
             )}
             {repBaseRate && (
@@ -285,6 +298,23 @@ export function AssignTerritoryDialog({
               />
             </div>
           </div>
+
+          {/* Override Reason (required when over budget) */}
+          {isOverBudget && (
+            <div className="space-y-2">
+              <Label htmlFor="overrideReason">
+                Override Note <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="overrideReason"
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="E.g., High-priority area, includes winter bonus..."
+                rows={2}
+                className="border-amber-500/50"
+              />
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">
