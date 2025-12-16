@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveRole } from "@/hooks/useActiveRole";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SYSTEMS_LIST } from "@/lib/constants";
@@ -49,6 +50,7 @@ const WorkSetup = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { effectiveRole, loading: roleLoading } = useActiveRole();
+  const { effectiveUserId } = useMimic();
   const { toast } = useToast();
   
   const isRep = effectiveRole === "rep";
@@ -93,13 +95,13 @@ const WorkSetup = () => {
       return;
     }
 
-    if (user && !roleLoading) {
+    if (user && !roleLoading && effectiveUserId) {
       loadData();
     }
-  }, [user, authLoading, roleLoading, effectiveRole, navigate]);
+  }, [user, authLoading, roleLoading, effectiveRole, effectiveUserId, navigate]);
 
   const loadData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setLoading(true);
 
     try {
@@ -121,13 +123,13 @@ const WorkSetup = () => {
   };
 
   const loadRepData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     // Load rep profile
     const { data: repData, error: repError } = await supabase
       .from("rep_profile")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .maybeSingle();
 
     if (repError && repError.code !== "PGRST116") throw repError;
@@ -164,11 +166,11 @@ const WorkSetup = () => {
   };
 
   const loadRepCoverageAreas = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     const { data, error } = await supabase
       .from("rep_coverage_areas")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .order("state_code", { ascending: true });
 
     if (error) {
@@ -179,13 +181,13 @@ const WorkSetup = () => {
   };
 
   const loadVendorData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     // Load vendor profile
     const { data: vendorData, error: vendorError } = await supabase
       .from("vendor_profile")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .maybeSingle();
 
     if (vendorError && vendorError.code !== "PGRST116") throw vendorError;
@@ -221,12 +223,12 @@ const WorkSetup = () => {
   };
 
   const loadVendorCoverageAreas = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data, error } = await supabase
       .from("vendor_coverage_areas")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .order("state_code", { ascending: true })
       .order("county_name", { ascending: true });
 
