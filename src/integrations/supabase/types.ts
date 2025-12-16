@@ -172,6 +172,68 @@ export type Database = {
           },
         ]
       }
+      checklist_assignment_events: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          template_id: string
+          user_id: string
+          vendor_id: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source: string
+          template_id: string
+          user_id: string
+          vendor_id?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          template_id?: string
+          user_id?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_assignment_events_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_assignment_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_assignment_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_assignment_events_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_item_feedback: {
         Row: {
           attachment_urls: string[] | null

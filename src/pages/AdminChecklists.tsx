@@ -778,7 +778,7 @@ export default function AdminChecklists() {
   };
 
   const handleBulkAssign = async () => {
-    if (!selectedTemplateId) return;
+    if (!selectedTemplateId || !user) return;
     
     if (selectedUserIds.size === 0) {
       toast.error(adminChecklistAssignmentsCopy.actions.assignDisabled);
@@ -796,6 +796,9 @@ export default function AdminChecklists() {
         .eq("template_id", selectedTemplateId);
 
       if (itemsError) throw itemsError;
+
+      // Get template to determine if it's vendor-owned
+      const template = templates.find(t => t.id === selectedTemplateId);
 
       let assignedCount = 0;
 
@@ -830,6 +833,15 @@ export default function AdminChecklists() {
               .from("user_checklist_items")
               .insert(itemInserts);
           }
+
+          // Log the assignment event
+          await supabase.from("checklist_assignment_events").insert({
+            template_id: selectedTemplateId,
+            user_id: userId,
+            vendor_id: template?.owner_type === 'vendor' ? template.owner_id : null,
+            assigned_by: user.id,
+            source: 'manual_admin',
+          });
         }
       }
 
@@ -867,14 +879,19 @@ export default function AdminChecklists() {
     <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <ClipboardList className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">{adminChecklistsCopy.pageHeader.title}</h1>
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <ClipboardList className="w-6 h-6 text-primary" />
+              <h1 className="text-2xl font-bold text-foreground">{adminChecklistsCopy.pageHeader.title}</h1>
+            </div>
+            <p className="text-muted-foreground">
+              {adminChecklistsCopy.pageHeader.subtitle}
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            {adminChecklistsCopy.pageHeader.subtitle}
-          </p>
+          <Button variant="outline" size="sm" onClick={() => navigate("/admin/checklists/log")}>
+            Assignment Log
+          </Button>
         </div>
 
         {/* Completion Overview Cards */}

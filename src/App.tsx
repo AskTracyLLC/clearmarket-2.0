@@ -76,6 +76,7 @@ import AdminFeatureFlags from "./pages/AdminFeatureFlags";
 import AdminEmailTemplates from "./pages/AdminEmailTemplates";
 import AdminReviewSettings from "./pages/AdminReviewSettings";
 import AdminChecklists from "./pages/AdminChecklists";
+import AdminChecklistLog from "./pages/AdminChecklistLog";
 import VendorChecklists from "./pages/VendorChecklists";
 
 
@@ -151,6 +152,7 @@ const App = () => (
               <Route path="/admin/email-templates" element={<AdminEmailTemplates />} />
               <Route path="/admin/review-settings" element={<AdminReviewSettings />} />
               <Route path="/admin/checklists" element={<AdminChecklists />} />
+              <Route path="/admin/checklists/log" element={<AdminChecklistLog />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />
               <Route path="/legal/:pageType" element={<LegalPage />} />
