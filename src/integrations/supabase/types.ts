@@ -3862,6 +3862,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_territory_assignment: {
+        Args: { p_assignment_id: string; p_rep_user_id: string }
+        Returns: Json
+      }
       assign_default_checklists: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined

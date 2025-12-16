@@ -218,161 +218,78 @@ async function ensureVendorRepConnection(
 
 /**
  * Accept a territory assignment (rep action)
+ * Uses a SECURITY DEFINER function to bypass RLS for cross-user updates
  */
 export async function acceptTerritoryAssignment(
   assignmentId: string,
   repUserId: string
 ): Promise<{ error: string | null; connectionCreated?: boolean }> {
-  // Get assignment details
-  const { data: assignment, error: fetchError } = await supabase
+  // Use the database function that handles all updates atomically with proper permissions
+  const { data, error } = await supabase.rpc("accept_territory_assignment", {
+    p_assignment_id: assignmentId,
+    p_rep_user_id: repUserId,
+  });
+
+  if (error) {
+    console.error("Error accepting territory assignment:", error);
+    return { error: error.message };
+  }
+
+  const result = data as { success: boolean; error?: string; connection_created?: boolean };
+  
+  if (!result.success) {
+    return { error: result.error || "Failed to accept assignment" };
+  }
+
+  // Get assignment details for additional client-side actions
+  const { data: assignment } = await supabase
     .from("territory_assignments")
     .select("*")
     .eq("id", assignmentId)
     .single();
 
-  if (fetchError || !assignment) {
-    return { error: "Assignment not found" };
+  if (assignment) {
+    // Post system message to conversation
+    if (assignment.conversation_id) {
+      const connectionNote = result.connection_created 
+        ? "\n_Connection created from this Seeking Coverage assignment._" 
+        : "";
+      
+      const systemMessage = formatSystemMessage("accepted", {
+        countyName: assignment.county_name,
+        stateCode: assignment.state_code,
+        inspectionTypes: assignment.inspection_types || [],
+        agreedRate: assignment.agreed_rate,
+        effectiveDate: assignment.effective_date,
+      }) + connectionNote;
+
+      await supabase.from("messages").insert({
+        conversation_id: assignment.conversation_id,
+        sender_id: repUserId,
+        recipient_id: assignment.vendor_id,
+        body: systemMessage,
+      });
+
+      await supabase
+        .from("conversations")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_message_preview: "Territory assignment accepted",
+        })
+        .eq("id", assignment.conversation_id);
+    }
+
+    // Track checklist events for both rep and vendor
+    checklist.firstAgreementAccepted(repUserId);
+    checklist.firstAgreementActivated(assignment.vendor_id);
+
+    // Auto-assign vendor checklists if connection was created
+    if (result.connection_created) {
+      await autoAssignVendorChecklists(supabase, assignment.vendor_id, assignment.rep_id);
+    }
   }
 
-  if (assignment.status !== "pending_rep") {
-    return { error: "Assignment is not pending" };
-  }
-
-  // Update assignment to active
-  const { error: updateError } = await supabase
-    .from("territory_assignments")
-    .update({
-      status: "active",
-      rep_confirmed_at: new Date().toISOString(),
-      rep_confirmed_by: repUserId,
-    })
-    .eq("id", assignmentId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  // Update seeking coverage post - close it
-  if (assignment.seeking_coverage_post_id) {
-    await supabase
-      .from("seeking_coverage_posts")
-      .update({
-        status: "closed",
-        closed_reason: "filled",
-        filled_by_rep_id: repUserId,
-        filled_at: new Date().toISOString(),
-        has_pending_assignment: false,
-      })
-      .eq("id", assignment.seeking_coverage_post_id);
-
-    // Mark other interested reps as not_selected (they weren't chosen for this post)
-    await supabase
-      .from("rep_interest")
-      .update({
-        status: "not_selected",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("post_id", assignment.seeking_coverage_post_id)
-      .eq("status", "interested")
-      .neq("rep_id", assignment.rep_id);
-
-    // Also decline any other pending territory assignments for this post
-    await supabase
-      .from("territory_assignments")
-      .update({
-        status: "declined",
-        decline_reason: "Post filled by another rep",
-      })
-      .eq("seeking_coverage_post_id", assignment.seeking_coverage_post_id)
-      .eq("status", "pending_rep")
-      .neq("id", assignmentId);
-  }
-
-  // Ensure vendor-rep connection exists (create if needed)
-  const { wasCreated: connectionCreated } = await ensureVendorRepConnection(
-    assignment.vendor_id,
-    assignment.rep_id,
-    assignment.conversation_id,
-    "seeking_coverage_assignment"
-  );
-
-  // Create or update vendor_rep_agreements with effective date and work type
-  const workType = assignment.inspection_types && assignment.inspection_types.length > 0
-    ? assignment.inspection_types.join(", ")
-    : null;
-
-  await ensureAgreementOnFile(
-    assignment.vendor_id,
-    assignment.rep_id,
-    assignment.state_code,
-    assignment.county_name,
-    assignment.agreed_rate,
-    assignment.effective_date,
-    workType,
-    assignment.seeking_coverage_post_id
-  );
-
-  // Build notification body with connection info
-  const locationText = assignment.county_name 
-    ? `${assignment.county_name}, ${assignment.state_code}` 
-    : assignment.state_code;
-  
-  const notificationBody = connectionCreated
-    ? `Rep accepted the assignment for ${locationText} at $${assignment.agreed_rate}/order. They have been added to your network.`
-    : `Rep accepted the assignment for ${locationText} at $${assignment.agreed_rate}/order.`;
-
-  // Notify vendor
-  await supabase.from("notifications").insert({
-    user_id: assignment.vendor_id,
-    type: "territory_assignment_accepted",
-    title: "Territory assignment accepted",
-    body: notificationBody,
-    ref_id: assignmentId,
-  });
-
-  // Post system message
-  if (assignment.conversation_id) {
-    const connectionNote = connectionCreated 
-      ? "\n_Connection created from this Seeking Coverage assignment._" 
-      : "";
-    
-    const systemMessage = formatSystemMessage("accepted", {
-      countyName: assignment.county_name,
-      stateCode: assignment.state_code,
-      inspectionTypes: assignment.inspection_types || [],
-      agreedRate: assignment.agreed_rate,
-      effectiveDate: assignment.effective_date,
-    }) + connectionNote;
-
-    await supabase.from("messages").insert({
-      conversation_id: assignment.conversation_id,
-      sender_id: repUserId,
-      recipient_id: assignment.vendor_id,
-      body: systemMessage,
-    });
-
-    await supabase
-      .from("conversations")
-      .update({
-        last_message_at: new Date().toISOString(),
-        last_message_preview: "Territory assignment accepted",
-      })
-      .eq("id", assignment.conversation_id);
-  }
-
-  // Mark the rep's pending assignment notification as read
-  await supabase
-    .from("notifications")
-    .update({ is_read: true })
-    .eq("ref_id", assignmentId)
-    .eq("type", "territory_assignment")
-    .eq("user_id", repUserId);
-
-  // Track checklist events for both rep and vendor
-  checklist.firstAgreementAccepted(repUserId);
-  checklist.firstAgreementActivated(assignment.vendor_id);
-
-  return { error: null, connectionCreated };
+  return { error: null, connectionCreated: result.connection_created };
 }
 
 /**
