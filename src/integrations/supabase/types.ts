@@ -609,6 +609,75 @@ export type Database = {
           },
         ]
       }
+      connection_agreement_areas: {
+        Row: {
+          base_rate: number | null
+          connection_id: string
+          county_name: string | null
+          created_at: string
+          effective_end: string | null
+          effective_start: string
+          id: string
+          inspection_category: string | null
+          inspection_type_id: string | null
+          rush_rate: number | null
+          source_working_terms_row_id: string | null
+          state_code: string
+          status: string
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          base_rate?: number | null
+          connection_id: string
+          county_name?: string | null
+          created_at?: string
+          effective_end?: string | null
+          effective_start?: string
+          id?: string
+          inspection_category?: string | null
+          inspection_type_id?: string | null
+          rush_rate?: number | null
+          source_working_terms_row_id?: string | null
+          state_code: string
+          status?: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          base_rate?: number | null
+          connection_id?: string
+          county_name?: string | null
+          created_at?: string
+          effective_end?: string | null
+          effective_start?: string
+          id?: string
+          inspection_category?: string | null
+          inspection_type_id?: string | null
+          rush_rate?: number | null
+          source_working_terms_row_id?: string | null
+          state_code?: string
+          status?: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_agreement_areas_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_agreement_areas_inspection_type_id_fkey"
+            columns: ["inspection_type_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_type_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connection_notes: {
         Row: {
           author_id: string
@@ -2042,8 +2111,10 @@ export type Database = {
       reviews: {
         Row: {
           accepted_at: string | null
+          agreement_area_id: string | null
           coaching_note: string | null
           comment: string | null
+          connection_id: string | null
           converted_to_coaching_at: string | null
           converted_to_coaching_by: string | null
           county_name: string | null
@@ -2079,8 +2150,10 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          agreement_area_id?: string | null
           coaching_note?: string | null
           comment?: string | null
+          connection_id?: string | null
           converted_to_coaching_at?: string | null
           converted_to_coaching_by?: string | null
           county_name?: string | null
@@ -2116,8 +2189,10 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          agreement_area_id?: string | null
           coaching_note?: string | null
           comment?: string | null
+          connection_id?: string | null
           converted_to_coaching_at?: string | null
           converted_to_coaching_by?: string | null
           county_name?: string | null
@@ -2152,6 +2227,20 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reviews_agreement_area_id_fkey"
+            columns: ["agreement_area_id"]
+            isOneToOne: false
+            referencedRelation: "connection_agreement_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_connections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reviews_converted_to_coaching_by_fkey"
             columns: ["converted_to_coaching_by"]

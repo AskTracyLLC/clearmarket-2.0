@@ -20,9 +20,11 @@ import {
   Clock,
   CheckCircle2,
   Info,
-  AlertCircle
+  AlertCircle,
+  FileCheck
 } from "lucide-react";
 import RequestCoverageDialog from "@/components/RequestCoverageDialog";
+import { AgreementDetailsDialog } from "@/components/AgreementDetailsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { fetchPendingChangeRequestsForVendor, WorkingTermsChangeRequest } from "@/lib/workingTerms";
@@ -107,6 +109,8 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   const navigate = useNavigate();
   const [notesOpen, setNotesOpen] = useState(false);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
   const [pendingChanges, setPendingChanges] = useState<PendingChangeInfo | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -118,8 +122,23 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
   // Load working terms status and pending changes
   useEffect(() => {
     loadWorkingTermsStatus();
+    loadConnectionId();
     checkReviewEligibility();
   }, [vendorId, rep.repUserId]);
+
+  const loadConnectionId = async () => {
+    const { data } = await supabase
+      .from("vendor_connections")
+      .select("id")
+      .eq("vendor_id", vendorId)
+      .eq("field_rep_id", rep.repUserId)
+      .eq("status", "connected")
+      .maybeSingle();
+    
+    if (data) {
+      setConnectionId(data.id);
+    }
+  };
 
   const checkReviewEligibility = async () => {
     const result = await canPostReview(vendorId, rep.repUserId);
@@ -364,6 +383,16 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
               <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
               Messages
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAgreementDialog(true)}
+              disabled={!connectionId}
+              className="w-full md:w-auto text-xs md:text-sm"
+            >
+              <FileCheck className="w-3.5 h-3.5 mr-1.5" />
+              Agreement
+            </Button>
           </div>
 
           {/* Working Terms Status */}
@@ -527,6 +556,15 @@ const RepConnectionCard: React.FC<RepConnectionCardProps> = ({
         repName={rep.anonymousId}
         onRequestSent={handleRequestSent}
       />
+
+      {connectionId && (
+        <AgreementDetailsDialog
+          open={showAgreementDialog}
+          onOpenChange={setShowAgreementDialog}
+          connectionId={connectionId}
+          connectionLabel={rep.anonymousId}
+        />
+      )}
     </>
   );
 };
