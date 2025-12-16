@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { createNotification } from "@/lib/notifications";
 import { checklist } from "@/lib/checklistTracking";
+import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
 
 interface PostInfo {
   id: string;
@@ -208,7 +209,7 @@ export function ExpressInterestDialog({
         conversationId
       );
 
-      toast.success("Your interest and coverage details were sent to the vendor.");
+      toast.success(seekingCoverageCopy.fieldRep.interestSuccessToast);
       onInterestExpressed(post.id);
       onOpenChange(false);
       
@@ -216,7 +217,7 @@ export function ExpressInterestDialog({
       checklist.firstSeekingCoverageResponse(repProfile.user_id);
     } catch (error: any) {
       console.error("Error expressing interest:", error);
-      toast.error("Failed to send interest. Please try again.");
+      toast.error(seekingCoverageCopy.toasts.saveError);
     } finally {
       setSubmitting(false);
     }
@@ -327,10 +328,10 @@ export function ExpressInterestDialog({
 
           {/* Optional Note */}
           <div className="space-y-2">
-            <Label htmlFor="note" className="text-sm font-medium">Add a quick note (optional)</Label>
+            <Label htmlFor="note" className="text-sm font-medium">{seekingCoverageCopy.fieldRep.interestNotesLabel}</Label>
             <Textarea
               id="note"
-              placeholder="You can share anything important here, like preferred pay, availability, or special experience in this area."
+              placeholder={seekingCoverageCopy.fieldRep.interestNotesPlaceholder}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}

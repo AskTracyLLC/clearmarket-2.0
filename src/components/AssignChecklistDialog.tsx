@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { assignTemplateToRep, ChecklistTemplate } from "@/lib/checklists";
+import { vendorChecklistsCopy } from "@/copy/vendorChecklistsCopy";
 
 interface AssignChecklistDialogProps {
   open: boolean;
@@ -91,30 +92,32 @@ export function AssignChecklistDialog({
       
       if (result) {
         toast({
-          title: "Checklist assigned",
-          description: `Successfully assigned checklist to ${repName}.`,
+          title: copy.assignDialog.toasts.assignSuccess,
+          description: copy.assignDialog.toasts.assignSuccessDescription.replace("{repName}", repName),
         });
         onAssigned?.();
         onOpenChange(false);
         setSelectedTemplateId(null);
       } else {
         toast({
-          title: "Error",
-          description: "Failed to assign checklist. It may already be assigned.",
+          title: vendorChecklistsCopy.toasts.error,
+          description: copy.assignDialog.toasts.assignError,
           variant: "destructive",
         });
       }
     } catch (error: any) {
       console.error("Error assigning checklist:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to assign checklist.",
+        title: vendorChecklistsCopy.toasts.error,
+        description: error.message || copy.assignDialog.toasts.assignError,
         variant: "destructive",
       });
     } finally {
       setAssigning(false);
     }
   };
+
+  const copy = vendorChecklistsCopy;
 
   const availableTemplates = templates.filter(
     t => !existingAssignments.includes(t.id)
@@ -124,9 +127,9 @@ export function AssignChecklistDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assign Checklist to {repName}</DialogTitle>
+          <DialogTitle>{copy.assignDialog.title.replace("{repName}", repName)}</DialogTitle>
           <DialogDescription>
-            Select a checklist template to assign to this field rep. They'll see it on their dashboard and can track their progress.
+            {copy.assignDialog.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,17 +142,17 @@ export function AssignChecklistDialog({
             <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
               <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground mb-2">
-                You haven't created any checklists yet.
+                {copy.assignDialog.emptyNoTemplates}
               </p>
               <p className="text-xs text-muted-foreground">
-                Go to your Vendor Profile to create custom onboarding checklists.
+                {copy.assignDialog.emptyNoTemplatesHelper}
               </p>
             </div>
           ) : availableTemplates.length === 0 ? (
             <div className="text-center py-8 border border-dashed border-border rounded-lg bg-muted/30">
               <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
-                All your checklists are already assigned to this rep.
+                {copy.assignDialog.emptyAllAssigned}
               </p>
             </div>
           ) : (
@@ -192,13 +195,13 @@ export function AssignChecklistDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={assigning}>
-            Cancel
+            {copy.assignDialog.cancelButton}
           </Button>
           <Button
             onClick={handleAssign}
             disabled={assigning || !selectedTemplateId || availableTemplates.length === 0}
           >
-            {assigning ? "Assigning..." : "Assign Checklist"}
+            {assigning ? copy.assignDialog.assigningButton : copy.assignDialog.assignButton}
           </Button>
         </DialogFooter>
       </DialogContent>

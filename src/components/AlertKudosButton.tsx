@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { checklist } from "@/lib/checklistTracking";
+import { alertsCopy } from "@/copy/alertsCopy";
 
 interface AlertKudosButtonProps {
   alertId: string;
@@ -72,8 +73,7 @@ export function AlertKudosButton({ alertId, repId, vendorId, disabled }: AlertKu
         setHasKudos(true);
         setKudosCount(c => c + 1);
         toast({
-          title: "Thanks for the feedback!",
-          description: "Your kudos helps this rep's communication score.",
+          title: alertsCopy.vendorView.toasts.acknowledgeSuccess,
         });
         
         // Track checklist event for first route alert acknowledged
@@ -82,8 +82,7 @@ export function AlertKudosButton({ alertId, repId, vendorId, disabled }: AlertKu
     } catch (error: any) {
       console.error("Error toggling kudos:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update kudos.",
+        title: alertsCopy.vendorView.toasts.acknowledgeError,
         variant: "destructive",
       });
     } finally {
@@ -107,7 +106,7 @@ export function AlertKudosButton({ alertId, repId, vendorId, disabled }: AlertKu
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          {hasKudos ? "You gave kudos – click to remove" : "Good communication – give kudos"}
+          {hasKudos ? "You gave kudos – click to remove" : alertsCopy.vendorView.acknowledgeTooltip}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

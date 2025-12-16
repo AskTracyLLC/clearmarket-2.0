@@ -21,6 +21,7 @@ import AdminViewBanner from "@/components/AdminViewBanner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { NotInterestedDialog } from "@/components/NotInterestedDialog";
+import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [
@@ -580,7 +581,7 @@ export default function RepFindWork() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-3xl font-bold text-foreground">Find Work in Your Coverage Areas</h1>
+              <h1 className="text-3xl font-bold text-foreground">{seekingCoverageCopy.fieldRep.sectionTitle}</h1>
                 <Button
                   variant="outline"
                   size="sm"
@@ -592,8 +593,7 @@ export default function RepFindWork() {
                 </Button>
               </div>
               <p className="text-muted-foreground mt-1">
-                These opportunities are based on your coverage areas, systems, and inspection types. 
-                Update your profile to refine matches.
+                {seekingCoverageCopy.fieldRep.sectionSubtitle}
               </p>
             </div>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
@@ -820,7 +820,7 @@ export default function RepFindWork() {
                     // No matches at all without filters
                     <>
                       <p className="text-lg font-medium text-foreground mb-2">
-                        No active Seeking Coverage posts match your profile right now
+                        {seekingCoverageCopy.fieldRep.emptyState}
                       </p>
                       <p className="text-muted-foreground mb-4">
                         Vendors may not have posted yet, or your filters may be too narrow. 
