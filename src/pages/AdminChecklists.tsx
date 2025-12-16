@@ -103,11 +103,18 @@ interface FeedbackItem {
   template_name: string;
   item_title: string;
   user_email: string;
+  user_full_name: string | null;
+  user_is_fieldrep: boolean;
+  user_is_vendor_admin: boolean;
+  rep_anonymous_id: string | null;
+  vendor_anonymous_id: string | null;
   feedback_type: string;
   message: string;
   attachment_urls: string[] | null;
   created_at: string;
-  status: string;
+  status: "open" | "reviewed" | "fixed";
+  reviewed_at: string | null;
+  fixed_at: string | null;
 }
 
 interface AssignableUser {
@@ -352,14 +359,22 @@ export default function AdminChecklists() {
         .from("checklist_item_feedback")
         .select(`
           id,
+          user_id,
           feedback_type,
           message,
           attachment_urls,
           created_at,
           status,
+          reviewed_at,
+          fixed_at,
           template:checklist_templates(name),
           item:checklist_items(title),
-          user:profiles!checklist_item_feedback_user_id_fkey(email),
+          user:profiles!checklist_item_feedback_user_id_fkey(
+            email,
+            full_name,
+            is_fieldrep,
+            is_vendor_admin
+          ),
           resolved_by_profile:profiles!checklist_item_feedback_resolved_by_fkey(email)
         `)
         .order("created_at", { ascending: false })
@@ -367,22 +382,86 @@ export default function AdminChecklists() {
 
       if (error) throw error;
 
+      // Fetch rep/vendor anonymous IDs for users
+      const userIds = [...new Set((data || []).map((f: any) => f.user_id).filter(Boolean))];
+      
+      // Get rep profiles
+      const { data: repProfiles } = await supabase
+        .from("rep_profile")
+        .select("user_id, anonymous_id")
+        .in("user_id", userIds.length > 0 ? userIds : ['']);
+      
+      // Get vendor profiles  
+      const { data: vendorProfiles } = await supabase
+        .from("vendor_profile")
+        .select("user_id, anonymous_id")
+        .in("user_id", userIds.length > 0 ? userIds : ['']);
+      
+      const repMap = new Map((repProfiles || []).map(r => [r.user_id, r.anonymous_id]));
+      const vendorMap = new Map((vendorProfiles || []).map(v => [v.user_id, v.anonymous_id]));
+
       const formattedFeedback: FeedbackItem[] = (data || []).map((f: any) => ({
         id: f.id,
         template_name: f.template?.name || "Unknown",
         item_title: f.item?.title || "Unknown",
         user_email: f.user?.email || "Unknown",
+        user_full_name: f.user?.full_name || null,
+        user_is_fieldrep: f.user?.is_fieldrep || false,
+        user_is_vendor_admin: f.user?.is_vendor_admin || false,
+        rep_anonymous_id: repMap.get(f.user_id) || null,
+        vendor_anonymous_id: vendorMap.get(f.user_id) || null,
         feedback_type: f.feedback_type,
         message: f.message,
         attachment_urls: f.attachment_urls,
         created_at: f.created_at,
-        status: f.status,
+        status: f.status || "open",
+        reviewed_at: f.reviewed_at,
+        fixed_at: f.fixed_at,
       }));
 
       setFeedback(formattedFeedback);
     } catch (error) {
       console.error("Error loading feedback:", error);
     }
+  };
+
+  const handleUpdateFeedbackStatus = async (id: string, newStatus: "reviewed" | "fixed") => {
+    try {
+      const timestamps: { reviewed_at?: string; fixed_at?: string } = {};
+      if (newStatus === "reviewed") {
+        timestamps.reviewed_at = new Date().toISOString();
+      } else if (newStatus === "fixed") {
+        timestamps.fixed_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from("checklist_item_feedback")
+        .update({ status: newStatus, ...timestamps })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success(`Feedback marked as ${newStatus}`);
+      await loadFeedback();
+    } catch (error) {
+      console.error("Error updating feedback status:", error);
+      toast.error("Failed to update feedback status");
+    }
+  };
+
+  const getUserDisplayLabel = (fb: FeedbackItem): string => {
+    const firstName = fb.user_full_name?.split(" ")[0];
+    const lastInitial = fb.user_full_name?.split(" ")[1]?.[0];
+    const displayName = firstName && lastInitial 
+      ? `${firstName} ${lastInitial}.` 
+      : fb.user_full_name || null;
+    
+    if (fb.user_is_fieldrep && fb.rep_anonymous_id) {
+      return displayName ? `${displayName} (${fb.rep_anonymous_id})` : fb.rep_anonymous_id;
+    }
+    if (fb.user_is_vendor_admin && fb.vendor_anonymous_id) {
+      return displayName ? `${displayName} (${fb.vendor_anonymous_id})` : fb.vendor_anonymous_id;
+    }
+    return displayName || fb.user_email;
   };
 
   const getStatsForTemplate = (templateId: string) => {
@@ -865,6 +944,8 @@ export default function AdminChecklists() {
   const repStats = getRepStats();
   const vendorStats = getVendorStats();
   const openFeedbackCount = feedback.filter(f => f.status === "open").length;
+  const reviewedFeedbackCount = feedback.filter(f => f.status === "reviewed").length;
+  const fixedFeedbackCount = feedback.filter(f => f.status === "fixed").length;
 
   if (authLoading || permsLoading || loading) {
     return (
@@ -935,15 +1016,16 @@ export default function AdminChecklists() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-2xl font-bold">{openFeedbackCount}</p>
-                  <Badge variant={openFeedbackCount > 0 ? "destructive" : "secondary"} className="text-xs">
-                    Open
-                  </Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-2xl font-bold">{openFeedbackCount}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200">Open</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-sm">{reviewedFeedbackCount}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-200">Reviewed</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-sm">{fixedFeedbackCount}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200">Fixed</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {feedback.length} total feedback reports
-                </p>
                 <Button 
                   variant="link" 
                   size="sm" 
@@ -1326,7 +1408,7 @@ export default function AdminChecklists() {
                         <TableRow>
                           <TableHead>{adminChecklistsCopy.feedbackSection.columns.step}</TableHead>
                           <TableHead>{adminChecklistsCopy.feedbackSection.columns.user}</TableHead>
-                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.type}</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>{adminChecklistsCopy.feedbackSection.columns.message}</TableHead>
                           <TableHead>{adminChecklistsCopy.feedbackSection.columns.submitted}</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
@@ -1342,15 +1424,18 @@ export default function AdminChecklists() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <span className="text-sm truncate max-w-[150px] block">{fb.user_email}</span>
+                              <span className="text-sm truncate max-w-[180px] block">{getUserDisplayLabel(fb)}</span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={fb.feedback_type === "bug" ? "destructive" : "secondary"} className="text-xs">
-                                {fb.feedback_type === "bug" ? "Bug" : 
-                                 fb.feedback_type === "confusing" ? "Confusing" :
-                                 fb.feedback_type === "completed_not_marked" ? "Not marked" :
-                                 fb.feedback_type === "suggestion" ? "Suggestion" : "Other"}
-                              </Badge>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                fb.status === "open" 
+                                  ? "bg-amber-500/20 text-amber-200" 
+                                  : fb.status === "reviewed"
+                                  ? "bg-sky-500/20 text-sky-200"
+                                  : "bg-emerald-500/20 text-emerald-200"
+                              }`}>
+                                {fb.status === "open" ? "Open" : fb.status === "reviewed" ? "Reviewed" : "Fixed"}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <p className="text-sm truncate max-w-[200px]">{fb.message}</p>
@@ -1361,14 +1446,32 @@ export default function AdminChecklists() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => openFeedbackDetail(fb)}
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View
-                              </Button>
+                              <div className="flex items-center justify-end gap-2">
+                                {fb.status !== "reviewed" && fb.status !== "fixed" && (
+                                  <button
+                                    className="text-xs underline underline-offset-2 text-sky-300 hover:text-sky-200"
+                                    onClick={() => handleUpdateFeedbackStatus(fb.id, "reviewed")}
+                                  >
+                                    Mark reviewed
+                                  </button>
+                                )}
+                                {fb.status !== "fixed" && (
+                                  <button
+                                    className="text-xs underline underline-offset-2 text-emerald-300 hover:text-emerald-200"
+                                    onClick={() => handleUpdateFeedbackStatus(fb.id, "fixed")}
+                                  >
+                                    Mark fixed
+                                  </button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openFeedbackDetail(fb)}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
