@@ -2580,6 +2580,9 @@ export type Database = {
           id: string
           inspection_types: string[] | null
           notes: string | null
+          rate_override: boolean
+          rate_override_at: string | null
+          rate_override_reason: string | null
           rep_confirmed_at: string | null
           rep_confirmed_by: string | null
           rep_id: string
@@ -2605,6 +2608,9 @@ export type Database = {
           id?: string
           inspection_types?: string[] | null
           notes?: string | null
+          rate_override?: boolean
+          rate_override_at?: string | null
+          rate_override_reason?: string | null
           rep_confirmed_at?: string | null
           rep_confirmed_by?: string | null
           rep_id: string
@@ -2630,6 +2636,9 @@ export type Database = {
           id?: string
           inspection_types?: string[] | null
           notes?: string | null
+          rate_override?: boolean
+          rate_override_at?: string | null
+          rate_override_reason?: string | null
           rep_confirmed_at?: string | null
           rep_confirmed_by?: string | null
           rep_id?: string
