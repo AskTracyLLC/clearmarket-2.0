@@ -68,8 +68,8 @@ export function useVendorChecklists() {
   }, []);
 
   const getAssignees = useCallback(async (templateId: string): Promise<TemplateAssignee[]> => {
-    return loadTemplateAssignees(supabase, templateId);
-  }, []);
+    return loadTemplateAssignees(supabase, templateId, user?.id);
+  }, [user]);
 
   const assignToRep = useCallback(async (templateId: string, repUserId: string) => {
     const id = await assignTemplateToRep(supabase, templateId, repUserId);

@@ -48,6 +48,7 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
   const [sortColumn, setSortColumn] = useState<SortColumn>("completion");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [templateRole, setTemplateRole] = useState<TemplateRole>("both");
+  const [isVendorTemplate, setIsVendorTemplate] = useState(false);
 
   const copy = checklistUserProgressCopy;
 
@@ -60,17 +61,19 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
   const loadUserProgress = async () => {
     setLoading(true);
     try {
-      // First, fetch the template to get its role
+      // First, fetch the template to get its role and owner_type
       const { data: templateData, error: templateError } = await supabase
         .from("checklist_templates")
-        .select("role")
+        .select("role, owner_type")
         .eq("id", templateId)
         .single();
 
       if (templateError) throw templateError;
       
       const tRole = (templateData?.role as TemplateRole) || "both";
+      const vendorOwned = templateData?.owner_type === "vendor";
       setTemplateRole(tRole);
+      setIsVendorTemplate(vendorOwned);
 
       // Get all assignments for this template
       let assignmentsQuery = supabase
@@ -98,16 +101,29 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
       // Get user IDs
       let userIds = assignments.map(a => a.user_id);
 
-      // If vendor context, filter to only connected reps
-      if (vendorId) {
-        const { data: connections } = await supabase
-          .from("vendor_connections")
-          .select("field_rep_id")
-          .eq("vendor_id", vendorId)
-          .eq("status", "connected");
+      // For vendor templates OR if vendorId context provided, filter to only connected field reps
+      if (vendorId || vendorOwned) {
+        // Get vendor ID - either from prop or from template owner
+        let filterVendorId = vendorId;
+        if (!filterVendorId && vendorOwned) {
+          const { data: fullTemplate } = await supabase
+            .from("checklist_templates")
+            .select("owner_id")
+            .eq("id", templateId)
+            .single();
+          filterVendorId = fullTemplate?.owner_id || undefined;
+        }
 
-        const connectedRepIds = new Set(connections?.map(c => c.field_rep_id) || []);
-        userIds = userIds.filter(id => connectedRepIds.has(id));
+        if (filterVendorId) {
+          const { data: connections } = await supabase
+            .from("vendor_connections")
+            .select("field_rep_id")
+            .eq("vendor_id", filterVendorId)
+            .eq("status", "connected");
+
+          const connectedRepIds = new Set(connections?.map(c => c.field_rep_id) || []);
+          userIds = userIds.filter(id => connectedRepIds.has(id));
+        }
       }
 
       if (userIds.length === 0) {
@@ -267,6 +283,9 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
   }
 
   const getRoleBadge = () => {
+    if (isVendorTemplate) {
+      return <Badge variant="outline" className="ml-2">For your Field Reps</Badge>;
+    }
     switch (templateRole) {
       case "field_rep":
         return <Badge variant="outline" className="ml-2">Field Rep checklist</Badge>;
@@ -318,15 +337,18 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
                   <SortIcon column="user" />
                 </div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50 select-none"
-                onClick={() => handleSort("role")}
-              >
-                <div className="flex items-center">
-                  {copy.table.columns.role}
-                  <SortIcon column="role" />
-                </div>
-              </TableHead>
+              {/* Only show Role column for admin (non-vendor) templates */}
+              {!isVendorTemplate && (
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50 select-none"
+                  onClick={() => handleSort("role")}
+                >
+                  <div className="flex items-center">
+                    {copy.table.columns.role}
+                    <SortIcon column="role" />
+                  </div>
+                </TableHead>
+              )}
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50 select-none"
                 onClick={() => handleSort("completion")}
@@ -368,7 +390,7 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
           <TableBody>
             {sortedAndFilteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={isVendorTemplate ? 5 : 6} className="text-center text-muted-foreground py-8">
                   No users match your filters.
                 </TableCell>
               </TableRow>
@@ -380,10 +402,12 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
                       <div className="font-medium">{user.userName || "—"}</div>
                       <div className="text-xs text-muted-foreground">{user.userEmail}</div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{user.role}</Badge>
-                  </TableCell>
+                    </TableCell>
+                    {!isVendorTemplate && (
+                      <TableCell>
+                        <Badge variant="outline">{user.role}</Badge>
+                      </TableCell>
+                    )}
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[120px]">
                       <Progress value={user.percent} className="h-2 flex-1" />
