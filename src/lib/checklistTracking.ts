@@ -87,10 +87,19 @@ export async function evaluateAutoTrackKeyForUser(
 
       case "first_seeking_coverage_response": {
         // Field Rep has expressed interest in at least one post
+        // rep_interest.rep_id references rep_profile.id, not profiles.id
+        const { data: repProfile } = await client
+          .from("rep_profile")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+        
+        if (!repProfile) return false;
+        
         const { count } = await client
           .from("rep_interest")
           .select("*", { count: "exact", head: true })
-          .eq("rep_id", userId);
+          .eq("rep_id", repProfile.id);
         
         return (count ?? 0) > 0;
       }
