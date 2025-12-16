@@ -396,3 +396,43 @@ export function getCompletionMessage(percent: number): string {
   if (percent >= 50) return "Good progress!";
   return "Getting started";
 }
+
+/**
+ * Get Profile Setup status for a user (single source of truth for checklist auto-tracking)
+ * Returns whether the profile setup is complete based on the same rules as the Profile Setup widget
+ */
+export async function getProfileSetupStatus(
+  supabaseClient: SupabaseClient,
+  userId: string,
+  role: "rep" | "vendor"
+): Promise<{ isComplete: boolean; percent: number }> {
+  const result = role === "rep"
+    ? await computeRepProfileCompleteness(supabaseClient, userId)
+    : await computeVendorProfileCompleteness(supabaseClient, userId);
+
+  return {
+    isComplete: result.percent === 100,
+    percent: result.percent,
+  };
+}
+
+/**
+ * Get user's role for profile setup status check
+ */
+export async function getUserRoleForProfileSetup(
+  supabaseClient: SupabaseClient,
+  userId: string
+): Promise<"rep" | "vendor" | null> {
+  const { data: profile } = await supabaseClient
+    .from("profiles")
+    .select("is_fieldrep, is_vendor_admin")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!profile) return null;
+  
+  // Prefer rep if both roles exist (for hybrid accounts)
+  if (profile.is_fieldrep) return "rep";
+  if (profile.is_vendor_admin) return "vendor";
+  return null;
+}

@@ -27,31 +27,21 @@ export async function evaluateAutoTrackKeyForUser(
 ): Promise<boolean> {
   try {
     switch (autoTrackKey) {
+      // Profile Setup keys - use the same logic as the Profile Setup widget (single source of truth)
+      case "profile_setup_completed":
       case "profile_completed": {
-        // Field Rep profile: check rep_profile has city, state, and at least one inspection type
-        const { data: repProfile } = await client
-          .from("rep_profile")
-          .select("city, state, inspection_types")
-          .eq("user_id", userId)
-          .maybeSingle();
-        
-        if (!repProfile) return false;
-        
-        const hasLocation = Boolean(repProfile.city && repProfile.state);
-        const hasInspectionTypes = Array.isArray(repProfile.inspection_types) && repProfile.inspection_types.length > 0;
-        return hasLocation && hasInspectionTypes;
+        // Use the centralized profile completeness logic for field reps
+        const { getProfileSetupStatus } = await import("@/lib/profileCompleteness");
+        const status = await getProfileSetupStatus(client, userId, "rep");
+        return status.isComplete;
       }
 
-      case "vendor_profile_completed": {
-        // Vendor profile: check vendor_profile has company_name and state
-        const { data: vendorProfile } = await client
-          .from("vendor_profile")
-          .select("company_name, state")
-          .eq("user_id", userId)
-          .maybeSingle();
-        
-        if (!vendorProfile) return false;
-        return Boolean(vendorProfile.company_name && vendorProfile.state);
+      case "vendor_profile_completed":
+      case "vendor_profile_setup_completed": {
+        // Use the centralized profile completeness logic for vendors
+        const { getProfileSetupStatus } = await import("@/lib/profileCompleteness");
+        const status = await getProfileSetupStatus(client, userId, "vendor");
+        return status.isComplete;
       }
 
       case "coverage_pricing_set": {
