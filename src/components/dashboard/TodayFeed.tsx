@@ -36,6 +36,7 @@ import { formatDistanceToNow, parseISO, isToday, isYesterday, format, startOfDay
 import { doesPostMatchRepRate, getRelativeRateMatchLabel, getRateMatchStatusText } from "@/lib/rateMatching";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { createNotification } from "@/lib/notifications";
+import { checklist } from "@/lib/checklistTracking";
 
 interface OpportunityMetadata {
   postId: string;
@@ -887,6 +888,9 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
       `A field rep has expressed interest in "${postTitle}" and sent you a message with their coverage details.`,
       conversationId
     );
+
+    // 8. Track checklist event for first seeking coverage response
+    checklist.firstSeekingCoverageResponse(userId);
   };
 
   const handleNotInterestedConfirm = async (reason?: string) => {
