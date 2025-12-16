@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail, ClipboardList } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail, ClipboardList, FileCheck } from "lucide-react";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -36,6 +36,9 @@ import { PlannedRouteAlertDialog } from "@/components/PlannedRouteAlertDialog";
 import { GettingStartedChecklist } from "@/components/GettingStartedChecklist";
 import { useChecklist } from "@/hooks/useChecklist";
 import { adminChecklistsCopy } from "@/copy/adminChecklistsCopy";
+import { useAdminOverview } from "@/hooks/useAdminOverview";
+import { AdminAttentionCenter } from "@/components/admin/AdminAttentionCenter";
+import { AdminDashboardTile } from "@/components/admin/AdminDashboardTile";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -88,6 +91,9 @@ const Dashboard = () => {
   
   // Getting Started Checklist
   const { primaryChecklist, vendorChecklists, markComplete, loading: checklistLoading } = useChecklist();
+  
+  // Admin Overview Counts
+  const { counts: adminCounts, loading: adminCountsLoading, refresh: refreshAdminCounts } = useAdminOverview();
 
   // When URL has mimic param and user is admin, start mimic session
   useEffect(() => {
@@ -519,151 +525,121 @@ const Dashboard = () => {
               <h1 className="text-3xl font-bold text-foreground mb-1">Admin Dashboard</h1>
               <p className="text-muted-foreground">Welcome back, {profile?.full_name || user?.email}</p>
             </div>
+            
+            {/* Admin Attention Center */}
+            <div className="max-w-7xl">
+              <AdminAttentionCenter counts={adminCounts} loading={adminCountsLoading} />
+            </div>
+            
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl">
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/users")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Users className="w-5 h-5 text-primary" />
-                    User Management
-                  </CardTitle>
-                  <CardDescription className="text-sm">Search users, manage accounts</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/moderation")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ShieldAlert className="w-5 h-5 text-primary" />
-                    Moderation
-                  </CardTitle>
-                  <CardDescription className="text-sm">Review flagged content</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/reports")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Reports
-                  </CardTitle>
-                  <CardDescription className="text-sm">View user reports</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/invites")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <PlusCircle className="w-5 h-5 text-primary" />
-                    Invite Codes
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage beta invites</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/support")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Headphones className="w-5 h-5 text-primary" />
-                    Support Queue
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage support tickets</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/staff")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Users className="w-5 h-5 text-primary" />
-                    Staff & Roles
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage staff access</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/audit")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Activity Log
-                  </CardTitle>
-                  <CardDescription className="text-sm">Admin audit history</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/metrics")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Search className="w-5 h-5 text-primary" />
-                    System Metrics
-                  </CardTitle>
-                  <CardDescription className="text-sm">System overview</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/credits")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Coins className="w-5 h-5 text-primary" />
-                    Credit Management
-                  </CardTitle>
-                  <CardDescription className="text-sm">Adjust user credits</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/inspection-types")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Inspection Types
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage type options</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/background-checks")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ShieldAlert className="w-5 h-5 text-primary" />
-                    Background Checks
-                  </CardTitle>
-                  <CardDescription className="text-sm">Review submissions</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/legal")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Legal & Help Center
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage ToS, Privacy, Help</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/features")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Settings className="w-5 h-5 text-primary" />
-                    Feature Flags
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage paid/beta features</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/email-templates")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Mail className="w-5 h-5 text-primary" />
-                    Email Templates
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage notification emails</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/review-settings")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Star className="w-5 h-5 text-primary" />
-                    Review Settings
-                  </CardTitle>
-                  <CardDescription className="text-sm">Manage review cadence</CardDescription>
-                </CardHeader>
-              </Card>
-              <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => navigate("/admin/checklists")}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ClipboardList className="w-5 h-5 text-primary" />
-                    {adminChecklistsCopy.dashboardCard.title}
-                  </CardTitle>
-                  <CardDescription className="text-sm">{adminChecklistsCopy.dashboardCard.subtitle}</CardDescription>
-                </CardHeader>
-              </Card>
+              <AdminDashboardTile
+                title="User Management"
+                description="Search users, manage accounts"
+                icon={<Users className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/users")}
+              />
+              <AdminDashboardTile
+                title="Moderation"
+                description="Review flagged content"
+                icon={<ShieldAlert className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/moderation")}
+                badgeCount={adminCounts.moderation_pending}
+                badgeVariant="urgent"
+              />
+              <AdminDashboardTile
+                title="Reports"
+                description="View user reports"
+                icon={<FileText className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/reports")}
+                badgeCount={adminCounts.reports_new}
+                badgeVariant="urgent"
+              />
+              <AdminDashboardTile
+                title="Invite Codes"
+                description="Manage beta invites"
+                icon={<PlusCircle className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/invites")}
+              />
+              <AdminDashboardTile
+                title="Support Queue"
+                description="Manage support tickets"
+                icon={<Headphones className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/support")}
+                badgeCount={adminCounts.support_open}
+                badgeVariant="pending"
+              />
+              <AdminDashboardTile
+                title="Staff & Roles"
+                description="Manage staff access"
+                icon={<Users className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/staff")}
+              />
+              <AdminDashboardTile
+                title="Activity Log"
+                description="Admin audit history"
+                icon={<FileText className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/audit")}
+              />
+              <AdminDashboardTile
+                title="System Metrics"
+                description="System overview"
+                icon={<Search className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/metrics")}
+              />
+              <AdminDashboardTile
+                title="Credit Management"
+                description="Adjust user credits"
+                icon={<Coins className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/credits")}
+              />
+              <AdminDashboardTile
+                title="Inspection Types"
+                description="Manage type options"
+                icon={<FileText className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/inspection-types")}
+              />
+              <AdminDashboardTile
+                title="Background Checks"
+                description="Review submissions"
+                icon={<FileCheck className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/background-checks")}
+                badgeCount={adminCounts.background_checks_pending}
+                badgeVariant="pending"
+              />
+              <AdminDashboardTile
+                title="Legal & Help Center"
+                description="Manage ToS, Privacy, Help"
+                icon={<FileText className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/legal")}
+              />
+              <AdminDashboardTile
+                title="Feature Flags"
+                description="Manage paid/beta features"
+                icon={<Settings className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/features")}
+              />
+              <AdminDashboardTile
+                title="Email Templates"
+                description="Manage notification emails"
+                icon={<Mail className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/email-templates")}
+              />
+              <AdminDashboardTile
+                title="Review Settings"
+                description="Manage review cadence"
+                icon={<Star className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/review-settings")}
+                badgeCount={adminCounts.reviews_pending}
+                badgeVariant="info"
+              />
+              <AdminDashboardTile
+                title={adminChecklistsCopy.dashboardCard.title}
+                description={adminChecklistsCopy.dashboardCard.subtitle}
+                icon={<ClipboardList className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/checklists")}
+                badgeCount={adminCounts.checklist_stuck}
+                badgeVariant="pending"
+              />
             </div>
             
             {/* Review Summary Card */}
