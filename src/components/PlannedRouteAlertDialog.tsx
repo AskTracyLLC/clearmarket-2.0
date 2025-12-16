@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { CalendarIcon, MapPin, Send, Clock, X } from "lucide-react";
+import { alertsCopy } from "@/copy/alertsCopy";
 
 interface CoverageArea {
   state_code: string;
@@ -252,7 +253,7 @@ export function PlannedRouteAlertDialog({
       onSuccess?.();
     } catch (error: any) {
       console.error("Error sending route alert:", error);
-      toast({ title: "Error", description: error.message || "Failed to send.", variant: "destructive" });
+      toast({ title: "Error", description: error.message || alertsCopy.repAlerts.toasts.sendError, variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -413,11 +414,11 @@ export function PlannedRouteAlertDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
-            Cancel
+            {alertsCopy.repAlerts.form.cancelButton}
           </Button>
           <Button onClick={handleSend} disabled={sending || !routeDate || !routeState || routeCounties.length === 0}>
             <Send className="w-4 h-4 mr-2" />
-            {sending ? "Sending..." : sendTiming === "now" ? "Send Now" : "Schedule Alert"}
+            {sending ? "Sending..." : sendTiming === "now" ? alertsCopy.repAlerts.form.sendButton : "Schedule Alert"}
           </Button>
         </DialogFooter>
       </DialogContent>

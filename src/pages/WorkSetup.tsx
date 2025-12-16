@@ -23,6 +23,7 @@ import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { checklist } from "@/lib/checklistTracking";
+import { coveragePricingCopy } from "@/copy/coveragePricingCopy";
 
 // Validation schema for rep work setup
 // NOTE: Legacy inspection type fields (inspection_types_other) have been deprecated.
@@ -283,13 +284,13 @@ const WorkSetup = () => {
 
       toast({
         title: "Success",
-        description: "Your work setup has been updated successfully.",
+        description: coveragePricingCopy.toasts.saveSuccess,
       });
     } catch (error: any) {
       console.error("Error saving:", error);
       toast({
         title: "Error",
-        description: "Failed to save changes. Please try again.",
+        description: coveragePricingCopy.toasts.saveError,
         variant: "destructive",
       });
     } finally {
@@ -323,13 +324,13 @@ const WorkSetup = () => {
 
       toast({
         title: "Success",
-        description: "Your work setup has been updated successfully.",
+        description: coveragePricingCopy.toasts.saveSuccess,
       });
     } catch (error: any) {
       console.error("Error saving:", error);
       toast({
         title: "Error",
-        description: "Failed to save changes. Please try again.",
+        description: coveragePricingCopy.toasts.saveError,
         variant: "destructive",
       });
     } finally {
@@ -358,9 +359,9 @@ const WorkSetup = () => {
         </div>
         
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Work Setup + Coverage & Rates</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Work Setup + {coveragePricingCopy.common.sectionTitle}</h1>
           <p className="text-muted-foreground">
-            Manage the systems you use, the inspection types you {isRep ? "perform" : "assign"}, and your coverage areas and pricing in one place.
+            {isRep ? coveragePricingCopy.fieldRep.subtitle : coveragePricingCopy.vendor.subtitle}
           </p>
         </div>
 
