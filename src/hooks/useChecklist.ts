@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveRole } from "@/hooks/useActiveRole";
@@ -7,6 +7,7 @@ import {
   completeChecklistItem,
   completeChecklistByKey,
   assignDefaultChecklists,
+  syncAutoTrackedItems,
   ChecklistProgress,
 } from "@/lib/checklists";
 
@@ -15,6 +16,7 @@ export function useChecklist() {
   const { effectiveRole } = useActiveRole();
   const [checklists, setChecklists] = useState<ChecklistProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasSyncedRef = useRef(false);
 
   const loadChecklists = useCallback(async () => {
     if (!user) {
@@ -30,11 +32,27 @@ export function useChecklist() {
     if (data.length === 0 && effectiveRole) {
       const role = effectiveRole === "rep" ? "field_rep" : "vendor";
       await assignDefaultChecklists(supabase, user.id, role);
-      // Reload after assignment
+      
+      // Run sync for auto-tracked items immediately after assignment
+      await syncAutoTrackedItems(supabase, user.id);
+      
+      // Reload after assignment and sync
       const newData = await loadUserChecklists(supabase, user.id);
       setChecklists(newData);
+      hasSyncedRef.current = true;
     } else {
       setChecklists(data);
+      
+      // Run sync once on first load if we haven't already
+      if (!hasSyncedRef.current && data.length > 0) {
+        hasSyncedRef.current = true;
+        const syncedCount = await syncAutoTrackedItems(supabase, user.id);
+        if (syncedCount > 0) {
+          // Reload to show updated status
+          const updatedData = await loadUserChecklists(supabase, user.id);
+          setChecklists(updatedData);
+        }
+      }
     }
     
     setLoading(false);
@@ -43,6 +61,11 @@ export function useChecklist() {
   useEffect(() => {
     loadChecklists();
   }, [loadChecklists]);
+
+  // Reset sync flag when user changes
+  useEffect(() => {
+    hasSyncedRef.current = false;
+  }, [user?.id]);
 
   const markComplete = useCallback(async (userItemId: string) => {
     const success = await completeChecklistItem(supabase, userItemId);
