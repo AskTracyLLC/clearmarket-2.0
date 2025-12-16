@@ -48,6 +48,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
+import { communityCopy } from "@/copy/communityCopy";
 import {
   MessageSquare,
   Bell,
@@ -200,7 +201,7 @@ const CommunityPostDetail = () => {
     const result = await createCommunityComment(post.id, user.id, newComment.trim());
 
     if (result.success) {
-      toast({ title: "Comment posted" });
+      toast({ title: communityCopy.replyForm.successToast });
       setNewComment("");
       // Notify post author if not self
       if (post.author_id !== user.id) {
@@ -211,7 +212,7 @@ const CommunityPostDetail = () => {
       // Track checklist event for first community reply
       checklist.firstCommunityReply(user.id);
     } else {
-      toast({ title: "Error", description: result.error, variant: "destructive" });
+      toast({ title: communityCopy.replyForm.errorToast, description: result.error, variant: "destructive" });
     }
     setSubmitting(false);
   };
@@ -478,13 +479,13 @@ const CommunityPostDetail = () => {
                 <Textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add a comment..."
+                  placeholder={communityCopy.replyForm.placeholder}
                   rows={3}
                   maxLength={2000}
                 />
                 <div className="flex justify-end mt-2">
                   <Button onClick={handleSubmitComment} disabled={submitting || !newComment.trim()}>
-                    {submitting ? "Posting..." : "Post Comment"}
+                    {submitting ? "Posting..." : communityCopy.replyForm.submitButton}
                   </Button>
                 </div>
               </CardContent>

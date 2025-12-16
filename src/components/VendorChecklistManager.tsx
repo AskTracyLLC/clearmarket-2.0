@@ -26,6 +26,7 @@ import { useVendorChecklists, TemplateAssignee } from "@/hooks/useVendorChecklis
 import { ChecklistItemDefinition } from "@/lib/checklists";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { vendorChecklistsCopy } from "@/copy/vendorChecklistsCopy";
 
 interface VendorChecklistManagerProps {
   className?: string;
@@ -138,6 +139,8 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
     );
   }
 
+  const copy = vendorChecklistsCopy;
+
   return (
     <div className={cn("space-y-4", className)}>
       {/* Header */}
@@ -145,42 +148,42 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
-            Onboarding Checklists
+            {copy.manager.header}
             <Badge variant="secondary" className="text-xs">
               <Crown className="h-3 w-3 mr-1" />
-              Paid Feature
+              {copy.manager.paidBadge}
             </Badge>
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Create custom onboarding checklists for your field reps
+            {copy.manager.subtitle}
           </p>
         </div>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button size="sm">
               <Plus className="h-4 w-4 mr-1" />
-              New Template
+              {copy.manager.newTemplateButton}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create Onboarding Template</DialogTitle>
+              <DialogTitle>{copy.editor.createDialogTitle}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div>
-                <Label>Template Name</Label>
+                <Label>{copy.editor.templateNameLabel}</Label>
                 <Input
-                  placeholder="e.g., New Rep Onboarding"
+                  placeholder={copy.editor.templateNamePlaceholder}
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
+                  {copy.editor.cancelButton}
                 </Button>
                 <Button onClick={handleCreateTemplate} disabled={creating || !newTemplateName.trim()}>
-                  {creating ? "Creating..." : "Create Template"}
+                  {creating ? copy.editor.creatingButton : copy.editor.createButton}
                 </Button>
               </div>
             </div>
@@ -193,13 +196,13 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
         <Card>
           <CardContent className="py-12 text-center">
             <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h4 className="font-medium mb-2">No onboarding templates yet</h4>
+            <h4 className="font-medium mb-2">{copy.manager.noTemplates}</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a template to start onboarding your field reps with custom checklists.
+              {copy.manager.noTemplatesHelper}
             </p>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-1" />
-              Create Your First Template
+              {copy.manager.createFirstTemplateButton}
             </Button>
           </CardContent>
         </Card>
@@ -219,7 +222,7 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                         <div>
                           <CardTitle className="text-base">{template.name}</CardTitle>
                           <CardDescription className="text-sm mt-1">
-                            {items.length} items • {assignees.length} assigned reps
+                            {items.length} {copy.templateList.itemsLabel} • {assignees.length} {copy.templateList.assignedRepsLabel}
                           </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -248,9 +251,9 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                     <CardContent className="pt-0">
                       <Tabs defaultValue="items" className="w-full">
                         <TabsList className="grid w-full grid-cols-2 mb-4">
-                          <TabsTrigger value="items">Checklist Items</TabsTrigger>
+                          <TabsTrigger value="items">{copy.editor.checklistItemsTab}</TabsTrigger>
                           <TabsTrigger value="assignees">
-                            Assigned Reps ({assignees.length})
+                            {copy.editor.assignedRepsTab} ({assignees.length})
                           </TabsTrigger>
                         </TabsList>
 
@@ -265,7 +268,7 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm">{item.title}</span>
                                   {item.is_required && (
-                                    <Badge variant="secondary" className="text-xs">Required</Badge>
+                                    <Badge variant="secondary" className="text-xs">{copy.itemEditor.requiredBadge}</Badge>
                                   )}
                                 </div>
                                 {item.description && (
@@ -293,26 +296,26 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" className="w-full">
                                 <Plus className="h-4 w-4 mr-1" />
-                                Add Item
+                                {copy.editor.addItemButton}
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
                               <DialogHeader>
-                                <DialogTitle>Add Checklist Item</DialogTitle>
+                                <DialogTitle>{copy.itemEditor.addItemDialogTitle}</DialogTitle>
                               </DialogHeader>
                               <div className="space-y-4 pt-4">
                                 <div>
-                                  <Label>Title</Label>
+                                  <Label>{copy.itemEditor.titleLabel}</Label>
                                   <Input
-                                    placeholder="e.g., Complete training module"
+                                    placeholder={copy.itemEditor.titlePlaceholder}
                                     value={newItemTitle}
                                     onChange={(e) => setNewItemTitle(e.target.value)}
                                   />
                                 </div>
                                 <div>
-                                  <Label>Description (optional)</Label>
+                                  <Label>{copy.itemEditor.descriptionLabel}</Label>
                                   <Textarea
-                                    placeholder="Additional instructions or details..."
+                                    placeholder={copy.itemEditor.descriptionPlaceholder}
                                     value={newItemDescription}
                                     onChange={(e) => setNewItemDescription(e.target.value)}
                                     rows={3}
@@ -323,14 +326,14 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                                     checked={newItemRequired}
                                     onCheckedChange={setNewItemRequired}
                                   />
-                                  <Label>Required item</Label>
+                                  <Label>{copy.itemEditor.requiredToggleLabel}</Label>
                                 </div>
                                 <div className="flex justify-end gap-2">
                                   <Button variant="outline" onClick={() => setAddItemTemplateId(null)}>
-                                    Cancel
+                                    {copy.itemEditor.cancelButton}
                                   </Button>
                                   <Button onClick={handleAddItem} disabled={!newItemTitle.trim()}>
-                                    Add Item
+                                    {copy.itemEditor.addButton}
                                   </Button>
                                 </div>
                               </div>
@@ -342,9 +345,9 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                           {assignees.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                               <Users className="h-8 w-8 mx-auto mb-2" />
-                              <p className="text-sm">No reps assigned yet</p>
+                              <p className="text-sm">{copy.repStatus.noAssignments}</p>
                               <p className="text-xs mt-1">
-                                Assign this template from the My Field Reps page
+                                {copy.repStatus.noAssignmentsHelper}
                               </p>
                             </div>
                           ) : (
@@ -352,7 +355,7 @@ export function VendorChecklistManager({ className }: VendorChecklistManagerProp
                               <TableHeader>
                                 <TableRow>
                                   <TableHead>Field Rep</TableHead>
-                                  <TableHead className="text-right">Progress</TableHead>
+                                  <TableHead className="text-right">{copy.repStatus.completionLabel}</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>

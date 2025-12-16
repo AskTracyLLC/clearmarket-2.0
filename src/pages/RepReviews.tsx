@@ -24,6 +24,7 @@ import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ReviewsTable, ReviewRowData } from "@/components/ReviewsTable";
 import { AcceptReviewDialog } from "@/components/AcceptReviewDialog";
 import { DisputeReviewDialog } from "@/components/DisputeReviewDialog";
+import { reviewsCopy } from "@/copy/reviewsCopy";
 
 export default function RepReviews() {
   const navigate = useNavigate();
@@ -257,9 +258,9 @@ export default function RepReviews() {
     <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">Reviews</h1>
+          <h1 className="text-3xl font-bold text-foreground">{reviewsCopy.common.sectionTitle}</h1>
           <p className="text-muted-foreground mt-1">
-            Manage reviews you've received and given
+            {reviewsCopy.common.sectionSubtitle}
           </p>
         </div>
 
@@ -373,10 +374,10 @@ export default function RepReviews() {
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="received">
-                Received ({receivedReviews.length})
+                {reviewsCopy.repView.receivedTitle} ({receivedReviews.length})
               </TabsTrigger>
               <TabsTrigger value="given">
-                Given ({givenReviews.length})
+                {reviewsCopy.repView.givenTitle} ({givenReviews.length})
               </TabsTrigger>
             </TabsList>
 
