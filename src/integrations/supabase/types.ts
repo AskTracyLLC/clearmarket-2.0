@@ -1222,8 +1222,10 @@ export type Database = {
           digest_sent_at: string | null
           email_sent_at: string | null
           id: string
+          is_deleted: boolean
           is_read: boolean
           ref_id: string | null
+          review_later: boolean
           title: string
           type: string
           user_id: string
@@ -1234,8 +1236,10 @@ export type Database = {
           digest_sent_at?: string | null
           email_sent_at?: string | null
           id?: string
+          is_deleted?: boolean
           is_read?: boolean
           ref_id?: string | null
+          review_later?: boolean
           title: string
           type: string
           user_id: string
@@ -1246,8 +1250,10 @@ export type Database = {
           digest_sent_at?: string | null
           email_sent_at?: string | null
           id?: string
+          is_deleted?: boolean
           is_read?: boolean
           ref_id?: string | null
+          review_later?: boolean
           title?: string
           type?: string
           user_id?: string

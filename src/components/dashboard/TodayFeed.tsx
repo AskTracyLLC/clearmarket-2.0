@@ -21,6 +21,8 @@ import {
   MapPin,
   Loader2
 } from "lucide-react";
+import { NotificationFeed } from "./NotificationFeed";
+import { EarlierActivitySection } from "./EarlierActivitySection";
 import {
   Table,
   TableBody,
@@ -289,11 +291,13 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
         }
       }
 
-      // 2. Get recent notifications
+      // 2. Get recent notifications (exclude deleted and review_later)
       const { data: notifications } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", userId)
+        .eq("is_deleted", false)
+        .eq("review_later", false)
         .order("created_at", { ascending: false })
         .limit(15);
 
@@ -1168,8 +1172,16 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
             )}
           </div>
         </div>
+      ) : activityFilter === 'updates' ? (
+        /* Use NotificationFeed for updates filter - shows grouped notifications with actions */
+        <NotificationFeed 
+          userId={userId}
+          isRep={isRep}
+          isVendor={isVendor}
+          limit={30}
+        />
       ) : (
-        /* Standard grouped-by-date view for other filters */
+        /* Standard grouped-by-date view for alerts and all filters */
         <>
           {filteredItems.length === 0 ? (
             <Card className="bg-card border-border">
@@ -1206,84 +1218,119 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
                   return format(date, "MMM d, yyyy");
                 };
 
-                return sortedDateKeys.map((dateKey, groupIndex) => (
-                  <div key={dateKey}>
-                    {/* Date header */}
-                    <div className={`flex items-center gap-2 ${groupIndex > 0 ? 'mt-4 pt-4 border-t border-border' : ''}`}>
-                      <span className="text-sm font-semibold text-foreground">
-                        {getDateHeader(dateKey)}
-                      </span>
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-                    
-                    {/* Items for this date */}
-                    <div className="space-y-2 mt-2">
-                      {groupedItems[dateKey].map((item) => (
-                        <Card 
-                          key={item.id} 
-                          className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
-                            item.isUnread ? 'border-l-2 border-l-primary' : ''
-                          }`}
-                          onClick={() => item.link && navigate(item.link)}
-                        >
-                          <CardContent className="py-3 px-4">
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
-                                {getIcon(item.type)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-sm font-medium text-foreground truncate">
-                                    {item.title}
-                                  </span>
-                                  <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
-                                    {getTypeLabel(item.type)}
-                                  </Badge>
-                                  {item.isUnread && (
-                                    <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {item.description}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                    <Clock className="h-3 w-3" />
-                                    {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                // Split into today and earlier for collapsible UI
+                const todayKey = sortedDateKeys.find(k => isToday(new Date(k)));
+                const earlierKeys = sortedDateKeys.filter(k => !isToday(new Date(k)));
+                const [earlierExpanded, setEarlierExpanded] = useState(false);
+
+                return (
+                  <>
+                    {/* Today section */}
+                    {todayKey && groupedItems[todayKey].length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-sm font-semibold text-foreground">Today</span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                        <div className="space-y-2">
+                          {groupedItems[todayKey].map((item) => (
+                            <Card 
+                              key={item.id} 
+                              className={`bg-card border-border hover:border-primary/50 transition-colors cursor-pointer ${
+                                item.isUnread ? 'border-l-2 border-l-primary' : ''
+                              }`}
+                              onClick={() => item.link && navigate(item.link)}
+                            >
+                              <CardContent className="py-3 px-4">
+                                <div className="flex items-start gap-3">
+                                  <div className={`p-2 rounded-full ${getTypeColor(item.type)} flex-shrink-0`}>
+                                    {getIcon(item.type)}
                                   </div>
-                                  {(item.metadata as Record<string, unknown>)?.assignmentId && (
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        item.link && navigate(item.link);
-                                      }}
-                                    >
-                                      Review assignment
-                                    </Button>
-                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-medium text-foreground truncate">
+                                        {item.title}
+                                      </span>
+                                      <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${getTypeColor(item.type)}`}>
+                                        {getTypeLabel(item.type)}
+                                      </Badge>
+                                      {item.isUnread && (
+                                        <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground truncate">
+                                      {item.description}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        {formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true })}
+                                      </div>
+                                      {(item.metadata as Record<string, unknown>)?.assignmentId && (
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            item.link && navigate(item.link);
+                                          }}
+                                        >
+                                          Review assignment
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                 </div>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* No today items message */}
+                    {!todayKey && earlierKeys.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-sm font-semibold text-foreground">Today</span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                        <Card className="bg-card border-border">
+                          <CardContent className="py-4 text-center">
+                            <p className="text-muted-foreground text-sm">
+                              No new {activityFilter === 'all' ? 'activity' : activityFilter} today
+                            </p>
                           </CardContent>
                         </Card>
-                      ))}
-                    </div>
-                  </div>
-                ));
+                      </div>
+                    )}
+
+                    {/* Earlier activity - collapsible */}
+                    {earlierKeys.length > 0 && (
+                      <EarlierActivitySection
+                        earlierKeys={earlierKeys}
+                        groupedItems={groupedItems as any}
+                        getDateHeader={getDateHeader}
+                        getTypeColor={getTypeColor}
+                        getIcon={getIcon}
+                        getTypeLabel={getTypeLabel}
+                        navigate={navigate}
+                      />
+                    )}
+                  </>
+                );
               })()}
             </div>
           )}
+          
+          <div className="pt-2 text-center">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/notifications')}>
+              View all activity
+            </Button>
+          </div>
         </>
       )}
-      
-      <div className="pt-2 text-center">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/notifications')}>
-          View all activity
-        </Button>
-      </div>
 
       {/* Not Interested Dialog */}
       {notInterestedPost && repProfileId && (
