@@ -401,7 +401,7 @@ export default function VendorChecklists() {
   };
 
   const handleBulkAssign = async () => {
-    if (!assignTemplateId || selectedRepIds.size === 0) return;
+    if (!assignTemplateId || selectedRepIds.size === 0 || !user) return;
     setAssigning(true);
 
     let successCount = 0;
@@ -409,7 +409,11 @@ export default function VendorChecklists() {
       const rep = connectedReps.find(r => r.id === repId);
       if (rep?.already_assigned) continue;
 
-      const assignmentId = await assignTemplateToRep(supabase, assignTemplateId, repId);
+      const assignmentId = await assignTemplateToRep(supabase, assignTemplateId, repId, {
+        source: 'manual_vendor',
+        vendorId: user.id,
+        assignedBy: user.id,
+      });
       if (assignmentId) successCount++;
     }
 

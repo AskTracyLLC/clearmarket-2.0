@@ -278,13 +278,47 @@ export async function addTemplateItem(
   return data.id;
 }
 
+export type ChecklistAssignmentSource = 'auto_on_connect' | 'manual_vendor' | 'manual_admin';
+
+export interface AssignmentLogParams {
+  source: ChecklistAssignmentSource;
+  vendorId?: string | null;
+  assignedBy?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Log a checklist assignment event for audit purposes
+ */
+export async function logChecklistAssignmentEvent(
+  supabase: SupabaseClient,
+  templateId: string,
+  userId: string,
+  params: AssignmentLogParams
+): Promise<void> {
+  try {
+    await supabase.from("checklist_assignment_events").insert({
+      template_id: templateId,
+      user_id: userId,
+      vendor_id: params.vendorId || null,
+      assigned_by: params.assignedBy || null,
+      source: params.source,
+      notes: params.notes || null,
+    });
+  } catch (error) {
+    // Don't let logging failures break the assignment flow
+    console.error("Error logging checklist assignment event:", error);
+  }
+}
+
 /**
  * Assign a vendor template to a field rep
  */
 export async function assignTemplateToRep(
   supabase: SupabaseClient,
   templateId: string,
-  repUserId: string
+  repUserId: string,
+  logParams?: AssignmentLogParams
 ): Promise<string | null> {
   // Create assignment
   const { data: assignment, error: assignError } = await supabase
@@ -315,6 +349,11 @@ export async function assignTemplateToRep(
     }));
 
     await supabase.from("user_checklist_items").insert(userItems);
+  }
+
+  // Log the assignment event if params provided
+  if (logParams) {
+    await logChecklistAssignmentEvent(supabase, templateId, repUserId, logParams);
   }
 
   return assignment.id;
@@ -460,7 +499,11 @@ export async function autoAssignVendorChecklists(
       continue; // Skip if already assigned
     }
 
-    // Assign the template
-    await assignTemplateToRep(supabase, template.id, repUserId);
+    // Assign the template with audit logging
+    await assignTemplateToRep(supabase, template.id, repUserId, {
+      source: 'auto_on_connect',
+      vendorId,
+      assignedBy: null, // System/auto assignment
+    });
   }
 }
