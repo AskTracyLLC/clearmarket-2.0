@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveRole } from "@/hooks/useActiveRole";
+import { useMimic } from "@/hooks/useMimic";
 import {
   loadUserChecklists,
   completeChecklistItem,
@@ -13,59 +14,60 @@ import {
 
 export function useChecklist() {
   const { user } = useAuth();
+  const { effectiveUserId } = useMimic();
   const { effectiveRole } = useActiveRole();
   const [checklists, setChecklists] = useState<ChecklistProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const hasSyncedRef = useRef(false);
 
   const loadChecklists = useCallback(async () => {
-    if (!user) {
+    if (!effectiveUserId) {
       setChecklists([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    const data = await loadUserChecklists(supabase, user.id);
+    const data = await loadUserChecklists(supabase, effectiveUserId);
     
-    // If no checklists assigned yet, try to assign defaults
-    if (data.length === 0 && effectiveRole) {
+    // If no checklists assigned yet, try to assign defaults (only for real user, not mimic)
+    if (data.length === 0 && effectiveRole && effectiveUserId === user?.id) {
       const role = effectiveRole === "rep" ? "field_rep" : "vendor";
-      await assignDefaultChecklists(supabase, user.id, role);
+      await assignDefaultChecklists(supabase, effectiveUserId, role);
       
       // Run sync for auto-tracked items immediately after assignment
-      await syncAutoTrackedItems(supabase, user.id);
+      await syncAutoTrackedItems(supabase, effectiveUserId);
       
       // Reload after assignment and sync
-      const newData = await loadUserChecklists(supabase, user.id);
+      const newData = await loadUserChecklists(supabase, effectiveUserId);
       setChecklists(newData);
       hasSyncedRef.current = true;
     } else {
       setChecklists(data);
       
-      // Run sync once on first load if we haven't already
-      if (!hasSyncedRef.current && data.length > 0) {
+      // Run sync once on first load if we haven't already (only for real user)
+      if (!hasSyncedRef.current && data.length > 0 && effectiveUserId === user?.id) {
         hasSyncedRef.current = true;
-        const syncedCount = await syncAutoTrackedItems(supabase, user.id);
+        const syncedCount = await syncAutoTrackedItems(supabase, effectiveUserId);
         if (syncedCount > 0) {
           // Reload to show updated status
-          const updatedData = await loadUserChecklists(supabase, user.id);
+          const updatedData = await loadUserChecklists(supabase, effectiveUserId);
           setChecklists(updatedData);
         }
       }
     }
     
     setLoading(false);
-  }, [user, effectiveRole]);
+  }, [effectiveUserId, effectiveRole, user?.id]);
 
   useEffect(() => {
     loadChecklists();
   }, [loadChecklists]);
 
-  // Reset sync flag when user changes
+  // Reset sync flag when effective user changes
   useEffect(() => {
     hasSyncedRef.current = false;
-  }, [user?.id]);
+  }, [effectiveUserId]);
 
   const markComplete = useCallback(async (userItemId: string) => {
     const success = await completeChecklistItem(supabase, userItemId);
@@ -76,10 +78,10 @@ export function useChecklist() {
   }, [loadChecklists]);
 
   const trackEvent = useCallback(async (autoTrackKey: string) => {
-    if (!user) return;
-    await completeChecklistByKey(supabase, user.id, autoTrackKey);
+    if (!effectiveUserId) return;
+    await completeChecklistByKey(supabase, effectiveUserId, autoTrackKey);
     await loadChecklists();
-  }, [user, loadChecklists]);
+  }, [effectiveUserId, loadChecklists]);
 
   // Get the primary checklist for the current role
   const primaryChecklist = checklists.find(c => {

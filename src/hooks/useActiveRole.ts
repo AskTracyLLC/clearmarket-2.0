@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 
 export type ActiveRole = "rep" | "vendor" | null;
 
@@ -18,15 +19,26 @@ interface UseActiveRoleResult {
  * Hook to manage the active role for hybrid users (both Field Rep and Vendor).
  * Returns the current active role and a function to switch roles.
  * For single-role users, the role is determined by their profile flags.
+ * Supports mimic mode - will return the mimicked user's role when active.
  */
 export function useActiveRole(): UseActiveRoleResult {
   const { user } = useAuth();
+  const { mimickedUser, effectiveUserId } = useMimic();
   const [activeRole, setActiveRole] = useState<ActiveRole>(null);
   const [isFieldRep, setIsFieldRep] = useState(false);
   const [isVendorAdmin, setIsVendorAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // If in mimic mode, use mimicked user's role flags directly
+    if (mimickedUser) {
+      setIsFieldRep(mimickedUser.is_fieldrep || false);
+      setIsVendorAdmin(mimickedUser.is_vendor_admin || false);
+      setActiveRole(null); // Reset active role, will be determined by flags
+      setLoading(false);
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
@@ -53,7 +65,7 @@ export function useActiveRole(): UseActiveRoleResult {
     };
 
     loadRoleData();
-  }, [user]);
+  }, [user, mimickedUser]);
 
   const isHybrid = isFieldRep && isVendorAdmin;
 
