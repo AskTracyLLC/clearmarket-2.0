@@ -180,11 +180,6 @@ export function AssignChecklistDialog({
                       >
                         {template.name}
                       </Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {template.role === "field_rep" ? "Field Rep" : template.role === "vendor" ? "Vendor" : "Both"}
-                        </Badge>
-                      </div>
                     </div>
                   </div>
                 ))}

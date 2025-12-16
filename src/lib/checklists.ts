@@ -404,10 +404,12 @@ export async function loadTemplateItems(
 
 /**
  * Load reps assigned to a vendor's template with their progress
+ * Only shows field reps connected to the vendor
  */
 export async function loadTemplateAssignees(
   supabase: SupabaseClient,
-  templateId: string
+  templateId: string,
+  vendorId?: string
 ): Promise<Array<{
   userId: string;
   anonymousId: string;
@@ -416,6 +418,27 @@ export async function loadTemplateAssignees(
   totalCount: number;
   percent: number;
 }>> {
+  // First check if this is a vendor template and get owner
+  const { data: template } = await supabase
+    .from("checklist_templates")
+    .select("owner_type, owner_id")
+    .eq("id", templateId)
+    .single();
+
+  const effectiveVendorId = vendorId || (template?.owner_type === "vendor" ? template.owner_id : null);
+
+  // If vendor template, get connected rep IDs
+  let connectedRepIds: Set<string> | null = null;
+  if (effectiveVendorId) {
+    const { data: connections } = await supabase
+      .from("vendor_connections")
+      .select("field_rep_id")
+      .eq("vendor_id", effectiveVendorId)
+      .eq("status", "connected");
+    
+    connectedRepIds = new Set(connections?.map(c => c.field_rep_id) || []);
+  }
+
   const { data: assignments, error } = await supabase
     .from("user_checklist_assignments")
     .select(`
@@ -435,6 +458,11 @@ export async function loadTemplateAssignees(
   const results = [];
 
   for (const assignment of assignments) {
+    // Filter to connected reps only if vendor context
+    if (connectedRepIds && !connectedRepIds.has(assignment.user_id)) {
+      continue;
+    }
+
     // Get rep profile
     const { data: repProfile } = await supabase
       .from("rep_profile")
@@ -444,9 +472,14 @@ export async function loadTemplateAssignees(
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, is_fieldrep")
       .eq("id", assignment.user_id)
       .maybeSingle();
+
+    // For vendor templates, only show field reps
+    if (effectiveVendorId && !profile?.is_fieldrep) {
+      continue;
+    }
 
     const items = assignment.user_checklist_items as Array<{ status: string }> || [];
     const completedCount = items.filter(i => i.status === "completed").length;
