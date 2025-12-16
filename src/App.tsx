@@ -76,6 +76,7 @@ import AdminFeatureFlags from "./pages/AdminFeatureFlags";
 import AdminEmailTemplates from "./pages/AdminEmailTemplates";
 import AdminReviewSettings from "./pages/AdminReviewSettings";
 import AdminChecklists from "./pages/AdminChecklists";
+import VendorChecklists from "./pages/VendorChecklists";
 
 
 const queryClient = new QueryClient();
@@ -127,6 +128,7 @@ const App = () => (
               <Route path="/vendor/reviews" element={<VendorReviews />} />
               <Route path="/rep/reviews" element={<RepReviews />} />
               <Route path="/vendor/credits" element={<VendorCredits />} />
+              <Route path="/vendor/checklists" element={<VendorChecklists />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/settings" element={<Settings />} />
