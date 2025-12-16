@@ -1224,8 +1224,12 @@ export type Database = {
           id: string
           is_deleted: boolean
           is_read: boolean
+          metadata: Json | null
+          read_at: string | null
           ref_id: string | null
           review_later: boolean
+          status: string | null
+          target_url: string | null
           title: string
           type: string
           user_id: string
@@ -1238,8 +1242,12 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           is_read?: boolean
+          metadata?: Json | null
+          read_at?: string | null
           ref_id?: string | null
           review_later?: boolean
+          status?: string | null
+          target_url?: string | null
           title: string
           type: string
           user_id: string
@@ -1252,8 +1260,12 @@ export type Database = {
           id?: string
           is_deleted?: boolean
           is_read?: boolean
+          metadata?: Json | null
+          read_at?: string | null
           ref_id?: string | null
           review_later?: boolean
+          status?: string | null
+          target_url?: string | null
           title?: string
           type?: string
           user_id?: string
