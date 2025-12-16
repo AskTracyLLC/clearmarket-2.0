@@ -183,6 +183,13 @@ export default function MessagesList() {
   async function handleAcceptRequest(requestId: string) {
     setProcessingRequestId(requestId);
     try {
+      // Get the connection to find vendor_id
+      const { data: connData } = await supabase
+        .from("vendor_connections")
+        .select("vendor_id")
+        .eq("id", requestId)
+        .single();
+
       const { error } = await supabase
         .from("vendor_connections")
         .update({ 
@@ -192,6 +199,12 @@ export default function MessagesList() {
         .eq("id", requestId);
 
       if (error) throw error;
+
+      // Auto-assign vendor onboarding checklists to rep
+      if (connData?.vendor_id && user) {
+        const { autoAssignVendorChecklists } = await import("@/lib/checklists");
+        await autoAssignVendorChecklists(supabase, connData.vendor_id, user.id);
+      }
 
       toast({
         title: "Connection accepted",

@@ -302,6 +302,7 @@ export type Database = {
       }
       checklist_templates: {
         Row: {
+          auto_assign_on_connect: boolean | null
           created_at: string
           id: string
           is_default: boolean
@@ -313,6 +314,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_assign_on_connect?: boolean | null
           created_at?: string
           id?: string
           is_default?: boolean
@@ -324,6 +326,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_assign_on_connect?: boolean | null
           created_at?: string
           id?: string
           is_default?: boolean

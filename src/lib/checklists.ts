@@ -425,3 +425,42 @@ export async function loadTemplateAssignees(
 
   return results;
 }
+
+/**
+ * Auto-assign vendor onboarding checklists when a rep connects to a vendor
+ * Called when vendor_connections status becomes 'connected'
+ */
+export async function autoAssignVendorChecklists(
+  supabase: SupabaseClient,
+  vendorId: string,
+  repUserId: string
+): Promise<void> {
+  // Get vendor templates that have auto_assign_on_connect enabled
+  const { data: templates, error } = await supabase
+    .from("checklist_templates")
+    .select("id")
+    .eq("owner_type", "vendor")
+    .eq("owner_id", vendorId)
+    .eq("auto_assign_on_connect", true);
+
+  if (error || !templates || templates.length === 0) {
+    return;
+  }
+
+  for (const template of templates) {
+    // Check if already assigned
+    const { data: existing } = await supabase
+      .from("user_checklist_assignments")
+      .select("id")
+      .eq("user_id", repUserId)
+      .eq("template_id", template.id)
+      .maybeSingle();
+
+    if (existing) {
+      continue; // Skip if already assigned
+    }
+
+    // Assign the template
+    await assignTemplateToRep(supabase, template.id, repUserId);
+  }
+}

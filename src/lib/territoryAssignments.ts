@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { checklist } from "./checklistTracking";
+import { autoAssignVendorChecklists } from "./checklists";
 
 export interface TerritoryAssignment {
   id: string;
@@ -175,6 +176,9 @@ async function ensureVendorRepConnection(
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
+      
+      // Auto-assign vendor onboarding checklists when reactivating connection
+      await autoAssignVendorChecklists(supabase, vendorId, repId);
     }
     return { connectionId: existing.id, wasCreated: false, error: null };
   }
@@ -197,6 +201,9 @@ async function ensureVendorRepConnection(
     console.error("Error creating connection:", error);
     return { connectionId: null, wasCreated: false, error: error.message };
   }
+
+  // Auto-assign vendor onboarding checklists to the rep
+  await autoAssignVendorChecklists(supabase, vendorId, repId);
 
   return { connectionId: newConnection.id, wasCreated: true, error: null };
 }
