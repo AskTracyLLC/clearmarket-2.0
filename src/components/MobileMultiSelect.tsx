@@ -99,12 +99,16 @@ export const MobileMultiSelect = ({
 
         <PopoverContent
           className={cn(
+            "z-50 bg-popover text-popover-foreground border shadow-md",
             "w-[min(420px,calc(100vw-2rem))] p-0",
             "flex flex-col",
             "max-h-[60dvh]"
           )}
           align="start"
           sideOffset={4}
+          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()}
         >
           {/* Header */}
           <div className="shrink-0 p-2 border-b border-border bg-muted/50">
@@ -148,12 +152,7 @@ export const MobileMultiSelect = ({
                     <button
                       key={opt.id}
                       type="button"
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleRowToggle(opt.id);
-                      }}
-                      onTouchEnd={(e) => {
+                      onPointerDownCapture={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handleRowToggle(opt.id);
@@ -179,6 +178,13 @@ export const MobileMultiSelect = ({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 border-t border-border p-2 bg-background">
+            <Button type="button" className="w-full" onClick={() => setOpen(false)}>
+              Done
+            </Button>
           </div>
         </PopoverContent>
       </Popover>
