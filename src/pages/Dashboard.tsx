@@ -35,6 +35,7 @@ import { AdminReviewSummaryCard } from "@/components/admin/AdminReviewSummaryCar
 import { PlannedRouteAlertDialog } from "@/components/PlannedRouteAlertDialog";
 import { GettingStartedChecklist } from "@/components/GettingStartedChecklist";
 import { useChecklist } from "@/hooks/useChecklist";
+import { adminChecklistsCopy } from "@/copy/adminChecklistsCopy";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -658,9 +659,9 @@ const Dashboard = () => {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <ClipboardList className="w-5 h-5 text-primary" />
-                    Checklists
+                    {adminChecklistsCopy.dashboardCard.title}
                   </CardTitle>
-                  <CardDescription className="text-sm">Track beta user onboarding progress. View templates and identify stuck steps.</CardDescription>
+                  <CardDescription className="text-sm">{adminChecklistsCopy.dashboardCard.subtitle}</CardDescription>
                 </CardHeader>
               </Card>
             </div>

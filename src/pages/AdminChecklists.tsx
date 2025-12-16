@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { adminChecklistsCopy } from "@/copy/adminChecklistsCopy";
 
 interface ChecklistTemplate {
   id: string;
@@ -625,10 +626,10 @@ export default function AdminChecklists() {
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-2">
             <ClipboardList className="w-6 h-6 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">Checklists & Onboarding</h1>
+            <h1 className="text-2xl font-bold text-foreground">{adminChecklistsCopy.pageHeader.title}</h1>
           </div>
           <p className="text-muted-foreground">
-            Manage platform checklists, vendor templates, and see where users are getting stuck.
+            {adminChecklistsCopy.pageHeader.subtitle}
           </p>
         </div>
 
@@ -697,10 +698,10 @@ export default function AdminChecklists() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="templates">Templates & Items</TabsTrigger>
-            <TabsTrigger value="insights">Completion Insights</TabsTrigger>
+            <TabsTrigger value="templates">{adminChecklistsCopy.tabs.templatesAndItems}</TabsTrigger>
+            <TabsTrigger value="insights">{adminChecklistsCopy.tabs.completionInsights}</TabsTrigger>
             <TabsTrigger value="feedback" className="relative">
-              Feedback
+              {adminChecklistsCopy.tabs.feedback}
               {openFeedbackCount > 0 && (
                 <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
                   {openFeedbackCount}
@@ -713,14 +714,14 @@ export default function AdminChecklists() {
           <TabsContent value="templates" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">Checklist Templates</h2>
+                <h2 className="text-xl font-semibold">{adminChecklistsCopy.templatesSection.title}</h2>
                 <p className="text-sm text-muted-foreground">
-                  These templates control what users see in their Getting Started checklist. System templates apply to all users.
+                  {adminChecklistsCopy.templatesSection.helper}
                 </p>
               </div>
               <Button onClick={openAddTemplateDialog}>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Template
+                {adminChecklistsCopy.templatesSection.addTemplateButton}
               </Button>
             </div>
 
@@ -737,7 +738,7 @@ export default function AdminChecklists() {
                       <div className="divide-y divide-border">
                         {templates.length === 0 ? (
                           <div className="p-4 text-center text-muted-foreground text-sm">
-                            No templates yet.
+                            {adminChecklistsCopy.templatesSection.emptyTemplates}
                           </div>
                         ) : (
                           templates.map((template) => {
@@ -812,15 +813,15 @@ export default function AdminChecklists() {
                       <div>
                         <CardTitle className="text-base">
                           {selectedTemplate ? (
-                            <>Editing template: {selectedTemplate.name}</>
+                            <>{adminChecklistsCopy.templateEditor.headerPrefix} {selectedTemplate.name}</>
                           ) : (
                             "Select a template"
                           )}
                         </CardTitle>
                         <CardDescription className="text-sm">
                           {selectedTemplate 
-                            ? "Changes here affect all users assigned to this checklist."
-                            : "Choose a template from the list"}
+                            ? adminChecklistsCopy.templateEditor.helper
+                            : adminChecklistsCopy.templatesSection.emptySelection}
                         </CardDescription>
                       </div>
                       {selectedTemplate && (
@@ -834,11 +835,11 @@ export default function AdminChecklists() {
                   <CardContent className="p-0">
                     {!selectedTemplate ? (
                       <div className="p-8 text-center text-muted-foreground">
-                        Select a template to view and edit its items.
+                        {adminChecklistsCopy.templatesSection.emptySelection}
                       </div>
                     ) : items.length === 0 ? (
                       <div className="p-8 text-center text-muted-foreground">
-                        This template does not have any steps yet. Add items to define the checklist.
+                        {adminChecklistsCopy.templateEditor.emptyItems}
                       </div>
                     ) : (
                       <ScrollArea className="h-[400px]">
@@ -846,9 +847,9 @@ export default function AdminChecklists() {
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-10"></TableHead>
-                              <TableHead>Step title</TableHead>
-                              <TableHead>Auto</TableHead>
-                              <TableHead className="text-center">Required step</TableHead>
+                              <TableHead>{adminChecklistsCopy.templateEditor.fields.titleLabel}</TableHead>
+                              <TableHead>{adminChecklistsCopy.templateEditor.autoBadge.label}</TableHead>
+                              <TableHead className="text-center">{adminChecklistsCopy.templateEditor.fields.requiredLabel}</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -893,11 +894,11 @@ export default function AdminChecklists() {
                                       <Tooltip>
                                         <TooltipTrigger>
                                           <Badge variant="outline" className="text-xs">
-                                            Auto
+                                            {adminChecklistsCopy.templateEditor.autoBadge.label}
                                           </Badge>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                          <p>This step completes automatically when the related action happens in the app.</p>
+                                          <p>{adminChecklistsCopy.templateEditor.autoBadge.tooltip}</p>
                                         </TooltipContent>
                                       </Tooltip>
                                     </TooltipProvider>
@@ -946,9 +947,9 @@ export default function AdminChecklists() {
           {/* Insights Tab */}
           <TabsContent value="insights" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Completion Overview</h2>
+              <h2 className="text-xl font-semibold">{adminChecklistsCopy.completionInsights.title}</h2>
               <p className="text-sm text-muted-foreground">
-                See how far users progress and which steps may need improvement.
+                {adminChecklistsCopy.completionInsights.helper}
               </p>
             </div>
 
@@ -964,14 +965,14 @@ export default function AdminChecklists() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead className="text-center">Completed</TableHead>
+                        <TableHead>{adminChecklistsCopy.completionInsights.columns.step}</TableHead>
+                        <TableHead className="text-center">{adminChecklistsCopy.completionInsights.columns.completion}</TableHead>
                         <TableHead className="text-center">% Complete</TableHead>
                         <TableHead className="text-center">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger className="flex items-center gap-1 justify-center w-full">
-                                Feedback
+                                {adminChecklistsCopy.completionInsights.columns.feedback}
                                 <MessageSquareWarning className="w-3 h-3" />
                               </TooltipTrigger>
                               <TooltipContent>
@@ -1033,7 +1034,7 @@ export default function AdminChecklists() {
             {!selectedTemplate && (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  No users are assigned to this checklist yet.
+                  {adminChecklistsCopy.completionInsights.emptyNoUsers}
                 </CardContent>
               </Card>
             )}
@@ -1042,9 +1043,9 @@ export default function AdminChecklists() {
           {/* Feedback Tab */}
           <TabsContent value="feedback" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Checklist Feedback</h2>
+              <h2 className="text-xl font-semibold">{adminChecklistsCopy.feedbackSection.title}</h2>
               <p className="text-sm text-muted-foreground">
-                Review issues and screenshots submitted by users for each checklist step.
+                {adminChecklistsCopy.feedbackSection.helper}
               </p>
             </div>
 
@@ -1052,18 +1053,18 @@ export default function AdminChecklists() {
               <CardContent className="p-0">
                 {feedback.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
-                    No feedback has been submitted yet.
+                    {adminChecklistsCopy.feedbackSection.empty}
                   </div>
                 ) : (
                   <ScrollArea className="h-[500px]">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>User</TableHead>
-                          <TableHead>Feedback type</TableHead>
-                          <TableHead>Comment</TableHead>
-                          <TableHead>Date</TableHead>
+                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.step}</TableHead>
+                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.user}</TableHead>
+                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.type}</TableHead>
+                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.message}</TableHead>
+                          <TableHead>{adminChecklistsCopy.feedbackSection.columns.submitted}</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1211,7 +1212,7 @@ export default function AdminChecklists() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>Step title</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.titleLabel}</Label>
                 <Input
                   value={formItemTitle}
                   onChange={(e) => setFormItemTitle(e.target.value)}
@@ -1219,7 +1220,7 @@ export default function AdminChecklists() {
                 />
               </div>
               <div>
-                <Label>Helper text (shown under the step)</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.descriptionLabel}</Label>
                 <Textarea
                   value={formItemDescription}
                   onChange={(e) => setFormItemDescription(e.target.value)}
@@ -1235,18 +1236,18 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Auto steps complete automatically when the related action happens in the app.
+                  Leave empty for manual completion. {adminChecklistsCopy.templateEditor.autoBadge.tooltip}
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <Label>Required step</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.requiredLabel}</Label>
                 <Switch checked={formItemIsRequired} onCheckedChange={setFormItemIsRequired} />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditItemOpen(false)}>Cancel</Button>
               <Button onClick={() => handleSaveItem(false)} disabled={saving}>
-                {saving ? "Saving..." : "Save Changes"}
+                {saving ? "Saving..." : adminChecklistsCopy.templateEditor.saveButton}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1261,7 +1262,7 @@ export default function AdminChecklists() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label>Step title</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.titleLabel}</Label>
                 <Input
                   value={formItemTitle}
                   onChange={(e) => setFormItemTitle(e.target.value)}
@@ -1269,7 +1270,7 @@ export default function AdminChecklists() {
                 />
               </div>
               <div>
-                <Label>Helper text (shown under the step)</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.descriptionLabel}</Label>
                 <Textarea
                   value={formItemDescription}
                   onChange={(e) => setFormItemDescription(e.target.value)}
@@ -1285,11 +1286,11 @@ export default function AdminChecklists() {
                   placeholder="e.g., profile_completed"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty for manual completion. Auto steps complete automatically when the related action happens in the app.
+                  Leave empty for manual completion. {adminChecklistsCopy.templateEditor.autoBadge.tooltip}
                 </p>
               </div>
               <div className="flex items-center justify-between">
-                <Label>Required step</Label>
+                <Label>{adminChecklistsCopy.templateEditor.fields.requiredLabel}</Label>
                 <Switch checked={formItemIsRequired} onCheckedChange={setFormItemIsRequired} />
               </div>
             </div>
@@ -1306,7 +1307,7 @@ export default function AdminChecklists() {
         <Dialog open={feedbackDetailOpen} onOpenChange={setFeedbackDetailOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Feedback Details</DialogTitle>
+              <DialogTitle>{adminChecklistsCopy.feedbackSection.detail.header}</DialogTitle>
               <DialogDescription>
                 {selectedFeedback?.template_name} → {selectedFeedback?.item_title}
               </DialogDescription>
@@ -1319,7 +1320,7 @@ export default function AdminChecklists() {
                     <p className="text-sm">{selectedFeedback.user_email}</p>
                   </div>
                    <div>
-                    <Label className="text-muted-foreground text-xs">Feedback type</Label>
+                    <Label className="text-muted-foreground text-xs">{adminChecklistsCopy.feedbackSection.detail.typeLabel}</Label>
                     <p className="text-sm">{FEEDBACK_TYPE_LABELS[selectedFeedback.feedback_type] || selectedFeedback.feedback_type}</p>
                   </div>
                   <div>
@@ -1334,11 +1335,11 @@ export default function AdminChecklists() {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Comment</Label>
+                  <Label className="text-muted-foreground text-xs">{adminChecklistsCopy.feedbackSection.detail.messageLabel}</Label>
                   <p className="text-sm mt-1 p-3 bg-muted rounded-md">{selectedFeedback.message}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Attachments</Label>
+                  <Label className="text-muted-foreground text-xs">{adminChecklistsCopy.feedbackSection.detail.attachmentsLabel}</Label>
                   {selectedFeedback.attachment_urls && selectedFeedback.attachment_urls.length > 0 ? (
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {selectedFeedback.attachment_urls.map((url, idx) => (
@@ -1358,7 +1359,7 @@ export default function AdminChecklists() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground mt-1">No attachments added.</p>
+                    <p className="text-sm text-muted-foreground mt-1">{adminChecklistsCopy.feedbackSection.detail.noAttachments}</p>
                   )}
                 </div>
               </div>
