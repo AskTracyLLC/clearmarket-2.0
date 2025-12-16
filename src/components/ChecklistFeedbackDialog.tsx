@@ -19,15 +19,18 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, X, ImageIcon } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { gettingStartedChecklistCopy } from "@/copy/gettingStartedChecklistCopy";
+
+const copy = gettingStartedChecklistCopy.feedbackDialog;
 
 const FEEDBACK_TYPES = [
-  { value: "bug", label: "Something is broken" },
-  { value: "confusing", label: "This step is confusing" },
-  { value: "completed_not_marked", label: "I completed this but it didn't mark done" },
-  { value: "suggestion", label: "I have a suggestion" },
-  { value: "other", label: "Other" },
+  { value: "bug", label: copy.feedbackTypes.bug },
+  { value: "confusing", label: copy.feedbackTypes.confusing },
+  { value: "completed_not_marked", label: copy.feedbackTypes.completed_not_marked },
+  { value: "suggestion", label: copy.feedbackTypes.suggestion },
+  { value: "other", label: copy.feedbackTypes.other },
 ] as const;
 
 type FeedbackType = typeof FEEDBACK_TYPES[number]["value"];
@@ -80,8 +83,8 @@ export function ChecklistFeedbackDialog({
       if (uploadError) {
         console.error("Upload error:", uploadError);
         toast({
-          title: "Upload failed",
-          description: `Could not upload ${file.name}`,
+          title: copy.toasts.errorTitle,
+          description: copy.toasts.uploadFailed.replace("{filename}", file.name),
           variant: "destructive",
         });
         continue;
@@ -108,7 +111,7 @@ export function ChecklistFeedbackDialog({
   const handleSubmit = async () => {
     if (!feedbackType) {
       toast({
-        title: "Please select a feedback type",
+        title: copy.toasts.selectType,
         variant: "destructive",
       });
       return;
@@ -116,7 +119,7 @@ export function ChecklistFeedbackDialog({
 
     if (!message.trim()) {
       toast({
-        title: "Please enter your feedback",
+        title: copy.toasts.enterMessage,
         variant: "destructive",
       });
       return;
@@ -137,8 +140,8 @@ export function ChecklistFeedbackDialog({
       if (error) throw error;
 
       toast({
-        title: "Thanks!",
-        description: "Your feedback for this step has been submitted.",
+        title: copy.toasts.successTitle,
+        description: copy.toasts.successDescription,
       });
 
       // Reset and close
@@ -149,8 +152,8 @@ export function ChecklistFeedbackDialog({
     } catch (error: any) {
       console.error("Error submitting feedback:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to submit feedback",
+        title: copy.toasts.errorTitle,
+        description: error.message || copy.toasts.errorDescription,
         variant: "destructive",
       });
     } finally {
@@ -168,7 +171,7 @@ export function ChecklistFeedbackDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Send feedback about this step</DialogTitle>
+          <DialogTitle>{copy.title}</DialogTitle>
           <DialogDescription asChild>
             <div className="space-y-2">
               <p className="font-medium text-foreground">{itemTitle}</p>
@@ -182,13 +185,13 @@ export function ChecklistFeedbackDialog({
         <div className="space-y-4 py-4">
           {/* Feedback Type */}
           <div className="space-y-2">
-            <Label htmlFor="feedbackType">What's the issue?</Label>
+            <Label htmlFor="feedbackType">{copy.feedbackTypeLabel}</Label>
             <Select
               value={feedbackType}
               onValueChange={(v) => setFeedbackType(v as FeedbackType)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select feedback type" />
+                <SelectValue placeholder={copy.feedbackTypePlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 {FEEDBACK_TYPES.map((type) => (
@@ -202,19 +205,19 @@ export function ChecklistFeedbackDialog({
 
           {/* Message */}
           <div className="space-y-2">
-            <Label htmlFor="message">Your feedback</Label>
+            <Label htmlFor="message">{copy.messageLabel}</Label>
             <Textarea
               id="message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Describe the issue or your suggestion..."
+              placeholder={copy.messagePlaceholder}
               rows={4}
             />
           </div>
 
           {/* Attachments */}
           <div className="space-y-2">
-            <Label>Screenshots (optional)</Label>
+            <Label>{copy.attachmentsLabel}</Label>
             <div className="flex items-center gap-2">
               <Input
                 type="file"
@@ -237,7 +240,7 @@ export function ChecklistFeedbackDialog({
                 ) : (
                   <Upload className="h-4 w-4 mr-2" />
                 )}
-                Upload screenshot
+                {uploading ? copy.uploadingButton : copy.uploadButton}
               </Button>
             </div>
 
@@ -269,16 +272,16 @@ export function ChecklistFeedbackDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
+            {copy.cancelButton}
           </Button>
           <Button onClick={handleSubmit} disabled={submitting || !feedbackType || !message.trim()}>
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Submitting...
+                {copy.submittingButton}
               </>
             ) : (
-              "Submit Feedback"
+              copy.submitButton
             )}
           </Button>
         </DialogFooter>
