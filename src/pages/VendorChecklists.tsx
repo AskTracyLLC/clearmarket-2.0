@@ -43,6 +43,7 @@ import { vendorChecklistsCopy } from "@/copy/vendorChecklistsCopy";
 import { vendorChecklistAssignmentsCopy } from "@/copy/vendorChecklistAssignmentsCopy";
 import { vendorChecklistTemplateCopy } from "@/copy/vendorChecklistTemplateCopy";
 import { assignTemplateToRep, ChecklistItemDefinition } from "@/lib/checklists";
+import { ChecklistUserProgressTable } from "@/components/ChecklistUserProgressTable";
 
 interface ChecklistTemplate {
   id: string;
@@ -457,9 +458,10 @@ export default function VendorChecklists() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="assign">{vendorChecklistAssignmentsCopy.tabTitle}</TabsTrigger>
+            <TabsTrigger value="users">{vendorChecklistsCopy.tabs.users}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates" className="space-y-4">
@@ -849,6 +851,59 @@ export default function VendorChecklists() {
                       {assigning ? "Assigning..." : vendorChecklistAssignmentsCopy.actions.assignButton}
                     </Button>
                   </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-4">
+            {templates.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Create a template first to see user progress.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Select Template</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {templates.map((template) => (
+                        <Button
+                          key={template.id}
+                          variant={expandedTemplate === template.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setExpandedTemplate(template.id)}
+                        >
+                          {template.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {expandedTemplate ? (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">
+                        {templates.find(t => t.id === expandedTemplate)?.name} – Assigned Reps
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ChecklistUserProgressTable templateId={expandedTemplate} vendorId={user?.id} />
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      Select a template above to view user progress.
+                    </CardContent>
+                  </Card>
                 )}
               </>
             )}

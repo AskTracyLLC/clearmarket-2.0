@@ -19,6 +19,12 @@ export const vendorChecklistsCopy = {
     assignedRepsLabel: "assigned reps",
   },
 
+  tabs: {
+    templates: "Templates",
+    assign: "Assign",
+    users: "Users",
+  },
+
   editor: {
     createDialogTitle: "Create Onboarding Template",
     templateNameLabel: "Template Name",
