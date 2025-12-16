@@ -47,6 +47,7 @@ import { format } from "date-fns";
 import { adminChecklistsCopy } from "@/copy/adminChecklistsCopy";
 import { adminChecklistAssignmentsCopy } from "@/copy/adminChecklistAssignmentsCopy";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChecklistUserProgressTable } from "@/components/ChecklistUserProgressTable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -970,6 +971,7 @@ export default function AdminChecklists() {
               )}
             </TabsTrigger>
             <TabsTrigger value="assign">{adminChecklistsCopy.tabs.assignToUsers}</TabsTrigger>
+            <TabsTrigger value="users">{adminChecklistsCopy.tabs.users}</TabsTrigger>
           </TabsList>
 
           {/* Templates Tab */}
@@ -1711,6 +1713,56 @@ export default function AdminChecklists() {
                   </Button>
                 </div>
               </>
+            )}
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold">User Progress</h2>
+              <p className="text-sm text-muted-foreground">
+                Select a template to see who has it assigned and their completion progress.
+              </p>
+            </div>
+
+            {/* Template selector for Users tab */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Select Template</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((template) => (
+                    <Button
+                      key={template.id}
+                      variant={selectedTemplateId === template.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedTemplateId(template.id)}
+                    >
+                      {template.name}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {selectedTemplateId ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    {selectedTemplate?.name} – Assigned Users
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChecklistUserProgressTable templateId={selectedTemplateId} />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Select a template above to view user progress.
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         </Tabs>

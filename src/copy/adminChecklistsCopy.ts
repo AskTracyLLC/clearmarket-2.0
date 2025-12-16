@@ -19,6 +19,7 @@ export const adminChecklistsCopy = {
     completionInsights: "Completion Insights",
     feedback: "Feedback",
     assignToUsers: "Assign to Users",
+    users: "Users",
   },
 
   assignSection: {
