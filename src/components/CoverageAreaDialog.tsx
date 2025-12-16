@@ -6,16 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { US_STATES } from "@/lib/constants";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { X, ChevronDown, AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 import { coveragePricingCopy } from "@/copy/coveragePricingCopy";
+import { MobileMultiSelect } from "@/components/MobileMultiSelect";
 
 export type CoverageMode = "entire_state" | "entire_state_except" | "selected_counties";
 
@@ -60,7 +58,6 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
   const [regionNote, setRegionNote] = useState("");
   const [inspectionTypes, setInspectionTypes] = useState<string[]>([]);
   const [counties, setCounties] = useState<Array<{ id: string; county_name: string }>>([]);
-  const [countySearchOpen, setCountySearchOpen] = useState(false);
   
   // All inspection type options grouped by category
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
@@ -237,9 +234,8 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
     }
   };
 
-  const getSelectedCountyNames = (ids: string[]) => {
-    return counties.filter(c => ids.includes(c.id)).map(c => c.county_name);
-  };
+  // Convert counties to options format for MobileMultiSelect
+  const countyOptions = counties.map(c => ({ id: c.id, label: c.county_name }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -308,64 +304,15 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
               <p className="text-xs text-muted-foreground mb-2">
                 Select any counties where you do not want to work. We'll cover the rest of the state.
               </p>
-              <Popover open={countySearchOpen} onOpenChange={setCountySearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between bg-background"
-                    disabled={!stateCode}
-                  >
-                    <span className="text-sm">
-                      {excludedCountyIds.length > 0 
-                        ? `${excludedCountyIds.length} counties excluded` 
-                        : stateCode ? "Select counties to exclude..." : "Select a state first"
-                      }
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
-                  <div className="p-2 border-b border-border bg-muted/50">
-                    <p className="text-xs font-medium text-muted-foreground px-2">
-                      Select counties to exclude ({counties.length} total)
-                    </p>
-                  </div>
-                  <ScrollArea className="h-64 bg-popover">
-                    <div className="p-2 space-y-1">
-                      {counties.map((county) => (
-                        <div
-                          key={county.id}
-                          className="flex items-center space-x-2 p-2 rounded-sm hover:bg-accent cursor-pointer"
-                          onClick={() => toggleCountySelection(county.id, "exclude")}
-                        >
-                          <Checkbox
-                            checked={excludedCountyIds.includes(county.id)}
-                            onCheckedChange={() => toggleCountySelection(county.id, "exclude")}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span className="text-sm">{county.county_name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-              {excludedCountyIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {getSelectedCountyNames(excludedCountyIds).map((name) => (
-                    <Badge key={name} variant="secondary" className="text-xs">
-                      {name}
-                      <X
-                        className="ml-1 h-3 w-3 cursor-pointer"
-                        onClick={() => {
-                          const county = counties.find(c => c.county_name === name);
-                          if (county) toggleCountySelection(county.id, "exclude");
-                        }}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <MobileMultiSelect
+                options={countyOptions}
+                selectedIds={excludedCountyIds}
+                onToggle={(id) => toggleCountySelection(id, "exclude")}
+                placeholder={stateCode ? "Select counties to exclude..." : "Select a state first"}
+                headerText={`Select counties to exclude (${counties.length} total)`}
+                disabled={!stateCode}
+                searchPlaceholder="Search counties..."
+              />
             </div>
           )}
 
@@ -376,64 +323,15 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
               <p className="text-xs text-muted-foreground mb-2">
                 Choose all counties that share the same rate and work type. When you save, ClearMarket will add one row for each county.
               </p>
-              <Popover open={countySearchOpen} onOpenChange={setCountySearchOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between bg-background"
-                    disabled={!stateCode}
-                  >
-                    <span className="text-sm">
-                      {includedCountyIds.length > 0 
-                        ? `${includedCountyIds.length} counties selected` 
-                        : stateCode ? "Select counties to include..." : "Select a state first"
-                      }
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0 bg-popover border border-border z-50" align="start">
-                  <div className="p-2 border-b border-border bg-muted/50">
-                    <p className="text-xs font-medium text-muted-foreground px-2">
-                      Select counties to include ({counties.length} total)
-                    </p>
-                  </div>
-                  <ScrollArea className="h-64 bg-popover">
-                    <div className="p-2 space-y-1">
-                      {counties.map((county) => (
-                        <div
-                          key={county.id}
-                          className="flex items-center space-x-2 p-2 rounded-sm hover:bg-accent cursor-pointer"
-                          onClick={() => toggleCountySelection(county.id, "include")}
-                        >
-                          <Checkbox
-                            checked={includedCountyIds.includes(county.id)}
-                            onCheckedChange={() => toggleCountySelection(county.id, "include")}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span className="text-sm">{county.county_name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-              {includedCountyIds.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {getSelectedCountyNames(includedCountyIds).map((name) => (
-                    <Badge key={name} variant="secondary" className="text-xs">
-                      {name}
-                      <X
-                        className="ml-1 h-3 w-3 cursor-pointer"
-                        onClick={() => {
-                          const county = counties.find(c => c.county_name === name);
-                          if (county) toggleCountySelection(county.id, "include");
-                        }}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <MobileMultiSelect
+                options={countyOptions}
+                selectedIds={includedCountyIds}
+                onToggle={(id) => toggleCountySelection(id, "include")}
+                placeholder={stateCode ? "Select counties to include..." : "Select a state first"}
+                headerText={`Select counties to include (${counties.length} total)`}
+                disabled={!stateCode}
+                searchPlaceholder="Search counties..."
+              />
             </div>
           )}
 
