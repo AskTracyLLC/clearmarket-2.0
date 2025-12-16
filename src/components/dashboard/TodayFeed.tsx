@@ -110,6 +110,7 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
   }[]>([]);
   const [notInterestedPost, setNotInterestedPost] = useState<{ id: string; title: string } | null>(null);
   const [expressingInterest, setExpressingInterest] = useState<string | null>(null);
+  const [earlierExpanded, setEarlierExpanded] = useState(false);
 
   const getFilterCategory = (type: FeedItem['type']): ActivityFilter => {
     if (type === 'alert') return 'alerts';
@@ -1221,7 +1222,6 @@ export function TodayFeed({ userId, isRep, isVendor }: TodayFeedProps) {
                 // Split into today and earlier for collapsible UI
                 const todayKey = sortedDateKeys.find(k => isToday(new Date(k)));
                 const earlierKeys = sortedDateKeys.filter(k => !isToday(new Date(k)));
-                const [earlierExpanded, setEarlierExpanded] = useState(false);
 
                 return (
                   <>
