@@ -38,16 +38,4 @@ export const vendorChecklistAssignmentsCopy = {
       error: "Failed to assign checklist. Please try again.",
     },
   },
-
-  templateType: {
-    header: "Checklist Type",
-    onboarding: {
-      label: "Onboarding (Auto-assign to new reps)",
-      description: "This checklist will automatically assign to any rep you connect in the future.",
-    },
-    manual: {
-      label: "Manual assignment only",
-      description: "This checklist will only be sent when you assign it manually.",
-    },
-  },
 };

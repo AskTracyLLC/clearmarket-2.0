@@ -41,6 +41,7 @@ import {
 import { toast } from "sonner";
 import { vendorChecklistsCopy } from "@/copy/vendorChecklistsCopy";
 import { vendorChecklistAssignmentsCopy } from "@/copy/vendorChecklistAssignmentsCopy";
+import { vendorChecklistTemplateCopy } from "@/copy/vendorChecklistTemplateCopy";
 import { assignTemplateToRep, ChecklistItemDefinition } from "@/lib/checklists";
 
 interface ChecklistTemplate {
@@ -556,9 +557,10 @@ export default function VendorChecklists() {
 
                         <CollapsibleContent>
                           <CardContent className="pt-0 space-y-4">
-                            {/* Auto-assign toggle */}
+                            {/* Checklist Type section */}
                             <div className="p-4 border rounded-lg bg-muted/30">
-                              <h4 className="text-sm font-medium mb-3">{vendorChecklistAssignmentsCopy.templateType.header}</h4>
+                              <h4 className="text-sm font-medium mb-1">{vendorChecklistTemplateCopy.sectionTitle}</h4>
+                              <p className="text-xs text-muted-foreground mb-3">{vendorChecklistTemplateCopy.sectionHelper}</p>
                               <div className="space-y-3">
                                 <label className="flex items-start gap-3 cursor-pointer">
                                   <input
@@ -569,8 +571,8 @@ export default function VendorChecklists() {
                                     className="mt-1"
                                   />
                                   <div>
-                                    <div className="font-medium text-sm">{vendorChecklistAssignmentsCopy.templateType.onboarding.label}</div>
-                                    <div className="text-xs text-muted-foreground">{vendorChecklistAssignmentsCopy.templateType.onboarding.description}</div>
+                                    <div className="font-medium text-sm">{vendorChecklistTemplateCopy.options.onboardingLabel}</div>
+                                    <div className="text-xs text-muted-foreground">{vendorChecklistTemplateCopy.options.onboardingDescription}</div>
                                   </div>
                                 </label>
                                 <label className="flex items-start gap-3 cursor-pointer">
@@ -582,11 +584,12 @@ export default function VendorChecklists() {
                                     className="mt-1"
                                   />
                                   <div>
-                                    <div className="font-medium text-sm">{vendorChecklistAssignmentsCopy.templateType.manual.label}</div>
-                                    <div className="text-xs text-muted-foreground">{vendorChecklistAssignmentsCopy.templateType.manual.description}</div>
+                                    <div className="font-medium text-sm">{vendorChecklistTemplateCopy.options.manualLabel}</div>
+                                    <div className="text-xs text-muted-foreground">{vendorChecklistTemplateCopy.options.manualDescription}</div>
                                   </div>
                                 </label>
                               </div>
+                              <p className="text-xs text-muted-foreground mt-3 italic">{vendorChecklistTemplateCopy.infoNote}</p>
                             </div>
 
                             <Tabs defaultValue="items" className="w-full">
