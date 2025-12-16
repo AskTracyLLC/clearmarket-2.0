@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { X, ChevronDown, AlertCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
+import { coveragePricingCopy } from "@/copy/coveragePricingCopy";
 
 export type CoverageMode = "entire_state" | "entire_state_except" | "selected_counties";
 
@@ -175,20 +176,20 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
 
   const handleSave = () => {
     if (!stateCode) {
-      toast.error("Please select a state");
+      toast.error(coveragePricingCopy.validation.missingState);
       return;
     }
 
     // Validate base_price requirement
     if (!basePrice || parseFloat(basePrice) <= 0) {
-      toast.error("Base Rate is required and must be greater than 0");
+      toast.error(coveragePricingCopy.validation.invalidPrice);
       return;
     }
 
     // Validate county selections based on mode (only for new entries, not single-row edits)
     if (!isEditingSingleRow) {
       if (coverageMode === "selected_counties" && includedCountyIds.length === 0) {
-        toast.error("Please select at least one county to include");
+        toast.error(coveragePricingCopy.validation.missingCounty);
         return;
       }
     }
@@ -244,13 +245,13 @@ export const CoverageAreaDialog = ({ open, onOpenChange, onSave, editData, profi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editData ? "Edit Coverage Area" : "Add Coverage Area"}</DialogTitle>
+          <DialogTitle>{editData ? coveragePricingCopy.common.editButton + " Coverage Area" : coveragePricingCopy.common.addCoverageButton}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
           {/* State (required) */}
           <div className="space-y-2">
-            <Label htmlFor="state">State *</Label>
+            <Label htmlFor="state">{coveragePricingCopy.common.stateLabel} *</Label>
             <Select value={stateCode} onValueChange={setStateCode} disabled={isEditingSingleRow}>
               <SelectTrigger id="state">
                 <SelectValue placeholder="Select state..." />

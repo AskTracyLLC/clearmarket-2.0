@@ -38,6 +38,7 @@ import { evaluateMatchAlertsForNewPost } from "@/lib/matchAlerts";
 import { useCreditConfirm } from "@/hooks/useCreditConfirm";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 import { checklist } from "@/lib/checklistTracking";
+import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -347,13 +348,13 @@ export const SeekingCoverageDialog = ({
         console.error("Error updating post:", error);
         toast({
           title: "Error",
-          description: "Failed to update seeking coverage post.",
+          description: seekingCoverageCopy.toasts.saveError,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Post Updated",
-          description: "Your seeking coverage post has been updated successfully.",
+          description: seekingCoverageCopy.toasts.saveSuccess,
         });
         onSave();
         navigate("/vendor/seeking-coverage");
@@ -368,7 +369,7 @@ export const SeekingCoverageDialog = ({
         console.error("Error saving draft:", error);
         toast({
           title: "Error",
-          description: "Failed to save draft.",
+          description: seekingCoverageCopy.toasts.saveError,
           variant: "destructive",
         });
       } else {
@@ -431,7 +432,7 @@ export const SeekingCoverageDialog = ({
 
         toast({
           title: "Error",
-          description: "Failed to create seeking coverage post.",
+          description: seekingCoverageCopy.toasts.saveError,
           variant: "destructive",
         });
         setSaving(false);
@@ -460,7 +461,7 @@ export const SeekingCoverageDialog = ({
 
       toast({
         title: "Post Created",
-        description: "Your seeking coverage post has been created successfully. 1 credit deducted.",
+        description: seekingCoverageCopy.toasts.saveSuccess + " 1 credit deducted.",
       });
       onSave();
       navigate("/vendor/seeking-coverage");
@@ -484,7 +485,7 @@ export const SeekingCoverageDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editingPost ? "Edit Seeking Coverage Request" : "New Seeking Coverage Request"}</DialogTitle>
+          <DialogTitle>{editingPost ? seekingCoverageCopy.vendor.form.headerEdit : seekingCoverageCopy.vendor.form.headerNew}</DialogTitle>
           <DialogDescription>
             Post where you need Field Reps. Fill in the details below.
           </DialogDescription>

@@ -22,6 +22,7 @@ import {
 import { CommunityImageUpload, UploadedImage } from "@/components/CommunityImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { checklist } from "@/lib/checklistTracking";
+import { communityCopy } from "@/copy/communityCopy";
 
 interface CommunityPostDialogProps {
   open: boolean;
@@ -110,7 +111,7 @@ export function CommunityPostDialog({
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast({
-        title: "Title required",
+        title: communityCopy.postForm.titleLabel + " required",
         description: "Please enter a title for your post.",
         variant: "destructive",
       });
@@ -119,7 +120,7 @@ export function CommunityPostDialog({
 
     if (!body.trim()) {
       toast({
-        title: "Body required",
+        title: communityCopy.postForm.contentLabel + " required",
         description: "Please enter the content of your post.",
         variant: "destructive",
       });
@@ -149,13 +150,13 @@ export function CommunityPostDialog({
       });
 
       if (result.success) {
-        toast({ title: "Post updated" });
+        toast({ title: communityCopy.postForm.successToast });
         onOpenChange(false);
         onSuccess?.();
       } else {
         toast({
           title: "Error",
-          description: result.error || "Failed to update post",
+          description: result.error || communityCopy.postForm.errorToast,
           variant: "destructive",
         });
       }
@@ -163,7 +164,7 @@ export function CommunityPostDialog({
       const result = await createCommunityPost(userId, category, title.trim(), body.trim(), channel, imageUrls);
 
       if (result.success) {
-        toast({ title: "Post created" });
+        toast({ title: communityCopy.postForm.successToast });
         setTitle("");
         setBody("");
         setImages([]);
@@ -178,7 +179,7 @@ export function CommunityPostDialog({
       } else {
         toast({
           title: "Error",
-          description: result.error || "Failed to create post",
+          description: result.error || communityCopy.postForm.errorToast,
           variant: "destructive",
         });
       }
@@ -314,25 +315,25 @@ export function CommunityPostDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">{communityCopy.postForm.titleLabel}</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What's your post about?"
+              placeholder={communityCopy.postForm.titlePlaceholder}
               maxLength={200}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="body">Content</Label>
+            <Label htmlFor="body">{communityCopy.postForm.contentLabel}</Label>
             <Textarea
               ref={textareaRef}
               id="body"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               onPaste={handlePaste}
-              placeholder="Share your thoughts, questions, or updates..."
+              placeholder={communityCopy.postForm.contentPlaceholder}
               rows={6}
               maxLength={5000}
             />
@@ -348,10 +349,10 @@ export function CommunityPostDialog({
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-              Cancel
+              {communityCopy.postForm.cancelButton}
             </Button>
             <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Saving..." : isEditing ? "Save Changes" : "Create Post"}
+              {submitting ? "Saving..." : isEditing ? "Save Changes" : communityCopy.postForm.submitButton}
             </Button>
           </div>
         </div>

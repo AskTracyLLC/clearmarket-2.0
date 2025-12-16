@@ -52,6 +52,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
 
 interface SeekingCoveragePost {
   id: string;

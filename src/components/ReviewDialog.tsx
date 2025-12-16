@@ -18,6 +18,7 @@ import { ReviewHelperTips } from "./ReviewHelperTips";
 import { ReviewContextChip } from "./ReviewContextChip";
 import { ReviewContextModal, ReviewContextValue } from "./ReviewContextModal";
 import { checklist } from "@/lib/checklistTracking";
+import { reviewsCopy } from "@/copy/reviewsCopy";
 
 export interface Review {
   id: string;
@@ -167,7 +168,7 @@ export function ReviewDialog({
       });
 
       toast({
-        title: isExitReview ? "Exit review saved" : "Review posted",
+        title: isExitReview ? "Exit review saved" : reviewsCopy.dialog.successToast,
         description: "Thank you for your feedback.",
       });
 
@@ -193,7 +194,7 @@ export function ReviewDialog({
       console.error("Error submitting review:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to save review",
+        description: error.message || reviewsCopy.dialog.errorToast,
         variant: "destructive",
       });
     } finally {
@@ -328,15 +329,11 @@ export function ReviewDialog({
 
             <div className="space-y-2">
               <Label htmlFor="comment" className="text-sm font-medium">
-                Additional Comments (Optional)
+                {reviewsCopy.dialog.commentsLabel} (Optional)
               </Label>
               <Textarea
                 id="comment"
-                placeholder={
-                  isVendorReviewing
-                    ? "Anything you want to remember about working with this rep?"
-                    : "Anything you want to remember about working with this vendor?"
-                }
+                placeholder={reviewsCopy.dialog.commentsPlaceholder}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 rows={4}
@@ -362,7 +359,7 @@ export function ReviewDialog({
               onClick={handleSubmit}
               disabled={submitting}
             >
-              {submitting ? "Submitting..." : "Submit Review"}
+              {submitting ? "Submitting..." : reviewsCopy.dialog.submitButton}
             </Button>
           </DialogFooter>
         </DialogContent>

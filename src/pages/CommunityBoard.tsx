@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { Users, Megaphone, Newspaper, Bookmark } from "lucide-react";
 import { getSavedPostsCount } from "@/lib/postSaves";
+import { communityCopy } from "@/copy/communityCopy";
 
 const CommunityBoard = () => {
   const navigate = useNavigate();
@@ -146,8 +147,8 @@ const CommunityBoard = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <PageHeader
-          title="Community"
-          subtitle="Community posts, network alerts, and official ClearMarket announcements."
+          title={communityCopy.main.sectionTitle}
+          subtitle={communityCopy.main.sectionSubtitle}
           showBackToDashboard
         />
 
