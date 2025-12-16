@@ -5,9 +5,10 @@ import { useMimic } from "@/hooks/useMimic";
 
 export const MimicBanner = () => {
   const navigate = useNavigate();
-  const { mimickedUser, stopMimic } = useMimic();
+  const { mimickedUser, isAdmin, stopMimic } = useMimic();
 
-  if (!mimickedUser) return null;
+  // SECURITY: Only show banner if user is admin AND actively mimicking someone
+  if (!isAdmin || !mimickedUser) return null;
 
   const handleExitMimic = () => {
     stopMimic();

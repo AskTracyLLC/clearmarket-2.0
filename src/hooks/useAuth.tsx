@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
+import { clearMimicState } from '@/hooks/useMimic';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -54,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
           // Sign out after a brief delay to show the toast
           setTimeout(async () => {
+            clearMimicState(); // Clear mimic state before signing out
             await supabase.auth.signOut();
           }, 100);
         }
