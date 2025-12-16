@@ -78,6 +78,7 @@ import AdminReviewSettings from "./pages/AdminReviewSettings";
 import AdminChecklists from "./pages/AdminChecklists";
 import AdminChecklistLog from "./pages/AdminChecklistLog";
 import VendorChecklists from "./pages/VendorChecklists";
+import Tools from "./pages/Tools";
 
 
 const queryClient = new QueryClient();
@@ -133,6 +134,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/tools" element={<Tools />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/moderation" element={<AdminModeration />} />
               <Route path="/admin/invites" element={<AdminInviteCodes />} />

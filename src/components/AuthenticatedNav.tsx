@@ -6,7 +6,7 @@ import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
 import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
-import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch } from "lucide-react";
+import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch, Wrench } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -71,6 +71,14 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
               >
                 <ShieldAlert className="w-4 h-4" />
                 Safety
+              </NavLink>
+              <NavLink 
+                to="/tools" 
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
+                activeClassName="text-primary"
+              >
+                <Wrench className="w-4 h-4" />
+                Tools
               </NavLink>
               {/* Vendor-only: Seeking Coverage link with interest badge */}
               {isVendor && (
