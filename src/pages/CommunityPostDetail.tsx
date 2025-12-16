@@ -376,9 +376,7 @@ const CommunityPostDetail = () => {
                   <TooltipTrigger asChild>
                     <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
                       <HelpCircle className="w-3 h-3" />
-                      {postAuthorScore !== null
-                        ? `Score: ${formatCommunityScore(postAuthorScore)}`
-                        : "Score: N/A"}
+                      Score: {formatCommunityScore(postAuthorScore ?? 0)}
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-[200px]">
@@ -534,9 +532,7 @@ const CommunityPostDetail = () => {
                               <TooltipTrigger asChild>
                                 <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
                                   <HelpCircle className="w-3 h-3" />
-                                  {comment.author_community_score !== null && comment.author_community_score !== undefined
-                                    ? `${formatCommunityScore(comment.author_community_score)}`
-                                    : "N/A"}
+                                  {formatCommunityScore(comment.author_community_score ?? 0)}
                                 </Badge>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-[200px]">

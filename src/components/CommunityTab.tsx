@@ -222,9 +222,7 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
                             <TooltipTrigger asChild>
                               <Badge variant="outline" className="text-[11px] gap-1 cursor-help">
                                 <HelpCircle className="w-3 h-3" />
-                                {post.author_community_score !== null
-                                  ? `Score: ${formatCommunityScore(post.author_community_score)}`
-                                  : "Score: N/A"}
+                                Score: {formatCommunityScore(post.author_community_score ?? 0)}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[200px]">
