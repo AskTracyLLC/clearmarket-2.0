@@ -80,8 +80,15 @@ export const MobileMultiSelect = ({
             position="popper"
             sideOffset={4}
             align="start"
+            style={{
+              maxHeight: "min(60vh, 360px)",
+              overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+              overscrollBehavior: "contain",
+            }}
             className={cn(
-              "relative z-50 w-[min(420px,calc(100vw-2rem))] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+              "relative z-50 w-[min(420px,calc(100vw-2rem))] rounded-md border bg-popover text-popover-foreground shadow-md",
               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
               "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2",
             )}
@@ -115,7 +122,7 @@ export const MobileMultiSelect = ({
               </div>
             )}
 
-            {/* Scrollable list (critical for mobile) */}
+            {/* List */}
             <SelectPrimitive.Viewport
               className="p-2"
               style={{
