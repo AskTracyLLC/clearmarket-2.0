@@ -38,6 +38,8 @@ interface ChecklistUserProgressTableProps {
 type SortColumn = "user" | "role" | "completion" | "steps" | "lastUpdated" | "feedback";
 type SortDirection = "asc" | "desc";
 
+type TemplateRole = "field_rep" | "vendor" | "both";
+
 export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUserProgressTableProps) {
   const [users, setUsers] = useState<UserProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,7 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn>("completion");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [templateRole, setTemplateRole] = useState<TemplateRole>("both");
 
   const copy = checklistUserProgressCopy;
 
@@ -57,6 +60,18 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
   const loadUserProgress = async () => {
     setLoading(true);
     try {
+      // First, fetch the template to get its role
+      const { data: templateData, error: templateError } = await supabase
+        .from("checklist_templates")
+        .select("role")
+        .eq("id", templateId)
+        .single();
+
+      if (templateError) throw templateError;
+      
+      const tRole = (templateData?.role as TemplateRole) || "both";
+      setTemplateRole(tRole);
+
       // Get all assignments for this template
       let assignmentsQuery = supabase
         .from("user_checklist_assignments")
@@ -107,20 +122,33 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
         .select("id, full_name, email, is_fieldrep, is_vendor_admin")
         .in("id", userIds);
 
+      // Filter profiles based on template role
+      const filteredProfiles = (profiles || []).filter(p => {
+        if (tRole === "field_rep") {
+          return p.is_fieldrep === true;
+        } else if (tRole === "vendor") {
+          return p.is_vendor_admin === true;
+        }
+        // 'both' - show all
+        return true;
+      });
+
+      const filteredUserIds = new Set(filteredProfiles.map(p => p.id));
+
       // Get feedback for these users on this template
       const { data: feedbackData } = await supabase
         .from("checklist_item_feedback")
         .select("user_id")
         .eq("template_id", templateId)
-        .in("user_id", userIds);
+        .in("user_id", Array.from(filteredUserIds));
 
       const usersWithFeedback = new Set(feedbackData?.map(f => f.user_id) || []);
 
-      // Build user progress data
+      // Build user progress data (only for users matching template role)
       const progressData: UserProgress[] = assignments
-        .filter(a => userIds.includes(a.user_id))
+        .filter(a => filteredUserIds.has(a.user_id))
         .map(assignment => {
-          const profile = profiles?.find(p => p.id === assignment.user_id);
+          const profile = filteredProfiles.find(p => p.id === assignment.user_id);
           const items = (assignment.user_checklist_items as Array<{ status: string; updated_at: string }>) || [];
           const completedCount = items.filter(i => i.status === "completed").length;
           const totalCount = items.length;
@@ -238,9 +266,23 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
     );
   }
 
+  const getRoleBadge = () => {
+    switch (templateRole) {
+      case "field_rep":
+        return <Badge variant="outline" className="ml-2">Field Rep checklist</Badge>;
+      case "vendor":
+        return <Badge variant="outline" className="ml-2">Vendor checklist</Badge>;
+      default:
+        return <Badge variant="outline" className="ml-2">Both roles</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{copy.tabHelper}</p>
+      <div className="flex items-center">
+        <p className="text-sm text-muted-foreground">{copy.tabHelper}</p>
+        {getRoleBadge()}
+      </div>
       
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
