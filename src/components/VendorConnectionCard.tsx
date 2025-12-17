@@ -406,7 +406,11 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
               {!loadingStatus && getStatusDisplay()}
               {/* Show agreement badge if we have agreement data but no working_terms_request */}
               {!loadingStatus && !workingTermsStatus && vendor.agreementId && (
-                <Badge variant="default" className="text-xs gap-1 bg-green-600">
+                <Badge 
+                  variant="default" 
+                  className="text-xs gap-1 bg-green-600 cursor-pointer hover:bg-green-700"
+                  onClick={() => connectionId && setShowAgreementDialog(true)}
+                >
                   <CheckCircle2 className="w-3 h-3" />
                   Agreement on file
                 </Badge>
