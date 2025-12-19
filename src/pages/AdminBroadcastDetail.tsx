@@ -13,10 +13,11 @@ import { ArrowLeft, Send, Archive, Star, Users, MessageSquare, Mail, Copy, Edit,
 import {
   fetchBroadcast,
   fetchBroadcastFeedback,
-  fetchEmailsSentCount,
+  fetchBroadcastMetricsById,
   sendBroadcast,
   updateBroadcast,
   AdminBroadcast,
+  BroadcastMetrics,
   FeedbackWithUser,
   getDisplayName,
   getAdminDisplayName,
@@ -56,7 +57,7 @@ export default function AdminBroadcastDetail() {
 
   const [broadcast, setBroadcast] = useState<AdminBroadcast | null>(null);
   const [feedback, setFeedback] = useState<FeedbackWithUser[]>([]);
-  const [emailsSent, setEmailsSent] = useState(0);
+  const [metrics, setMetrics] = useState<BroadcastMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
@@ -80,14 +81,14 @@ export default function AdminBroadcastDetail() {
   async function loadData() {
     setLoading(true);
     try {
-      const [broadcastData, feedbackData, emailsCount] = await Promise.all([
+      const [broadcastData, feedbackData, metricsData] = await Promise.all([
         fetchBroadcast(id!),
         fetchBroadcastFeedback(id!),
-        fetchEmailsSentCount(id!),
+        fetchBroadcastMetricsById(id!),
       ]);
       setBroadcast(broadcastData);
       setFeedback(feedbackData);
-      setEmailsSent(emailsCount);
+      setMetrics(metricsData);
     } catch (error) {
       console.error("Error loading broadcast:", error);
     } finally {
@@ -218,8 +219,9 @@ export default function AdminBroadcastDetail() {
   });
 
   const spotlightFeedback = feedback.filter((f) => f.allow_spotlight && (f.like_text || f.suggestion_text));
-  const responseRate = broadcast.stats.sent > 0 
-    ? ((broadcast.stats.responses / broadcast.stats.sent) * 100).toFixed(1) 
+  const recipientsTotal = metrics?.recipients_total ?? 0;
+  const responseRate = recipientsTotal > 0 
+    ? ((metrics?.responses ?? 0) / recipientsTotal * 100).toFixed(1) 
     : "0";
 
   const ratingDistribution = [1, 2, 3, 4, 5].map((rating) => ({
@@ -285,7 +287,7 @@ export default function AdminBroadcastDetail() {
               <Users className="h-4 w-4" />
               Recipients
             </div>
-            <p className="text-2xl font-bold mt-1">{broadcast.stats.sent}</p>
+            <p className="text-2xl font-bold mt-1">{metrics?.recipients_total ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -294,7 +296,7 @@ export default function AdminBroadcastDetail() {
               <Mail className="h-4 w-4" />
               Emails Sent
             </div>
-            <p className="text-2xl font-bold mt-1">{emailsSent}</p>
+            <p className="text-2xl font-bold mt-1">{metrics?.emails_sent ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -303,7 +305,7 @@ export default function AdminBroadcastDetail() {
               <MessageSquare className="h-4 w-4" />
               Responses
             </div>
-            <p className="text-2xl font-bold mt-1">{broadcast.stats.responses}</p>
+            <p className="text-2xl font-bold mt-1">{metrics?.responses ?? 0}</p>
             <p className="text-xs text-muted-foreground">{responseRate}% rate</p>
           </CardContent>
         </Card>
@@ -314,7 +316,7 @@ export default function AdminBroadcastDetail() {
               Avg Rating
             </div>
             <p className="text-2xl font-bold mt-1">
-              {broadcast.stats.avg_rating !== null ? broadcast.stats.avg_rating.toFixed(1) : "—"}
+              {metrics?.avg_rating !== null && metrics?.avg_rating !== undefined ? metrics.avg_rating.toFixed(1) : "—"}
             </p>
           </CardContent>
         </Card>
@@ -324,7 +326,7 @@ export default function AdminBroadcastDetail() {
               <Star className="h-4 w-4" />
               Spotlight Ready
             </div>
-            <p className="text-2xl font-bold mt-1">{spotlightFeedback.length}</p>
+            <p className="text-2xl font-bold mt-1">{metrics?.spotlight_ready ?? 0}</p>
           </CardContent>
         </Card>
       </div>

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Send, Eye, Archive, Star, Users, MessageSquare } from "lucide-react";
-import { fetchBroadcasts, AdminBroadcast } from "@/lib/adminBroadcasts";
+import { fetchBroadcasts, fetchBroadcastMetrics, AdminBroadcast, BroadcastMetrics } from "@/lib/adminBroadcasts";
 import { format } from "date-fns";
 
 export default function AdminBroadcasts() {
@@ -16,6 +16,7 @@ export default function AdminBroadcasts() {
   const { user, loading: authLoading } = useAuth();
   const { permissions, loading: permLoading } = useStaffPermissions();
   const [broadcasts, setBroadcasts] = useState<AdminBroadcast[]>([]);
+  const [metrics, setMetrics] = useState<Record<string, BroadcastMetrics>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
 
@@ -28,8 +29,12 @@ export default function AdminBroadcasts() {
   async function loadBroadcasts() {
     setLoading(true);
     try {
-      const data = await fetchBroadcasts();
-      setBroadcasts(data);
+      const [broadcastsData, metricsData] = await Promise.all([
+        fetchBroadcasts(),
+        fetchBroadcastMetrics(),
+      ]);
+      setBroadcasts(broadcastsData);
+      setMetrics(metricsData);
     } catch (error) {
       console.error("Error loading broadcasts:", error);
     } finally {
@@ -167,16 +172,16 @@ export default function AdminBroadcasts() {
                   <div className="flex gap-6 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Users className="h-4 w-4" />
-                      <span>{broadcast.stats.sent} recipients</span>
+                      <span>{metrics[broadcast.id]?.recipients_total ?? 0} recipients</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <MessageSquare className="h-4 w-4" />
-                      <span>{broadcast.stats.responses} responses</span>
+                      <span>{metrics[broadcast.id]?.responses ?? 0} responses</span>
                     </div>
-                    {broadcast.stats.avg_rating !== null && (
+                    {(metrics[broadcast.id]?.avg_rating ?? null) !== null && (
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Star className="h-4 w-4 text-amber-400" />
-                        <span>{broadcast.stats.avg_rating.toFixed(1)} avg</span>
+                        <span>{metrics[broadcast.id]!.avg_rating!.toFixed(1)} avg</span>
                       </div>
                     )}
                   </div>
