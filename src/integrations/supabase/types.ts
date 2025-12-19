@@ -167,6 +167,13 @@ export type Database = {
             foreignKeyName: "admin_broadcast_recipients_broadcast_id_fkey"
             columns: ["broadcast_id"]
             isOneToOne: false
+            referencedRelation: "admin_broadcast_metrics"
+            referencedColumns: ["broadcast_id"]
+          },
+          {
+            foreignKeyName: "admin_broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
             referencedRelation: "admin_broadcasts"
             referencedColumns: ["id"]
           },
@@ -4135,7 +4142,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_broadcast_metrics: {
+        Row: {
+          avg_rating: number | null
+          broadcast_id: string | null
+          emails_sent: number | null
+          recipients_total: number | null
+          responses: number | null
+          spotlight_ready: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_territory_assignment: {
