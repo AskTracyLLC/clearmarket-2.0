@@ -68,6 +68,180 @@ export type Database = {
           },
         ]
       }
+      admin_broadcast_feedback: {
+        Row: {
+          allow_name: boolean
+          allow_spotlight: boolean
+          created_at: string
+          dislike_text: string | null
+          id: string
+          like_text: string | null
+          rating: number
+          recipient_id: string
+          suggestion_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_name?: boolean
+          allow_spotlight?: boolean
+          created_at?: string
+          dislike_text?: string | null
+          id?: string
+          like_text?: string | null
+          rating: number
+          recipient_id: string
+          suggestion_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_name?: boolean
+          allow_spotlight?: boolean
+          created_at?: string
+          dislike_text?: string | null
+          id?: string
+          like_text?: string | null
+          rating?: number
+          recipient_id?: string
+          suggestion_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_broadcast_feedback_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: true
+            referencedRelation: "admin_broadcast_recipients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_broadcast_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_broadcast_recipients: {
+        Row: {
+          broadcast_id: string
+          created_at: string
+          email_error: string | null
+          email_provider_id: string | null
+          emailed_at: string | null
+          id: string
+          notification_id: string | null
+          opened_at: string | null
+          responded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          broadcast_id: string
+          created_at?: string
+          email_error?: string | null
+          email_provider_id?: string | null
+          emailed_at?: string | null
+          id?: string
+          notification_id?: string | null
+          opened_at?: string | null
+          responded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          broadcast_id?: string
+          created_at?: string
+          email_error?: string | null
+          email_provider_id?: string | null
+          emailed_at?: string | null
+          id?: string
+          notification_id?: string | null
+          opened_at?: string | null
+          responded_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "admin_broadcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_broadcast_recipients_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_broadcast_recipients_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_broadcasts: {
+        Row: {
+          audience: Json
+          created_at: string
+          created_by: string | null
+          cta_label: string
+          email_subject: string | null
+          id: string
+          message_md: string
+          send_at: string | null
+          sent_at: string | null
+          stats: Json
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: Json
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string
+          email_subject?: string | null
+          id?: string
+          message_md: string
+          send_at?: string | null
+          sent_at?: string | null
+          stats?: Json
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: Json
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string
+          email_subject?: string | null
+          id?: string
+          message_md?: string
+          send_at?: string | null
+          sent_at?: string | null
+          stats?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_broadcasts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       background_checks: {
         Row: {
           check_id: string
@@ -1455,6 +1629,7 @@ export type Database = {
           deactivated_at: string | null
           deactivated_reason: string | null
           email: string
+          email_opt_in_admin_updates: boolean
           full_name: string | null
           has_signed_terms: boolean
           id: string
@@ -1488,6 +1663,7 @@ export type Database = {
           deactivated_at?: string | null
           deactivated_reason?: string | null
           email: string
+          email_opt_in_admin_updates?: boolean
           full_name?: string | null
           has_signed_terms?: boolean
           id: string
@@ -1521,6 +1697,7 @@ export type Database = {
           deactivated_at?: string | null
           deactivated_reason?: string | null
           email?: string
+          email_opt_in_admin_updates?: boolean
           full_name?: string | null
           has_signed_terms?: boolean
           id?: string
@@ -3991,9 +4168,14 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      send_admin_broadcast: { Args: { p_broadcast_id: string }; Returns: Json }
       unlock_rep_contact: {
         Args: { p_rep_user_id: string; p_vendor_user_id: string }
         Returns: Json
+      }
+      update_broadcast_stats: {
+        Args: { p_broadcast_id: string }
+        Returns: undefined
       }
     }
     Enums: {
