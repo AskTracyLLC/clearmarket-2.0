@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.process-vendor-contact-matches]
 verify_jwt = false
+
+[functions.send-admin-broadcast-emails]
+verify_jwt = true
