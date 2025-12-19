@@ -81,6 +81,7 @@ import VendorChecklists from "./pages/VendorChecklists";
 import AdminBroadcasts from "./pages/AdminBroadcasts";
 import AdminBroadcastNew from "./pages/AdminBroadcastNew";
 import AdminBroadcastDetail from "./pages/AdminBroadcastDetail";
+import AdminBroadcastEdit from "./pages/AdminBroadcastEdit";
 import BroadcastFeedbackPage from "./pages/BroadcastFeedbackPage";
 import Tools from "./pages/Tools";
 
@@ -163,6 +164,7 @@ const App = () => (
               <Route path="/admin/broadcasts" element={<AdminBroadcasts />} />
               <Route path="/admin/broadcasts/new" element={<AdminBroadcastNew />} />
               <Route path="/admin/broadcasts/:id" element={<AdminBroadcastDetail />} />
+              <Route path="/admin/broadcasts/:id/edit" element={<AdminBroadcastEdit />} />
               <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />
