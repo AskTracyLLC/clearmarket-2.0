@@ -28,7 +28,7 @@ export function SelectableUserGrid({
   const [search, setSearch] = useState("");
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
 
-  // Filter users by search
+  // Filter and sort users
   const filteredUsers = useMemo(() => {
     let result = users;
     
@@ -46,6 +46,13 @@ export function SelectableUserGrid({
     if (showSelectedOnly) {
       result = result.filter((u) => selectedIds.includes(u.id));
     }
+    
+    // Sort alphabetically by name (A-Z)
+    result = [...result].sort((a, b) => {
+      const nameA = (a.full_name || a.email || "").toLowerCase();
+      const nameB = (b.full_name || b.email || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
     
     return result;
   }, [users, search, showSelectedOnly, selectedIds]);
