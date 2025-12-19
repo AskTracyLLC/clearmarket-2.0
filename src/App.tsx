@@ -134,6 +134,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/support" element={<Support />} />
               <Route path="/tools" element={<Tools />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/moderation" element={<AdminModeration />} />
