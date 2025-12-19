@@ -206,6 +206,9 @@ export function getNotificationTargetUrlSync(
     case "checklist_assigned":
       return { url: "/dashboard", canNavigate: true };
 
+    case "admin_broadcast":
+      return { url: refId ? `/feedback/broadcast/${refId}` : "/dashboard", canNavigate: true };
+
     default:
       return { url: "", canNavigate: false };
   }

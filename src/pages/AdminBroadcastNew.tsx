@@ -106,7 +106,7 @@ export default function AdminBroadcastNew() {
     );
   }
 
-  if (!permissions.canManageReviews) {
+  if (!permissions.canManageBroadcasts) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Card>

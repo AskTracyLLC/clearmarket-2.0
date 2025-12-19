@@ -78,6 +78,10 @@ import AdminReviewSettings from "./pages/AdminReviewSettings";
 import AdminChecklists from "./pages/AdminChecklists";
 import AdminChecklistLog from "./pages/AdminChecklistLog";
 import VendorChecklists from "./pages/VendorChecklists";
+import AdminBroadcasts from "./pages/AdminBroadcasts";
+import AdminBroadcastNew from "./pages/AdminBroadcastNew";
+import AdminBroadcastDetail from "./pages/AdminBroadcastDetail";
+import BroadcastFeedbackPage from "./pages/BroadcastFeedbackPage";
 import Tools from "./pages/Tools";
 
 
@@ -156,6 +160,10 @@ const App = () => (
               <Route path="/admin/review-settings" element={<AdminReviewSettings />} />
               <Route path="/admin/checklists" element={<AdminChecklists />} />
               <Route path="/admin/checklists/log" element={<AdminChecklistLog />} />
+              <Route path="/admin/broadcasts" element={<AdminBroadcasts />} />
+              <Route path="/admin/broadcasts/new" element={<AdminBroadcastNew />} />
+              <Route path="/admin/broadcasts/:id" element={<AdminBroadcastDetail />} />
+              <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />
               <Route path="/legal/:pageType" element={<LegalPage />} />
