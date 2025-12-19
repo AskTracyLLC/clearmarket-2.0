@@ -3,19 +3,25 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, Archive, Star, Users, MessageSquare, Mail, Copy, Edit } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Send, Archive, Star, Users, MessageSquare, Mail, Copy, Edit, Download, Filter } from "lucide-react";
 import {
   fetchBroadcast,
   fetchBroadcastFeedback,
+  fetchEmailsSentCount,
   sendBroadcast,
   updateBroadcast,
   AdminBroadcast,
   FeedbackWithUser,
+  getDisplayName,
+  getUserRoleLabel,
+  exportFeedbackToCSV,
+  copySpotlightQuotes,
 } from "@/lib/adminBroadcasts";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -29,6 +35,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function AdminBroadcastDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,16 +54,21 @@ export default function AdminBroadcastDetail() {
 
   const [broadcast, setBroadcast] = useState<AdminBroadcast | null>(null);
   const [feedback, setFeedback] = useState<FeedbackWithUser[]>([]);
+  const [emailsSent, setEmailsSent] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showSendConfirm, setShowSendConfirm] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
+  // Filter state
+  const [filterSpotlight, setFilterSpotlight] = useState(false);
+  const [filterHighRating, setFilterHighRating] = useState(false);
+  const [filterHasLikes, setFilterHasLikes] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !permLoading && user && id) {
       loadData();
       
-      // Check if we should auto-open send dialog
       if (searchParams.get("send") === "true") {
         setShowSendConfirm(true);
       }
@@ -59,12 +78,14 @@ export default function AdminBroadcastDetail() {
   async function loadData() {
     setLoading(true);
     try {
-      const [broadcastData, feedbackData] = await Promise.all([
+      const [broadcastData, feedbackData, emailsCount] = await Promise.all([
         fetchBroadcast(id!),
         fetchBroadcastFeedback(id!),
+        fetchEmailsSentCount(id!),
       ]);
       setBroadcast(broadcastData);
       setFeedback(feedbackData);
+      setEmailsSent(emailsCount);
     } catch (error) {
       console.error("Error loading broadcast:", error);
     } finally {
@@ -130,19 +151,19 @@ export default function AdminBroadcastDetail() {
     toast({ title: "Quote copied to clipboard" });
   };
 
-  const getDisplayName = (f: FeedbackWithUser): string => {
-    if (f.allow_name && f.profiles?.full_name) {
-      return f.profiles.full_name;
+  const handleCopyAllSpotlight = () => {
+    const formatted = copySpotlightQuotes(feedback);
+    if (formatted) {
+      navigator.clipboard.writeText(formatted);
+      toast({ title: "All spotlight quotes copied!" });
+    } else {
+      toast({ title: "No spotlight quotes to copy", variant: "destructive" });
     }
-    if (f.profiles?.is_fieldrep) return "Anonymous Field Rep";
-    if (f.profiles?.is_vendor_admin) return "Anonymous Vendor";
-    return "Anonymous User";
   };
 
-  const getUserRole = (f: FeedbackWithUser): string => {
-    if (f.profiles?.is_fieldrep) return "Field Rep";
-    if (f.profiles?.is_vendor_admin) return "Vendor";
-    return "User";
+  const handleExportCSV = () => {
+    exportFeedbackToCSV(filteredFeedback);
+    toast({ title: "CSV downloaded" });
   };
 
   if (authLoading || permLoading || loading) {
@@ -181,6 +202,14 @@ export default function AdminBroadcastDetail() {
     );
   }
 
+  // Apply filters
+  const filteredFeedback = feedback.filter((f) => {
+    if (filterSpotlight && !f.allow_spotlight) return false;
+    if (filterHighRating && f.rating < 4) return false;
+    if (filterHasLikes && !f.like_text) return false;
+    return true;
+  });
+
   const spotlightFeedback = feedback.filter((f) => f.allow_spotlight && (f.like_text || f.suggestion_text));
   const responseRate = broadcast.stats.sent > 0 
     ? ((broadcast.stats.responses / broadcast.stats.sent) * 100).toFixed(1) 
@@ -190,6 +219,8 @@ export default function AdminBroadcastDetail() {
     rating,
     count: feedback.filter((f) => f.rating === rating).length,
   }));
+
+  const activeFiltersCount = [filterSpotlight, filterHighRating, filterHasLikes].filter(Boolean).length;
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
@@ -240,7 +271,7 @@ export default function AdminBroadcastDetail() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
@@ -248,6 +279,15 @@ export default function AdminBroadcastDetail() {
               Recipients
             </div>
             <p className="text-2xl font-bold mt-1">{broadcast.stats.sent}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Mail className="h-4 w-4" />
+              Emails Sent
+            </div>
+            <p className="text-2xl font-bold mt-1">{emailsSent}</p>
           </CardContent>
         </Card>
         <Card>
@@ -274,7 +314,7 @@ export default function AdminBroadcastDetail() {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Mail className="h-4 w-4" />
+              <Star className="h-4 w-4" />
               Spotlight Ready
             </div>
             <p className="text-2xl font-bold mt-1">{spotlightFeedback.length}</p>
@@ -311,7 +351,7 @@ export default function AdminBroadcastDetail() {
                         <div
                           className="w-8 bg-primary/20 rounded-t"
                           style={{
-                            height: `${Math.max(4, (count / Math.max(...ratingDistribution.map((r) => r.count))) * 60)}px`,
+                            height: `${Math.max(4, (count / Math.max(...ratingDistribution.map((r) => r.count), 1)) * 60)}px`,
                           }}
                         />
                         <div className="flex items-center gap-0.5">
@@ -323,6 +363,54 @@ export default function AdminBroadcastDetail() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Filters and Export */}
+              <div className="flex items-center justify-between mb-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filters
+                      {activeFiltersCount > 0 && (
+                        <Badge variant="secondary" className="ml-2">{activeFiltersCount}</Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Filter Responses</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={filterSpotlight}
+                      onCheckedChange={setFilterSpotlight}
+                    >
+                      Spotlight approved only
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filterHighRating}
+                      onCheckedChange={setFilterHighRating}
+                    >
+                      4-5 stars only
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={filterHasLikes}
+                      onCheckedChange={setFilterHasLikes}
+                    >
+                      Has "likes" text
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleCopyAllSpotlight}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Spotlight Quotes
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                </div>
+              </div>
 
               {/* Responses table */}
               <Card>
@@ -339,12 +427,12 @@ export default function AdminBroadcastDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {feedback.map((f) => (
+                    {filteredFeedback.map((f) => (
                       <TableRow key={f.id}>
                         <TableCell>
                           <div>
                             <div className="font-medium">{getDisplayName(f)}</div>
-                            <div className="text-xs text-muted-foreground">{getUserRole(f)}</div>
+                            <div className="text-xs text-muted-foreground">{getUserRoleLabel(f)}</div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -377,6 +465,11 @@ export default function AdminBroadcastDetail() {
                   </TableBody>
                 </Table>
               </Card>
+              {activeFiltersCount > 0 && filteredFeedback.length !== feedback.length && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Showing {filteredFeedback.length} of {feedback.length} responses
+                </p>
+              )}
             </>
           )}
         </TabsContent>
@@ -394,49 +487,57 @@ export default function AdminBroadcastDetail() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {spotlightFeedback.map((f) => (
-                <Card key={f.id}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              className={`h-4 w-4 ${
-                                s <= f.rating ? "text-amber-400 fill-amber-400" : "text-muted"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        {f.like_text && (
-                          <blockquote className="border-l-2 border-primary pl-4 italic text-foreground mb-3">
-                            "{f.like_text}"
-                          </blockquote>
-                        )}
-                        {f.suggestion_text && (
-                          <p className="text-sm text-muted-foreground mb-3">
-                            <strong>Suggestion:</strong> {f.suggestion_text}
+            <>
+              <div className="flex justify-end mb-4">
+                <Button variant="outline" size="sm" onClick={handleCopyAllSpotlight}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy All Quotes
+                </Button>
+              </div>
+              <div className="space-y-4">
+                {spotlightFeedback.map((f) => (
+                  <Card key={f.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={`h-4 w-4 ${
+                                  s <= f.rating ? "text-amber-400 fill-amber-400" : "text-muted"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {f.like_text && (
+                            <blockquote className="border-l-2 border-primary pl-4 italic text-foreground mb-3">
+                              "{f.like_text}"
+                            </blockquote>
+                          )}
+                          {f.suggestion_text && (
+                            <p className="text-sm text-muted-foreground mb-3">
+                              <strong>Suggestion:</strong> {f.suggestion_text}
+                            </p>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            — {getDisplayName(f)} ({getUserRoleLabel(f)})
                           </p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          — {getDisplayName(f)} ({getUserRole(f)})
-                        </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyQuote(f.like_text || f.suggestion_text || "", getDisplayName(f))}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyQuote(f.like_text || f.suggestion_text || "", getDisplayName(f))}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </TabsContent>
 

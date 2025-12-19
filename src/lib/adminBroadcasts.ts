@@ -25,6 +25,7 @@ export interface BroadcastStats {
   sent: number;
   responses: number;
   avg_rating: number | null;
+  emails_sent?: number;
 }
 
 export interface AdminBroadcastRecipient {
@@ -245,6 +246,22 @@ export async function fetchBroadcastRecipients(
   return data || [];
 }
 
+// Fetch emails sent count for a broadcast
+export async function fetchEmailsSentCount(broadcastId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("admin_broadcast_recipients")
+    .select("id", { count: "exact", head: true })
+    .eq("broadcast_id", broadcastId)
+    .not("emailed_at", "is", null);
+
+  if (error) {
+    console.error("Error fetching emails sent count:", error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
 // Fetch broadcast feedback with user info
 export async function fetchBroadcastFeedback(broadcastId: string): Promise<FeedbackWithUser[]> {
   const { data, error } = await supabase
@@ -378,8 +395,81 @@ function parseBroadcast(data: any): AdminBroadcast {
   return {
     ...data,
     audience: (data.audience as BroadcastAudience) || {},
-    stats: (data.stats as BroadcastStats) || { sent: 0, responses: 0, avg_rating: null },
+    stats: (data.stats as BroadcastStats) || { sent: 0, responses: 0, avg_rating: null, emails_sent: 0 },
   };
+}
+
+// Get display name for a feedback item (handles anonymization)
+export function getDisplayName(
+  feedback: FeedbackWithUser | { allow_name: boolean; profiles?: { full_name: string | null; is_fieldrep: boolean; is_vendor_admin: boolean } }
+): string {
+  if (feedback.allow_name && feedback.profiles?.full_name) {
+    return feedback.profiles.full_name;
+  }
+  if (feedback.profiles?.is_fieldrep) return "Anonymous Field Rep";
+  if (feedback.profiles?.is_vendor_admin) return "Anonymous Vendor";
+  return "Anonymous User";
+}
+
+// Get user role label
+export function getUserRoleLabel(
+  feedback: FeedbackWithUser | { profiles?: { is_fieldrep: boolean; is_vendor_admin: boolean } }
+): string {
+  if (feedback.profiles?.is_fieldrep) return "Field Rep";
+  if (feedback.profiles?.is_vendor_admin) return "Vendor";
+  return "User";
+}
+
+// Export feedback to CSV
+export function exportFeedbackToCSV(feedback: FeedbackWithUser[]): void {
+  const headers = [
+    "Rating",
+    "Likes",
+    "Dislikes",
+    "Suggestions",
+    "Allow Spotlight",
+    "Allow Name",
+    "Submitted At",
+    "Role",
+    "Display Name"
+  ];
+  
+  const rows = feedback.map(f => [
+    f.rating.toString(),
+    f.like_text || "",
+    f.dislike_text || "",
+    f.suggestion_text || "",
+    f.allow_spotlight ? "Yes" : "No",
+    f.allow_name ? "Yes" : "No",
+    new Date(f.created_at).toISOString(),
+    getUserRoleLabel(f),
+    getDisplayName(f)
+  ]);
+  
+  const csvContent = [
+    headers.join(","),
+    ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+  
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `broadcast-feedback-${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+}
+
+// Copy all spotlight quotes to clipboard
+export function copySpotlightQuotes(feedback: FeedbackWithUser[]): string {
+  const spotlightItems = feedback.filter(f => f.allow_spotlight && (f.like_text || f.suggestion_text));
+  
+  const formatted = spotlightItems.map(f => {
+    const name = getDisplayName(f);
+    const role = getUserRoleLabel(f);
+    const quote = f.like_text || f.suggestion_text || "";
+    return `"${quote}" — ${name} (${role})`;
+  }).join("\n\n");
+  
+  return formatted;
 }
 
 // Get audience estimate
