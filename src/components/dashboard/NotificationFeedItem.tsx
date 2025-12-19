@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ import {
   Trash2,
   Clock,
   ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 import { getNotificationTargetUrlSync } from "@/lib/notificationNavigation";
 
@@ -40,6 +41,7 @@ export interface NotificationItem {
   is_read: boolean;
   is_deleted: boolean;
   review_later: boolean;
+  metadata?: Record<string, unknown> | null;
 }
 
 interface NotificationFeedItemProps {
@@ -62,6 +64,34 @@ export function NotificationFeedItem({
   const navigate = useNavigate();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSnoozing, setIsSnoozing] = useState(false);
+  const [hasSubmittedFeedback, setHasSubmittedFeedback] = useState(false);
+
+  // Check if feedback was submitted for admin_broadcast notifications
+  useEffect(() => {
+    if (notification.type === "admin_broadcast" && notification.ref_id) {
+      checkFeedbackSubmitted();
+    }
+  }, [notification.type, notification.ref_id]);
+
+  async function checkFeedbackSubmitted() {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user?.id) return;
+
+      const { data: recipient } = await supabase
+        .from("admin_broadcast_recipients")
+        .select("responded_at")
+        .eq("broadcast_id", notification.ref_id!)
+        .eq("user_id", user.user.id)
+        .maybeSingle();
+
+      if (recipient?.responded_at) {
+        setHasSubmittedFeedback(true);
+      }
+    } catch (error) {
+      console.error("Error checking feedback status:", error);
+    }
+  }
 
   const targetInfo = getNotificationTargetUrlSync(
     notification.type,
@@ -227,13 +257,19 @@ export function NotificationFeedItem({
     }
   };
 
+  // Get CTA info for admin_broadcast type
+  const metadata = notification.metadata as Record<string, unknown> | null;
+  const ctaLabel = notification.type === "admin_broadcast"
+    ? (metadata?.cta_label as string) || "Give Feedback"
+    : null;
+
   return (
     <Card
       className={`transition-colors ${
         targetInfo.canNavigate 
           ? "cursor-pointer hover:bg-accent/50" 
           : "cursor-default"
-      } ${!notification.is_read ? "border-primary" : ""}`}
+      } ${!notification.is_read ? "border-primary" : ""} ${hasSubmittedFeedback ? "opacity-75" : ""}`}
       onClick={handleClick}
     >
       <CardContent className="p-4">
@@ -242,17 +278,23 @@ export function NotificationFeedItem({
             {getIcon(notification.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Badge variant="secondary" className="text-xs">
                 {getBadgeLabel(notification.type)}
               </Badge>
+              {hasSubmittedFeedback && (
+                <Badge variant="outline" className="text-xs bg-green-500/10 text-green-500 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Submitted
+                </Badge>
+              )}
               <span className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
               </span>
-              {!notification.is_read && (
+              {!notification.is_read && !hasSubmittedFeedback && (
                 <div className="h-2 w-2 rounded-full bg-primary" />
               )}
-              {targetInfo.canNavigate && (
+              {targetInfo.canNavigate && !hasSubmittedFeedback && (
                 <ExternalLink className="h-3 w-3 text-muted-foreground ml-auto" />
               )}
             </div>
@@ -263,6 +305,21 @@ export function NotificationFeedItem({
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                 {notification.body}
               </p>
+            )}
+            
+            {/* CTA Button for admin_broadcast */}
+            {notification.type === "admin_broadcast" && targetInfo.canNavigate && (
+              <Button
+                variant={hasSubmittedFeedback ? "outline" : "secondary"}
+                size="sm"
+                className="mt-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClick();
+                }}
+              >
+                {hasSubmittedFeedback ? "View Feedback" : ctaLabel}
+              </Button>
             )}
           </div>
           

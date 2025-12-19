@@ -118,8 +118,13 @@ Update your email preferences: ${PUBLIC_APP_URL}/notifications/settings
 
 async function sendBatchEmails(
   emails: Array<{ from: string; to: string; subject: string; html: string; text: string }>,
-  idempotencyKey: string
+  broadcastId: string,
+  userIds: string[]
 ): Promise<{ success: boolean; data?: any; error?: string }> {
+  // Generate a stable idempotency key based on broadcast + user IDs
+  const userIdsHash = userIds.sort().join(",");
+  const idempotencyKey = `broadcast:${broadcastId}:users:${btoa(userIdsHash).slice(0, 50)}`;
+  
   try {
     const response = await fetch("https://api.resend.com/emails/batch", {
       method: "POST",
@@ -289,9 +294,11 @@ serve(async (req: Request) => {
         text,
       }));
 
-      // Send batch with idempotency key
-      const idempotencyKey = `broadcast-${broadcastId}-batch-${batchNumber}`;
-      const result = await sendBatchEmails(emailPayloads, idempotencyKey);
+      // Extract user IDs for idempotency key
+      const batchUserIds = batch.map((r: any) => r.user_id);
+
+      // Send batch with stable idempotency key per broadcast + user combo
+      const result = await sendBatchEmails(emailPayloads, broadcastId, batchUserIds);
 
       if (result.success && result.data?.data) {
         // Update successful recipients
@@ -315,7 +322,7 @@ serve(async (req: Request) => {
           totalSent++;
         }
       } else {
-        // Mark all in batch as failed
+        // Mark all in batch as failed (keep emailed_at null so retries can work)
         for (const r of batch) {
           await supabase
             .from("admin_broadcast_recipients")
