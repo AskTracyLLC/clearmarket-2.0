@@ -157,6 +157,7 @@ export function NotificationFeedItem({
       case "community_post_resolved":
         return <Users className="h-4 w-4" />;
       case "announcement":
+      case "admin_broadcast":
         return <Megaphone className="h-4 w-4" />;
       case "working_terms_request":
       case "working_terms_submitted":
@@ -203,6 +204,8 @@ export function NotificationFeedItem({
         return "Post Update";
       case "announcement":
         return "Announcement";
+      case "admin_broadcast":
+        return "Feedback Request";
       case "working_terms_request":
       case "working_terms_submitted":
       case "working_terms_confirmed":

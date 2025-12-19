@@ -35,6 +35,9 @@ export interface StaffPermissions {
 
   // Metrics
   canViewMetrics: boolean;           // /admin/metrics
+
+  // Broadcasts
+  canManageBroadcasts: boolean;      // /admin/broadcasts - send feedback broadcasts
 }
 
 export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
@@ -57,6 +60,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canManageCredits: true,
     canViewAuditLog: true,
     canViewMetrics: true,
+    canManageBroadcasts: true,
   },
   moderator: {
     canViewAdminDashboard: true,
@@ -77,6 +81,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canManageCredits: false,
     canViewAuditLog: false,
     canViewMetrics: false,
+    canManageBroadcasts: false,
   },
   support: {
     canViewAdminDashboard: true,
@@ -97,6 +102,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canManageCredits: false,
     canViewAuditLog: false,
     canViewMetrics: false,
+    canManageBroadcasts: false,
   },
   none: {
     canViewAdminDashboard: false,
@@ -117,6 +123,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canManageCredits: false,
     canViewAuditLog: false,
     canViewMetrics: false,
+    canManageBroadcasts: false,
   },
 };
 
