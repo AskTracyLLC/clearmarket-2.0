@@ -38,6 +38,15 @@ export interface BroadcastStats {
   emails_sent?: number;
 }
 
+export interface BroadcastMetrics {
+  broadcast_id: string;
+  recipients_total: number;
+  emails_sent: number;
+  responses: number;
+  avg_rating: number | null;
+  spotlight_ready: number;
+}
+
 export interface AdminBroadcastRecipient {
   id: string;
   broadcast_id: string;
@@ -102,6 +111,57 @@ export async function fetchBroadcasts(status?: string): Promise<AdminBroadcast[]
   }
 
   return (data || []).map(parseBroadcast);
+}
+
+// Fetch broadcast metrics from the view (accurate counts using LEFT JOINs)
+export async function fetchBroadcastMetrics(): Promise<Record<string, BroadcastMetrics>> {
+  const { data, error } = await supabase
+    .from("admin_broadcast_metrics")
+    .select("*");
+
+  if (error) {
+    console.error("Error fetching broadcast metrics:", error);
+    return {};
+  }
+
+  // Convert array to a map by broadcast_id
+  const metricsMap: Record<string, BroadcastMetrics> = {};
+  for (const row of data || []) {
+    metricsMap[row.broadcast_id] = {
+      broadcast_id: row.broadcast_id,
+      recipients_total: Number(row.recipients_total) || 0,
+      emails_sent: Number(row.emails_sent) || 0,
+      responses: Number(row.responses) || 0,
+      avg_rating: row.avg_rating !== null ? Number(row.avg_rating) : null,
+      spotlight_ready: Number(row.spotlight_ready) || 0,
+    };
+  }
+  return metricsMap;
+}
+
+// Fetch metrics for a single broadcast
+export async function fetchBroadcastMetricsById(broadcastId: string): Promise<BroadcastMetrics | null> {
+  const { data, error } = await supabase
+    .from("admin_broadcast_metrics")
+    .select("*")
+    .eq("broadcast_id", broadcastId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching broadcast metrics:", error);
+    return null;
+  }
+
+  if (!data) return null;
+
+  return {
+    broadcast_id: data.broadcast_id,
+    recipients_total: Number(data.recipients_total) || 0,
+    emails_sent: Number(data.emails_sent) || 0,
+    responses: Number(data.responses) || 0,
+    avg_rating: data.avg_rating !== null ? Number(data.avg_rating) : null,
+    spotlight_ready: Number(data.spotlight_ready) || 0,
+  };
 }
 
 // Fetch single broadcast
