@@ -19,8 +19,10 @@ import {
   AdminBroadcast,
   FeedbackWithUser,
   getDisplayName,
+  getAdminDisplayName,
   getUserRoleLabel,
   exportFeedbackToCSV,
+  exportSpotlightFeedbackToCSV,
   copySpotlightQuotes,
 } from "@/lib/adminBroadcasts";
 import { useToast } from "@/hooks/use-toast";
@@ -163,7 +165,12 @@ export default function AdminBroadcastDetail() {
 
   const handleExportCSV = () => {
     exportFeedbackToCSV(filteredFeedback);
-    toast({ title: "CSV downloaded" });
+    toast({ title: "CSV downloaded (internal analytics)" });
+  };
+
+  const handleExportSpotlightCSV = () => {
+    exportSpotlightFeedbackToCSV(feedback);
+    toast({ title: "Spotlight CSV downloaded" });
   };
 
   if (authLoading || permLoading || loading) {
@@ -405,9 +412,13 @@ export default function AdminBroadcastDetail() {
                     <Copy className="h-4 w-4 mr-2" />
                     Copy Spotlight Quotes
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleExportSpotlightCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export Spotlight CSV
+                  </Button>
                   <Button variant="outline" size="sm" onClick={handleExportCSV}>
                     <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                    Export All CSV
                   </Button>
                 </div>
               </div>
@@ -431,7 +442,7 @@ export default function AdminBroadcastDetail() {
                       <TableRow key={f.id}>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{getDisplayName(f)}</div>
+                            <div className="font-medium">{getAdminDisplayName(f.profiles)}</div>
                             <div className="text-xs text-muted-foreground">{getUserRoleLabel(f)}</div>
                           </div>
                         </TableCell>

@@ -82,6 +82,9 @@ function buildEmailHtml(broadcast: Broadcast): string {
           <!-- Footer -->
           <tr>
             <td style="padding: 20px 40px; background-color: #1e1e3a; border-top: 1px solid #3a3a5a;">
+              <p style="margin: 0 0 12px 0; color: #8b8ba8; font-size: 13px; line-height: 1.5;">
+                You can choose whether your feedback may be spotlighted for marketing when you submit.
+              </p>
               <p style="margin: 0; color: #6b6b8a; font-size: 12px; line-height: 1.5;">
                 You're receiving this email because you're a ClearMarket member.
                 <br>
@@ -111,6 +114,8 @@ ${broadcast.message_md}
 ${broadcast.cta_label}: ${feedbackUrl}
 
 ---
+You can choose whether your feedback may be spotlighted for marketing when you submit.
+
 You're receiving this email because you're a ClearMarket member.
 Update your email preferences: ${PUBLIC_APP_URL}/notifications/settings
   `.trim();
