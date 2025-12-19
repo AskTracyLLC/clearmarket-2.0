@@ -338,8 +338,15 @@ export default function BroadcastFeedbackPage() {
             />
           </div>
 
-          {/* Spotlight checkboxes */}
-          <div className="space-y-3 pt-2 border-t">
+          {/* Consent checkboxes - above submit button */}
+          <div className="space-y-4 pt-4 border-t">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Marketing Permissions</p>
+              <p className="text-xs text-muted-foreground">
+                We'd love to share great feedback with our community. You choose how.
+              </p>
+            </div>
+            
             <div className="flex items-start space-x-3">
               <Checkbox
                 id="allow_spotlight"
@@ -351,10 +358,10 @@ export default function BroadcastFeedbackPage() {
               />
               <div className="space-y-1">
                 <Label htmlFor="allow_spotlight" className="font-normal cursor-pointer">
-                  You may spotlight my feedback in marketing
+                  You may spotlight my feedback in marketing.
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  We may quote your feedback on our website or materials.
+                  If unchecked, your feedback will only be used internally to improve ClearMarket.
                 </p>
               </div>
             </div>
@@ -365,16 +372,19 @@ export default function BroadcastFeedbackPage() {
                 checked={allowName}
                 onCheckedChange={(checked) => setAllowName(!!checked)}
                 disabled={!allowSpotlight}
+                className={!allowSpotlight ? "opacity-50" : ""}
               />
               <div className="space-y-1">
                 <Label
                   htmlFor="allow_name"
                   className={`font-normal cursor-pointer ${!allowSpotlight ? "text-muted-foreground" : ""}`}
                 >
-                  You may include my name
+                  You may include my name.
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Otherwise we'll display as "Anonymous Field Rep" or "Anonymous Vendor".
+                  {allowSpotlight 
+                    ? 'Otherwise we\'ll display as "Anonymous Field Rep" or "Anonymous Vendor".'
+                    : "Enable spotlight permission first to control name display."}
                 </p>
               </div>
             </div>

@@ -55,12 +55,22 @@ export interface AdminBroadcastFeedback {
   allow_name: boolean;
 }
 
+export interface BroadcastProfile {
+  full_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  display_name?: string | null;
+  email?: string | null;
+  is_fieldrep: boolean;
+  is_vendor_admin: boolean;
+}
+
 export interface FeedbackWithUser extends AdminBroadcastFeedback {
-  profiles?: {
-    full_name: string | null;
-    is_fieldrep: boolean;
-    is_vendor_admin: boolean;
-  };
+  profiles?: BroadcastProfile;
+}
+
+export interface RecipientWithProfile extends AdminBroadcastRecipient {
+  profiles?: BroadcastProfile;
 }
 
 // Fetch all broadcasts
@@ -226,13 +236,16 @@ export async function sendBroadcast(id: string): Promise<{
 // Fetch broadcast recipients with profiles
 export async function fetchBroadcastRecipients(
   broadcastId: string
-): Promise<(AdminBroadcastRecipient & { profiles?: { full_name: string | null } })[]> {
+): Promise<RecipientWithProfile[]> {
   const { data, error } = await supabase
     .from("admin_broadcast_recipients")
     .select(`
       *,
       profiles (
-        full_name
+        full_name,
+        email,
+        is_fieldrep,
+        is_vendor_admin
       )
     `)
     .eq("broadcast_id", broadcastId)
@@ -273,6 +286,7 @@ export async function fetchBroadcastFeedback(broadcastId: string): Promise<Feedb
       ),
       profiles (
         full_name,
+        email,
         is_fieldrep,
         is_vendor_admin
       )
@@ -285,7 +299,8 @@ export async function fetchBroadcastFeedback(broadcastId: string): Promise<Feedb
     throw error;
   }
 
-  return data || [];
+  // Sort client-side by last_name, then first_name (fallback to display_name/email)
+  return sortByUserName(data || []);
 }
 
 // Fetch recipient for current user
@@ -399,28 +414,110 @@ function parseBroadcast(data: any): AdminBroadcast {
   };
 }
 
-// Get display name for a feedback item (handles anonymization)
-export function getDisplayName(
-  feedback: FeedbackWithUser | { allow_name: boolean; profiles?: { full_name: string | null; is_fieldrep: boolean; is_vendor_admin: boolean } }
-): string {
-  if (feedback.allow_name && feedback.profiles?.full_name) {
-    return feedback.profiles.full_name;
+/**
+ * Format user label as "FirstName LastName (DisplayName)"
+ * Falls back to display_name, then email, then "Unknown User"
+ */
+export function formatUserLabel(profile?: BroadcastProfile | null): string {
+  if (!profile) return "Unknown User";
+  
+  const first = profile.full_name?.split(" ")[0] || "";
+  const last = profile.full_name?.split(" ").slice(1).join(" ") || "";
+  const baseName = `${first} ${last}`.trim();
+  
+  // For display_name, we check if there's an anonymous ID style (e.g., "FieldRep#123")
+  const displayName = profile.display_name || "";
+  
+  if (baseName) {
+    return displayName ? `${baseName} (${displayName})` : baseName;
   }
+  
+  return displayName || profile.email || "Unknown User";
+}
+
+/**
+ * Get display name for spotlight/marketing use (respects allow_name permission)
+ */
+export function getDisplayName(
+  feedback: FeedbackWithUser | { allow_name: boolean; allow_spotlight: boolean; profiles?: BroadcastProfile }
+): string {
+  if (feedback.allow_name && feedback.allow_spotlight) {
+    return formatUserLabel(feedback.profiles);
+  }
+  // Anonymized label
   if (feedback.profiles?.is_fieldrep) return "Anonymous Field Rep";
   if (feedback.profiles?.is_vendor_admin) return "Anonymous Vendor";
   return "Anonymous User";
 }
 
+/**
+ * Get display name for admin internal view (not for marketing, can show full name)
+ */
+export function getAdminDisplayName(
+  profile?: BroadcastProfile | null
+): string {
+  return formatUserLabel(profile);
+}
+
 // Get user role label
 export function getUserRoleLabel(
-  feedback: FeedbackWithUser | { profiles?: { is_fieldrep: boolean; is_vendor_admin: boolean } }
+  item: FeedbackWithUser | RecipientWithProfile | { profiles?: { is_fieldrep: boolean; is_vendor_admin: boolean } }
 ): string {
-  if (feedback.profiles?.is_fieldrep) return "Field Rep";
-  if (feedback.profiles?.is_vendor_admin) return "Vendor";
+  if (item.profiles?.is_fieldrep) return "Field Rep";
+  if (item.profiles?.is_vendor_admin) return "Vendor";
   return "User";
 }
 
-// Export feedback to CSV
+/**
+ * Sort items by user name: last_name ASC, then first_name ASC
+ * Fallback: users without last_name go after named users, sorted by display_name then email
+ */
+export function sortByUserName<T extends { profiles?: BroadcastProfile }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const aProfile = a.profiles;
+    const bProfile = b.profiles;
+    
+    const aFullName = aProfile?.full_name || "";
+    const bFullName = bProfile?.full_name || "";
+    
+    const aFirst = aFullName.split(" ")[0]?.toLowerCase() || "";
+    const bFirst = bFullName.split(" ")[0]?.toLowerCase() || "";
+    const aLast = aFullName.split(" ").slice(1).join(" ")?.toLowerCase() || "";
+    const bLast = bFullName.split(" ").slice(1).join(" ")?.toLowerCase() || "";
+    
+    // Users with last_name come before those without
+    const aHasLast = aLast.length > 0;
+    const bHasLast = bLast.length > 0;
+    
+    if (aHasLast && !bHasLast) return -1;
+    if (!aHasLast && bHasLast) return 1;
+    
+    if (aHasLast && bHasLast) {
+      // Sort by last_name, then first_name
+      const lastCmp = aLast.localeCompare(bLast);
+      if (lastCmp !== 0) return lastCmp;
+      return aFirst.localeCompare(bFirst);
+    }
+    
+    // Both without last_name: sort by display_name, then email
+    const aDisplay = (aProfile?.display_name || "").toLowerCase();
+    const bDisplay = (bProfile?.display_name || "").toLowerCase();
+    
+    if (aDisplay && !bDisplay) return -1;
+    if (!aDisplay && bDisplay) return 1;
+    if (aDisplay && bDisplay) {
+      const displayCmp = aDisplay.localeCompare(bDisplay);
+      if (displayCmp !== 0) return displayCmp;
+    }
+    
+    // Final fallback: email
+    const aEmail = (aProfile?.email || "").toLowerCase();
+    const bEmail = (bProfile?.email || "").toLowerCase();
+    return aEmail.localeCompare(bEmail);
+  });
+}
+
+// Export feedback to CSV (for admin analytics, shows full user info)
 export function exportFeedbackToCSV(feedback: FeedbackWithUser[]): void {
   const headers = [
     "Rating",
@@ -431,7 +528,7 @@ export function exportFeedbackToCSV(feedback: FeedbackWithUser[]): void {
     "Allow Name",
     "Submitted At",
     "Role",
-    "Display Name"
+    "User (Internal)"
   ];
   
   const rows = feedback.map(f => [
@@ -443,7 +540,7 @@ export function exportFeedbackToCSV(feedback: FeedbackWithUser[]): void {
     f.allow_name ? "Yes" : "No",
     new Date(f.created_at).toISOString(),
     getUserRoleLabel(f),
-    getDisplayName(f)
+    getAdminDisplayName(f.profiles) // Always show full name for internal admin export
   ]);
   
   const csvContent = [
@@ -455,6 +552,39 @@ export function exportFeedbackToCSV(feedback: FeedbackWithUser[]): void {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = `broadcast-feedback-${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+}
+
+// Export spotlight-approved feedback to CSV (respects permissions)
+export function exportSpotlightFeedbackToCSV(feedback: FeedbackWithUser[]): void {
+  // Only include spotlight-approved feedback
+  const spotlightFeedback = feedback.filter(f => f.allow_spotlight && (f.like_text || f.suggestion_text));
+  
+  const headers = [
+    "Rating",
+    "Quote (Likes)",
+    "Quote (Suggestion)",
+    "Role",
+    "Display Name (Marketing)"
+  ];
+  
+  const rows = spotlightFeedback.map(f => [
+    f.rating.toString(),
+    f.like_text || "",
+    f.suggestion_text || "",
+    getUserRoleLabel(f),
+    getDisplayName(f) // Respects allow_name permission
+  ]);
+  
+  const csvContent = [
+    headers.join(","),
+    ...rows.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+  ].join("\n");
+  
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `broadcast-spotlight-${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
 }
 
