@@ -19,6 +19,16 @@ export interface AdminBroadcast {
 export interface BroadcastAudience {
   roles?: string[];
   active_days?: number;
+  mode?: "all" | "selected";
+  user_ids?: string[];
+}
+
+export interface AudienceUser {
+  id: string;
+  full_name: string | null;
+  email: string;
+  is_fieldrep: boolean;
+  is_vendor_admin: boolean;
 }
 
 export interface BroadcastStats {
@@ -604,6 +614,11 @@ export function copySpotlightQuotes(feedback: FeedbackWithUser[]): string {
 
 // Get audience estimate
 export async function estimateAudience(audience: BroadcastAudience): Promise<number> {
+  // If mode is "selected", return the count of selected user_ids
+  if (audience.mode === "selected" && audience.user_ids) {
+    return audience.user_ids.length;
+  }
+
   const roles = audience.roles?.length ? audience.roles : ["field_rep", "vendor"];
   const activeDays = audience.active_days;
 
@@ -640,4 +655,87 @@ export async function estimateAudience(audience: BroadcastAudience): Promise<num
   }
 
   return count || 0;
+}
+
+// Fetch matching users for audience selection (admin only)
+export async function fetchAudienceUsers(
+  roles: string[],
+  activeDays?: number
+): Promise<AudienceUser[]> {
+  if (roles.length === 0) {
+    return [];
+  }
+
+  let query = supabase
+    .from("profiles")
+    .select("id, full_name, email, is_fieldrep, is_vendor_admin")
+    .eq("account_status", "active")
+    .eq("is_admin", false);
+
+  // Build OR conditions for roles
+  const orConditions: string[] = [];
+  if (roles.includes("field_rep")) {
+    orConditions.push("is_fieldrep.eq.true");
+  }
+  if (roles.includes("vendor")) {
+    orConditions.push("is_vendor_admin.eq.true");
+  }
+  
+  if (orConditions.length > 0) {
+    query = query.or(orConditions.join(","));
+  }
+
+  if (activeDays) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - activeDays);
+    query = query.gte("last_seen_at", cutoffDate.toISOString());
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching audience users:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
+// Sort audience users by name
+export function sortAudienceUsers(users: AudienceUser[]): AudienceUser[] {
+  return [...users].sort((a, b) => {
+    const aFullName = a.full_name || "";
+    const bFullName = b.full_name || "";
+    
+    const aFirst = aFullName.split(" ")[0]?.toLowerCase() || "";
+    const bFirst = bFullName.split(" ")[0]?.toLowerCase() || "";
+    const aLast = aFullName.split(" ").slice(1).join(" ")?.toLowerCase() || "";
+    const bLast = bFullName.split(" ").slice(1).join(" ")?.toLowerCase() || "";
+    
+    // Users with last_name come before those without
+    const aHasLast = aLast.length > 0;
+    const bHasLast = bLast.length > 0;
+    
+    if (aHasLast && !bHasLast) return -1;
+    if (!aHasLast && bHasLast) return 1;
+    
+    if (aHasLast && bHasLast) {
+      const lastCmp = aLast.localeCompare(bLast);
+      if (lastCmp !== 0) return lastCmp;
+      return aFirst.localeCompare(bFirst);
+    }
+    
+    // Final fallback: email
+    const aEmail = (a.email || "").toLowerCase();
+    const bEmail = (b.email || "").toLowerCase();
+    return aEmail.localeCompare(bEmail);
+  });
+}
+
+// Format user label for audience list
+export function formatAudienceUserLabel(user: AudienceUser): string {
+  if (user.full_name) {
+    return user.full_name;
+  }
+  return user.email || "Unknown User";
 }
