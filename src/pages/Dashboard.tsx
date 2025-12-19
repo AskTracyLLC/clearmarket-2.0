@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail, ClipboardList, FileCheck } from "lucide-react";
+import { Search, FileText, User, Building2, PlusCircle, Users, Edit, MessageSquare, Briefcase, Star, Bell, ShieldAlert, Calendar, Coins, ChevronDown, ChevronUp, Headphones, Settings, Mail, ClipboardList, FileCheck, Megaphone } from "lucide-react";
 import { NavIconCluster } from "@/components/NavIconCluster";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "@/components/NavLink";
@@ -639,6 +639,12 @@ const Dashboard = () => {
                 onClick={() => navigate("/admin/checklists")}
                 badgeCount={adminCounts.checklist_stuck}
                 badgeVariant="pending"
+              />
+              <AdminDashboardTile
+                title="Broadcasts"
+                description="Send feedback requests"
+                icon={<Megaphone className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/broadcasts")}
               />
             </div>
             
