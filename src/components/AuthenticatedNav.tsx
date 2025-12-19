@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "@/components/NavLink";
@@ -6,7 +7,7 @@ import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
 import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
-import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch, Wrench } from "lucide-react";
+import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch, Wrench, Menu } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +17,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface AuthenticatedNavProps {
   isAdmin?: boolean;
@@ -28,6 +36,9 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
   const navigate = useNavigate();
   const { toast } = useToast();
   const sectionCounts = useSectionCounts();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -130,12 +141,110 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            {/* Mobile hamburger menu */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    ClearMarket
+                    <BetaBadge />
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-4 mt-6">
+                  <NavLink 
+                    to="/dashboard" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                    activeClassName="text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    Dashboard
+                  </NavLink>
+                  <NavLink 
+                    to="/community" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                    activeClassName="text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    <Users className="w-4 h-4" />
+                    Community
+                  </NavLink>
+                  <NavLink 
+                    to="/safety" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                    activeClassName="text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    Safety
+                  </NavLink>
+                  <NavLink 
+                    to="/tools" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                    activeClassName="text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    <Wrench className="w-4 h-4" />
+                    Tools
+                  </NavLink>
+                  {isVendor && (
+                    <NavLink 
+                      to="/vendor/seeking-coverage" 
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                      activeClassName="text-primary"
+                      onClick={closeMobileMenu}
+                    >
+                      <FileSearch className="w-4 h-4" />
+                      Seeking Coverage
+                      {sectionCounts.vendorPostsWithInterest > 0 && (
+                        <CountBadge count={sectionCounts.vendorPostsWithInterest} className="ml-1" />
+                      )}
+                    </NavLink>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <NavLink 
+                        to="/messages" 
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                        activeClassName="text-primary"
+                        onClick={closeMobileMenu}
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        Messages
+                        <CountBadge count={sectionCounts.unreadMessages} className="ml-1" />
+                      </NavLink>
+                      <NavLink 
+                        to="/admin/moderation" 
+                        className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                        activeClassName="text-primary"
+                        onClick={closeMobileMenu}
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        Admin
+                        <CountBadge count={sectionCounts.adminOpenReports + sectionCounts.adminOpenTickets} className="ml-1" />
+                      </NavLink>
+                    </>
+                  )}
+                  <div className="border-t border-border pt-4 mt-2">
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => { handleSignOut(); closeMobileMenu(); }}>
+                      Sign Out
+                    </Button>
+                  </div>
+                </nav>
+              </SheetContent>
+            </Sheet>
+            
             <RoleSwitcher />
             <NavIconCluster 
               vendorCredits={vendorCredits} 
               showCredits={isVendor} 
             />
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="hidden md:inline-flex">
               Sign Out
             </Button>
           </div>
