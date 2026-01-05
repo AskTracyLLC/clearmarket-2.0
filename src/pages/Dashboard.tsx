@@ -469,7 +469,7 @@ const Dashboard = () => {
     );
   }
 
-  // Use effectiveRole for hybrid users to determine which dashboard view to show
+  // Use effectiveRole for dual-role users to determine which dashboard view to show
   // In mimic mode, use the mimicked user's roles
   const isAdmin = profile?.is_admin === true;
   const inMimicMode = !!mimickedUser;
