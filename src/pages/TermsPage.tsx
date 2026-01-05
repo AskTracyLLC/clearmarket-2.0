@@ -1,26 +1,14 @@
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { PageHeader } from "@/components/PageHeader";
 
 const TermsPage = () => {
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-3xl font-bold text-foreground mb-2">ClearMarket Terms of Service</h1>
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <PageHeader
+          title="ClearMarket Terms of Service"
+          backTo="/dashboard"
+        />
         <p className="text-sm text-muted-foreground mb-8">Last Updated: December 2025</p>
         
         <div className="prose prose-invert max-w-none space-y-6 text-muted-foreground">
@@ -415,10 +403,8 @@ const TermsPage = () => {
             </p>
           </section>
         </div>
-      </main>
-
-      <SiteFooter />
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 };
 

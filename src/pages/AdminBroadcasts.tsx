@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Send, Eye, Archive, Star, Users, MessageSquare } from "lucide-react";
+import { Plus, Send, Star, Users, MessageSquare } from "lucide-react";
 import { fetchBroadcasts, fetchBroadcastMetrics, AdminBroadcast, BroadcastMetrics } from "@/lib/adminBroadcasts";
 import { format } from "date-fns";
 
@@ -44,22 +46,26 @@ export default function AdminBroadcasts() {
 
   if (authLoading || permLoading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Skeleton className="h-8 w-64 mb-6" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Skeleton className="h-8 w-64 mb-6" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!permissions.canManageBroadcasts) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Admin access required.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Admin access required.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
@@ -89,17 +95,18 @@ export default function AdminBroadcasts() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Feedback Broadcasts</h1>
-          <p className="text-muted-foreground">Send feedback requests to users</p>
-        </div>
-        <Button onClick={() => navigate("/admin/broadcasts/new")}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Broadcast
-        </Button>
-      </div>
+    <AuthenticatedLayout>
+      <div className="container mx-auto py-8 px-4">
+        <PageHeader
+          title="Feedback Broadcasts"
+          subtitle="Send feedback requests to users"
+          backTo="/admin/moderation"
+        >
+          <Button onClick={() => navigate("/admin/broadcasts/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Broadcast
+          </Button>
+        </PageHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -194,6 +201,7 @@ export default function AdminBroadcasts() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </AuthenticatedLayout>
   );
 }
