@@ -7,7 +7,7 @@ export type ActiveRole = "rep" | "vendor" | null;
 
 interface UseActiveRoleResult {
   activeRole: ActiveRole;
-  isHybrid: boolean;
+  isDualRole: boolean;
   isRep: boolean;
   isVendor: boolean;
   effectiveRole: "rep" | "vendor" | null;
@@ -16,7 +16,7 @@ interface UseActiveRoleResult {
 }
 
 /**
- * Hook to manage the active role for hybrid users (both Field Rep and Vendor).
+ * Hook to manage the active role for dual-role users (both Field Rep and Vendor).
  * Returns the current active role and a function to switch roles.
  * For single-role users, the role is determined by their profile flags.
  * Supports mimic mode - will return the mimicked user's role when active.
@@ -67,12 +67,12 @@ export function useActiveRole(): UseActiveRoleResult {
     loadRoleData();
   }, [user, mimickedUser]);
 
-  const isHybrid = isFieldRep && isVendorAdmin;
+  const isDualRole = isFieldRep && isVendorAdmin;
 
   // Determine the effective role based on flags and active_role
   const effectiveRole: "rep" | "vendor" | null = (() => {
-    if (isHybrid) {
-      // For hybrid users, use active_role if set, otherwise default to 'rep'
+    if (isDualRole) {
+      // For dual-role users, use active_role if set, otherwise default to 'rep'
       return activeRole || "rep";
     }
     if (isFieldRep) return "rep";
@@ -81,7 +81,22 @@ export function useActiveRole(): UseActiveRoleResult {
   })();
 
   const switchRole = useCallback(async (role: "rep" | "vendor") => {
-    if (!user || !isHybrid) return;
+    if (!user) return;
+    
+    // Guardrail: prevent setting vendor role without is_vendor_admin flag
+    if (role === "vendor" && !isVendorAdmin) {
+      console.error("Cannot switch to vendor role: user is not a vendor admin");
+      return;
+    }
+    
+    // Guardrail: prevent setting rep role without is_fieldrep flag
+    if (role === "rep" && !isFieldRep) {
+      console.error("Cannot switch to rep role: user is not a field rep");
+      return;
+    }
+    
+    // Only allow switching if user has both roles (dual-role user)
+    if (!isDualRole) return;
 
     try {
       const { error } = await supabase
@@ -98,11 +113,11 @@ export function useActiveRole(): UseActiveRoleResult {
     } catch (error) {
       console.error("Error switching role:", error);
     }
-  }, [user, isHybrid]);
+  }, [user, isDualRole, isFieldRep, isVendorAdmin]);
 
   return {
     activeRole,
-    isHybrid,
+    isDualRole,
     isRep: isFieldRep,
     isVendor: isVendorAdmin,
     effectiveRole,

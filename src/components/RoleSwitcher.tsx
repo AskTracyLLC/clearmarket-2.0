@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button";
 import { useActiveRole } from "@/hooks/useActiveRole";
 
 /**
- * Role switcher dropdown for hybrid users who are both Field Rep and Vendor.
+ * Role switcher dropdown for dual-role users who are both Field Rep and Vendor.
  * Shows a dropdown to switch between roles in the top nav.
  * Only renders if user has both roles.
  */
 export function RoleSwitcher() {
-  const { isHybrid, effectiveRole, switchRole, loading } = useActiveRole();
+  const { isDualRole, effectiveRole, switchRole, loading } = useActiveRole();
 
-  // Don't render if not a hybrid user or still loading
-  if (!isHybrid || loading) {
+  // Don't render if not a dual-role user or still loading
+  if (!isDualRole || loading) {
     return null;
   }
 

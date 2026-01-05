@@ -65,8 +65,8 @@ interface ProfileData {
   unavailableFrom?: string | null;
   unavailableTo?: string | null;
   unavailableNote?: string | null;
-  isHybridUser?: boolean; // True if user has both Field Rep and Vendor profiles
-  otherRole?: "rep" | "vendor"; // The other role if hybrid
+  isDualRoleUser?: boolean; // True if user has both Field Rep and Vendor profiles
+  otherRole?: "rep" | "vendor"; // The other role if dual-role user
   otherAnonymousId?: string; // Anonymous ID for the other role
   coverageAreas?: Array<{
     stateCode: string;
@@ -375,8 +375,8 @@ export function PublicProfileDialog({
           .eq("user_id", targetUserId)
           .maybeSingle();
 
-        // Detect if this is a hybrid user (has both roles)
-        const isHybridUser = Boolean(repProfile && vendorProfile);
+        // Detect if this is a dual-role user (has both roles)
+        const isDualRoleUser = Boolean(repProfile && vendorProfile);
 
         // If rep profile exists, use it (priority if user has both roles)
         if (repProfile) {
@@ -417,9 +417,9 @@ export function PublicProfileDialog({
             unavailableFrom: repProfile.unavailable_from || null,
             unavailableTo: repProfile.unavailable_to || null,
             unavailableNote: repProfile.unavailable_note || null,
-            isHybridUser,
-            otherRole: isHybridUser ? "vendor" : undefined,
-            otherAnonymousId: isHybridUser ? (vendorProfile?.anonymous_id || "Vendor#?") : undefined,
+            isDualRoleUser,
+            otherRole: isDualRoleUser ? "vendor" : undefined,
+            otherAnonymousId: isDualRoleUser ? (vendorProfile?.anonymous_id || "Vendor#?") : undefined,
             coverageAreas: (coverageAreas || []).map(area => ({
               stateCode: area.state_code,
               stateName: area.state_name,
@@ -627,11 +627,11 @@ export function PublicProfileDialog({
                 {profileData.anonymousId}
               </DialogTitle>
               <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
-              {/* Hybrid user badge and helper text */}
-              {profileData.isHybridUser && (
+              {/* Dual Role user badge and helper text */}
+              {profileData.isDualRoleUser && (
                 <div className="mt-2">
                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    Vendor & Field Rep
+                    Dual Role (Vendor + Field Rep)
                   </Badge>
                   <p className="text-xs text-muted-foreground mt-1">
                     This member uses ClearMarket in a dual role, both assigning work as a Vendor and performing inspections as a Field Rep.
