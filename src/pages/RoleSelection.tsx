@@ -89,7 +89,7 @@ const RoleSelection = () => {
     let createdVendorProfile = false;
     let vendorCompanyName: string | undefined;
 
-    // For hybrid users, create both profile records
+    // For dual-role users, create both profile records
     if (role === 'both') {
       // Create rep_profile if needed
       const { data: existingRepProfile } = await supabase
@@ -119,7 +119,7 @@ const RoleSelection = () => {
       }
     }
 
-    // If vendor role selected (not hybrid), vendor_profile will be created later
+    // If vendor role selected (not dual-role), vendor_profile will be created later
     // We'll check if a vendor profile exists now or was just created
     if (role === 'vendor') {
       const { data: existingVendorProfile } = await supabase
