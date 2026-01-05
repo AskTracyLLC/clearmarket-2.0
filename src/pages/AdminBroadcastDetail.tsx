@@ -2,14 +2,15 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Send, Archive, Star, Users, MessageSquare, Mail, Copy, Edit, Download, Filter } from "lucide-react";
+import { Send, Archive, Star, Users, MessageSquare, Mail, Copy, Edit, Download, Filter } from "lucide-react";
 import {
   fetchBroadcast,
   fetchBroadcastFeedback,
@@ -176,37 +177,43 @@ export default function AdminBroadcastDetail() {
 
   if (authLoading || permLoading || loading) {
     return (
-      <div className="container mx-auto py-8 px-4 max-w-5xl">
-        <Skeleton className="h-8 w-64 mb-6" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4 max-w-5xl">
+          <Skeleton className="h-8 w-64 mb-6" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!permissions.canManageBroadcasts) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Admin access required.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Admin access required.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!broadcast) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Broadcast not found.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/broadcasts")}>
-              Back to Broadcasts
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Broadcast not found.</p>
+              <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/broadcasts")}>
+                Back to Broadcasts
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
@@ -232,32 +239,19 @@ export default function AdminBroadcastDetail() {
   const activeFiltersCount = [filterSpotlight, filterHighRating, filterHasLikes].filter(Boolean).length;
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-5xl">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate("/admin/broadcasts")}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Broadcasts
-      </Button>
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3">
-            {broadcast.title}
-            <Badge
-              variant={broadcast.status === "sent" ? "default" : "outline"}
-              className={broadcast.status === "sent" ? "bg-green-500/20 text-green-400" : ""}
-            >
-              {broadcast.status}
-            </Badge>
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Created {format(new Date(broadcast.created_at), "MMM d, yyyy")}
-            {broadcast.sent_at && (
-              <> · Sent {format(new Date(broadcast.sent_at), "MMM d, yyyy h:mm a")}</>
-            )}
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <AuthenticatedLayout>
+      <div className="container mx-auto py-8 px-4 max-w-5xl">
+        <PageHeader
+          title={broadcast.title}
+          subtitle={`Created ${format(new Date(broadcast.created_at), "MMM d, yyyy")}${broadcast.sent_at ? ` · Sent ${format(new Date(broadcast.sent_at), "MMM d, yyyy h:mm a")}` : ""}`}
+          backTo="/admin/broadcasts"
+        >
+          <Badge
+            variant={broadcast.status === "sent" ? "default" : "outline"}
+            className={broadcast.status === "sent" ? "bg-green-500/20 text-green-400" : ""}
+          >
+            {broadcast.status}
+          </Badge>
           {broadcast.status === "draft" && (
             <>
               <Button variant="outline" onClick={() => navigate(`/admin/broadcasts/${broadcast.id}/edit`)}>
@@ -276,8 +270,7 @@ export default function AdminBroadcastDetail() {
               Archive
             </Button>
           )}
-        </div>
-      </div>
+        </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -591,22 +584,23 @@ export default function AdminBroadcastDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Send Confirmation Dialog */}
-      <AlertDialog open={showSendConfirm} onOpenChange={setShowSendConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Send Broadcast?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will send in-app notifications and emails to all matching users. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSend}>Send Now</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        {/* Send Confirmation Dialog */}
+        <AlertDialog open={showSendConfirm} onOpenChange={setShowSendConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Send Broadcast?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will send in-app notifications and emails to all matching users. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSend}>Send Now</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </AuthenticatedLayout>
   );
 }
 

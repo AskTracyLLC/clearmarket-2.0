@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
+import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ArrowLeft, Save, Send, Users, AlertCircle } from "lucide-react";
+import { Save, Send, Users, AlertCircle } from "lucide-react";
 import { 
   fetchBroadcast,
   updateBroadcast, 
@@ -257,50 +259,56 @@ export default function AdminBroadcastEdit() {
 
   if (authLoading || permLoading || loading) {
     return (
-      <div className="container mx-auto py-8 px-4 max-w-3xl">
-        <Skeleton className="h-8 w-64 mb-6" />
-        <Skeleton className="h-96 w-full" />
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4 max-w-3xl">
+          <Skeleton className="h-8 w-64 mb-6" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (!permissions.canManageBroadcasts) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Admin access required.</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Admin access required.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   if (broadcastNotFound) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Broadcast not found.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/broadcasts")}>
-              Back to Broadcasts
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthenticatedLayout>
+        <div className="container mx-auto py-8 px-4">
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Broadcast not found.</p>
+              <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/broadcasts")}>
+                Back to Broadcasts
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AuthenticatedLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-3xl">
-      <Button variant="ghost" className="mb-4" onClick={() => navigate(`/admin/broadcasts/${id}`)}>
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Broadcast
-      </Button>
+    <AuthenticatedLayout>
+      <div className="container mx-auto py-8 px-4 max-w-3xl">
+        <PageHeader
+          title="Edit Broadcast"
+          backTo={`/admin/broadcasts/${id}`}
+          backLabel="Broadcast"
+        />
 
-      <h1 className="text-2xl font-bold mb-6">Edit Broadcast</h1>
-
-      <div className="space-y-6">
+        <div className="space-y-6">
         {/* Content */}
         <Card>
           <CardHeader>
@@ -498,7 +506,8 @@ export default function AdminBroadcastEdit() {
             Save & Continue to Send
           </Button>
         </div>
+        </div>
       </div>
-    </div>
+    </AuthenticatedLayout>
   );
 }
