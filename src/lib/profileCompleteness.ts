@@ -431,7 +431,7 @@ export async function getUserRoleForProfileSetup(
 
   if (!profile) return null;
   
-  // Prefer rep if both roles exist (for hybrid accounts)
+  // Prefer rep if both roles exist (for dual-role accounts)
   if (profile.is_fieldrep) return "rep";
   if (profile.is_vendor_admin) return "vendor";
   return null;

@@ -65,7 +65,7 @@ const RoleSelection = () => {
         case 'vendor':
           return { is_vendor_admin: true, active_role: null };
         case 'both':
-          // For hybrid users, default to 'rep' as active role
+          // For dual-role users, default to 'rep' as active role
           return { is_fieldrep: true, is_vendor_admin: true, active_role: 'rep' };
       }
     })();
@@ -306,7 +306,7 @@ const RoleSelection = () => {
               <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full flex items-center justify-center group-hover:from-primary/20 group-hover:to-secondary/20 transition-colors">
                 <Users className="text-foreground" size={32} />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-foreground">Both</h2>
+              <h2 className="text-xl font-bold mb-2 text-foreground">Dual Role</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 I perform inspections and assign work to other reps.
               </p>
@@ -316,7 +316,7 @@ const RoleSelection = () => {
                 className="w-full"
                 disabled={loading}
               >
-                Continue as Both
+                Continue as Dual Role
               </Button>
             </div>
           </Card>

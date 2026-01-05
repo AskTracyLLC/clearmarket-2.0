@@ -45,7 +45,7 @@ const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const mimicUserIdFromUrl = searchParams.get("mimic");
   const { user, loading: authLoading } = useAuth();
-  const { effectiveRole, isHybrid, isRep: hasRepRole, isVendor: hasVendorRole, loading: roleLoading } = useActiveRole();
+  const { effectiveRole, isDualRole, isRep: hasRepRole, isVendor: hasVendorRole, loading: roleLoading } = useActiveRole();
   const { toast } = useToast();
   const { mimickedUser, startMimic, isLoading: mimicLoading } = useMimic();
   
@@ -665,7 +665,7 @@ const Dashboard = () => {
               </h1>
               <p className="text-muted-foreground text-sm">
                 {showingAsRep ? "Field Rep" : "Vendor"} Dashboard
-                {isHybrid && <span className="text-xs ml-1">(Hybrid Account)</span>}
+                {isDualRole && <span className="text-xs ml-1">(Dual Role Account)</span>}
                 {showingAsRep && repProfile?.anonymous_id && ` · ${repProfile.anonymous_id}`}
                 {showingAsVendor && vendorProfile?.anonymous_id && ` · ${vendorProfile.anonymous_id}`}
               </p>
