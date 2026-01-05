@@ -32,19 +32,32 @@ const UpdatePassword = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    checkSession();
-  }, []);
+    // Listen for auth state changes - this catches the PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        setIsValidSession(!!session?.user);
+        setChecking(false);
+      } else if (event === 'SIGNED_OUT') {
+        setIsValidSession(false);
+        setChecking(false);
+      }
+    });
 
-  const checkSession = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsValidSession(!!user);
-    } catch (err) {
-      setIsValidSession(false);
-    } finally {
-      setChecking(false);
-    }
-  };
+    // Also check for existing session (in case auth already processed before component mounted)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setIsValidSession(true);
+        setChecking(false);
+      } else {
+        // Give a short delay for the auth listener to process URL tokens
+        setTimeout(() => {
+          setChecking(false);
+        }, 1500);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
