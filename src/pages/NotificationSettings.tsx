@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Bell, Volume2 } from "lucide-react";
+import { Bell, Volume2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
@@ -34,6 +35,7 @@ type NotificationPreferences = {
 
 export default function NotificationSettings() {
   const { user, loading: authLoading } = useAuth();
+  const { playTestSound } = useNotificationSound();
   const navigate = useNavigate();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -168,13 +170,24 @@ export default function NotificationSettings() {
                         Play a sound when you receive new messages
                       </p>
                     </div>
-                    <Switch
-                      id="sound_enabled"
-                      checked={preferences.sound_enabled}
-                      onCheckedChange={(value) =>
-                        handleTogglePreference("sound_enabled", value)
-                      }
-                    />
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={playTestSound}
+                        className="gap-1.5"
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        Test
+                      </Button>
+                      <Switch
+                        id="sound_enabled"
+                        checked={preferences.sound_enabled}
+                        onCheckedChange={(value) =>
+                          handleTogglePreference("sound_enabled", value)
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
 
