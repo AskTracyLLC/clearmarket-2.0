@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Bell } from "lucide-react";
+import { Bell, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
@@ -29,6 +29,7 @@ type NotificationPreferences = {
   digest_connections: boolean;
   digest_reviews: boolean;
   digest_system: boolean;
+  sound_enabled: boolean;
 };
 
 export default function NotificationSettings() {
@@ -152,6 +153,31 @@ export default function NotificationSettings() {
               <p className="text-sm text-muted-foreground">Loading preferences...</p>
             ) : (
               <>
+                {/* Sound Settings */}
+                <div className="space-y-4 border-b pb-6">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="text-base font-semibold">Sound</h3>
+                  </div>
+                  <div className="flex items-center justify-between pl-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="sound_enabled" className="text-sm font-medium">
+                        Notification sound
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Play a sound when you receive new messages
+                      </p>
+                    </div>
+                    <Switch
+                      id="sound_enabled"
+                      checked={preferences.sound_enabled}
+                      onCheckedChange={(value) =>
+                        handleTogglePreference("sound_enabled", value)
+                      }
+                    />
+                  </div>
+                </div>
+
                 <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
                   <p className="text-sm space-y-1">
                     <span className="block"><strong>In-app:</strong> Notifications appear in your ClearMarket inbox.</span>
