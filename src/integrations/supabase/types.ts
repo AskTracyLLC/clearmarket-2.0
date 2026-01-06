@@ -1430,6 +1430,7 @@ export type Database = {
           notify_new_message: boolean
           notify_review_received: boolean
           notify_system_updates: boolean
+          sound_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -1449,6 +1450,7 @@ export type Database = {
           notify_new_message?: boolean
           notify_review_received?: boolean
           notify_system_updates?: boolean
+          sound_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -1468,6 +1470,7 @@ export type Database = {
           notify_new_message?: boolean
           notify_review_received?: boolean
           notify_system_updates?: boolean
+          sound_enabled?: boolean
           updated_at?: string
           user_id?: string
         }

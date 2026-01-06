@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthenticatedNav } from "@/components/AuthenticatedNav";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MimicBanner } from "@/components/MimicBanner";
+import { GlobalMessageListener } from "@/components/GlobalMessageListener";
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -82,6 +83,7 @@ export function AuthenticatedLayout({ children, className = "" }: AuthenticatedL
 
   return (
     <div className="min-h-screen flex flex-col">
+      <GlobalMessageListener />
       <MimicBanner />
       <AuthenticatedNav 
         isAdmin={mimickedUser ? false : profile?.is_admin}
