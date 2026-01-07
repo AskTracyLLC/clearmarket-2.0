@@ -8,14 +8,19 @@ const corsHeaders = {
 };
 
 const logStep = (step: string, details?: unknown) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
-  console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+  const timestamp = new Date().toISOString();
+  const detailsStr = details ? ` | ${JSON.stringify(details)}` : "";
+  console.log(`[${timestamp}] STRIPE-WEBHOOK: ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Generate a unique request ID for initial logging (before we have the Stripe event ID)
+  const requestId = `request_${crypto.randomUUID()}`;
+  let logId: string | null = null;
 
   // Initialize Supabase admin client early for logging
   const supabaseAdmin = createClient(
@@ -24,44 +29,44 @@ serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
-  let logId: string | null = null;
-  let eventId = "unknown";
+  // Create initial Stripe instance for signature verification only
+  const stripeForVerification = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_TESTKEY") || "", {
+    apiVersion: "2025-08-27.basil",
+  });
 
   try {
-    logStep("Webhook received");
+    logStep("Webhook received", { requestId });
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
-    if (!stripeKey) {
-      throw new Error("STRIPE_SECRET_TESTKEY is not set");
-    }
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    if (!webhookSecret) {
-      throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+    const signature = req.headers.get("stripe-signature");
+    if (!signature) {
+      logStep("Missing Stripe-Signature header", { requestId });
+      return new Response(JSON.stringify({ error: "Missing signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const body = await req.text();
-    const signature = req.headers.get("stripe-signature");
+    logStep("Request body received", { requestId, bodyLength: body.length });
 
-    if (!signature) {
-      throw new Error("No stripe-signature header");
+    // Get both webhook secrets (plus legacy fallback)
+    const webhookSecretTest = Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST");
+    const webhookSecretLive = Deno.env.get("STRIPE_WEBHOOK_SECRET_LIVE");
+    const webhookSecretLegacy = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+
+    if (!webhookSecretTest && !webhookSecretLive && !webhookSecretLegacy) {
+      logStep("No webhook secrets configured", { requestId });
+      return new Response(JSON.stringify({ error: "Webhook secrets not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Try to extract event_id from raw body for logging before verification
-    try {
-      const rawPayload = JSON.parse(body);
-      eventId = rawPayload.id || "unknown";
-    } catch {
-      // Ignore parse errors, we'll get the real ID after verification
-    }
-
-    // Insert initial log entry
+    // Insert initial log with request_id (before verification)
     const { data: logData, error: logInsertError } = await supabaseAdmin
       .from("stripe_webhook_logs")
       .insert({
-        event_id: eventId,
+        event_id: requestId,
         status: "received",
         signature_valid: null,
         payload_summary: { raw_length: body.length },
@@ -70,92 +75,187 @@ serve(async (req) => {
       .single();
 
     if (logInsertError) {
-      logStep("Warning: Failed to insert log entry", { error: logInsertError.message });
+      logStep("Warning: Failed to insert log entry", { requestId, error: logInsertError.message });
     } else {
       logId = logData?.id;
+      logStep("Initial log inserted", { requestId, logId });
     }
 
-    // Verify webhook signature
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      logStep("Webhook signature verification failed", { error: errorMessage });
+    // Try to verify signature with available secrets (TEST first, then LIVE, then legacy)
+    let event: Stripe.Event | null = null;
+    let verifiedWithSecret: "test" | "live" | "legacy" | null = null;
 
-      // Update log with failure
+    // Try TEST secret first
+    if (webhookSecretTest && !event) {
+      try {
+        logStep("Attempting verification with TEST secret", { requestId });
+        event = await stripeForVerification.webhooks.constructEventAsync(
+          body,
+          signature,
+          webhookSecretTest
+        );
+        verifiedWithSecret = "test";
+        logStep("Verification succeeded with TEST secret", { requestId, eventId: event.id });
+      } catch (testError) {
+        logStep("TEST secret verification failed", { 
+          requestId, 
+          error: testError instanceof Error ? testError.message : String(testError) 
+        });
+      }
+    }
+
+    // Try LIVE secret if TEST failed
+    if (webhookSecretLive && !event) {
+      try {
+        logStep("Attempting verification with LIVE secret", { requestId });
+        event = await stripeForVerification.webhooks.constructEventAsync(
+          body,
+          signature,
+          webhookSecretLive
+        );
+        verifiedWithSecret = "live";
+        logStep("Verification succeeded with LIVE secret", { requestId, eventId: event.id });
+      } catch (liveError) {
+        logStep("LIVE secret verification failed", { 
+          requestId, 
+          error: liveError instanceof Error ? liveError.message : String(liveError) 
+        });
+      }
+    }
+
+    // Try legacy secret as fallback
+    if (webhookSecretLegacy && !event) {
+      try {
+        logStep("Attempting verification with LEGACY secret", { requestId });
+        event = await stripeForVerification.webhooks.constructEventAsync(
+          body,
+          signature,
+          webhookSecretLegacy
+        );
+        verifiedWithSecret = "legacy";
+        logStep("Verification succeeded with LEGACY secret", { requestId, eventId: event.id });
+      } catch (legacyError) {
+        logStep("LEGACY secret verification failed", { 
+          requestId, 
+          error: legacyError instanceof Error ? legacyError.message : String(legacyError) 
+        });
+      }
+    }
+
+    // If no secret worked, verification failed
+    if (!event) {
+      logStep("All signature verifications failed", { requestId });
+      
       if (logId) {
         await supabaseAdmin
           .from("stripe_webhook_logs")
           .update({
             status: "failed",
             signature_valid: false,
-            error_message: `Signature verification failed: ${errorMessage}`,
+            error_message: "Invalid signature - all secrets failed",
             processed_at: new Date().toISOString(),
           })
           .eq("id", logId);
       }
 
-      return new Response(
-        JSON.stringify({ error: "Invalid signature" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid signature" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Update eventId with verified ID
-    eventId = event.id;
+    // Verification succeeded
+    logStep("Signature verified", { 
+      requestId, 
+      eventId: event.id, 
+      eventType: event.type, 
+      livemode: event.livemode,
+      verifiedWith: verifiedWithSecret 
+    });
 
-    // Update log with verified event info
+    // Check if this event was already processed (idempotency check)
+    const { data: existingLog } = await supabaseAdmin
+      .from("stripe_webhook_logs")
+      .select("id, status")
+      .eq("event_id", event.id)
+      .eq("status", "success")
+      .maybeSingle();
+
+    if (existingLog) {
+      logStep("Event already processed successfully, skipping", { eventId: event.id });
+      
+      // Delete our temporary request_id log since the real event already exists
+      if (logId) {
+        await supabaseAdmin
+          .from("stripe_webhook_logs")
+          .delete()
+          .eq("id", logId);
+      }
+
+      return new Response(JSON.stringify({ received: true, already_processed: true }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Update our log row with the real event_id
     if (logId) {
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("stripe_webhook_logs")
         .update({
-          event_id: eventId,
+          event_id: event.id,
           event_type: event.type,
           signature_valid: true,
           payload_summary: {
             type: event.type,
             created: event.created,
             livemode: event.livemode,
+            verified_with: verifiedWithSecret,
           },
         })
         .eq("id", logId);
+
+      if (updateError) {
+        // If update fails due to unique constraint, this event was processed by another request
+        logStep("Failed to update log with event_id (may be duplicate)", { 
+          eventId: event.id, 
+          error: updateError.message 
+        });
+      }
     }
 
-    logStep("Event verified", { type: event.type, id: event.id });
+    // Select the correct API key based on event.livemode for any subsequent Stripe API calls
+    const stripeApiKey = event.livemode 
+      ? Deno.env.get("STRIPE_SECRET_KEY") 
+      : Deno.env.get("STRIPE_SECRET_TESTKEY");
 
-    // Idempotency check: see if this event was already processed successfully
-    const { data: existingLog } = await supabaseAdmin
-      .from("stripe_webhook_logs")
-      .select("id, status")
-      .eq("event_id", eventId)
-      .eq("status", "success")
-      .maybeSingle();
-
-    if (existingLog) {
-      logStep("Event already processed successfully, skipping", { eventId });
+    if (!stripeApiKey) {
+      const mode = event.livemode ? "live" : "test";
+      logStep(`Missing Stripe API key for ${mode} mode`, { eventId: event.id, livemode: event.livemode });
       
-      // Update current log entry to mark as duplicate
-      if (logId && logId !== existingLog.id) {
+      if (logId) {
         await supabaseAdmin
           .from("stripe_webhook_logs")
           .update({
-            status: "duplicate",
+            status: "error",
+            error_message: `Missing Stripe API key for ${mode} mode`,
             processed_at: new Date().toISOString(),
           })
           .eq("id", logId);
       }
 
-      return new Response(JSON.stringify({ received: true, already_processed: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: `Missing API key for ${mode} mode` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    logStep("Using API key for mode", { livemode: event.livemode });
 
     // Handle checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      logStep("Processing checkout session", { sessionId: session.id });
+      logStep("Processing checkout session", { sessionId: session.id, metadata: session.metadata });
 
       const userId = session.metadata?.user_id;
       const creditPackId = session.metadata?.credit_pack_id;
@@ -182,7 +282,7 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ received: true }), {
           status: 200,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -215,7 +315,7 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({ received: true, already_processed: true }), {
           status: 200,
-          headers: { "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -271,6 +371,7 @@ serve(async (req) => {
             stripe_payment_intent: session.payment_intent,
             amount_paid: session.amount_total,
             currency: session.currency,
+            livemode: event.livemode,
           },
         });
 
@@ -329,12 +430,15 @@ serve(async (req) => {
               user_id: userId,
               credits_added: creditsToAdd,
               new_balance: newBalance,
+              livemode: event.livemode,
             },
           })
           .eq("id", logId);
       }
     } else {
       // Unhandled event type
+      logStep("Ignoring event type", { eventType: event.type });
+      
       if (logId) {
         await supabaseAdmin
           .from("stripe_webhook_logs")
@@ -348,11 +452,11 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
+    logStep("ERROR", { requestId, message: errorMessage });
 
     // Update log with error
     if (logId) {
@@ -366,12 +470,9 @@ serve(async (req) => {
         .eq("id", logId);
     }
 
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
