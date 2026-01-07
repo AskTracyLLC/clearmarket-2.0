@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Shield, Mail, CheckCircle2 } from "lucide-react";
+import { Bell, Shield, Mail, CheckCircle2, Volume2, Play } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
@@ -31,10 +32,12 @@ type NotificationPreferences = {
   digest_connections: boolean;
   digest_reviews: boolean;
   digest_system: boolean;
+  sound_enabled: boolean;
 };
 
 export default function Settings() {
   const { user, loading: authLoading } = useAuth();
+  const { playTestSound } = useNotificationSound();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
@@ -194,6 +197,42 @@ export default function Settings() {
                     <p className="text-sm text-muted-foreground">Loading preferences...</p>
                   ) : (
                     <>
+                      {/* Sound Settings */}
+                      <div className="space-y-4 border-b pb-6">
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="h-5 w-5 text-muted-foreground" />
+                          <h3 className="text-base font-semibold">Sound</h3>
+                        </div>
+                        <div className="flex items-center justify-between pl-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="sound_enabled" className="text-sm font-medium">
+                              Notification sound
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Play a sound when you receive new messages
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={playTestSound}
+                              className="gap-1.5"
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              Test
+                            </Button>
+                            <Switch
+                              id="sound_enabled"
+                              checked={preferences.sound_enabled}
+                              onCheckedChange={(value) =>
+                                handleTogglePreference("sound_enabled", value)
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
                         <p className="text-sm space-y-1">
                           <span className="block"><strong>In-app:</strong> Notifications appear in your ClearMarket inbox.</span>
