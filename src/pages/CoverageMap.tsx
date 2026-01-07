@@ -121,31 +121,31 @@ export default function CoverageMap() {
         {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-3 justify-center text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-muted border border-border" />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#d1d5db" }} />
             <span>0</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 40%, 85%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#bfdbfe" }} />
             <span>&lt;3</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 50%, 70%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#93c5fd" }} />
             <span>3–9</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 55%, 55%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#60a5fa" }} />
             <span>10–24</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 60%, 40%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#3b82f6" }} />
             <span>25–49</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 65%, 30%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#2563eb" }} />
             <span>50–99</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(142, 70%, 20%)" }} />
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: "#1d4ed8" }} />
             <span>100+</span>
           </div>
         </div>
