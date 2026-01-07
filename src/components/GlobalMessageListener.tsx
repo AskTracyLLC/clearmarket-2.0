@@ -55,7 +55,7 @@ export function GlobalMessageListener() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `recipient_id=eq.${targetUserId}`,
+          // TEMP: Remove filter to test if realtime works at all
         },
         (payload) => {
           console.log("[GML] INSERT payload received:", payload);
@@ -86,8 +86,8 @@ export function GlobalMessageListener() {
           }
         }
       )
-      .subscribe((status) => {
-        console.log("[GML] Channel status:", status);
+      .subscribe((status, err) => {
+        console.log("[GML] subscribe status:", status, err);
         if (status === "CHANNEL_ERROR") {
           console.error("GlobalMessageListener: Failed to subscribe to messages channel");
         }
