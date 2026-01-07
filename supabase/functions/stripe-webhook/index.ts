@@ -426,12 +426,23 @@ serve(async (req) => {
             .eq("id", userId)
             .single();
 
-          // Fetch vendor_profile to get the signup-assigned anonymous_id (e.g., "Vendor#1")
-          const { data: vendorProfile } = await supabaseAdmin
-            .from("vendor_profile")
-            .select("anonymous_id")
-            .eq("user_id", userId)
-            .maybeSingle();
+          // Fetch vendor_profile and rep_profile to get the signup-assigned anonymous_id
+          // User may be a Vendor (Vendor#X) or Field Rep (FieldRep#X)
+          const [vendorProfileResult, repProfileResult] = await Promise.all([
+            supabaseAdmin
+              .from("vendor_profile")
+              .select("anonymous_id")
+              .eq("user_id", userId)
+              .maybeSingle(),
+            supabaseAdmin
+              .from("rep_profile")
+              .select("anonymous_id")
+              .eq("user_id", userId)
+              .maybeSingle(),
+          ]);
+
+          const vendorAnonymousId = vendorProfileResult.data?.anonymous_id;
+          const repAnonymousId = repProfileResult.data?.anonymous_id;
 
           if (userProfile?.email) {
             const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : "0.00";
@@ -447,10 +458,10 @@ serve(async (req) => {
               ? session.payment_intent 
               : session.payment_intent?.id || "";
 
-            // Buyer details
+            // Buyer details - prefer vendor ID, fallback to rep ID, then generic
             const buyerFullName = userProfile.full_name || "Not provided";
             const buyerEmail = userProfile.email;
-            const buyerVendorId = vendorProfile?.anonymous_id || `Vendor#${userId.substring(0, 6)}`;
+            const buyerUserId = vendorAnonymousId || repAnonymousId || `User#${userId.substring(0, 6)}`;
 
             // Pack name lookup
             const packNames: Record<string, string> = {
@@ -499,7 +510,7 @@ serve(async (req) => {
           </tr>
           <tr>
             <td style="padding:6px 0;color:#9ca3af;font-size:14px;">User #</td>
-            <td style="padding:6px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">${buyerVendorId}</td>
+            <td style="padding:6px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">${buyerUserId}</td>
           </tr>
         </table>
       </div>
@@ -569,7 +580,7 @@ serve(async (req) => {
               logStep("Purchase confirmation email sent", { 
                 messageId: emailResult.id, 
                 to: userProfile.email,
-                buyerVendorId 
+                buyerUserId 
               });
             } else {
               logStep("Warning: Failed to send purchase email", { error: emailResult });
