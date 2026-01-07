@@ -415,6 +415,143 @@ serve(async (req) => {
         logStep("Notification created");
       }
 
+      // Send purchase confirmation email via Resend
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (resendApiKey) {
+        try {
+          // Fetch user email
+          const { data: userProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", userId)
+            .single();
+
+          if (userProfile?.email) {
+            const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : "0.00";
+            const currency = (session.currency || "usd").toUpperCase();
+            const purchaseDate = new Date().toLocaleString("en-US", {
+              timeZone: "America/Chicago",
+              dateStyle: "long",
+              timeStyle: "short",
+            });
+            const firstName = userProfile.full_name?.split(" ")[0] || "there";
+            const checkoutSessionId = session.id;
+            const paymentIntentId = typeof session.payment_intent === "string" 
+              ? session.payment_intent 
+              : session.payment_intent?.id || "";
+
+            // Pack name lookup
+            const packNames: Record<string, string> = {
+              beta_test: "Beta Test",
+              starter_10: "Starter Pack",
+              standard_25: "Standard Pack",
+              pro_50: "Pro Pack",
+            };
+            const packName = packNames[creditPackId] || creditPackId;
+
+            // Email subject with amount and descriptor
+            const emailSubject = `ClearMarket Credits Purchased — $${amountPaid} ${currency} — Charge appears as ASKTRACY LLC-CLRMRKT`;
+
+            // Email body HTML
+            const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background-color:#111827;color:#f9fafb;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <h1 style="color:#10b981;margin:0;font-size:24px;">ClearMarket</h1>
+    </div>
+    
+    <div style="background-color:#1f2937;border-radius:12px;padding:24px;margin-bottom:24px;">
+      <h2 style="color:#f9fafb;margin:0 0 16px 0;font-size:20px;">Thank you for your purchase, ${firstName}!</h2>
+      
+      <div style="background-color:#374151;border-left:4px solid #f59e0b;padding:16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+        <p style="margin:0;color:#fbbf24;font-weight:600;font-size:14px;">📋 Card Statement Note</p>
+        <p style="margin:8px 0 0 0;color:#e5e7eb;font-size:14px;">This purchase may appear on your card statement as <strong style="color:#f9fafb;">'ASKTRACY LLC-CLRMRKT'</strong>. This is the billing descriptor for ClearMarket.</p>
+      </div>
+      
+      <h3 style="color:#9ca3af;margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;">Purchase Details</h3>
+      
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0;color:#9ca3af;font-size:14px;">Pack</td>
+          <td style="padding:8px 0;color:#f9fafb;font-size:14px;text-align:right;font-weight:500;">${packName}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#9ca3af;font-size:14px;">Credits Added</td>
+          <td style="padding:8px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">+${creditsToAdd}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#9ca3af;font-size:14px;">Amount Paid</td>
+          <td style="padding:8px 0;color:#f9fafb;font-size:14px;text-align:right;font-weight:500;">$${amountPaid} ${currency}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#9ca3af;font-size:14px;">Date/Time</td>
+          <td style="padding:8px 0;color:#f9fafb;font-size:14px;text-align:right;">${purchaseDate}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;color:#9ca3af;font-size:14px;">New Balance</td>
+          <td style="padding:8px 0;color:#10b981;font-size:16px;text-align:right;font-weight:700;">${newBalance} credits</td>
+        </tr>
+      </table>
+      
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #374151;">
+        <p style="margin:0 0 4px 0;color:#6b7280;font-size:12px;">Reference IDs</p>
+        <p style="margin:0;color:#9ca3af;font-size:11px;font-family:monospace;word-break:break-all;">Session: ${checkoutSessionId}</p>
+        ${paymentIntentId ? `<p style="margin:4px 0 0 0;color:#9ca3af;font-size:11px;font-family:monospace;word-break:break-all;">Payment: ${paymentIntentId}</p>` : ""}
+      </div>
+    </div>
+    
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="https://useclearmarket.io/vendor/credits" style="display:inline-block;background-color:#10b981;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-weight:600;font-size:14px;">View Your Credits</a>
+    </div>
+    
+    <div style="text-align:center;color:#6b7280;font-size:12px;">
+      <p style="margin:0;">Questions? Email <a href="mailto:hello@useclearmarket.io" style="color:#10b981;text-decoration:none;">hello@useclearmarket.io</a></p>
+      <p style="margin:12px 0 0 0;">© ${new Date().getFullYear()} ClearMarket. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+            const emailResponse = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "ClearMarket <hello@useclearmarket.io>",
+                reply_to: "hello@useclearmarket.io",
+                to: [userProfile.email],
+                subject: emailSubject,
+                html: emailHtml,
+              }),
+            });
+
+            const emailResult = await emailResponse.json();
+            
+            if (emailResponse.ok && emailResult.id) {
+              logStep("Purchase confirmation email sent", { messageId: emailResult.id, to: userProfile.email });
+            } else {
+              logStep("Warning: Failed to send purchase email", { error: emailResult });
+            }
+          } else {
+            logStep("Warning: User email not found for purchase confirmation", { userId });
+          }
+        } catch (emailError) {
+          logStep("Warning: Exception sending purchase email", { 
+            error: emailError instanceof Error ? emailError.message : String(emailError) 
+          });
+        }
+      } else {
+        logStep("Skipping purchase email: RESEND_API_KEY not configured");
+      }
+
       logStep("Purchase completed successfully", { userId, creditsToAdd, newBalance });
 
       // Update log to success
