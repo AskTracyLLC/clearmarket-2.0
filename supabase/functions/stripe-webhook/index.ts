@@ -419,12 +419,19 @@ serve(async (req) => {
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
       if (resendApiKey) {
         try {
-          // Fetch user email
+          // Fetch user profile and vendor profile (for anonymous_id)
           const { data: userProfile } = await supabaseAdmin
             .from("profiles")
             .select("email, full_name")
             .eq("id", userId)
             .single();
+
+          // Fetch vendor_profile to get the signup-assigned anonymous_id (e.g., "Vendor#1")
+          const { data: vendorProfile } = await supabaseAdmin
+            .from("vendor_profile")
+            .select("anonymous_id")
+            .eq("user_id", userId)
+            .maybeSingle();
 
           if (userProfile?.email) {
             const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : "0.00";
@@ -439,6 +446,11 @@ serve(async (req) => {
             const paymentIntentId = typeof session.payment_intent === "string" 
               ? session.payment_intent 
               : session.payment_intent?.id || "";
+
+            // Buyer details
+            const buyerFullName = userProfile.full_name || "Not provided";
+            const buyerEmail = userProfile.email;
+            const buyerVendorId = vendorProfile?.anonymous_id || `Vendor#${userId.substring(0, 6)}`;
 
             // Pack name lookup
             const packNames: Record<string, string> = {
@@ -472,6 +484,24 @@ serve(async (req) => {
       <div style="background-color:#374151;border-left:4px solid #f59e0b;padding:16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
         <p style="margin:0;color:#fbbf24;font-weight:600;font-size:14px;">📋 Card Statement Note</p>
         <p style="margin:8px 0 0 0;color:#e5e7eb;font-size:14px;">This purchase may appear on your card statement as <strong style="color:#f9fafb;">'ASKTRACY LLC-CLRMRKT'</strong>. This is the billing descriptor for ClearMarket.</p>
+      </div>
+      
+      <div style="background-color:#374151;border-radius:8px;padding:16px;margin-bottom:20px;">
+        <h3 style="color:#9ca3af;margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;">Buyer Details</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:6px 0;color:#9ca3af;font-size:14px;">Name</td>
+            <td style="padding:6px 0;color:#f9fafb;font-size:14px;text-align:right;">${buyerFullName}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#9ca3af;font-size:14px;">Email</td>
+            <td style="padding:6px 0;color:#f9fafb;font-size:14px;text-align:right;">${buyerEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#9ca3af;font-size:14px;">User #</td>
+            <td style="padding:6px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">${buyerVendorId}</td>
+          </tr>
+        </table>
       </div>
       
       <h3 style="color:#9ca3af;margin:0 0 12px 0;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;">Purchase Details</h3>
@@ -536,7 +566,11 @@ serve(async (req) => {
             const emailResult = await emailResponse.json();
             
             if (emailResponse.ok && emailResult.id) {
-              logStep("Purchase confirmation email sent", { messageId: emailResult.id, to: userProfile.email });
+              logStep("Purchase confirmation email sent", { 
+                messageId: emailResult.id, 
+                to: userProfile.email,
+                buyerVendorId 
+              });
             } else {
               logStep("Warning: Failed to send purchase email", { error: emailResult });
             }
