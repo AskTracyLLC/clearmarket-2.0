@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles, ExternalLink } from "lucide-react";
+import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles, ExternalLink, RefreshCw } from "lucide-react";
 import { getVendorCredits, getVendorTransactions } from "@/lib/credits";
 import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
@@ -35,6 +35,7 @@ const VendorCredits = () => {
 
   // Handle success/cancel status from Stripe redirect
   const status = searchParams.get("status");
+  const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -47,12 +48,42 @@ const VendorCredits = () => {
     }
   }, [user, authLoading, navigate]);
 
+  // Auto-poll after successful purchase (webhook may take a moment)
+  useEffect(() => {
+    if (status === "success" && user && !isPolling) {
+      setIsPolling(true);
+      let pollCount = 0;
+      const maxPolls = 12; // 60 seconds total (5s interval)
+      
+      const pollInterval = setInterval(async () => {
+        pollCount++;
+        const newBalance = await getVendorCredits(user.id);
+        if (newBalance !== null && newBalance !== balance) {
+          setBalance(newBalance);
+          const txData = await getVendorTransactions(user.id);
+          setTransactions(txData);
+          clearInterval(pollInterval);
+          setIsPolling(false);
+        }
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+          setIsPolling(false);
+        }
+      }, 5000);
+
+      return () => {
+        clearInterval(pollInterval);
+        setIsPolling(false);
+      };
+    }
+  }, [status, user, balance, isPolling]);
+
   // Clear status param after showing message
   useEffect(() => {
     if (status) {
       const timer = setTimeout(() => {
         setSearchParams({});
-      }, 10000);
+      }, 30000); // Extended to 30s for polling
       return () => clearTimeout(timer);
     }
   }, [status, setSearchParams]);
@@ -172,8 +203,24 @@ const VendorCredits = () => {
         {status === "success" && (
           <Alert className="mb-6 border-green-600/50 bg-green-600/10">
             <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-600">
-              Payment successful! Your credits will be available shortly. If they don't appear within a few minutes, please refresh the page or contact support.
+            <AlertDescription className="text-green-600 flex items-center justify-between gap-4">
+              <span>
+                Payment successful! {isPolling ? "Checking for your credits..." : "Your credits will be available shortly."}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadData}
+                disabled={isPolling}
+                className="shrink-0 text-green-600 hover:text-green-700 hover:bg-green-600/10"
+              >
+                {isPolling ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="ml-1">Refresh</span>
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -310,7 +357,7 @@ const VendorCredits = () => {
                       className="grid grid-cols-12 gap-4 px-3 py-3 text-sm border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
                     >
                       <div className="col-span-3 text-muted-foreground">
-                        {format(new Date(tx.created_at), "MM/dd/yyyy")}
+                        {format(new Date(tx.created_at), "MM/dd/yyyy h:mm a")}
                       </div>
                       <div className="col-span-4">
                         {hasRelatedEntity ? (
