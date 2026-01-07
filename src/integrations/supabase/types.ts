@@ -2722,6 +2722,42 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          event_type: string | null
+          id: string
+          payload_summary: Json | null
+          processed_at: string | null
+          signature_valid: boolean | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          event_type?: string | null
+          id?: string
+          payload_summary?: Json | null
+          processed_at?: string | null
+          signature_valid?: boolean | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          event_type?: string | null
+          id?: string
+          payload_summary?: Json | null
+          processed_at?: string | null
+          signature_valid?: boolean | null
+          status?: string
+        }
+        Relationships: []
+      }
       support_articles: {
         Row: {
           body: string
