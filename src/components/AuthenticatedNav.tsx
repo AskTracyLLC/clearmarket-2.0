@@ -7,7 +7,7 @@ import { CountBadge } from "@/components/CountBadge";
 import { BetaBadge } from "@/components/BetaBadge";
 import { RoleSwitcher } from "@/components/RoleSwitcher";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
-import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch, Wrench, Menu } from "lucide-react";
+import { Briefcase, Users, ShieldAlert, MessageSquare, FileSearch, Wrench, Menu, Map } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -90,6 +90,14 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
               >
                 <Wrench className="w-4 h-4" />
                 Tools
+              </NavLink>
+              <NavLink 
+                to="/coverage-map" 
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
+                activeClassName="text-primary"
+              >
+                <Map className="w-4 h-4" />
+                Map
               </NavLink>
               {/* Vendor-only: Seeking Coverage link with interest badge */}
               {isVendor && (
@@ -191,6 +199,15 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
                   >
                     <Wrench className="w-4 h-4" />
                     Tools
+                  </NavLink>
+                  <NavLink 
+                    to="/coverage-map" 
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 py-2" 
+                    activeClassName="text-primary"
+                    onClick={closeMobileMenu}
+                  >
+                    <Map className="w-4 h-4" />
+                    Map
                   </NavLink>
                   {isVendor && (
                     <NavLink 

@@ -4207,6 +4207,20 @@ export type Database = {
         }
         Relationships: []
       }
+      public_state_network_counts: {
+        Row: {
+          last_updated_at: string | null
+          rep_count: number | null
+          rep_count_display: string | null
+          state_code: string | null
+          state_name: string | null
+          total_count: number | null
+          total_count_display: string | null
+          vendor_count: number | null
+          vendor_count_display: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_territory_assignment: {
