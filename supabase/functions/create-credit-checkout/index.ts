@@ -8,22 +8,30 @@ const corsHeaders = {
 };
 
 // Credit pack definitions - must match frontend config
-const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string }> = {
+const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amountCents: number; currency: string }> = {
   beta_test: {
     credits: 1,
     stripePriceId: "price_1Sn3C9IZ7isA0IxEPPQTVL5w",
+    amountCents: 150,
+    currency: "usd",
   },
   starter_10: {
     credits: 10,
     stripePriceId: "price_1Sa4EMIZ7isA0IxEtbEPua6I",
+    amountCents: 1000,
+    currency: "usd",
   },
   standard_25: {
     credits: 25,
     stripePriceId: "price_1Sa4EhIZ7isA0IxEKfZMFClq",
+    amountCents: 2000,
+    currency: "usd",
   },
   pro_50: {
     credits: 50,
     stripePriceId: "price_1Sa4FJIZ7isA0IxEFHF6VYoL",
+    amountCents: 3500,
+    currency: "usd",
   },
 };
 
@@ -90,8 +98,8 @@ serve(async (req) => {
       logStep("Found existing Stripe customer", { customerId });
     }
 
-    // Get origin for redirect URLs
-    const origin = req.headers.get("origin") || "https://your-app.lovable.app";
+    // Get origin for redirect URLs (fallback to production URL)
+    const origin = req.headers.get("origin") || Deno.env.get("ORIGIN") || "https://useclearmarket.io";
 
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -116,6 +124,7 @@ serve(async (req) => {
     logStep("Checkout session created", { sessionId: session.id });
 
     // Insert pending purchase record using service role for backend write
+    // This is REQUIRED for webhook + email idempotency
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -129,15 +138,25 @@ serve(async (req) => {
         credit_pack_id: packId,
         credits_to_add: pack.credits,
         stripe_checkout_session_id: session.id,
+        stripe_price_id: pack.stripePriceId,
+        amount_cents: pack.amountCents,
+        currency: pack.currency,
         status: "pending",
       });
 
     if (insertError) {
-      logStep("Warning: Failed to insert pending purchase", { error: insertError.message });
-      // Don't fail the request - the webhook can still work without this record
-    } else {
-      logStep("Pending purchase record created");
+      logStep("CRITICAL: Failed to insert pending purchase - aborting", { error: insertError.message });
+      // Fail the request - webhook and email idempotency depend on this record
+      return new Response(
+        JSON.stringify({ error: "Failed to create purchase record. Please try again." }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
     }
+    
+    logStep("Pending purchase record created");
 
     return new Response(
       JSON.stringify({ checkoutUrl: session.url }),
