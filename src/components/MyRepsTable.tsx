@@ -49,6 +49,7 @@ import RequestCoverageDialog from "@/components/RequestCoverageDialog";
 import { AssignChecklistDialog } from "@/components/AssignChecklistDialog";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
+import { WorkingTermsDialog } from "@/components/WorkingTermsDialog";
 
 // Column definitions for My Field Reps table
 const MY_REPS_COLUMNS: ColumnDefinition[] = [
@@ -141,6 +142,10 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   // Checklist assignment dialog state
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);
   const [checklistDialogRep, setChecklistDialogRep] = useState<ConnectedRep | null>(null);
+
+  // Working Terms Dialog state
+  const [showWorkingTermsDialog, setShowWorkingTermsDialog] = useState(false);
+  const [workingTermsDialogRep, setWorkingTermsDialogRep] = useState<ConnectedRep | null>(null);
 
   // Load working terms statuses for all reps
   useEffect(() => {
@@ -332,6 +337,11 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
     }
   };
 
+  const handleOpenWorkingTermsDialog = (rep: ConnectedRep) => {
+    setWorkingTermsDialogRep(rep);
+    setShowWorkingTermsDialog(true);
+  };
+
   const canRequestTerms = (repUserId: string): boolean => {
     const status = workingTermsCache[repUserId]?.status;
     return !status || status === "declined" || status === "active";
@@ -505,15 +515,20 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                     {isColumnVisible("workingTerms") && (
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Badge 
-                            variant={statusInfo.variant}
-                            className={`text-xs ${statusInfo.label === "Active" || statusInfo.label === "On file" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                          <button
+                            onClick={() => handleOpenWorkingTermsDialog(rep)}
+                            className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
                           >
-                            {(statusInfo.label === "Active" || statusInfo.label === "On file") && <CheckCircle2 className="w-3 h-3 mr-1" />}
-                            {statusInfo.label === "Request sent" && <Clock className="w-3 h-3 mr-1" />}
-                            {statusInfo.label === "Changes requested" && <AlertCircle className="w-3 h-3 mr-1" />}
-                            {statusInfo.label}
-                          </Badge>
+                            <Badge 
+                              variant={statusInfo.variant}
+                              className={`text-xs cursor-pointer transition-opacity hover:opacity-80 ${statusInfo.label === "Active" || statusInfo.label === "On file" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                            >
+                              {(statusInfo.label === "Active" || statusInfo.label === "On file") && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                              {statusInfo.label === "Request sent" && <Clock className="w-3 h-3 mr-1" />}
+                              {statusInfo.label === "Changes requested" && <AlertCircle className="w-3 h-3 mr-1" />}
+                              {statusInfo.label}
+                            </Badge>
+                          </button>
                           {statusInfo.pricingDisplay && (
                             <span className="text-xs text-muted-foreground">{statusInfo.pricingDisplay}</span>
                           )}
@@ -524,7 +539,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                               className="h-auto p-0 text-xs"
                               onClick={() => handleViewWorkingTerms(rep.repUserId)}
                             >
-                              View
+                              Review
                             </Button>
                           )}
                         </div>
@@ -658,6 +673,24 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
           onAssigned={() => {
             setShowChecklistDialog(false);
             setChecklistDialogRep(null);
+          }}
+        />
+      )}
+
+      {/* Working Terms Dialog */}
+      {workingTermsDialogRep && (
+        <WorkingTermsDialog
+          open={showWorkingTermsDialog}
+          onOpenChange={(open) => {
+            setShowWorkingTermsDialog(open);
+            if (!open) setWorkingTermsDialogRep(null);
+          }}
+          vendorId={vendorId}
+          repId={workingTermsDialogRep.repUserId}
+          repName={workingTermsDialogRep.anonymousId}
+          mode="vendor"
+          onTermsUpdated={() => {
+            onWorkingTermsSaved?.();
           }}
         />
       )}

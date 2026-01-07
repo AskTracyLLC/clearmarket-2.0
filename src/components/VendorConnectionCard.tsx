@@ -24,6 +24,7 @@ import {
   FileCheck
 } from "lucide-react";
 import { AgreementDetailsDialog } from "@/components/AgreementDetailsDialog";
+import { WorkingTermsDialog } from "@/components/WorkingTermsDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { canPostReview } from "@/lib/reviews";
@@ -109,6 +110,7 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
   const { user } = useAuth();
   const [notesOpen, setNotesOpen] = useState(false);
   const [showAgreementDialog, setShowAgreementDialog] = useState(false);
+  const [showWorkingTermsDialog, setShowWorkingTermsDialog] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [workingTermsStatus, setWorkingTermsStatus] = useState<WorkingTermsStatus | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -206,7 +208,11 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
         );
       case "active":
         return (
-          <Badge variant="default" className="text-xs gap-1 bg-green-600">
+          <Badge 
+            variant="default" 
+            className="text-xs gap-1 bg-green-600 cursor-pointer hover:bg-green-700"
+            onClick={() => setShowWorkingTermsDialog(true)}
+          >
             <CheckCircle2 className="w-3 h-3" />
             Working terms active
           </Badge>
@@ -573,6 +579,21 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
         onOpenChange={setShowAgreementDialog}
         connectionId={connectionId}
         connectionLabel={vendor.anonymousId}
+      />
+    )}
+
+    {user && (
+      <WorkingTermsDialog
+        open={showWorkingTermsDialog}
+        onOpenChange={setShowWorkingTermsDialog}
+        vendorId={vendor.vendorUserId}
+        repId={user.id}
+        vendorName={vendor.companyName}
+        mode="rep"
+        onTermsUpdated={() => {
+          loadWorkingTermsStatus();
+          onWorkingTermsSaved?.();
+        }}
       />
     )}
     </>
