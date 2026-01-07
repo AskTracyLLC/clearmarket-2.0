@@ -1551,42 +1551,51 @@ export type Database = {
       }
       pending_credit_purchases: {
         Row: {
+          amount_cents: number | null
           completed_at: string | null
           confirmation_email_id: string | null
           confirmation_email_sent_at: string | null
           created_at: string
           credit_pack_id: string
           credits_to_add: number
+          currency: string | null
           id: string
           status: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id: string | null
+          stripe_price_id: string | null
           user_id: string
         }
         Insert: {
+          amount_cents?: number | null
           completed_at?: string | null
           confirmation_email_id?: string | null
           confirmation_email_sent_at?: string | null
           created_at?: string
           credit_pack_id: string
           credits_to_add: number
+          currency?: string | null
           id?: string
           status?: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id?: string | null
+          stripe_price_id?: string | null
           user_id: string
         }
         Update: {
+          amount_cents?: number | null
           completed_at?: string | null
           confirmation_email_id?: string | null
           confirmation_email_sent_at?: string | null
           created_at?: string
           credit_pack_id?: string
           credits_to_add?: number
+          currency?: string | null
           id?: string
           status?: string
           stripe_checkout_session_id?: string
           stripe_payment_intent_id?: string | null
+          stripe_price_id?: string | null
           user_id?: string
         }
         Relationships: [
