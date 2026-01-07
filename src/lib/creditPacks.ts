@@ -27,7 +27,7 @@ export const CREDIT_PACKS: CreditPack[] = [
     description: "1 credit — for testing payment system",
     credits: 1,
     priceUsd: 1.50,
-    stripePriceId: "price_REPLACE_WITH_ACTUAL_PRICE_ID", // TODO: Replace with actual Price ID from Stripe
+    stripePriceId: "price_1Sn2PwRJnthCkb9SjcbvoR1V",
   },
   {
     id: "starter_10",
