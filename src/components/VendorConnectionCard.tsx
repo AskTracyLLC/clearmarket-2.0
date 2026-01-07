@@ -415,7 +415,7 @@ const VendorConnectionCard: React.FC<VendorConnectionCardProps> = ({
                 <Badge 
                   variant="default" 
                   className="text-xs gap-1 bg-green-600 cursor-pointer hover:bg-green-700"
-                  onClick={() => connectionId && setShowAgreementDialog(true)}
+                  onClick={() => setShowWorkingTermsDialog(true)}
                 >
                   <CheckCircle2 className="w-3 h-3" />
                   Agreement on file
