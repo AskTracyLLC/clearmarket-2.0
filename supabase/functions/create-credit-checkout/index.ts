@@ -11,7 +11,7 @@ const corsHeaders = {
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string }> = {
   beta_test: {
     credits: 1,
-    stripePriceId: "price_1Sn2PwRJnthCkb9SjcbvoR1V",
+    stripePriceId: "price_1Sn3C9IZ7isA0IxEPPQTVL5w",
   },
   starter_10: {
     credits: 10,
