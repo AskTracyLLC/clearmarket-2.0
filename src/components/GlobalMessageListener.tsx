@@ -35,15 +35,10 @@ export function GlobalMessageListener() {
     playRef.current = playNotificationSound;
   }, [playNotificationSound]);
 
-  // Set realtime auth token whenever session changes
+  // Ensure realtime websocket is always authenticated and refreshed on session changes
   useEffect(() => {
-    let isMounted = true;
-
-    async function initRealtimeAuth() {
+    const setRealtimeAuth = async () => {
       const { data, error } = await supabase.auth.getSession();
-      
-      if (!isMounted) return;
-      
       if (error) {
         console.warn("[GML] error fetching session for realtime:", error.message);
         return;
@@ -56,19 +51,32 @@ export function GlobalMessageListener() {
       } else {
         console.warn("[GML] no session token for realtime");
       }
-    }
+    };
 
-    initRealtimeAuth();
+    setRealtimeAuth();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const token = session?.access_token;
+      if (token) {
+        supabase.realtime.setAuth(token);
+        console.log("[GML] realtime auth refreshed");
+      }
+    });
 
     return () => {
-      isMounted = false;
+      sub.subscription.unsubscribe();
     };
-  }, [user?.id]); // Re-run when user changes
+  }, []);
 
   // Subscribe to messages - only depends on targetUserId
   useEffect(() => {
     if (!targetUserId) {
       console.log("[GML] No targetUserId, skipping subscription");
+      return;
+    }
+
+    // Single-instance guard: if we're already subscribed for this user, don't churn
+    if (channelRef.current && channelRef.current.topic === `realtime:global-messages-${targetUserId}`) {
       return;
     }
 
@@ -107,6 +115,11 @@ export function GlobalMessageListener() {
             recipient_id: msg.recipient_id,
             currentUserId: targetUserId,
           });
+
+          // Only act if recipient matches current user
+          if (msg.recipient_id !== targetUserId) {
+            return;
+          }
 
           // Don't play sound for messages sent by the current user
           if (msg.sender_id === targetUserId) {
