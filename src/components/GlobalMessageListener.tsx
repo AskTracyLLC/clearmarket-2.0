@@ -15,7 +15,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
  * - Does not play sounds for messages sent by the current user
  */
 export function GlobalMessageListener() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { effectiveUserId } = useMimic();
   const { playNotificationSound, soundEnabled } = useNotificationSound();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -35,6 +35,14 @@ export function GlobalMessageListener() {
     if (!targetUserId) {
       console.log("[GML] No targetUserId, skipping subscription");
       return;
+    }
+
+    // Ensure realtime connection is authenticated (otherwise RLS blocks events)
+    if (session?.access_token) {
+      supabase.realtime.setAuth(session.access_token);
+      console.log("[GML] realtime auth set");
+    } else {
+      console.log("[GML] realtime auth missing (no session token yet)");
     }
 
     // Clean up any existing subscription
@@ -102,7 +110,7 @@ export function GlobalMessageListener() {
         channelRef.current = null;
       }
     };
-  }, [targetUserId, playNotificationSound]);
+  }, [targetUserId, playNotificationSound, session?.access_token]);
 
   // This component renders nothing - it's purely for side effects
   return null;
