@@ -568,6 +568,7 @@ export async function inactivateWorkingTermsRow(
 
 /**
  * Propose a change to working terms (rate/turnaround)
+ * Only one pending request per row per user allowed.
  */
 export async function proposeWorkingTermsChange(
   rowId: string,
@@ -580,6 +581,20 @@ export async function proposeWorkingTermsChange(
     reason: string;
   }
 ): Promise<{ id: string | null; error: string | null }> {
+  // Check for existing pending request by the same user on this row
+  const { data: existingPending } = await supabase
+    .from("working_terms_change_requests")
+    .select("id")
+    .eq("working_terms_row_id", rowId)
+    .eq("requested_by_user_id", requestedByUserId)
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingPending) {
+    return { id: null, error: "You already have a pending change request for this term. Please wait for it to be reviewed." };
+  }
+
   // Get current row values
   const { data: row, error: fetchError } = await supabase
     .from("working_terms_rows")
@@ -589,6 +604,13 @@ export async function proposeWorkingTermsChange(
 
   if (fetchError || !row) {
     return { id: null, error: "Row not found" };
+  }
+
+  // Validate actor is part of this agreement
+  const isVendor = requestedByUserId === (row.working_terms_requests as any).vendor_id;
+  const isRep = requestedByUserId === (row.working_terms_requests as any).rep_id;
+  if (!isVendor && !isRep) {
+    return { id: null, error: "You are not authorized to request changes to these terms." };
   }
 
   // Create change request
@@ -613,7 +635,7 @@ export async function proposeWorkingTermsChange(
     return { id: null, error: insertError.message };
   }
 
-  // Update row status
+  // Update row status to indicate pending change
   const newRowStatus = requestedByRole === 'rep' ? 'pending_change_rep' : 'pending_change_vendor';
   await supabase
     .from("working_terms_rows")
