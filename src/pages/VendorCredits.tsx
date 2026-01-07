@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,70 +25,41 @@ interface Transaction {
 
 const VendorCredits = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
-
-  // Handle success/cancel status from Stripe redirect
-  const status = searchParams.get("status");
   const [isPolling, setIsPolling] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/signin");
-      return;
-    }
+  // Stable derived value for success status
+  const isSuccess = useMemo(() => {
+    return new URLSearchParams(location.search).get("status") === "success";
+  }, [location.search]);
 
-    if (user) {
-      loadData();
-    }
-  }, [user, authLoading, navigate]);
+  const isCancelled = useMemo(() => {
+    return new URLSearchParams(location.search).get("status") === "cancelled";
+  }, [location.search]);
 
-  // Auto-poll after successful purchase (webhook may take a moment)
-  useEffect(() => {
-    if (status === "success" && user && !isPolling) {
-      setIsPolling(true);
-      let pollCount = 0;
-      const maxPolls = 12; // 60 seconds total (5s interval)
-      
-      const pollInterval = setInterval(async () => {
-        pollCount++;
-        const newBalance = await getVendorCredits(user.id);
-        if (newBalance !== null && newBalance !== balance) {
-          setBalance(newBalance);
-          const txData = await getVendorTransactions(user.id);
-          setTransactions(txData);
-          clearInterval(pollInterval);
-          setIsPolling(false);
-        }
-        if (pollCount >= maxPolls) {
-          clearInterval(pollInterval);
-          setIsPolling(false);
-        }
-      }, 5000);
+  // Refs to track polling state without causing re-renders
+  const initialBalanceRef = useRef<number | null>(null);
+  const initialTxCountRef = useRef<number | null>(null);
+  const mountedRef = useRef(true);
 
-      return () => {
-        clearInterval(pollInterval);
-        setIsPolling(false);
-      };
-    }
-  }, [status, user, balance, isPolling]);
+  // Stable fetch functions
+  const fetchBalance = useCallback(async () => {
+    if (!user) return null;
+    return await getVendorCredits(user.id);
+  }, [user]);
 
-  // Clear status param after showing message
-  useEffect(() => {
-    if (status) {
-      const timer = setTimeout(() => {
-        setSearchParams({});
-      }, 30000); // Extended to 30s for polling
-      return () => clearTimeout(timer);
-    }
-  }, [status, setSearchParams]);
+  const fetchTransactions = useCallback(async () => {
+    if (!user) return [];
+    return await getVendorTransactions(user.id);
+  }, [user]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
 
     // Load profile
@@ -103,18 +74,99 @@ const VendorCredits = () => {
       return;
     }
 
-    setProfile(profileData);
+    if (mountedRef.current) {
+      setProfile(profileData);
+    }
 
     // Load credit balance
-    const credits = await getVendorCredits(user.id);
-    setBalance(credits ?? 0);
+    const credits = await fetchBalance();
+    if (mountedRef.current) {
+      setBalance(credits ?? 0);
+    }
 
     // Load transaction history
-    const txData = await getVendorTransactions(user.id);
-    setTransactions(txData);
+    const txData = await fetchTransactions();
+    if (mountedRef.current) {
+      setTransactions(txData);
+      setLoading(false);
+    }
+  }, [user, navigate, fetchBalance, fetchTransactions]);
 
-    setLoading(false);
-  };
+  // Track mounted state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/signin");
+      return;
+    }
+
+    if (user) {
+      loadData();
+    }
+  }, [user, authLoading, navigate, loadData]);
+
+  // Auto-poll after successful purchase (webhook may take a moment)
+  useEffect(() => {
+    if (!isSuccess || !user) return;
+
+    // Capture initial state when polling starts
+    initialBalanceRef.current = balance;
+    initialTxCountRef.current = transactions.length;
+    setIsPolling(true);
+
+    let pollCount = 0;
+    const maxPolls = 12; // 60 seconds total (5s interval)
+
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+      
+      const newBalance = await fetchBalance();
+      const newTx = await fetchTransactions();
+      
+      if (!mountedRef.current) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      // Check if balance or transaction count changed from initial
+      const balanceChanged = newBalance !== null && newBalance !== initialBalanceRef.current;
+      const txCountChanged = newTx.length !== initialTxCountRef.current;
+
+      if (balanceChanged || txCountChanged) {
+        setBalance(newBalance ?? 0);
+        setTransactions(newTx);
+        clearInterval(pollInterval);
+        setIsPolling(false);
+        return;
+      }
+
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        setIsPolling(false);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [isSuccess, user, fetchBalance, fetchTransactions]); // Note: balance/transactions NOT in deps
+
+  // Clear status param after showing message
+  useEffect(() => {
+    if (isSuccess || isCancelled) {
+      const timer = setTimeout(() => {
+        navigate(location.pathname, { replace: true });
+      }, 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, isCancelled, navigate, location.pathname]);
+
 
   const handleBuyCredits = async (pack: CreditPack) => {
     if (!user) {
@@ -200,7 +252,7 @@ const VendorCredits = () => {
         {profile?.is_admin && <AdminViewBanner />}
         
         {/* Status Alerts */}
-        {status === "success" && (
+        {isSuccess && (
           <Alert className="mb-6 border-green-600/50 bg-green-600/10">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-600 flex items-center justify-between gap-4">
@@ -225,7 +277,7 @@ const VendorCredits = () => {
           </Alert>
         )}
 
-        {status === "cancelled" && (
+        {isCancelled && (
           <Alert className="mb-6 border-muted-foreground/50 bg-muted/50">
             <XCircle className="h-4 w-4 text-muted-foreground" />
             <AlertDescription className="text-muted-foreground">
@@ -341,12 +393,18 @@ const VendorCredits = () => {
                   <div className="col-span-2 text-right">Balance</div>
                 </div>
 
-                {/* Transactions */}
+                {/* Transactions - sorted DESC (newest first) */}
+                {/* Balance column shows balance AFTER that transaction */}
+                {/* For row 0 (newest): balance = currentBalance */}
+                {/* For row 1: balance = currentBalance - tx[0].amount */}
+                {/* etc. */}
                 {transactions.map((tx, idx) => {
-                  // Calculate running balance by summing up to this point
-                  const runningBalance = balance + transactions
-                    .slice(0, idx + 1)
-                    .reduce((sum, t) => sum - t.amount, 0);
+                  // Calculate balance after this transaction
+                  // Sum all transactions NEWER than this one (indices 0 to idx-1)
+                  const creditsAfterNewerTx = transactions
+                    .slice(0, idx)
+                    .reduce((sum, t) => sum + t.amount, 0);
+                  const balanceAfterThisTx = balance - creditsAfterNewerTx;
 
                   // Determine if this transaction has a clickable related entity
                   const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
@@ -379,7 +437,7 @@ const VendorCredits = () => {
                         {tx.amount > 0 ? "+" : ""}{tx.amount}
                       </div>
                       <div className="col-span-2 text-right text-muted-foreground">
-                        {runningBalance}
+                        {balanceAfterThisTx}
                       </div>
                     </div>
                   );
