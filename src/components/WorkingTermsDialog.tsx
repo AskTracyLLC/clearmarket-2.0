@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Collapsible,
   CollapsibleContent,
@@ -38,6 +39,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import {
   ChevronDown,
   ChevronRight,
@@ -46,6 +48,9 @@ import {
   X,
   AlertTriangle,
   FileText,
+  Clock,
+  ArrowUpRight,
+  ArrowDownLeft,
 } from "lucide-react";
 import {
   WorkingTermsRow,
@@ -83,13 +88,15 @@ export function WorkingTermsDialog({
   onTermsUpdated,
 }: WorkingTermsDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [rows, setRows] = useState<WorkingTermsRow[]>([]);
-  const [pendingChanges, setPendingChanges] = useState<Map<string, WorkingTermsChangeRequest>>(new Map());
+  const [allChangeRequests, setAllChangeRequests] = useState<WorkingTermsChangeRequest[]>([]);
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"terms" | "incoming" | "outgoing">("terms");
 
-  // Request change form state (for rep)
+  // Request change form state (for both vendor and rep)
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [newRate, setNewRate] = useState("");
   const [changeMessage, setChangeMessage] = useState("");
@@ -100,6 +107,8 @@ export function WorkingTermsDialog({
   const [declineChangeId, setDeclineChangeId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [processingChangeAction, setProcessingChangeAction] = useState(false);
+
+  const currentUserId = user?.id;
 
   useEffect(() => {
     if (open) {
@@ -124,19 +133,19 @@ export function WorkingTermsDialog({
       if (!request) {
         setRequestId(null);
         setRows([]);
-        setPendingChanges(new Map());
+        setAllChangeRequests([]);
         setLoading(false);
         return;
       }
 
       setRequestId(request.id);
 
-      // Fetch rows
+      // Fetch rows (include all statuses to show pending changes)
       const { data: rowsData } = await supabase
         .from("working_terms_rows")
         .select("*")
         .eq("working_terms_request_id", request.id)
-        .eq("status", "active")
+        .in("status", ["active", "pending_change_vendor", "pending_change_rep"])
         .order("state_code")
         .order("county_name")
         .order("inspection_type");
@@ -147,22 +156,18 @@ export function WorkingTermsDialog({
       const states = new Set((rowsData || []).map((r: any) => r.state_code));
       setExpandedStates(states);
 
-      // Fetch pending change requests
+      // Fetch ALL change requests (pending for actions, others for history context)
       const rowIds = (rowsData || []).map((r: any) => r.id);
       if (rowIds.length > 0) {
         const { data: changes } = await supabase
           .from("working_terms_change_requests")
           .select("*")
           .in("working_terms_row_id", rowIds)
-          .eq("status", "pending");
+          .order("created_at", { ascending: false });
 
-        const changesMap = new Map<string, WorkingTermsChangeRequest>();
-        (changes || []).forEach((c: any) => {
-          changesMap.set(c.working_terms_row_id, c as WorkingTermsChangeRequest);
-        });
-        setPendingChanges(changesMap);
+        setAllChangeRequests((changes || []) as WorkingTermsChangeRequest[]);
       } else {
-        setPendingChanges(new Map());
+        setAllChangeRequests([]);
       }
     } catch (error) {
       console.error("Error loading working terms:", error);
@@ -189,12 +194,29 @@ export function WorkingTermsDialog({
       .map(([stateCode, rows]) => ({ stateCode, rows }));
   }, [rows]);
 
-  // Pending changes awaiting vendor action
-  const pendingChangesForVendor = useMemo(() => {
-    return Array.from(pendingChanges.values()).filter(
-      (c) => c.requested_by_role === "rep"
-    );
-  }, [pendingChanges]);
+  // Build a map for quick lookup of pending changes by row id
+  const pendingChanges = useMemo(() => {
+    const map = new Map<string, WorkingTermsChangeRequest>();
+    allChangeRequests
+      .filter((c) => c.status === "pending")
+      .forEach((c) => map.set(c.working_terms_row_id, c));
+    return map;
+  }, [allChangeRequests]);
+
+  // Incoming requests: pending changes where I am the NON-initiator (I need to approve/decline)
+  const incomingRequests = useMemo(() => {
+    return allChangeRequests.filter((c) => {
+      if (c.status !== "pending") return false;
+      // If I'm vendor, incoming = rep initiated. If I'm rep, incoming = vendor initiated.
+      const iAmInitiator = c.requested_by_user_id === currentUserId;
+      return !iAmInitiator;
+    });
+  }, [allChangeRequests, currentUserId]);
+
+  // Outgoing requests: changes I initiated
+  const outgoingRequests = useMemo(() => {
+    return allChangeRequests.filter((c) => c.requested_by_user_id === currentUserId);
+  }, [allChangeRequests, currentUserId]);
 
   const toggleState = (stateCode: string) => {
     setExpandedStates((prev) => {
@@ -209,6 +231,8 @@ export function WorkingTermsDialog({
   };
 
   const handleRequestChange = async (rowId: string) => {
+    if (!currentUserId) return;
+    
     const rate = parseFloat(newRate);
     if (isNaN(rate) || rate < 0) {
       toast({
@@ -222,8 +246,8 @@ export function WorkingTermsDialog({
     setSubmittingChange(true);
     const { error } = await proposeWorkingTermsChange(
       rowId,
-      repId,
-      "rep",
+      currentUserId,
+      mode,
       {
         newRate: rate,
         newTurnaround: null,
@@ -241,7 +265,7 @@ export function WorkingTermsDialog({
     } else {
       toast({
         title: "Change requested",
-        description: "Your rate change request has been submitted.",
+        description: "Your rate change request has been submitted for approval.",
       });
       setEditingRowId(null);
       setNewRate("");
@@ -253,8 +277,9 @@ export function WorkingTermsDialog({
   };
 
   const handleApproveChange = async (changeId: string) => {
+    if (!currentUserId) return;
     setProcessingChangeAction(true);
-    const { error } = await acceptWorkingTermsChange(changeId, vendorId);
+    const { error } = await acceptWorkingTermsChange(changeId, currentUserId);
     if (error) {
       toast({
         title: "Error",
@@ -264,7 +289,7 @@ export function WorkingTermsDialog({
     } else {
       toast({
         title: "Change approved",
-        description: "The rate change has been approved.",
+        description: "The rate change has been approved and terms updated.",
       });
       loadWorkingTerms();
       onTermsUpdated?.();
@@ -273,11 +298,11 @@ export function WorkingTermsDialog({
   };
 
   const handleDeclineChange = async () => {
-    if (!declineChangeId) return;
+    if (!declineChangeId || !currentUserId) return;
     setProcessingChangeAction(true);
     const { error } = await declineWorkingTermsChange(
       declineChangeId,
-      vendorId,
+      currentUserId,
       declineReason || null
     );
     if (error) {
@@ -298,6 +323,19 @@ export function WorkingTermsDialog({
       onTermsUpdated?.();
     }
     setProcessingChangeAction(false);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="secondary" className="text-xs"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case "accepted":
+        return <Badge className="text-xs bg-green-600"><Check className="h-3 w-3 mr-1" />Approved</Badge>;
+      case "declined":
+        return <Badge variant="destructive" className="text-xs"><X className="h-3 w-3 mr-1" />Declined</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+    }
   };
 
   const formatRate = (rate: number | null) => {
@@ -346,218 +384,315 @@ export function WorkingTermsDialog({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Pending Changes Section (Vendor view) */}
-              {mode === "vendor" && pendingChangesForVendor.length > 0 && (
-                <Card className="border-amber-500/50 bg-amber-500/5">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      <span className="font-medium text-sm">
-                        Pending Rate Change Requests ({pendingChangesForVendor.length})
-                      </span>
+              {/* Tabs for Terms / Incoming / Outgoing */}
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="terms" className="gap-1">
+                    <FileText className="h-4 w-4" />
+                    Terms
+                  </TabsTrigger>
+                  <TabsTrigger value="incoming" className="gap-1">
+                    <ArrowDownLeft className="h-4 w-4" />
+                    Incoming
+                    {incomingRequests.length > 0 && (
+                      <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                        {incomingRequests.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="outgoing" className="gap-1">
+                    <ArrowUpRight className="h-4 w-4" />
+                    Outgoing
+                    {outgoingRequests.filter(r => r.status === "pending").length > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
+                        {outgoingRequests.filter(r => r.status === "pending").length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Terms Tab */}
+                <TabsContent value="terms" className="mt-4">
+                  {groupedRows.map((group) => (
+                    <Collapsible
+                      key={group.stateCode}
+                      open={expandedStates.has(group.stateCode)}
+                      onOpenChange={() => toggleState(group.stateCode)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-left h-10 px-3 hover:bg-muted/50"
+                        >
+                          {expandedStates.has(group.stateCode) ? (
+                            <ChevronDown className="h-4 w-4 mr-2" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 mr-2" />
+                          )}
+                          <span className="font-medium">{group.stateCode}</span>
+                          <Badge variant="secondary" className="ml-2">
+                            {group.rows.length} term{group.rows.length !== 1 ? "s" : ""}
+                          </Badge>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="border rounded-md mt-1 mb-3 overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/30">
+                                <TableHead className="w-[140px]">County</TableHead>
+                                <TableHead>Inspection Type</TableHead>
+                                <TableHead className="w-[100px]">Rate</TableHead>
+                                <TableHead className="w-[120px]">Effective From</TableHead>
+                                <TableHead className="w-[100px]">Source</TableHead>
+                                <TableHead className="w-[120px]">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {group.rows.map((row) => {
+                                const hasPendingChange = pendingChanges.has(row.id);
+                                const pendingChange = pendingChanges.get(row.id);
+                                const isEditing = editingRowId === row.id;
+                                const myPendingChange = pendingChange?.requested_by_user_id === currentUserId;
+
+                                return (
+                                  <TableRow key={row.id}>
+                                    <TableCell className="text-sm">
+                                      {row.county_name || "Statewide"}
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                      {getInspectionTypeLabel(row.inspection_type)}
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                      {hasPendingChange ? (
+                                        <div className="flex flex-col">
+                                          <span className="line-through text-muted-foreground text-xs">
+                                            {formatRate(row.rate)}
+                                          </span>
+                                          <span className="text-amber-500">
+                                            {formatRate(pendingChange?.new_rate ?? null)}
+                                            <span className="text-xs ml-1">(pending)</span>
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        formatRate(row.rate)
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                      {row.effective_from
+                                        ? new Date(row.effective_from).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })
+                                        : "—"}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className="text-xs capitalize">
+                                        {row.source?.replace(/_/g, " ") || "—"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      {isEditing ? (
+                                        <div className="flex flex-col gap-2">
+                                          <div className="flex gap-1">
+                                            <Input
+                                              type="number"
+                                              placeholder="New rate"
+                                              value={newRate}
+                                              onChange={(e) => setNewRate(e.target.value)}
+                                              className="h-8 w-20"
+                                            />
+                                            <Button
+                                              size="sm"
+                                              className="h-8"
+                                              onClick={() => handleRequestChange(row.id)}
+                                              disabled={submittingChange}
+                                            >
+                                              <Check className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-8"
+                                              onClick={() => {
+                                                setEditingRowId(null);
+                                                setNewRate("");
+                                                setChangeMessage("");
+                                              }}
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ) : hasPendingChange ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          {myPendingChange ? "Your request" : "Awaiting approval"}
+                                        </Badge>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-xs"
+                                          onClick={() => {
+                                            setEditingRowId(row.id);
+                                            setNewRate(row.rate?.toString() || "");
+                                          }}
+                                        >
+                                          <Edit className="h-3 w-3 mr-1" />
+                                          Request change
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </TabsContent>
+
+                {/* Incoming Tab */}
+                <TabsContent value="incoming" className="mt-4">
+                  {incomingRequests.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <ArrowDownLeft className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">No pending change requests to review</p>
                     </div>
-                    <div className="space-y-2">
-                      {pendingChangesForVendor.map((change) => {
+                  ) : (
+                    <div className="space-y-3">
+                      {incomingRequests.map((change) => {
                         const row = rows.find((r) => r.id === change.working_terms_row_id);
                         if (!row) return null;
                         return (
-                          <div
-                            key={change.id}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-background rounded-md border"
-                          >
-                            <div className="text-sm">
-                              <span className="font-medium">
-                                {row.state_code}
-                                {row.county_name ? ` – ${row.county_name}` : ""}
-                              </span>
-                              <span className="text-muted-foreground mx-2">·</span>
-                              <span>{getInspectionTypeLabel(row.inspection_type)}</span>
-                              <div className="mt-1">
-                                <span className="text-muted-foreground">
-                                  {formatRate(change.old_rate)} → 
-                                </span>
-                                <span className="font-medium text-primary ml-1">
-                                  {formatRate(change.new_rate)}
-                                </span>
-                                {change.reason && (
-                                  <span className="text-muted-foreground ml-2">
-                                    "{change.reason}"
-                                  </span>
-                                )}
+                          <Card key={change.id} className="border-amber-500/50 bg-amber-500/5">
+                            <CardContent className="pt-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="text-sm space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {row.state_code}
+                                      {row.county_name ? ` – ${row.county_name}` : ""}
+                                    </span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span>{getInspectionTypeLabel(row.inspection_type)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Rate:</span>
+                                    <span className="line-through text-muted-foreground">
+                                      {formatRate(change.old_rate)}
+                                    </span>
+                                    <span>→</span>
+                                    <span className="font-semibold text-primary">
+                                      {formatRate(change.new_rate)}
+                                    </span>
+                                  </div>
+                                  {change.reason && (
+                                    <p className="text-muted-foreground italic">
+                                      "{change.reason}"
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    Requested by {change.requested_by_role === "rep" ? "Field Rep" : "Vendor"} on{" "}
+                                    {new Date(change.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2 self-end sm:self-center">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveChange(change.id)}
+                                    disabled={processingChangeAction}
+                                  >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setDeclineChangeId(change.id);
+                                      setDeclineDialogOpen(true);
+                                    }}
+                                    disabled={processingChangeAction}
+                                  >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Decline
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex gap-2 self-end sm:self-center">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveChange(change.id)}
-                                disabled={processingChangeAction}
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setDeclineChangeId(change.id);
-                                  setDeclineDialogOpen(true);
-                                }}
-                                disabled={processingChangeAction}
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Decline
-                              </Button>
-                            </div>
-                          </div>
+                            </CardContent>
+                          </Card>
                         );
                       })}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </TabsContent>
 
-              {/* Terms Table grouped by state */}
-              {groupedRows.map((group) => (
-                <Collapsible
-                  key={group.stateCode}
-                  open={expandedStates.has(group.stateCode)}
-                  onOpenChange={() => toggleState(group.stateCode)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-left h-10 px-3 hover:bg-muted/50"
-                    >
-                      {expandedStates.has(group.stateCode) ? (
-                        <ChevronDown className="h-4 w-4 mr-2" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 mr-2" />
-                      )}
-                      <span className="font-medium">{group.stateCode}</span>
-                      <Badge variant="secondary" className="ml-2">
-                        {group.rows.length} term{group.rows.length !== 1 ? "s" : ""}
-                      </Badge>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="border rounded-md mt-1 mb-3 overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/30">
-                            <TableHead className="w-[140px]">County</TableHead>
-                            <TableHead>Inspection Type</TableHead>
-                            <TableHead className="w-[100px]">Rate</TableHead>
-                            <TableHead className="w-[120px]">Effective From</TableHead>
-                            <TableHead className="w-[100px]">Source</TableHead>
-                            {mode === "rep" && <TableHead className="w-[100px]">Actions</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {group.rows.map((row) => {
-                            const hasPendingChange = pendingChanges.has(row.id);
-                            const pendingChange = pendingChanges.get(row.id);
-                            const isEditing = editingRowId === row.id;
-
-                            return (
-                              <TableRow key={row.id}>
-                                <TableCell className="text-sm">
-                                  {row.county_name || "Statewide"}
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                  {getInspectionTypeLabel(row.inspection_type)}
-                                </TableCell>
-                                <TableCell className="text-sm font-medium">
-                                  {hasPendingChange ? (
-                                    <div className="flex flex-col">
-                                      <span className="line-through text-muted-foreground text-xs">
-                                        {formatRate(row.rate)}
-                                      </span>
-                                      <span className="text-amber-500">
-                                        {formatRate(pendingChange?.new_rate ?? null)}
-                                        <span className="text-xs ml-1">(pending)</span>
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    formatRate(row.rate)
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                  {row.effective_from
-                                    ? new Date(row.effective_from).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })
-                                    : "—"}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="text-xs capitalize">
-                                    {row.source?.replace(/_/g, " ") || "—"}
-                                  </Badge>
-                                </TableCell>
-                                {mode === "rep" && (
-                                  <TableCell>
-                                    {isEditing ? (
-                                      <div className="flex flex-col gap-2">
-                                        <div className="flex gap-1">
-                                          <Input
-                                            type="number"
-                                            placeholder="New rate"
-                                            value={newRate}
-                                            onChange={(e) => setNewRate(e.target.value)}
-                                            className="h-8 w-20"
-                                          />
-                                          <Button
-                                            size="sm"
-                                            className="h-8"
-                                            onClick={() => handleRequestChange(row.id)}
-                                            disabled={submittingChange}
-                                          >
-                                            <Check className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8"
-                                            onClick={() => {
-                                              setEditingRowId(null);
-                                              setNewRate("");
-                                              setChangeMessage("");
-                                            }}
-                                          >
-                                            <X className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : hasPendingChange ? (
-                                      <Badge variant="secondary" className="text-xs">
-                                        Pending
-                                      </Badge>
-                                    ) : (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 text-xs"
-                                        onClick={() => {
-                                          setEditingRowId(row.id);
-                                          setNewRate(row.rate?.toString() || "");
-                                        }}
-                                      >
-                                        <Edit className="h-3 w-3 mr-1" />
-                                        Request
-                                      </Button>
-                                    )}
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                {/* Outgoing Tab */}
+                <TabsContent value="outgoing" className="mt-4">
+                  {outgoingRequests.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <ArrowUpRight className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">You haven't submitted any change requests</p>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
+                  ) : (
+                    <div className="space-y-3">
+                      {outgoingRequests.map((change) => {
+                        const row = rows.find((r) => r.id === change.working_terms_row_id);
+                        if (!row) return null;
+                        return (
+                          <Card key={change.id} className="border-muted">
+                            <CardContent className="pt-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="text-sm space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">
+                                      {row.state_code}
+                                      {row.county_name ? ` – ${row.county_name}` : ""}
+                                    </span>
+                                    <span className="text-muted-foreground">·</span>
+                                    <span>{getInspectionTypeLabel(row.inspection_type)}</span>
+                                    {getStatusBadge(change.status)}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-muted-foreground">Rate:</span>
+                                    <span className="line-through text-muted-foreground">
+                                      {formatRate(change.old_rate)}
+                                    </span>
+                                    <span>→</span>
+                                    <span className="font-semibold">
+                                      {formatRate(change.new_rate)}
+                                    </span>
+                                  </div>
+                                  {change.reason && (
+                                    <p className="text-muted-foreground italic">
+                                      "{change.reason}"
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    Submitted {new Date(change.created_at).toLocaleDateString()}
+                                    {change.responded_at && (
+                                      <> · Responded {new Date(change.responded_at).toLocaleDateString()}</>
+                                    )}
+                                  </p>
+                                  {change.decline_reason && (
+                                    <p className="text-xs text-destructive">
+                                      Decline reason: {change.decline_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </DialogContent>
