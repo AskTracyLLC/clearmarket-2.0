@@ -1552,6 +1552,8 @@ export type Database = {
       pending_credit_purchases: {
         Row: {
           completed_at: string | null
+          confirmation_email_id: string | null
+          confirmation_email_sent_at: string | null
           created_at: string
           credit_pack_id: string
           credits_to_add: number
@@ -1563,6 +1565,8 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
+          confirmation_email_id?: string | null
+          confirmation_email_sent_at?: string | null
           created_at?: string
           credit_pack_id: string
           credits_to_add: number
@@ -1574,6 +1578,8 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
+          confirmation_email_id?: string | null
+          confirmation_email_sent_at?: string | null
           created_at?: string
           credit_pack_id?: string
           credits_to_add?: number
