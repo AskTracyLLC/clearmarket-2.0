@@ -22,6 +22,14 @@ export interface CreditPack {
 
 export const CREDIT_PACKS: CreditPack[] = [
   {
+    id: "beta_test",
+    label: "Beta Test",
+    description: "1 credit — for testing payment system",
+    credits: 1,
+    priceUsd: 1.50,
+    stripePriceId: "price_REPLACE_WITH_ACTUAL_PRICE_ID", // TODO: Replace with actual Price ID from Stripe
+  },
+  {
     id: "starter_10",
     label: "Starter Pack",
     description: "10 credits — good for testing ClearMarket",
