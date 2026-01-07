@@ -9,13 +9,14 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
  * Plays notification sounds when the current user receives a new message.
  * 
  * Features:
- * - Uses realtime filter to only receive messages for the current user
+ * - Sets realtime auth token to ensure RLS-filtered events are delivered
+ * - Uses refs for sound callbacks to prevent channel churn
  * - Respects user's sound_enabled preference
  * - Throttles sounds to prevent rapid-fire notifications
  * - Does not play sounds for messages sent by the current user
  */
 export function GlobalMessageListener() {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const { effectiveUserId } = useMimic();
   const { playNotificationSound, soundEnabled } = useNotificationSound();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -23,26 +24,52 @@ export function GlobalMessageListener() {
   // The user ID to listen for (supports mimic mode)
   const targetUserId = effectiveUserId || user?.id;
 
-  // Debug: Log mount state
-  console.log("[GML] mounted/updated", { 
-    userId: user?.id, 
-    effectiveUserId, 
-    targetUserId, 
-    soundEnabled 
-  });
+  // Use refs so the channel callback always has current values without recreating the channel
+  const soundEnabledRef = useRef(soundEnabled);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
+  const playRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    playRef.current = playNotificationSound;
+  }, [playNotificationSound]);
+
+  // Set realtime auth token whenever session changes
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initRealtimeAuth() {
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (!isMounted) return;
+      
+      if (error) {
+        console.warn("[GML] error fetching session for realtime:", error.message);
+        return;
+      }
+
+      const token = data.session?.access_token;
+      if (token) {
+        supabase.realtime.setAuth(token);
+        console.log("[GML] realtime auth set");
+      } else {
+        console.warn("[GML] no session token for realtime");
+      }
+    }
+
+    initRealtimeAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]); // Re-run when user changes
+
+  // Subscribe to messages - only depends on targetUserId
   useEffect(() => {
     if (!targetUserId) {
       console.log("[GML] No targetUserId, skipping subscription");
       return;
-    }
-
-    // Ensure realtime connection is authenticated (otherwise RLS blocks events)
-    if (session?.access_token) {
-      supabase.realtime.setAuth(session.access_token);
-      console.log("[GML] realtime auth set");
-    } else {
-      console.log("[GML] realtime auth missing (no session token yet)");
     }
 
     // Clean up any existing subscription
@@ -63,54 +90,57 @@ export function GlobalMessageListener() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          // TEMP: Remove filter to test if realtime works at all
+          filter: `recipient_id=eq.${targetUserId}`,
         },
         (payload) => {
+          // Log FIRST before any conditions
           console.log("[GML] INSERT payload received:", payload);
           
-          const newMessage = payload.new as {
+          const msg = payload.new as {
             id: string;
             sender_id: string;
             recipient_id: string;
           };
 
-          console.log("[GML] New message details:", {
-            sender_id: newMessage.sender_id,
-            recipient_id: newMessage.recipient_id,
-            targetUserId,
-            isSenderMe: newMessage.sender_id === targetUserId,
+          console.log("[GML] message check:", {
+            sender_id: msg.sender_id,
+            recipient_id: msg.recipient_id,
+            currentUserId: targetUserId,
           });
 
-          // Double-check: only play sound if this message is for us
-          // and not sent by us (shouldn't happen with the filter, but safety check)
-          if (
-            newMessage.recipient_id === targetUserId &&
-            newMessage.sender_id !== targetUserId
-          ) {
-            console.log("[GML] Attempting to play sound...");
-            playNotificationSound();
+          // Don't play sound for messages sent by the current user
+          if (msg.sender_id === targetUserId) {
+            console.log("[GML] Skipping - sender is self");
+            return;
+          }
+
+          // Play sound if enabled
+          if (soundEnabledRef.current) {
+            console.log("[GML] Playing notification sound");
+            playRef.current();
           } else {
-            console.log("[GML] Skipping sound - sender is self or recipient mismatch");
+            console.log("[GML] Sound disabled, skipping");
           }
         }
       )
       .subscribe((status, err) => {
         console.log("[GML] subscribe status:", status, err);
         if (status === "CHANNEL_ERROR") {
-          console.error("GlobalMessageListener: Failed to subscribe to messages channel");
+          console.error("[GML] Failed to subscribe to messages channel:", err);
         }
       });
 
     channelRef.current = channel;
 
-    // Cleanup on unmount or user change
+    // Cleanup on unmount or targetUserId change
     return () => {
       if (channelRef.current) {
+        console.log("[GML] Unmounting - removing channel");
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [targetUserId, playNotificationSound, session?.access_token]);
+  }, [targetUserId]); // Only recreate channel when targetUserId changes
 
   // This component renders nothing - it's purely for side effects
   return null;
