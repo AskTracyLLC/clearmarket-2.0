@@ -185,16 +185,32 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
     }
   }, [reps, vendorId]);
 
-  const getWorkingTermsStatusLabel = (repUserId: string): { label: string; variant: "default" | "secondary" | "outline" | "destructive"; hasAction?: boolean } => {
-    const status = workingTermsCache[repUserId];
-    const pendingChanges = pendingChangesCache[repUserId] || 0;
+  const getWorkingTermsStatusLabel = (rep: ConnectedRep): { label: string; variant: "default" | "secondary" | "outline" | "destructive"; hasAction?: boolean; pricingDisplay?: string } => {
+    const status = workingTermsCache[rep.repUserId];
+    const pendingChanges = pendingChangesCache[rep.repUserId] || 0;
     
+    // Check if we have agreement data from vendor_rep_agreements (via territory assignment)
+    const hasAgreementTerms = !!(
+      rep.pricingSummary || 
+      (rep.agreementId && rep.coverageSummary)
+    );
+    
+    // Build pricing display from pricingSummary or fallback to base_rate
+    let pricingDisplay: string | undefined;
+    if (rep.pricingSummary) {
+      pricingDisplay = rep.pricingSummary;
+    }
+    
+    // If no working_terms_requests status but has agreement data, show as "On file"
     if (!status) {
+      if (hasAgreementTerms) {
+        return { label: "On file", variant: "default", pricingDisplay };
+      }
       return { label: "No terms", variant: "outline" };
     }
     
     if (status.status === "active" && pendingChanges > 0) {
-      return { label: "Changes requested", variant: "secondary", hasAction: true };
+      return { label: "Changes requested", variant: "secondary", hasAction: true, pricingDisplay };
     }
     
     switch (status.status) {
@@ -205,10 +221,17 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
       case "pending_rep_confirm":
         return { label: "Awaiting confirmation", variant: "outline" };
       case "active":
-        return { label: "Active", variant: "default" };
+        return { label: "Active", variant: "default", pricingDisplay };
       case "declined":
+        // Even if declined in working_terms, if agreement exists show it
+        if (hasAgreementTerms) {
+          return { label: "On file", variant: "default", pricingDisplay };
+        }
         return { label: "Declined", variant: "destructive" };
       default:
+        if (hasAgreementTerms) {
+          return { label: "On file", variant: "default", pricingDisplay };
+        }
         return { label: "No terms", variant: "outline" };
     }
   };
@@ -432,7 +455,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
               </TableRow>
             ) : (
               filteredAndSortedReps.map((rep) => {
-                const statusInfo = getWorkingTermsStatusLabel(rep.repUserId);
+                const statusInfo = getWorkingTermsStatusLabel(rep);
                 const notesCount = rep.notes?.length || 0;
                 const canReview = reviewEligibilityCache[rep.repUserId] ?? true;
                 
@@ -484,13 +507,16 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant={statusInfo.variant}
-                            className={`text-xs ${statusInfo.label === "Active" ? "bg-green-600 hover:bg-green-700" : ""}`}
+                            className={`text-xs ${statusInfo.label === "Active" || statusInfo.label === "On file" ? "bg-green-600 hover:bg-green-700" : ""}`}
                           >
-                            {statusInfo.label === "Active" && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                            {(statusInfo.label === "Active" || statusInfo.label === "On file") && <CheckCircle2 className="w-3 h-3 mr-1" />}
                             {statusInfo.label === "Request sent" && <Clock className="w-3 h-3 mr-1" />}
                             {statusInfo.label === "Changes requested" && <AlertCircle className="w-3 h-3 mr-1" />}
                             {statusInfo.label}
                           </Badge>
+                          {statusInfo.pricingDisplay && (
+                            <span className="text-xs text-muted-foreground">{statusInfo.pricingDisplay}</span>
+                          )}
                           {statusInfo.hasAction && (
                             <Button
                               variant="link"
