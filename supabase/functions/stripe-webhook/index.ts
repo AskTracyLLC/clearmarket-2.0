@@ -7,40 +7,72 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const logStep = (step: string, details?: any) => {
+const logStep = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Initialize Supabase admin client early for logging
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
+  );
+
+  let logId: string | null = null;
+  let eventId = "unknown";
+
   try {
     logStep("Webhook received");
 
-    // Initialize Stripe
     const stripeKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
     if (!stripeKey) {
       throw new Error("STRIPE_SECRET_TESTKEY is not set");
     }
-    
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // Get webhook secret
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     if (!webhookSecret) {
       throw new Error("STRIPE_WEBHOOK_SECRET is not set");
     }
 
-    // Get raw body for signature verification
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
-    
+
     if (!signature) {
       throw new Error("No stripe-signature header");
+    }
+
+    // Try to extract event_id from raw body for logging before verification
+    try {
+      const rawPayload = JSON.parse(body);
+      eventId = rawPayload.id || "unknown";
+    } catch {
+      // Ignore parse errors, we'll get the real ID after verification
+    }
+
+    // Insert initial log entry
+    const { data: logData, error: logInsertError } = await supabaseAdmin
+      .from("stripe_webhook_logs")
+      .insert({
+        event_id: eventId,
+        status: "received",
+        signature_valid: null,
+        payload_summary: { raw_length: body.length },
+      })
+      .select("id")
+      .single();
+
+    if (logInsertError) {
+      logStep("Warning: Failed to insert log entry", { error: logInsertError.message });
+    } else {
+      logId = logData?.id;
     }
 
     // Verify webhook signature
@@ -50,27 +82,104 @@ serve(async (req) => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       logStep("Webhook signature verification failed", { error: errorMessage });
+
+      // Update log with failure
+      if (logId) {
+        await supabaseAdmin
+          .from("stripe_webhook_logs")
+          .update({
+            status: "failed",
+            signature_valid: false,
+            error_message: `Signature verification failed: ${errorMessage}`,
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", logId);
+      }
+
       return new Response(
         JSON.stringify({ error: "Invalid signature" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
+    // Update eventId with verified ID
+    eventId = event.id;
+
+    // Update log with verified event info
+    if (logId) {
+      await supabaseAdmin
+        .from("stripe_webhook_logs")
+        .update({
+          event_id: eventId,
+          event_type: event.type,
+          signature_valid: true,
+          payload_summary: {
+            type: event.type,
+            created: event.created,
+            livemode: event.livemode,
+          },
+        })
+        .eq("id", logId);
+    }
+
     logStep("Event verified", { type: event.type, id: event.id });
+
+    // Idempotency check: see if this event was already processed successfully
+    const { data: existingLog } = await supabaseAdmin
+      .from("stripe_webhook_logs")
+      .select("id, status")
+      .eq("event_id", eventId)
+      .eq("status", "success")
+      .maybeSingle();
+
+    if (existingLog) {
+      logStep("Event already processed successfully, skipping", { eventId });
+      
+      // Update current log entry to mark as duplicate
+      if (logId && logId !== existingLog.id) {
+        await supabaseAdmin
+          .from("stripe_webhook_logs")
+          .update({
+            status: "duplicate",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", logId);
+      }
+
+      return new Response(JSON.stringify({ received: true, already_processed: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // Handle checkout.session.completed event
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       logStep("Processing checkout session", { sessionId: session.id });
 
-      // Extract metadata
       const userId = session.metadata?.user_id;
       const creditPackId = session.metadata?.credit_pack_id;
       const creditsToAdd = parseInt(session.metadata?.credits_to_add || "0", 10);
 
       if (!userId || !creditPackId || creditsToAdd <= 0) {
         logStep("Missing or invalid metadata", { userId, creditPackId, creditsToAdd });
-        // Return 200 to acknowledge receipt - don't retry for invalid metadata
+
+        if (logId) {
+          await supabaseAdmin
+            .from("stripe_webhook_logs")
+            .update({
+              status: "skipped",
+              error_message: "Missing or invalid metadata",
+              processed_at: new Date().toISOString(),
+              payload_summary: {
+                type: event.type,
+                session_id: session.id,
+                metadata: session.metadata,
+              },
+            })
+            .eq("id", logId);
+        }
+
         return new Response(JSON.stringify({ received: true }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -79,14 +188,7 @@ serve(async (req) => {
 
       logStep("Metadata extracted", { userId, creditPackId, creditsToAdd });
 
-      // Initialize Supabase admin client
-      const supabaseAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } }
-      );
-
-      // Check if already processed (idempotency)
+      // Check if already processed via pending_credit_purchases (secondary idempotency)
       const { data: existingPurchase } = await supabaseAdmin
         .from("pending_credit_purchases")
         .select("id, status")
@@ -95,6 +197,22 @@ serve(async (req) => {
 
       if (existingPurchase?.status === "completed") {
         logStep("Purchase already completed, skipping", { purchaseId: existingPurchase.id });
+
+        if (logId) {
+          await supabaseAdmin
+            .from("stripe_webhook_logs")
+            .update({
+              status: "success",
+              processed_at: new Date().toISOString(),
+              payload_summary: {
+                type: event.type,
+                session_id: session.id,
+                already_completed: true,
+              },
+            })
+            .eq("id", logId);
+        }
+
         return new Response(JSON.stringify({ received: true, already_processed: true }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -129,7 +247,6 @@ serve(async (req) => {
           throw new Error(`Failed to update wallet: ${updateError.message}`);
         }
       } else {
-        // Create wallet if doesn't exist (shouldn't happen normally)
         const { error: insertWalletError } = await supabaseAdmin
           .from("user_wallet")
           .insert({ user_id: userId, credits: creditsToAdd });
@@ -159,7 +276,6 @@ serve(async (req) => {
 
       if (txError) {
         logStep("Warning: Failed to insert transaction record", { error: txError.message });
-        // Don't fail - credits were already added
       } else {
         logStep("Transaction record created");
       }
@@ -171,8 +287,8 @@ serve(async (req) => {
           .update({
             status: "completed",
             completed_at: new Date().toISOString(),
-            stripe_payment_intent_id: typeof session.payment_intent === "string" 
-              ? session.payment_intent 
+            stripe_payment_intent_id: typeof session.payment_intent === "string"
+              ? session.payment_intent
               : session.payment_intent?.id,
           })
           .eq("id", existingPurchase.id);
@@ -199,9 +315,37 @@ serve(async (req) => {
       }
 
       logStep("Purchase completed successfully", { userId, creditsToAdd, newBalance });
+
+      // Update log to success
+      if (logId) {
+        await supabaseAdmin
+          .from("stripe_webhook_logs")
+          .update({
+            status: "success",
+            processed_at: new Date().toISOString(),
+            payload_summary: {
+              type: event.type,
+              session_id: session.id,
+              user_id: userId,
+              credits_added: creditsToAdd,
+              new_balance: newBalance,
+            },
+          })
+          .eq("id", logId);
+      }
+    } else {
+      // Unhandled event type
+      if (logId) {
+        await supabaseAdmin
+          .from("stripe_webhook_logs")
+          .update({
+            status: "ignored",
+            processed_at: new Date().toISOString(),
+          })
+          .eq("id", logId);
+      }
     }
 
-    // Return 200 to acknowledge receipt
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -209,7 +353,19 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
-    
+
+    // Update log with error
+    if (logId) {
+      await supabaseAdmin
+        .from("stripe_webhook_logs")
+        .update({
+          status: "error",
+          error_message: errorMessage,
+          processed_at: new Date().toISOString(),
+        })
+        .eq("id", logId);
+    }
+
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
