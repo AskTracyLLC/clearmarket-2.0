@@ -4166,6 +4166,10 @@ export type Database = {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
+      backfill_working_terms_from_territory_assignments: {
+        Args: never
+        Returns: Json
+      }
       calculate_community_score: {
         Args: { p_user_id: string }
         Returns: number
