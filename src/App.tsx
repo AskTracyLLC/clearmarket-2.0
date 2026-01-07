@@ -85,6 +85,7 @@ import AdminBroadcastDetail from "./pages/AdminBroadcastDetail";
 import AdminBroadcastEdit from "./pages/AdminBroadcastEdit";
 import BroadcastFeedbackPage from "./pages/BroadcastFeedbackPage";
 import Tools from "./pages/Tools";
+import CoverageMap from "./pages/CoverageMap";
 
 
 const queryClient = new QueryClient();
@@ -143,6 +144,7 @@ const App = () => (
               <Route path="/settings" element={<Settings />} />
               <Route path="/support" element={<Support />} />
               <Route path="/tools" element={<Tools />} />
+              <Route path="/coverage-map" element={<CoverageMap />} />
               <Route path="/admin/reports" element={<AdminReports />} />
               <Route path="/admin/moderation" element={<AdminModeration />} />
               <Route path="/admin/invites" element={<AdminInviteCodes />} />
