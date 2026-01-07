@@ -90,7 +90,7 @@ export function GlobalMessageListener() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `recipient_id=eq.${targetUserId}`,
+          // TEMP: no filter to test if realtime works at all
         },
         (payload) => {
           // Log FIRST before any conditions
