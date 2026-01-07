@@ -415,68 +415,105 @@ serve(async (req) => {
         logStep("Notification created");
       }
 
-      // Send purchase confirmation email via Resend
+      // Send purchase confirmation email via Resend (with idempotency check)
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (resendApiKey) {
-        try {
-          // Fetch user profile and vendor profile (for anonymous_id)
-          const { data: userProfile } = await supabaseAdmin
-            .from("profiles")
-            .select("email, full_name")
-            .eq("id", userId)
-            .single();
+      if (resendApiKey && existingPurchase) {
+        // Check if email was already sent (idempotency)
+        const { data: purchaseRecord } = await supabaseAdmin
+          .from("pending_credit_purchases")
+          .select("confirmation_email_sent_at, confirmation_email_id")
+          .eq("id", existingPurchase.id)
+          .single();
 
-          // Fetch vendor_profile and rep_profile to get the signup-assigned anonymous_id
-          // User may be a Vendor (Vendor#X) or Field Rep (FieldRep#X)
-          const [vendorProfileResult, repProfileResult] = await Promise.all([
-            supabaseAdmin
-              .from("vendor_profile")
-              .select("anonymous_id")
-              .eq("user_id", userId)
-              .maybeSingle(),
-            supabaseAdmin
-              .from("rep_profile")
-              .select("anonymous_id")
-              .eq("user_id", userId)
-              .maybeSingle(),
-          ]);
+        if (purchaseRecord?.confirmation_email_sent_at) {
+          logStep("Confirmation email already sent, skipping", { 
+            emailId: purchaseRecord.confirmation_email_id,
+            sentAt: purchaseRecord.confirmation_email_sent_at 
+          });
+        } else {
+          try {
+            // Fetch user profile with role fields
+            const { data: userProfile } = await supabaseAdmin
+              .from("profiles")
+              .select("email, full_name, active_role, is_vendor_admin, is_fieldrep")
+              .eq("id", userId)
+              .single();
 
-          const vendorAnonymousId = vendorProfileResult.data?.anonymous_id;
-          const repAnonymousId = repProfileResult.data?.anonymous_id;
+            // Fetch vendor_profile and rep_profile to get the signup-assigned anonymous_id
+            const [vendorProfileResult, repProfileResult] = await Promise.all([
+              supabaseAdmin
+                .from("vendor_profile")
+                .select("anonymous_id")
+                .eq("user_id", userId)
+                .maybeSingle(),
+              supabaseAdmin
+                .from("rep_profile")
+                .select("anonymous_id")
+                .eq("user_id", userId)
+                .maybeSingle(),
+            ]);
 
-          if (userProfile?.email) {
-            const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : "0.00";
-            const currency = (session.currency || "usd").toUpperCase();
-            const purchaseDate = new Date().toLocaleString("en-US", {
-              timeZone: "America/Chicago",
-              dateStyle: "long",
-              timeStyle: "short",
-            });
-            const firstName = userProfile.full_name?.split(" ")[0] || "there";
-            const checkoutSessionId = session.id;
-            const paymentIntentId = typeof session.payment_intent === "string" 
-              ? session.payment_intent 
-              : session.payment_intent?.id || "";
+            const vendorAnonymousId = vendorProfileResult.data?.anonymous_id;
+            const repAnonymousId = repProfileResult.data?.anonymous_id;
 
-            // Buyer details - prefer vendor ID, fallback to rep ID, then generic
-            const buyerFullName = userProfile.full_name || "Not provided";
-            const buyerEmail = userProfile.email;
-            const buyerUserId = vendorAnonymousId || repAnonymousId || `User#${userId.substring(0, 6)}`;
+            // Determine buyer email (prefer profile, fallback to session customer_email)
+            const buyerEmail = userProfile?.email || session.customer_email || "";
 
-            // Pack name lookup
-            const packNames: Record<string, string> = {
-              beta_test: "Beta Test",
-              starter_10: "Starter Pack",
-              standard_25: "Standard Pack",
-              pro_50: "Pro Pack",
-            };
-            const packName = packNames[creditPackId] || creditPackId;
+            if (buyerEmail) {
+              const amountPaid = session.amount_total ? (session.amount_total / 100).toFixed(2) : "0.00";
+              const currency = (session.currency || "usd").toUpperCase();
+              const purchaseDate = new Date().toLocaleString("en-US", {
+                timeZone: "America/Chicago",
+                dateStyle: "long",
+                timeStyle: "short",
+              });
+              const firstName = userProfile?.full_name?.split(" ")[0] || "there";
+              const checkoutSessionId = session.id;
+              const paymentIntentId = typeof session.payment_intent === "string" 
+                ? session.payment_intent 
+                : session.payment_intent?.id || "";
 
-            // Email subject with amount and descriptor
-            const emailSubject = `ClearMarket Credits Purchased — $${amountPaid} ${currency} — Charge appears as ASKTRACY LLC-CLRMRKT`;
+              // Buyer details
+              const buyerFullName = userProfile?.full_name || "Not provided";
 
-            // Email body HTML
-            const emailHtml = `
+              // Role-based anonymous_id logic (matches app behavior):
+              // 1. If active_role == 'rep' => use rep_profile.anonymous_id
+              // 2. Else if active_role == 'vendor' => use vendor_profile.anonymous_id
+              // 3. Else if is_vendor_admin => vendor_profile.anonymous_id
+              // 4. Else if is_fieldrep => rep_profile.anonymous_id
+              // 5. Else fallback to 'User' + short userId
+              let buyerAccountId: string;
+              const activeRole = userProfile?.active_role;
+              const isVendorAdmin = userProfile?.is_vendor_admin;
+              const isFieldRep = userProfile?.is_fieldrep;
+
+              if (activeRole === "rep" && repAnonymousId) {
+                buyerAccountId = repAnonymousId;
+              } else if (activeRole === "vendor" && vendorAnonymousId) {
+                buyerAccountId = vendorAnonymousId;
+              } else if (isVendorAdmin && vendorAnonymousId) {
+                buyerAccountId = vendorAnonymousId;
+              } else if (isFieldRep && repAnonymousId) {
+                buyerAccountId = repAnonymousId;
+              } else {
+                // Fallback: first 8 + last 4 of userId
+                buyerAccountId = `User#${userId.substring(0, 8)}${userId.slice(-4)}`;
+              }
+
+              // Pack name lookup
+              const packNames: Record<string, string> = {
+                beta_test: "Beta Test",
+                starter_10: "Starter Pack",
+                standard_25: "Standard Pack",
+                pro_50: "Pro Pack",
+              };
+              const packName = packNames[creditPackId] || creditPackId;
+
+              // Email subject with amount and descriptor
+              const emailSubject = `ClearMarket Credits Purchased — $${amountPaid} ${currency} — Charge appears as ASKTRACY LLC-CLRMRKT`;
+
+              // Email body HTML
+              const emailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -509,8 +546,8 @@ serve(async (req) => {
             <td style="padding:6px 0;color:#f9fafb;font-size:14px;text-align:right;">${buyerEmail}</td>
           </tr>
           <tr>
-            <td style="padding:6px 0;color:#9ca3af;font-size:14px;">User #</td>
-            <td style="padding:6px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">${buyerUserId}</td>
+            <td style="padding:6px 0;color:#9ca3af;font-size:14px;">Account</td>
+            <td style="padding:6px 0;color:#10b981;font-size:14px;text-align:right;font-weight:600;">${buyerAccountId}</td>
           </tr>
         </table>
       </div>
@@ -559,42 +596,54 @@ serve(async (req) => {
 </body>
 </html>`;
 
-            const emailResponse = await fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${resendApiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: "ClearMarket <hello@useclearmarket.io>",
-                reply_to: "hello@useclearmarket.io",
-                to: [userProfile.email],
-                subject: emailSubject,
-                html: emailHtml,
-              }),
-            });
-
-            const emailResult = await emailResponse.json();
-            
-            if (emailResponse.ok && emailResult.id) {
-              logStep("Purchase confirmation email sent", { 
-                messageId: emailResult.id, 
-                to: userProfile.email,
-                buyerUserId 
+              const emailResponse = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${resendApiKey}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "ClearMarket <hello@useclearmarket.io>",
+                  reply_to: "hello@useclearmarket.io",
+                  to: [buyerEmail],
+                  subject: emailSubject,
+                  html: emailHtml,
+                }),
               });
+
+              const emailResult = await emailResponse.json();
+              
+              if (emailResponse.ok && emailResult.id) {
+                logStep("Purchase confirmation email sent", { 
+                  messageId: emailResult.id, 
+                  to: buyerEmail,
+                  buyerAccountId 
+                });
+
+                // Update pending_credit_purchases with email idempotency info
+                await supabaseAdmin
+                  .from("pending_credit_purchases")
+                  .update({
+                    confirmation_email_sent_at: new Date().toISOString(),
+                    confirmation_email_id: emailResult.id,
+                  })
+                  .eq("id", existingPurchase.id);
+              } else {
+                logStep("Warning: Failed to send purchase email", { error: emailResult });
+              }
             } else {
-              logStep("Warning: Failed to send purchase email", { error: emailResult });
+              logStep("Warning: User email not found for purchase confirmation", { userId });
             }
-          } else {
-            logStep("Warning: User email not found for purchase confirmation", { userId });
+          } catch (emailError) {
+            logStep("Warning: Exception sending purchase email", { 
+              error: emailError instanceof Error ? emailError.message : String(emailError) 
+            });
           }
-        } catch (emailError) {
-          logStep("Warning: Exception sending purchase email", { 
-            error: emailError instanceof Error ? emailError.message : String(emailError) 
-          });
         }
-      } else {
+      } else if (!resendApiKey) {
         logStep("Skipping purchase email: RESEND_API_KEY not configured");
+      } else {
+        logStep("Skipping purchase email: No pending purchase record found");
       }
 
       logStep("Purchase completed successfully", { userId, creditsToAdd, newBalance });
