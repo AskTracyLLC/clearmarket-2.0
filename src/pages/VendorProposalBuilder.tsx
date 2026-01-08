@@ -403,8 +403,10 @@ export default function VendorProposalBuilder() {
 
   // Rep selection handler - show sync dialog
   const handleRepSelect = (repId: string) => {
-    setSelectedRepId(repId);
-    if (repId && lines.length > 0) {
+    // "none" is used as placeholder since Radix Select doesn't allow empty string values
+    const actualId = repId === "none" ? "" : repId;
+    setSelectedRepId(actualId);
+    if (actualId && lines.length > 0) {
       setSyncConfirmOpen(true);
     }
   };
@@ -867,12 +869,12 @@ Details: ${autoFillDebug.details || "N/A"}`;
                     Compare your proposal rates against established rep terms. Reps will not see proposal pricing.
                   </p>
                   <div className="flex flex-wrap gap-3 items-center">
-                    <Select value={selectedRepId} onValueChange={handleRepSelect}>
+                    <Select value={selectedRepId || "none"} onValueChange={handleRepSelect}>
                       <SelectTrigger className="w-[250px]">
                         <SelectValue placeholder="Select a connected rep..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {connectedReps.map((rep) => (
                           <SelectItem key={rep.id} value={rep.id}>
                             {rep.name}
