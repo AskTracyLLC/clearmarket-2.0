@@ -31,7 +31,8 @@ interface ProposalDebugPanelProps {
 }
 
 export function ProposalDebugPanel({ proposalId, debugState, onClear }: ProposalDebugPanelProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Start open so it's immediately visible when debug mode is enabled
+  const [isOpen, setIsOpen] = useState(true);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const { user } = useAuth();
   const { effectiveUserId, mimickedUser, isAdmin } = useMimic();
