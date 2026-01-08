@@ -20,7 +20,7 @@ import {
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { RepReputationSnapshotNew } from "@/components/RepReputationSnapshotNew";
 import { ReputationSharePanel } from "@/components/ReputationSharePanel";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { ReviewsTable, ReviewRowData } from "@/components/ReviewsTable";
 import { AcceptReviewDialog } from "@/components/AcceptReviewDialog";
 import { DisputeReviewDialog } from "@/components/DisputeReviewDialog";
@@ -255,8 +255,8 @@ export default function RepReviews() {
   const sortedGiven = sortReviews(givenReviews);
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+  <>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">{reviewsCopy.common.sectionTitle}</h1>
           <p className="text-muted-foreground mt-1">
@@ -418,29 +418,29 @@ export default function RepReviews() {
               }}
             />
           </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
+    </div>
 
-      {/* Profile Dialog */}
-      <PublicProfileDialog
-        open={showProfileDialog}
-        onOpenChange={setShowProfileDialog}
-        targetUserId={profileDialogUserId}
-      />
+    {/* Profile Dialog */}
+    <PublicProfileDialog
+      open={showProfileDialog}
+      onOpenChange={setShowProfileDialog}
+      targetUserId={profileDialogUserId}
+    />
 
-      {/* Accept Dialog */}
-      <AcceptReviewDialog
-        open={!!acceptDialogReview}
-        onOpenChange={(open) => !open && setAcceptDialogReview(null)}
-        onConfirm={handleAcceptReview}
-      />
+    {/* Accept Dialog */}
+    <AcceptReviewDialog
+      open={!!acceptDialogReview}
+      onOpenChange={(open) => !open && setAcceptDialogReview(null)}
+      onConfirm={handleAcceptReview}
+    />
 
-      {/* Dispute Dialog */}
-      <DisputeReviewDialog
-        open={!!disputeDialogReview}
-        onOpenChange={(open) => !open && setDisputeDialogReview(null)}
-        onConfirm={handleDisputeReview}
-      />
-    </AuthenticatedLayout>
+    {/* Dispute Dialog */}
+    <DisputeReviewDialog
+      open={!!disputeDialogReview}
+      onOpenChange={(open) => !open && setDisputeDialogReview(null)}
+      onConfirm={handleDisputeReview}
+    />
+  </>
   );
 }

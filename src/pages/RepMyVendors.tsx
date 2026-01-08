@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Eye, Building2, Info, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import AdminViewBanner from "@/components/AdminViewBanner";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { getOrCreateConversation } from "@/lib/conversations";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { ReviewDialog, Review } from "@/components/ReviewDialog";
@@ -749,34 +749,17 @@ const RepMyVendors = () => {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
-        {profile?.is_admin && <AdminViewBanner />}
-        
-        {/* Header */}
-        <div className="mb-6 flex items-start gap-3 md:gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="flex-shrink-0 mt-1">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Vendors</h1>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="w-4 h-4 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>Agreements are created by vendors when you've confirmed coverage and pricing. If something looks wrong, message the vendor directly to request an update.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Your active vendor connections and agreements.
-            </p>
-          </div>
-        </div>
+      {profile?.is_admin && <AdminViewBanner />}
+      
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Vendors</h1>
+        <p className="text-sm md:text-base text-muted-foreground mt-1">
+          Your active vendor connections and agreements.
+        </p>
+      </div>
 
         {/* Connection Requests Section */}
         {pendingRequests.length > 0 && (
@@ -1005,7 +988,7 @@ const RepMyVendors = () => {
           onSaved={handleReviewSaved}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 };
 
