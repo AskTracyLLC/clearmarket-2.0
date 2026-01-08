@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Users, Info } from "lucide-react";
+import { Users, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getOrCreateConversation } from "@/lib/conversations";
 import AdminViewBanner from "@/components/AdminViewBanner";
@@ -26,7 +26,6 @@ import { RepostCoverageDialog } from "@/components/RepostCoverageDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { MyRepsTable } from "@/components/MyRepsTable";
 import { ConnectionNotesModal } from "@/components/ConnectionNotesModal";
 
@@ -544,33 +543,28 @@ const VendorMyReps = () => {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-6 md:py-8 max-w-6xl">
         {profile?.is_admin && <AdminViewBanner />}
         
         {/* Header */}
-        <div className="mb-6 flex items-start gap-3 md:gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="flex-shrink-0 mt-1">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Field Reps</h1>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="w-4 h-4 text-muted-foreground" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>Create agreements to capture coverage areas and pricing for each field rep. This helps you track your network.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <p className="text-sm md:text-base text-muted-foreground mt-1">
-              Your active field rep connections and agreements.
-            </p>
+        <div className="mb-6">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Field Reps</h1>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>Create agreements to capture coverage areas and pricing for each field rep. This helps you track your network.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
+            Your active field rep connections and agreements.
+          </p>
         </div>
 
         {/* Empty State */}
@@ -707,7 +701,7 @@ const VendorMyReps = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AuthenticatedLayout>
+    </>
   );
 };
 
