@@ -27,6 +27,8 @@ interface UserProfile {
   is_fieldrep?: boolean;
   full_name?: string;
   email?: string;
+  rep_anonymous_id?: string;
+  vendor_anonymous_id?: string;
 }
 
 export function AppShell({ children, className = "", hideTopNav = false }: AppShellProps) {
@@ -63,11 +65,34 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
     try {
       const targetUserId = mimickedUser?.id || user.id;
       
+      // Fetch main profile
       const { data: profileData } = await supabase
         .from("profiles")
         .select("is_admin, is_vendor_admin, is_fieldrep, full_name, email")
         .eq("id", targetUserId)
         .single();
+
+      // Fetch rep_profile anonymous_id if applicable
+      let repAnonymousId: string | undefined;
+      if (profileData?.is_fieldrep) {
+        const { data: repProfile } = await supabase
+          .from("rep_profile")
+          .select("anonymous_id")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        repAnonymousId = repProfile?.anonymous_id ?? undefined;
+      }
+
+      // Fetch vendor_profile anonymous_id if applicable
+      let vendorAnonymousId: string | undefined;
+      if (profileData?.is_vendor_admin) {
+        const { data: vendorProfile } = await supabase
+          .from("vendor_profile")
+          .select("anonymous_id")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        vendorAnonymousId = vendorProfile?.anonymous_id ?? undefined;
+      }
 
       if (profileData) {
         setProfile({
@@ -76,6 +101,8 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
           is_fieldrep: profileData.is_fieldrep ?? undefined,
           full_name: profileData.full_name ?? undefined,
           email: profileData.email ?? undefined,
+          rep_anonymous_id: repAnonymousId,
+          vendor_anonymous_id: vendorAnonymousId,
         });
 
         if (profileData.is_vendor_admin) {
