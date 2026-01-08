@@ -1218,65 +1218,6 @@ Details: ${autoFillDebug.details || "N/A"}`;
               </Card>
             )}
 
-            {/* Below Cost Warning Banner */}
-            {belowCostCount > 0 && (
-              <Alert className="border-destructive/50 bg-destructive/10">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                <AlertTitle className="text-destructive">
-                  {belowCostCount} line{belowCostCount !== 1 ? "s" : ""} below rep cost
-                </AlertTitle>
-                <AlertDescription className="flex items-center gap-3">
-                  <span className="text-muted-foreground">
-                    Some proposed rates are lower than your referenced rep pricing baseline.
-                  </span>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setShowBelowCostOnly(!showBelowCostOnly)}
-                  >
-                    {showBelowCostOnly ? "Show All" : "Filter to Warnings"}
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* Actions Bar */}
-            <div className="flex flex-wrap gap-2 items-center justify-between">
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setCoverageDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Coverage
-                </Button>
-                <Button variant="outline" onClick={handleAutoFill}>
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Auto-Fill from My Coverage
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {selectedLineIds.size > 0 && (
-                  <>
-                    <Button variant="outline" onClick={() => setBatchRateDialogOpen(true)}>
-                      Set Rate ({selectedLineIds.size})
-                    </Button>
-                    <Button variant="outline" onClick={handleDeleteSelected}>
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete ({selectedLineIds.size})
-                    </Button>
-                  </>
-                )}
-                <Button variant="outline" onClick={() => setExportDialogOpen(true)} disabled={lines.length === 0}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
-                {proposal.status === "draft" && (
-                  <Button onClick={() => setActivateDialogOpen(true)}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Activate
-                  </Button>
-                )}
-              </div>
-            </div>
-
             {/* Auto-Price Card */}
             {lines.length > 0 && (
               <Card className="border-primary/30 bg-primary/5">
@@ -1463,6 +1404,65 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 </CardContent>
               </Card>
             )}
+
+            {/* Below Cost Warning Banner */}
+            {belowCostCount > 0 && (
+              <Alert className="border-destructive/50 bg-destructive/10">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">
+                  {belowCostCount} line{belowCostCount !== 1 ? "s" : ""} below rep cost
+                </AlertTitle>
+                <AlertDescription className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    Some proposed rates are lower than your referenced rep pricing baseline.
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowBelowCostOnly(!showBelowCostOnly)}
+                  >
+                    {showBelowCostOnly ? "Show All" : "Filter to Warnings"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Actions Bar */}
+            <div className="flex flex-wrap gap-2 items-center justify-between">
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => setCoverageDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Coverage
+                </Button>
+                <Button variant="outline" onClick={handleAutoFill}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Auto-Fill from My Coverage
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedLineIds.size > 0 && (
+                  <>
+                    <Button variant="outline" onClick={() => setBatchRateDialogOpen(true)}>
+                      Set Rate ({selectedLineIds.size})
+                    </Button>
+                    <Button variant="outline" onClick={handleDeleteSelected}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete ({selectedLineIds.size})
+                    </Button>
+                  </>
+                )}
+                <Button variant="outline" onClick={() => setExportDialogOpen(true)} disabled={lines.length === 0}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+                {proposal.status === "draft" && (
+                  <Button onClick={() => setActivateDialogOpen(true)}>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Activate
+                  </Button>
+                )}
+              </div>
+            </div>
 
             {/* Auto-fill Debug Alert */}
             {autoFillDebug && (
