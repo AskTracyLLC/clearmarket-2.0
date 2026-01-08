@@ -57,16 +57,22 @@ serve(async (req) => {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("is_admin, is_moderator, is_support, email")
+      .select("is_admin, is_moderator, is_support, is_super_admin, email")
       .eq("id", userData.user.id)
       .single();
 
-    // Allow access if user is admin OR has the specific email (super admin safeguard)
-    const isSuperAdmin = profile?.email?.toLowerCase() === "tracy@asktracyllc.com";
-    const isStaff = profile?.is_admin || isSuperAdmin;
+    // Admin-only endpoint (allow super-admins too)
+    const isSuperAdminEmail = profile?.email?.toLowerCase() === "tracy@asktracyllc.com";
+    const isAdmin = profile?.is_admin === true;
+    const isSuperAdminFlag = profile?.is_super_admin === true;
 
-    if (profileError || !isStaff) {
-      logStep("Access denied - not admin", { userId: userData.user.id });
+    if (profileError || !(isAdmin || isSuperAdminFlag || isSuperAdminEmail)) {
+      logStep("Access denied - not admin", {
+        userId: userData.user.id,
+        hasProfile: !!profile,
+        is_admin: profile?.is_admin,
+        is_super_admin: profile?.is_super_admin,
+      });
       return new Response(JSON.stringify({ error: "Access denied. Admin only." }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
