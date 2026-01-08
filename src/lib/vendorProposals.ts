@@ -215,6 +215,64 @@ export async function createProposalFromTemplate(templateId: string): Promise<Ve
   return newProposal as VendorProposal;
 }
 
+export interface DuplicateProposalOptions {
+  newName: string;
+  clientName?: string;
+  keepAsTemplate: boolean;
+}
+
+export async function duplicateProposal(
+  proposalId: string,
+  options: DuplicateProposalOptions
+): Promise<VendorProposal> {
+  const original = await fetchProposalById(proposalId);
+  if (!original) throw new Error("Proposal not found");
+
+  const lines = await fetchProposalLines(proposalId);
+
+  // Create new proposal
+  const { data: newProposal, error } = await supabase
+    .from("vendor_client_proposals")
+    .insert({
+      vendor_user_id: original.vendor_user_id,
+      name: options.newName,
+      client_name: options.clientName || null,
+      disclaimer: original.disclaimer,
+      is_template: options.keepAsTemplate,
+      status: "draft",
+      effective_as_of: null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // Copy lines
+  if (lines.length > 0) {
+    const newLines = lines.map((line) => ({
+      proposal_id: newProposal.id,
+      state_code: line.state_code,
+      state_name: line.state_name,
+      county_id: line.county_id,
+      county_name: line.county_name,
+      is_all_counties: line.is_all_counties,
+      region_key: line.region_key,
+      order_type: line.order_type,
+      proposed_rate: line.proposed_rate,
+      internal_rep_rate: line.internal_rep_rate,
+      internal_rep_rate_baseline: line.internal_rep_rate_baseline,
+      internal_rep_source_rep_id: line.internal_rep_source_rep_id,
+      internal_note: line.internal_note,
+      approved_rate: null, // Reset approved rate
+    }));
+
+    const { error: linesError } = await supabase.from("vendor_client_proposal_lines").insert(newLines);
+    if (linesError) throw linesError;
+  }
+
+  return newProposal as VendorProposal;
+}
+
 // ============== PROPOSAL LINES ==============
 
 export async function fetchProposalLines(proposalId: string): Promise<VendorProposalLine[]> {
