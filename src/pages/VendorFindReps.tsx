@@ -19,7 +19,6 @@ import { checkContactUnlockedBatch } from "@/lib/credits";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -627,7 +626,7 @@ export default function VendorFindReps() {
   };
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">Find Reps</h1>
@@ -1326,6 +1325,6 @@ export default function VendorFindReps() {
         onOpenChange={setShowProfileDialog}
         targetUserId={profileDialogUserId}
       />
-    </AuthenticatedLayout>
+    </>
   );
 }

@@ -44,7 +44,6 @@ import {
 import { ShieldCheck, Eye, Check, X, Clock, AlertTriangle, SearchX } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { createNotification } from "@/lib/notifications";
 import {
@@ -225,7 +224,7 @@ export default function AdminBackgroundChecks() {
   if (!hasAccess) return null;
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
@@ -482,6 +481,6 @@ export default function AdminBackgroundChecks() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AuthenticatedLayout>
+    </>
   );
 }

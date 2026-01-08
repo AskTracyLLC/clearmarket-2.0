@@ -17,7 +17,6 @@ import { ArrowLeft, Save, AlertCircle, Plus, Minus, ExternalLink, ClipboardList 
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { VendorChecklistManager } from "@/components/VendorChecklistManager";
 import { checklist } from "@/lib/checklistTracking";
 
@@ -270,8 +269,7 @@ const VendorProfile = () => {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-12 max-w-3xl">
+    <div className="container mx-auto px-4 py-12 max-w-3xl">
         <div className="mb-6 flex items-center gap-4">
           <Link to="/dashboard">
             <Button variant="ghost" size="sm">
@@ -548,7 +546,6 @@ const VendorProfile = () => {
           </Card>
         </form>
       </div>
-    </AuthenticatedLayout>
   );
 };
 

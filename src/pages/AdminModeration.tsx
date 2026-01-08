@@ -25,7 +25,6 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { toast } from "sonner";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 export default function AdminModeration() {
   const { user, loading: authLoading } = useAuth();
@@ -215,7 +214,7 @@ export default function AdminModeration() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="mb-8">
@@ -422,6 +421,6 @@ export default function AdminModeration() {
           targetUserId={profileDialogUserId}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }

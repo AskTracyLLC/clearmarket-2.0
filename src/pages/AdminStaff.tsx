@@ -39,7 +39,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { logAdminAction } from "@/lib/adminAudit";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface StaffUser {
   id: string;
@@ -322,7 +321,7 @@ export default function AdminStaff() {
   if (!hasAccess) return null;
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -615,6 +614,6 @@ export default function AdminStaff() {
         onOpenChange={(open) => !open && setProfileDialog({ open: false, userId: null })}
         targetUserId={profileDialog.userId || ""}
       />
-    </AuthenticatedLayout>
+    </>
   );
 }

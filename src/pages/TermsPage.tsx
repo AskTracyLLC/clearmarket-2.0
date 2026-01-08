@@ -1,10 +1,8 @@
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { PageHeader } from "@/components/PageHeader";
 
 const TermsPage = () => {
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
         <PageHeader
           title="ClearMarket Terms of Service"
           backTo="/dashboard"
@@ -404,7 +402,6 @@ const TermsPage = () => {
           </section>
         </div>
       </div>
-    </AuthenticatedLayout>
   );
 };
 

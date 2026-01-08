@@ -11,7 +11,6 @@ import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import AdminViewBanner from "@/components/AdminViewBanner";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface Transaction {
   id: string;
@@ -246,8 +245,7 @@ const VendorCredits = () => {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-12 max-w-5xl">
+    <div className="container mx-auto px-4 py-12 max-w-5xl">
         {/* Admin View Banner */}
         {profile?.is_admin && <AdminViewBanner />}
         
@@ -456,7 +454,6 @@ const VendorCredits = () => {
           </ul>
         </div>
       </div>
-    </AuthenticatedLayout>
   );
 };
 

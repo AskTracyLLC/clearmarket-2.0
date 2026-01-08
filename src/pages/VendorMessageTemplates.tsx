@@ -31,7 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface VendorTemplate {
   id: string;
@@ -227,8 +226,7 @@ export default function VendorMessageTemplates() {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
+    <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -433,9 +431,8 @@ export default function VendorMessageTemplates() {
                 {isCreating ? "Create Template" : "Save Changes"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AuthenticatedLayout>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

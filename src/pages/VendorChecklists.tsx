@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -436,8 +435,7 @@ export default function VendorChecklists() {
   const copy = vendorChecklistsCopy;
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
@@ -929,6 +927,5 @@ export default function VendorChecklists() {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </AuthenticatedLayout>
   );
 }
