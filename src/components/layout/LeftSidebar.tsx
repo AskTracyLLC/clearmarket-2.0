@@ -148,11 +148,13 @@ export function LeftSidebar({
     { label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
   ];
 
-  // More menu items
+  // Tools is a primary nav item (not under More)
+  const toolsItem: NavItem = { label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" /> };
+
+  // More menu items (Tools NOT here - it's primary)
   const moreItems: NavItem[] = [
     { label: "Coverage Map", path: "/coverage-map", icon: <Map className="h-5 w-5" /> },
     { label: "Safety Center", path: "/safety", icon: <ShieldAlert className="h-5 w-5" /> },
-    { label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" /> },
     { label: "Help Center", path: "/help", icon: <HelpCircle className="h-5 w-5" /> },
   ];
 
@@ -217,6 +219,22 @@ export function LeftSidebar({
     .join("")
     .slice(0, 2)
     .toUpperCase() || "U";
+
+  // Generate role-specific user ID (e.g., FieldRep#ABC123, Vendor#ABC123)
+  const getRoleIdLabel = () => {
+    // Use last 6 characters of user ID as short identifier (safe fallback)
+    // TODO: Use public anonymous_id from rep_profile/vendor_profile if available
+    const shortId = userProfile?.email?.split("@")[0]?.slice(0, 8) || "User";
+    if (isAdmin) {
+      return `Admin#${shortId}`;
+    }
+    if (effectiveRole === "vendor" || isVendor) {
+      return `Vendor#${shortId}`;
+    }
+    return `FieldRep#${shortId}`;
+  };
+
+  const roleIdLabel = getRoleIdLabel();
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -326,6 +344,9 @@ export function LeftSidebar({
             {/* Role-specific items */}
             {roleItems.map((item) => renderNavItem(item))}
 
+            {/* Tools - primary nav for all roles */}
+            {renderNavItem(toolsItem)}
+
             {/* Credits for Vendors */}
             {(effectiveRole === "vendor" || isVendor) && vendorCredits !== undefined && vendorCredits !== null && (
               <div className="mt-2">
@@ -410,6 +431,7 @@ export function LeftSidebar({
                   </Avatar>
                   <div className="flex-1 text-left min-w-0">
                     <p className="text-sm font-medium truncate">{userProfile?.full_name || "User"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{roleIdLabel}</p>
                     <p className="text-xs text-muted-foreground truncate">{userProfile?.email}</p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
