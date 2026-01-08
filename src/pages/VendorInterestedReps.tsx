@@ -9,7 +9,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, XCircle, User, MessageSquare, Ban } from "lucide-react";
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { DeclineRepDialog } from "@/components/DeclineRepDialog";
 
 interface InterestedRep {
@@ -296,7 +295,7 @@ export default function VendorInterestedReps() {
     : post.pay_min;
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-12 max-w-6xl">
         {/* Page Header */}
         <div className="mb-8">
@@ -819,6 +818,6 @@ export default function VendorInterestedReps() {
           }}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }

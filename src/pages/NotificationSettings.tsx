@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Bell, Volume2, Play } from "lucide-react";
 import { toast } from "sonner";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
 
 type NotificationPreferences = {
@@ -131,8 +130,7 @@ export default function NotificationSettings() {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto p-8 space-y-6">
+    <div className="max-w-4xl mx-auto p-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Bell className="h-8 w-8" />
@@ -447,6 +445,5 @@ export default function NotificationSettings() {
           </CardContent>
         </Card>
       </div>
-    </AuthenticatedLayout>
   );
 }

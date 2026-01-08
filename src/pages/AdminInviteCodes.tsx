@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Plus, Copy, RefreshCw } from "lucide-react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface InviteCode {
   id: string;
@@ -191,8 +190,7 @@ const AdminInviteCodes = () => {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Beta Invite Codes</h1>
         </div>
@@ -327,7 +325,6 @@ const AdminInviteCodes = () => {
           </CardContent>
         </Card>
       </div>
-    </AuthenticatedLayout>
   );
 };
 

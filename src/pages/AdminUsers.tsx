@@ -54,7 +54,6 @@ import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { AdminMessageUserDialog } from "@/components/admin/AdminMessageUserDialog";
 import { logAdminAction } from "@/lib/adminAudit";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
 
@@ -681,7 +680,7 @@ export default function AdminUsers() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -1205,6 +1204,6 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AuthenticatedLayout>
+    </>
   );
 }

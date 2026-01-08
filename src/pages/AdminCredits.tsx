@@ -23,7 +23,6 @@ import {
   RefreshCw,
   ExternalLink
 } from "lucide-react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 
 interface UserSearchResult {
   id: string;
@@ -408,8 +407,7 @@ const AdminCredits = () => {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-2">Credit Management</h1>
           <p className="text-muted-foreground">
@@ -694,7 +692,6 @@ const AdminCredits = () => {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout>
   );
 };
 

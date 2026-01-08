@@ -46,7 +46,6 @@ import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { CommunityImageGallery } from "@/components/CommunityImageGallery";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
 import { communityCopy } from "@/copy/communityCopy";
 import {
@@ -336,7 +335,7 @@ const CommunityPostDetail = () => {
   const isAuthor = post.author_id === user.id;
 
   return (
-    <AuthenticatedLayout>
+    <>
       <main className="container mx-auto px-4 py-8 max-w-3xl">
         <Button variant="outline" onClick={() => navigate("/community")} className="mb-6">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -727,7 +726,7 @@ const CommunityPostDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

@@ -26,7 +26,6 @@ import {
   ExternalLink,
   Paperclip,
 } from "lucide-react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { SupportImageGallery } from "@/components/SupportImageGallery";
@@ -281,7 +280,7 @@ export default function AdminSupport() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="mb-6">
@@ -622,6 +621,6 @@ export default function AdminSupport() {
           targetUserId={profileUserId}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }

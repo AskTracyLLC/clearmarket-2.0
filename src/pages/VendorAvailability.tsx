@@ -35,7 +35,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RecurrenceType, getRecurrenceDescription, getUpcomingPayDatesForSchedule } from "@/lib/recurringEvents";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { checklist } from "@/lib/checklistTracking";
 
 const WEEKDAYS = [
@@ -461,7 +460,7 @@ const VendorAvailability = () => {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       {isAdminViewing && <AdminViewBanner />}
       
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -787,7 +786,7 @@ const VendorAvailability = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

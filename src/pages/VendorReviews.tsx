@@ -11,7 +11,6 @@ import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { VendorReputationSnapshot } from "@/components/VendorReputationSnapshot";
 import { ReputationSharePanel } from "@/components/ReputationSharePanel";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { ReviewsTable, ReviewRowData } from "@/components/ReviewsTable";
 import { reviewsCopy } from "@/copy/reviewsCopy";
 
@@ -195,7 +194,7 @@ export default function VendorReviews() {
   const sortedGiven = sortReviews(givenReviews);
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">{reviewsCopy.common.sectionTitle}</h1>
@@ -319,12 +318,11 @@ export default function VendorReviews() {
         </Tabs>
       </div>
 
-      {/* Profile Dialog */}
       <PublicProfileDialog
         open={showProfileDialog}
         onOpenChange={setShowProfileDialog}
         targetUserId={profileDialogUserId}
       />
-    </AuthenticatedLayout>
+    </>
   );
 }
