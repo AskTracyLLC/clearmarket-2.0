@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -56,6 +57,7 @@ import {
   deleteProposalLines,
   autoFillFromCoverage,
   batchUpdateProposedRate,
+  duplicateProposal,
   VendorProposal,
   VendorProposalLine,
   ORDER_TYPE_LABELS,
@@ -162,6 +164,13 @@ export default function VendorProposalBuilder() {
   const [autoPriceLoading, setAutoPriceLoading] = useState(false);
   const [autoPriceConfirmOpen, setAutoPriceConfirmOpen] = useState(false);
 
+  // Duplicate dialog state
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [duplicateName, setDuplicateName] = useState("");
+  const [duplicateClientName, setDuplicateClientName] = useState("");
+  const [duplicateKeepAsTemplate, setDuplicateKeepAsTemplate] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+
   // Sort state
   type SortField = "state" | "county" | "order_type" | "proposed_rate" | "rep_cost" | "margin" | "approved_rate";
   const [sortField, setSortField] = useState<SortField>("state");
@@ -173,6 +182,52 @@ export default function VendorProposalBuilder() {
     } else {
       setSortField(field);
       setSortDirection("asc");
+    }
+  };
+
+  // Open duplicate dialog with defaults
+  const openDuplicateDialog = () => {
+    setDuplicateName(`${name} (Copy)`);
+    setDuplicateClientName("");
+    setDuplicateKeepAsTemplate(false);
+    setDuplicateDialogOpen(true);
+  };
+
+  // Handle duplicate submission
+  const handleDuplicate = async () => {
+    if (!proposal || !duplicateName.trim()) {
+      toast.error("Please enter a proposal name");
+      return;
+    }
+    
+    setDuplicating(true);
+    try {
+      const newProposal = await duplicateProposal(proposal.id, {
+        newName: duplicateName.trim(),
+        clientName: duplicateClientName.trim() || undefined,
+        keepAsTemplate: duplicateKeepAsTemplate,
+      });
+      toast.success("Proposal duplicated");
+      setDuplicateDialogOpen(false);
+      navigate(`/vendor/proposals/${newProposal.id}`);
+    } catch (err: any) {
+      console.error("[Duplicate] Failed:", err);
+      toast.error(`Failed to duplicate: ${err.message}`);
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
+  // Toggle template status
+  const handleToggleTemplate = async (checked: boolean) => {
+    if (!proposal) return;
+    try {
+      await updateProposal(proposal.id, { is_template: checked, status: checked ? "draft" : proposal.status });
+      toast.success(checked ? "Saved as template" : "No longer a template");
+      await loadProposal();
+    } catch (err: any) {
+      console.error("[Template] Toggle failed:", err);
+      toast.error(`Failed to update: ${err.message}`);
     }
   };
 
@@ -960,13 +1015,21 @@ Details: ${autoFillDebug.details || "N/A"}`;
   return (
     <AppLayout>
       <div className="container max-w-6xl py-6 space-y-6">
-        <PageHeader
-          title={isNew ? "New Proposal" : name || "Proposal"}
-          backTo="/vendor/proposals"
-          backLabel="Proposals"
-        >
-          {getStatusBadge()}
-        </PageHeader>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <PageHeader
+            title={isNew ? "New Proposal" : name || "Proposal"}
+            backTo="/vendor/proposals"
+            backLabel="Proposals"
+          >
+            {getStatusBadge()}
+          </PageHeader>
+          {!isNew && proposal && (
+            <Button variant="outline" onClick={openDuplicateDialog}>
+              <Copy className="w-4 h-4 mr-2" />
+              Duplicate
+            </Button>
+          )}
+        </div>
 
         {/* Privacy Notice */}
         <Alert className="border-yellow-500/30 bg-yellow-500/5">
@@ -1012,11 +1075,28 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 rows={3}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <Button onClick={handleSave} disabled={saving}>
                 <Save className="w-4 h-4 mr-2" />
                 {saving ? "Saving..." : "Save"}
               </Button>
+              
+              {/* Template Toggle - only for saved proposals */}
+              {proposal && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="template-toggle"
+                      checked={proposal.is_template}
+                      onCheckedChange={handleToggleTemplate}
+                    />
+                    <Label htmlFor="template-toggle" className="cursor-pointer">Save as Template</Label>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    Templates are reusable drafts you can duplicate for clients.
+                  </span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1933,6 +2013,64 @@ Details: ${autoFillDebug.details || "N/A"}`;
                   <>
                     <Calculator className="w-4 h-4 mr-2" />
                     Apply to {autoPricePreview?.updateCount || 0} Lines
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Duplicate Proposal Dialog */}
+        <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Duplicate Proposal</DialogTitle>
+              <DialogDescription>
+                Create a new proposal based on this one. All coverage lines and rates will be copied.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="dup-name">Proposal Name *</Label>
+                <Input
+                  id="dup-name"
+                  value={duplicateName}
+                  onChange={(e) => setDuplicateName(e.target.value)}
+                  placeholder="e.g., Q2 2025 Proposal"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dup-client">Client Name (optional)</Label>
+                <Input
+                  id="dup-client"
+                  value={duplicateClientName}
+                  onChange={(e) => setDuplicateClientName(e.target.value)}
+                  placeholder="e.g., ABC Company"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="dup-template"
+                  checked={duplicateKeepAsTemplate}
+                  onCheckedChange={(checked) => setDuplicateKeepAsTemplate(!!checked)}
+                />
+                <Label htmlFor="dup-template" className="cursor-pointer">Keep as template</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDuplicateDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleDuplicate} disabled={duplicating || !duplicateName.trim()}>
+                {duplicating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Duplicating...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Create Duplicate
                   </>
                 )}
               </Button>
