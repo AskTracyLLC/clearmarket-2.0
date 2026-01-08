@@ -8,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Shield, Mail, CheckCircle2, Volume2, Play } from "lucide-react";
+import { Bell, Shield, Mail, CheckCircle2, Volume2, Play, UserCircle } from "lucide-react";
+import { DualRoleAccessCard } from "@/components/settings/DualRoleAccessCard";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
@@ -181,6 +182,10 @@ export default function Settings() {
               <TabsTrigger value="security" className="gap-2">
                 <Shield className="h-4 w-4" />
                 Security
+              </TabsTrigger>
+              <TabsTrigger value="account" className="gap-2">
+                <UserCircle className="h-4 w-4" />
+                Account
               </TabsTrigger>
             </TabsList>
 
@@ -541,6 +546,10 @@ export default function Settings() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="account">
+              <DualRoleAccessCard />
             </TabsContent>
           </Tabs>
         </div>
