@@ -10,7 +10,7 @@ import { CalendarMonthView, CalendarEventPreview } from "@/components/CalendarMo
 import { CalendarDayDialog } from "@/components/CalendarDayDialog";
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 
 interface AvailabilityEntry {
   id: string;
@@ -200,7 +200,7 @@ export default function RepCalendar() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="mb-6 flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
@@ -300,6 +300,6 @@ export default function RepCalendar() {
         existingEvents={selectedDateEvents}
         onEventSaved={handleEventSaved}
       />
-    </AuthenticatedLayout>
+    </>
   );
 }

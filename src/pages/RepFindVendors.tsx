@@ -18,7 +18,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 
 const INSPECTION_TYPE_OPTIONS = [
   "Property Inspections",
@@ -490,7 +490,7 @@ export default function RepFindVendors() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground">Find Vendors</h1>
@@ -793,6 +793,6 @@ export default function RepFindVendors() {
           targetUserId={profileDialogUserId}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }
