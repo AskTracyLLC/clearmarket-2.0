@@ -298,13 +298,34 @@ interface VendorCoverageArea {
   state_name: string;
 }
 
+export interface AutoFillDebugInfo {
+  step: "fetch_coverage" | "insert_lines";
+  userId: string;
+  proposalId: string;
+  error: string;
+  details?: string;
+  rowCount?: number;
+}
+
 export async function fetchVendorCoverageForAutoFill(vendorUserId: string): Promise<VendorCoverageArea[]> {
+  // Use the correct column: user_id (not vendor_user_id)
   const { data, error } = await supabase
     .from("vendor_coverage_areas" as any)
     .select("state_code, state_name")
-    .eq("vendor_user_id", vendorUserId) as { data: { state_code: string; state_name: string }[] | null; error: any };
+    .eq("user_id", vendorUserId) as { data: { state_code: string; state_name: string }[] | null; error: any };
 
-  if (error) throw error;
+  if (error) {
+    console.error("[AutoFill] fetchVendorCoverageForAutoFill failed:", {
+      userId: vendorUserId,
+      error,
+    });
+    throw error;
+  }
+
+  console.log("[AutoFill] Coverage fetched:", {
+    userId: vendorUserId,
+    rowCount: data?.length || 0,
+  });
 
   // Deduplicate by state
   const stateMap = new Map<string, VendorCoverageArea>();
@@ -323,38 +344,96 @@ export async function fetchVendorCoverageForAutoFill(vendorUserId: string): Prom
 export async function autoFillFromCoverage(
   proposalId: string,
   vendorUserId: string
-): Promise<number> {
-  const coverage = await fetchVendorCoverageForAutoFill(vendorUserId);
+): Promise<{ insertedCount: number; debugInfo?: AutoFillDebugInfo }> {
+  console.log("[AutoFill] Starting auto-fill:", { proposalId, vendorUserId });
+
+  let coverage: VendorCoverageArea[];
+  try {
+    coverage = await fetchVendorCoverageForAutoFill(vendorUserId);
+  } catch (err: any) {
+    const debugInfo: AutoFillDebugInfo = {
+      step: "fetch_coverage",
+      userId: vendorUserId,
+      proposalId,
+      error: err?.message || String(err),
+      details: JSON.stringify(err, null, 2),
+    };
+    console.error("[AutoFill] Fetch coverage failed:", debugInfo);
+    return { insertedCount: 0, debugInfo };
+  }
+
+  if (coverage.length === 0) {
+    console.warn("[AutoFill] No coverage areas found for user:", vendorUserId);
+    return { insertedCount: 0 };
+  }
+
   let insertedCount = 0;
+  const insertErrors: string[] = [];
 
   for (const area of coverage) {
     for (const orderType of ORDER_TYPES) {
       try {
         const regionKey = generateRegionKey(true, null, null);
+        const payload = {
+          proposal_id: proposalId,
+          state_code: area.state_code,
+          state_name: area.state_name,
+          county_id: null,
+          county_name: null,
+          is_all_counties: true,
+          region_key: regionKey,
+          order_type: orderType,
+          proposed_rate: 0,
+          internal_rep_rate: null,
+          internal_note: null,
+          approved_rate: null,
+        };
+
         const { error } = await supabase
           .from("vendor_client_proposal_lines")
-          .upsert({
-            proposal_id: proposalId,
-            state_code: area.state_code,
-            state_name: area.state_name,
-            county_id: null,
-            county_name: null,
-            is_all_counties: true,
-            region_key: regionKey,
-            order_type: orderType,
-            proposed_rate: 0,
-            internal_rep_rate: null,
-            internal_note: null,
-            approved_rate: null,
-          } as any, {
+          .upsert(payload as any, {
             onConflict: "proposal_id,state_code,order_type,region_key",
           });
-        if (!error) insertedCount++;
-      } catch (err) {
-        console.warn("Skipped duplicate line:", err);
+
+        if (error) {
+          console.error("[AutoFill] Insert line failed:", {
+            proposalId,
+            stateCode: area.state_code,
+            orderType,
+            error,
+          });
+          insertErrors.push(`${area.state_code}/${orderType}: ${error.message}`);
+        } else {
+          insertedCount++;
+        }
+      } catch (err: any) {
+        console.error("[AutoFill] Unexpected insert error:", err);
+        insertErrors.push(`${area.state_code}/${orderType}: ${err?.message || String(err)}`);
       }
     }
   }
 
-  return insertedCount;
+  console.log("[AutoFill] Complete:", {
+    proposalId,
+    vendorUserId,
+    coverageStates: coverage.length,
+    insertedCount,
+    errorCount: insertErrors.length,
+  });
+
+  if (insertErrors.length > 0) {
+    return {
+      insertedCount,
+      debugInfo: {
+        step: "insert_lines",
+        userId: vendorUserId,
+        proposalId,
+        error: `${insertErrors.length} line(s) failed to insert`,
+        details: insertErrors.join("\n"),
+        rowCount: insertedCount,
+      },
+    };
+  }
+
+  return { insertedCount };
 }
