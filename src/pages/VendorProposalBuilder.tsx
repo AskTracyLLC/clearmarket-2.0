@@ -42,7 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useProposalDebug } from "@/hooks/useProposalDebug";
@@ -288,17 +288,59 @@ export default function VendorProposalBuilder() {
     }
   };
 
+  const [autoFillDebug, setAutoFillDebug] = useState<{
+    step: string;
+    userId: string;
+    proposalId: string;
+    error: string;
+    details?: string;
+  } | null>(null);
+
   const handleAutoFill = async () => {
     if (!proposal || !user?.id) return;
+    setAutoFillDebug(null);
+    
     try {
-      const count = await withDebug("auto_fill_from_coverage", { proposalId: proposal.id, vendorUserId: user.id }, () =>
+      const result = await withDebug("auto_fill_from_coverage", { proposalId: proposal.id, vendorUserId: user.id }, () =>
         autoFillFromCoverage(proposal.id, user.id)
       );
-      toast.success(`Added ${count} line${count !== 1 ? "s" : ""} from your coverage areas`);
+      
+      const { insertedCount, debugInfo } = result;
+      
+      if (debugInfo) {
+        console.error("[AutoFill] Debug info:", debugInfo);
+        setAutoFillDebug(debugInfo);
+        toast.error(`Auto-fill failed: ${debugInfo.error}`);
+      } else if (insertedCount === 0) {
+        toast.warning("No coverage areas found. Add coverage first in Vendor → My Coverage.");
+      } else {
+        toast.success(`Added ${insertedCount} line${insertedCount !== 1 ? "s" : ""} from your coverage areas`);
+      }
+      
       loadProposal();
-    } catch (err) {
-      // Error already handled by withDebug
+    } catch (err: any) {
+      console.error("[AutoFill] Unexpected error:", err);
+      setAutoFillDebug({
+        step: "unknown",
+        userId: user.id,
+        proposalId: proposal.id,
+        error: err?.message || String(err),
+        details: JSON.stringify(err, null, 2),
+      });
+      toast.error(`Auto-fill failed: ${err?.message || "Unknown error"}`);
     }
+  };
+
+  const handleCopyDebug = () => {
+    if (!autoFillDebug) return;
+    const text = `Auto-fill Debug Info
+Step: ${autoFillDebug.step}
+User ID: ${autoFillDebug.userId}
+Proposal ID: ${autoFillDebug.proposalId}
+Error: ${autoFillDebug.error}
+Details: ${autoFillDebug.details || "N/A"}`;
+    navigator.clipboard.writeText(text);
+    toast.success("Debug info copied to clipboard");
   };
 
   const handleCoverageSave = async (data: {
@@ -630,6 +672,36 @@ export default function VendorProposalBuilder() {
                 )}
               </div>
             </div>
+
+            {/* Auto-fill Debug Alert */}
+            {autoFillDebug && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Auto-fill Failed: {autoFillDebug.step}</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <div className="text-sm space-y-1">
+                    <p><strong>User ID:</strong> {autoFillDebug.userId}</p>
+                    <p><strong>Proposal ID:</strong> {autoFillDebug.proposalId}</p>
+                    <p><strong>Error:</strong> {autoFillDebug.error}</p>
+                    {autoFillDebug.details && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Show details</summary>
+                        <pre className="mt-2 text-xs bg-muted/50 p-2 rounded overflow-auto max-h-32">{autoFillDebug.details}</pre>
+                      </details>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button variant="outline" size="sm" onClick={handleCopyDebug}>
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy Debug
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setAutoFillDebug(null)}>
+                      Dismiss
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3 items-center">
