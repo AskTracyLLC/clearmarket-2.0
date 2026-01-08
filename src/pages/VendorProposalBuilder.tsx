@@ -572,8 +572,10 @@ export default function VendorProposalBuilder() {
         toast.success(`Updated ${result.updatedCount} lines. Skipped ${result.skippedCount} (no rep rates or existing rates).`);
       }
       
+      // Reset preview state and below-cost filter, then reload data
       setAutoPricePreview(null);
-      loadProposal();
+      setShowBelowCostOnly(false);
+      await loadProposal();
     } catch (err: any) {
       console.error("[AutoPrice] Apply failed:", err);
       toast.error(`Apply failed: ${err.message}`);
