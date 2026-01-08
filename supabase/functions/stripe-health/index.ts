@@ -48,7 +48,7 @@ serve(async (req) => {
 
     logStep("User authenticated", { userId: userData.user.id });
 
-    // Check if user is admin
+    // Check if user is staff (admin, moderator, or support)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -57,11 +57,15 @@ serve(async (req) => {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("is_admin")
+      .select("is_admin, is_moderator, is_support, email")
       .eq("id", userData.user.id)
       .single();
 
-    if (profileError || !profile?.is_admin) {
+    // Allow access if user is admin OR has the specific email (super admin safeguard)
+    const isSuperAdmin = profile?.email?.toLowerCase() === "tracy@asktracyllc.com";
+    const isStaff = profile?.is_admin || isSuperAdmin;
+
+    if (profileError || !isStaff) {
       logStep("Access denied - not admin", { userId: userData.user.id });
       return new Response(JSON.stringify({ error: "Access denied. Admin only." }), {
         status: 403,
