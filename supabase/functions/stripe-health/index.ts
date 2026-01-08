@@ -81,18 +81,20 @@ serve(async (req) => {
 
     logStep("Admin access verified");
 
-    // Get Stripe keys
-    const liveKey = Deno.env.get("STRIPE_SECRET_KEY");
+    // Get Stripe keys - prefer LIVE key if available
+    const liveKey = Deno.env.get("STRIPE_SECRET_KEY_LIVE");
+    const mainKey = Deno.env.get("STRIPE_SECRET_KEY");
     const testKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
 
-    // Determine which key to use (prefer LIVE for production check)
-    const stripeKey = liveKey || testKey;
+    // Determine which key to use: prefer LIVE, then main, then test
+    const stripeKey = liveKey || mainKey || testKey;
     
     if (!stripeKey) {
       return new Response(JSON.stringify({
         error: "No Stripe API keys configured",
         mode: "unknown",
-        inferredFromKey: null,
+        modeInferred: false,
+        usedKeyPrefix: null,
         accountId: null,
         chargesEnabled: null,
         payoutsEnabled: null,
@@ -108,12 +110,17 @@ serve(async (req) => {
       });
     }
 
-    // Infer mode from key prefix
-    const inferredFromKey = stripeKey.startsWith("sk_live_") ? "live" : "test";
+    // Determine key prefix (never expose full key)
+    const usedKeyPrefix = stripeKey.startsWith("sk_live_") ? "sk_live" : "sk_test";
+    
+    // Check which keys are configured
+    const hasLiveKeyConfigured = !!(liveKey?.startsWith("sk_live_") || mainKey?.startsWith("sk_live_"));
+    const hasTestKeyConfigured = !!(testKey?.startsWith("sk_test_") || mainKey?.startsWith("sk_test_"));
+    
     logStep("Key analysis", { 
-      inferredFromKey,
-      hasLiveKey: !!liveKey,
-      hasTestKey: !!testKey,
+      usedKeyPrefix,
+      hasLiveKeyConfigured,
+      hasTestKeyConfigured,
     });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
@@ -137,6 +144,7 @@ serve(async (req) => {
 
     // Get latest event to determine actual mode
     let mode: "live" | "test" | "unknown" = "unknown";
+    let modeInferred = false;
     let lastEvent: { type: string; created: number; livemode: boolean } | null = null;
 
     try {
@@ -144,6 +152,7 @@ serve(async (req) => {
       if (events.data.length > 0) {
         const event = events.data[0];
         mode = event.livemode ? "live" : "test";
+        modeInferred = false;
         lastEvent = {
           type: event.type,
           created: event.created,
@@ -151,16 +160,18 @@ serve(async (req) => {
         };
         logStep("Latest Stripe event", { mode, eventType: event.type, created: event.created });
       } else {
-        // No events, use inferred mode
-        mode = inferredFromKey === "live" ? "live" : "test";
-        logStep("No events found, using inferred mode", { mode });
+        // No events, infer mode from key prefix
+        mode = usedKeyPrefix === "sk_live" ? "live" : "test";
+        modeInferred = true;
+        logStep("No events found, mode inferred from key", { mode, usedKeyPrefix });
       }
     } catch (eventsError) {
       logStep("Could not fetch events", { 
         error: eventsError instanceof Error ? eventsError.message : String(eventsError) 
       });
-      // Fall back to inferred mode
-      mode = inferredFromKey === "live" ? "live" : "test";
+      // Fall back to inferred mode from key
+      mode = usedKeyPrefix === "sk_live" ? "live" : "test";
+      modeInferred = true;
     }
 
     // Get latest webhook from our health table
@@ -191,15 +202,16 @@ serve(async (req) => {
 
     const response = {
       mode,
-      inferredFromKey,
+      modeInferred,
+      usedKeyPrefix,
       accountId,
       chargesEnabled,
       payoutsEnabled,
       lastEvent,
       lastWebhook,
       keysConfigured: {
-        live: !!liveKey,
-        test: !!testKey,
+        live: hasLiveKeyConfigured,
+        test: hasTestKeyConfigured,
       },
     };
 

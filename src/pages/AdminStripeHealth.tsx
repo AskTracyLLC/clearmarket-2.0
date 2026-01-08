@@ -13,7 +13,8 @@ import { format } from "date-fns";
 
 interface StripeHealthData {
   mode: "live" | "test" | "unknown";
-  inferredFromKey: "live" | "test" | null;
+  modeInferred: boolean;
+  usedKeyPrefix: "sk_live" | "sk_test" | null;
   accountId: string | null;
   chargesEnabled: boolean | null;
   payoutsEnabled: boolean | null;
@@ -170,19 +171,32 @@ const AdminStripeHealth: React.FC = () => {
           {/* Mode Badge - Large prominent display */}
           <Card>
             <CardContent className="py-6">
-              <div className="flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
                 <Badge 
                   variant="outline"
                   className={`text-2xl px-6 py-3 font-bold ${getModeColor(healthData.mode)}`}
                 >
                   {getModeLabel(healthData.mode)} MODE
                 </Badge>
+                {healthData.usedKeyPrefix && (
+                  <div className="text-sm text-muted-foreground">
+                    Using key: <code className="bg-muted px-2 py-0.5 rounded">{healthData.usedKeyPrefix}_...</code>
+                  </div>
+                )}
               </div>
-              {healthData.inferredFromKey === "test" && healthData.mode !== "test" && (
+              {healthData.modeInferred && (
+                <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-blue-400" />
+                  <span className="text-blue-400 text-sm">
+                    Mode inferred from server key (no Stripe events found yet).
+                  </span>
+                </div>
+              )}
+              {healthData.usedKeyPrefix === "sk_test" && healthData.mode === "live" && !healthData.modeInferred && (
                 <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-400" />
                   <span className="text-yellow-400 text-sm">
-                    Warning: Key appears to be a test key but events show live mode. Check configuration.
+                    Warning: Using test key but events show live mode. Check configuration.
                   </span>
                 </div>
               )}
@@ -264,10 +278,10 @@ const AdminStripeHealth: React.FC = () => {
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Inferred Mode</span>
-                  <Badge variant="outline" className={getModeColor(healthData.inferredFromKey || "unknown")}>
-                    {healthData.inferredFromKey?.toUpperCase() || "N/A"}
-                  </Badge>
+                  <span className="text-muted-foreground">Active Key</span>
+                  <code className="text-sm bg-muted px-2 py-1 rounded">
+                    {healthData.usedKeyPrefix || "N/A"}
+                  </code>
                 </div>
               </CardContent>
             </Card>
