@@ -22,12 +22,12 @@ export interface CreditPack {
 
 export const CREDIT_PACKS: CreditPack[] = [
   {
-    id: "beta_test",
-    label: "Beta Test",
-    description: "1 credit — for testing payment system",
+    id: "just_1",
+    label: "Just 1 Credit",
+    description: "1 credit — try it out",
     credits: 1,
     priceUsd: 1.50,
-    stripePriceId: "price_1Sn3C9IZ7isA0IxEPPQTVL5w",
+    stripePriceId: "price_1SnSNSIZ7isA0IxEpKgQ6j2k",
   },
   {
     id: "starter_10",
