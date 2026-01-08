@@ -109,7 +109,8 @@ export function LeftSidebar({
     if (effectiveRole === "vendor" || isVendor) {
       return { label: "New Post", path: "/vendor/seeking-coverage?new=1", icon: <Plus className="h-4 w-4" /> };
     }
-    return { label: "Network Alert", path: "/community?tab=alerts&new=1", icon: <Bell className="h-4 w-4" /> };
+    // Field Reps: Network Alert creation is on the Availability page
+    return { label: "Network Alert", path: "/rep/availability", icon: <Bell className="h-4 w-4" /> };
   };
 
   const quickAction = getQuickAction();
