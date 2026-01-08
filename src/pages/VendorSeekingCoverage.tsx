@@ -137,6 +137,9 @@ const VendorSeekingCoverage = () => {
     }
   }, [highlightPostId, filteredPosts, loading]);
 
+  // Check for ?new=1 query param to auto-open create dialog
+  const shouldAutoOpenNew = searchParams.get("new") === "1";
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/signin");
@@ -147,6 +150,21 @@ const VendorSeekingCoverage = () => {
       loadData();
     }
   }, [user, authLoading, navigate, effectiveUserId]);
+
+  // Auto-open create dialog when ?new=1 is present and data is loaded
+  useEffect(() => {
+    if (shouldAutoOpenNew && !loading && vendorProfile && !dialogOpen) {
+      // Use a slight delay to ensure state is ready
+      const timer = setTimeout(() => {
+        handleCreateNew();
+        // Clear the ?new param from URL to prevent re-opening
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("new");
+        navigate({ search: newParams.toString() }, { replace: true });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoOpenNew, loading, vendorProfile, dialogOpen]);
 
   const loadData = async () => {
     if (!user || !effectiveUserId) return;
