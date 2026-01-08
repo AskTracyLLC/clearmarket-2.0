@@ -82,9 +82,10 @@ serve(async (req) => {
     logStep("Admin access verified");
 
     // Get Stripe keys - prefer LIVE key if available
-    const liveKey = Deno.env.get("STRIPE_SECRET_KEY_LIVE");
+    // STRIPE_SECRET_KEY2 is the live key in this project
+    const liveKey = Deno.env.get("STRIPE_SECRET_KEY2") || Deno.env.get("STRIPE_SECRET_KEY_LIVE");
     const mainKey = Deno.env.get("STRIPE_SECRET_KEY");
-    const testKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
+    const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") || Deno.env.get("STRIPE_SECRET_TESTKEY");
 
     // Determine which key to use: prefer LIVE, then main, then test
     const stripeKey = liveKey || mainKey || testKey;
