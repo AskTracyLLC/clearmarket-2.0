@@ -97,7 +97,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Info,
+  HelpCircle,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -365,6 +373,7 @@ export default function VendorProposalBuilder() {
           th { background: #f0f0f0; font-weight: 600; }
           .header-group th { background: #e0e0e0; }
           tbody tr:nth-child(even) { background: #fafafa; }
+          .pdf-footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 9pt; color: #888; text-align: center; }
         </style>
       </head>
       <body>
@@ -375,6 +384,9 @@ export default function VendorProposalBuilder() {
         </div>
         ${disclaimer ? `<div class="disclaimer">${disclaimer}</div>` : ""}
         ${tableHtml}
+        <div class="pdf-footer">
+          Prepared in ClearMarket
+        </div>
         <script>window.onload = function() { window.print(); window.close(); }</script>
       </body>
       </html>
@@ -1115,7 +1127,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Compare your proposal rates against established rep terms. Reps will not see proposal pricing.
+                    Run a quick sanity check against current rep costs to catch margin loss.
                   </p>
                   <div className="flex flex-wrap gap-3 items-center">
                     {/* Compare Mode Selector */}
@@ -1195,6 +1207,12 @@ Details: ${autoFillDebug.details || "N/A"}`;
                       `Will use rates from ${connectedReps.find(r => r.id === selectedRepId)?.name || "selected rep"} only.`}
                     {compareMode === "specific" && !selectedRepId && 
                       "Select a specific rep to compare against."}
+                  </p>
+                  
+                  {/* Privacy footer for Rep Pricing panel */}
+                  <p className="text-xs text-muted-foreground/70 border-t border-border/50 pt-3 mt-2">
+                    <Lock className="w-3 h-3 inline mr-1" />
+                    Internal only: Field Reps and clients do not see Rep Cost, Margin, or proposal pricing.
                   </p>
                 </CardContent>
               </Card>
@@ -1583,28 +1601,50 @@ Details: ${autoFillDebug.details || "N/A"}`;
                       </TableHead>
                       {lines.some(l => l.internal_rep_rate_baseline !== null) && (
                         <>
-                          <TableHead 
-                            className="cursor-pointer select-none hover:bg-muted/50 text-right"
-                            onClick={() => handleSort("rep_cost")}
-                          >
-                            <div className="flex items-center justify-end gap-1">
-                              Rep Cost (Baseline)
-                              {sortField === "rep_cost" ? (
-                                sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                              ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
-                            </div>
-                          </TableHead>
-                          <TableHead 
-                            className="cursor-pointer select-none hover:bg-muted/50 text-right"
-                            onClick={() => handleSort("margin")}
-                          >
-                            <div className="flex items-center justify-end gap-1">
-                              Margin
-                              {sortField === "margin" ? (
-                                sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                              ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
-                            </div>
-                          </TableHead>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <TableHead 
+                                  className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                                  onClick={() => handleSort("rep_cost")}
+                                >
+                                  <div className="flex items-center justify-end gap-1">
+                                    Rep Cost (Baseline)
+                                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                                    {sortField === "rep_cost" ? (
+                                      sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                                  </div>
+                                </TableHead>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Internal cost reference</p>
+                                <p className="text-xs text-muted-foreground">Rep Cost is for your internal planning only. It's never shown to Field Reps or clients.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <TableHead 
+                                  className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                                  onClick={() => handleSort("margin")}
+                                >
+                                  <div className="flex items-center justify-end gap-1">
+                                    Margin
+                                    <HelpCircle className="w-3 h-3 text-muted-foreground" />
+                                    {sortField === "margin" ? (
+                                      sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                                    ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                                  </div>
+                                </TableHead>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-medium mb-1">Estimated margin</p>
+                                <p className="text-xs text-muted-foreground">Margin = Proposed Rate − Current Rep Cost. This is an internal estimate, not shown to clients.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </>
                       )}
                       <TableHead 
@@ -1831,7 +1871,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
             <DialogHeader>
               <DialogTitle>Proposal Export Preview</DialogTitle>
               <DialogDescription>
-                This is a preview of your proposal. You can print or save this page.
+                This is a preview of your proposal. Internal Rep Cost and Margin are not included in exports.
               </DialogDescription>
             </DialogHeader>
 
@@ -1934,18 +1974,42 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 </Table>
               )}
             </div>
+            {/* Export helper text */}
+            <p className="text-xs text-muted-foreground mt-2">
+              PDF export is branded for client sharing. Internal Rep Cost and Margin are not included.
+            </p>
             <DialogFooter className="print:hidden gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
                 Close
               </Button>
-              <Button variant="outline" onClick={handleExportCSV}>
-                <FileDown className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
-              <Button onClick={handlePrintExport}>
-                <Download className="w-4 h-4 mr-2" />
-                Print / Save PDF
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" onClick={handleExportCSV}>
+                      <FileDown className="w-4 h-4 mr-2" />
+                      Export CSV
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="font-medium">Export to CSV</p>
+                    <p className="text-xs text-muted-foreground">Downloads a spreadsheet file for offline use.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button onClick={handlePrintExport}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Export PDF
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="font-medium">Print or Save as PDF</p>
+                    <p className="text-xs text-muted-foreground">Exports a clean, client-ready PDF with ClearMarket branding.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </DialogFooter>
           </DialogContent>
         </Dialog>
