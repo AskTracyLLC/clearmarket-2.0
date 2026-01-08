@@ -86,6 +86,7 @@ import AdminBroadcastEdit from "./pages/AdminBroadcastEdit";
 import BroadcastFeedbackPage from "./pages/BroadcastFeedbackPage";
 import Tools from "./pages/Tools";
 import CoverageMap from "./pages/CoverageMap";
+import AdminDualRoleRequests from "./pages/AdminDualRoleRequests";
 
 
 const queryClient = new QueryClient();

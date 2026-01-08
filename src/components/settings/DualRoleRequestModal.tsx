@@ -171,7 +171,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         ein_last4?: string;
         message?: string;
         gl_expires_on?: string;
-        gl_status?: string;
+        gl_status?: "none" | "submitted" | "verified" | "rejected";
       } = {
         user_id: user.id,
         business_name: businessName.trim(),
