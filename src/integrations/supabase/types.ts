@@ -3344,6 +3344,33 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_health: {
+        Row: {
+          created_at: string
+          event_id: string
+          event_type: string
+          id: string
+          livemode: boolean
+          received_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          event_type: string
+          id?: string
+          livemode: boolean
+          received_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          livemode?: boolean
+          received_at?: string
+        }
+        Relationships: []
+      }
       stripe_webhook_logs: {
         Row: {
           created_at: string
