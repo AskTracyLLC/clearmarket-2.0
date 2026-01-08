@@ -9,9 +9,9 @@ const corsHeaders = {
 
 // Credit pack definitions - must match frontend config
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amountCents: number; currency: string }> = {
-  beta_test: {
+  just_1: {
     credits: 1,
-    stripePriceId: "price_1Sn3C9IZ7isA0IxEPPQTVL5w",
+    stripePriceId: "price_1SnSNSIZ7isA0IxEpKgQ6j2k",
     amountCents: 150,
     currency: "usd",
   },
