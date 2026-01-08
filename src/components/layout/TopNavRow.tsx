@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Home, Users, Map, Briefcase, MessageSquare, Bell, FileSearch, CreditCard, Star } from "lucide-react";
+import { Home, Users, Map, Briefcase, MessageSquare, Bell, FileSearch, CreditCard, Star, Wrench } from "lucide-react";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { cn } from "@/lib/utils";
@@ -36,14 +36,15 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
-  // Left tabs - mode switches
+  // Left tabs - mode switches (shared + role-specific)
   const tabs: NavTab[] = [
     { label: "Dashboard", path: "/dashboard", icon: <Home className="h-4 w-4" /> },
     { label: "Community", path: "/community", icon: <Users className="h-4 w-4" /> },
     { label: "Coverage", path: effectiveRole === "vendor" ? "/vendor/seeking-coverage" : "/work-setup", icon: <Map className="h-4 w-4" /> },
+    { label: "Tools", path: "/tools", icon: <Wrench className="h-4 w-4" /> },
   ];
 
-  // Add Find Work for reps
+  // Add Find Work for reps only (as a tab, NOT a chip)
   if (effectiveRole === "rep" || isRep) {
     tabs.push({ label: "Find Work", path: "/rep/find-work", icon: <Briefcase className="h-4 w-4" /> });
   }
@@ -82,7 +83,7 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
       ];
     }
 
-    // Field Rep chips
+    // Field Rep chips (Find Work is a TAB, not a chip - avoid duplication)
     return [
       { 
         label: "Messages", 
@@ -90,11 +91,6 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
         icon: <MessageSquare className="h-3.5 w-3.5" />, 
         count: sectionCounts.unreadMessages,
         showCount: true,
-      },
-      { 
-        label: "Find Work", 
-        path: "/rep/find-work", 
-        icon: <Briefcase className="h-3.5 w-3.5" />, 
       },
       { 
         label: "Alerts", 
