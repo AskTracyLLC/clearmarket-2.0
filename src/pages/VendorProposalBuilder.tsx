@@ -104,6 +104,7 @@ import {
 import { ShareProposalDialog } from "@/components/ShareProposalDialog";
 import { PaidFeatureBadge } from "@/components/PaidFeatureBadge";
 import { vendorProposalsCopy as proposalCopy } from "@/copy/vendorProposalsCopy";
+import { usePaidFeature } from "@/hooks/usePaidFeature";
 import {
   Tooltip,
   TooltipContent,
@@ -152,6 +153,9 @@ export default function VendorProposalBuilder() {
 
   // Debug
   const { debugState, withDebug, clear: clearDebug } = useProposalDebug(proposalId);
+
+  // Paid feature gating (Compare + CSV export)
+  const { executePaidAction, PaidFeatureDialogs } = usePaidFeature();
 
   // Export state
   const [exportStyle, setExportStyle] = useState<"matrix" | "detailed">("matrix");
@@ -401,13 +405,8 @@ export default function VendorProposalBuilder() {
     printWindow.document.close();
   };
 
-  // CSV Export handler - Excel-safe with UTF-8 BOM
-  const handleExportCSV = () => {
-    if (!lines.length) {
-      toast.error("No data to export");
-      return;
-    }
-
+  // CSV Export handler - Excel-safe with UTF-8 BOM (internal logic)
+  const executeCSVExport = () => {
     // Helper: escape CSV field (quote if contains comma/quote/newline, double quotes)
     const escapeCSV = (value: string | null | undefined): string => {
       if (value == null) return "";
@@ -456,6 +455,15 @@ export default function VendorProposalBuilder() {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported");
+  };
+
+  // CSV Export with paid feature gating
+  const handleExportCSV = async () => {
+    if (!lines.length) {
+      toast.error("No data to export");
+      return;
+    }
+    await executePaidAction("csv_export", executeCSVExport);
   };
 
   // Load connected reps on mount
@@ -519,8 +527,8 @@ export default function VendorProposalBuilder() {
     setSelectedRepId(actualId);
   };
 
-  // Sync rep costs to proposal lines (supports all modes)
-  const handleSyncRepCosts = async () => {
+  // Sync rep costs to proposal lines (internal logic)
+  const executeSyncRepCosts = async () => {
     if (!proposal || !user?.id) return;
     
     // Validate specific mode has rep selected
@@ -560,6 +568,11 @@ export default function VendorProposalBuilder() {
     } finally {
       setSyncingRepCosts(false);
     }
+  };
+
+  // Sync rep costs with paid feature gating
+  const handleSyncRepCosts = async () => {
+    await executePaidAction("compare", executeSyncRepCosts);
   };
 
   // Compute lines with rep cost info (use baseline from DB)
@@ -2011,9 +2024,10 @@ Details: ${autoFillDebug.details || "N/A"}`;
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" onClick={handleExportCSV}>
-                      <FileDown className="w-4 h-4 mr-2" />
+                    <Button variant="outline" onClick={handleExportCSV} className="gap-2">
+                      <FileDown className="w-4 h-4" />
                       Export CSV
+                      <PaidFeatureBadge className="ml-1" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top">
@@ -2174,6 +2188,20 @@ Details: ${autoFillDebug.details || "N/A"}`;
           debugState={debugState} 
           onClear={clearDebug} 
         />
+
+        {/* Share Proposal Dialog */}
+        {proposal && (
+          <ShareProposalDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            proposalId={proposal.id}
+            proposalName={name}
+            proposalStatus={proposal.status}
+          />
+        )}
+
+        {/* Paid Feature Dialogs (Credit Confirm + Out of Credits) */}
+        {PaidFeatureDialogs}
       </div>
     </AppLayout>
   );
