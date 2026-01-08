@@ -22,10 +22,6 @@ import { BetaBadge } from "@/components/BetaBadge";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
 import { TodayFeed } from "@/components/dashboard/TodayFeed";
-import { AtAGlanceSidebar } from "@/components/dashboard/AtAGlanceSidebar";
-import { QuickActions } from "@/components/dashboard/QuickActions";
-import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
-import { VendorMatchAssistantCard } from "@/components/dashboard/VendorMatchAssistantCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 // AuthenticatedNav, SiteFooter, MimicBanner now come from AppShell wrapper
 import { useMimic } from "@/hooks/useMimic";
@@ -696,29 +692,8 @@ const Dashboard = () => {
               </div>
             )}
 
-            {/* Quick Actions - Always on top */}
-            <div className="max-w-5xl mb-6">
-              <QuickActions isRep={showingAsRep} isVendor={showingAsVendor} />
-            </div>
-
-            {/* Match Assistant Card - Rep only */}
-            {showingAsRep && (
-              <div className="max-w-5xl mb-6">
-                <MatchAssistantCard />
-              </div>
-            )}
-
-            {/* Vendor Match Assistant Card - Vendor only */}
-            {showingAsVendor && (
-              <div className="max-w-5xl mb-6">
-                <VendorMatchAssistantCard />
-              </div>
-            )}
-
-            {/* Main Content Grid */}
-            <div className="grid lg:grid-cols-3 gap-6 max-w-5xl">
-              {/* Main Column - Today Feed */}
-              <div className="lg:col-span-2 space-y-6 order-1 lg:order-1">
+            {/* Main Content */}
+            <div className="max-w-3xl space-y-6">
                 {/* Today Feed */}
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -819,19 +794,6 @@ const Dashboard = () => {
                     </Card>
                   </Collapsible>
                 )}
-              </div>
-
-              {/* Right Sidebar - At a Glance (stacks below on mobile) */}
-              <div className="order-2 lg:order-2">
-                <h2 className="text-lg font-semibold text-foreground mb-3">At a Glance</h2>
-                <AtAGlanceSidebar
-                  isRep={showingAsRep}
-                  isVendor={showingAsVendor}
-                  vendorCredits={vendorCredits}
-                  upcomingTimeOff={upcomingTimeOff}
-                  coverageStats={coverageStats}
-                />
-              </div>
             </div>
           </>
         )}

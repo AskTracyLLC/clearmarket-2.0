@@ -18,6 +18,7 @@ import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
 import { getRepMatchSettings } from "@/lib/matchAlerts";
 import AdminViewBanner from "@/components/AdminViewBanner";
+import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
 
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { NotInterestedDialog } from "@/components/NotInterestedDialog";
@@ -669,7 +670,10 @@ export default function RepFindWork() {
           </CardContent>
         </Card>
 
-        {/* Search Filters - Only show if profile is complete */}
+        {/* Match Assistant Card */}
+        <div className="mb-6">
+          <MatchAssistantCard />
+        </div>
 
         {/* Search Filters */}
         <Card className="mb-8">

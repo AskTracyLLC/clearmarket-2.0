@@ -24,6 +24,7 @@ import {
   Bell,
   ChevronDown,
   Megaphone,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,6 +132,7 @@ export function LeftSidebar({
 
   // Rep-specific items
   const repItems: NavItem[] = [
+    { label: "My Profile", path: "/rep/profile", icon: <User className="h-5 w-5" /> },
     { label: "Find Work", path: "/rep/find-work", icon: <Briefcase className="h-5 w-5" /> },
     { label: "My Vendors", path: "/rep/my-vendors", icon: <Building2 className="h-5 w-5" /> },
     { label: "My Coverage", path: "/work-setup", icon: <Map className="h-5 w-5" /> },
