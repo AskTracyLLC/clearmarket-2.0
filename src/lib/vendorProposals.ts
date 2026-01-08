@@ -291,7 +291,165 @@ export async function batchUpdateProposedRate(
   if (error) throw error;
 }
 
-// ============== COVERAGE AUTO-FILL ==============
+// ============== REP PRICING REFERENCE ==============
+
+/**
+ * Map proposal order_type to working_terms inspection_type
+ */
+export function mapOrderTypeToInspectionType(orderType: OrderType): string[] {
+  switch (orderType) {
+    case "standard":
+      return ["property", "general"]; // property first, general as fallback
+    case "appointment":
+      return ["loss_claims"];
+    case "rush":
+      return ["property", "general"]; // Same as standard, with rush warning
+    default:
+      return ["general"];
+  }
+}
+
+/**
+ * Fetch connected reps for vendor (for rep pricing reference dropdown)
+ */
+export async function fetchConnectedReps(vendorUserId: string): Promise<{ id: string; name: string }[]> {
+  const { data, error } = await supabase
+    .from("vendor_connections")
+    .select(`
+      field_rep_id,
+      profiles!vendor_connections_field_rep_id_fkey(id, full_name)
+    `)
+    .eq("vendor_id", vendorUserId)
+    .eq("status", "connected");
+
+  if (error) {
+    console.error("[RepPricing] Failed to fetch connected reps:", error);
+    throw error;
+  }
+
+  return (data || [])
+    .map((conn: any) => ({
+      id: conn.field_rep_id,
+      name: conn.profiles?.full_name || "Unknown Rep",
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export interface RepPricingRow {
+  stateCode: string;
+  countyName: string | null;
+  inspectionType: string;
+  rate: number | null;
+}
+
+/**
+ * Fetch rep's working terms for pricing reference
+ */
+export async function fetchRepPricing(vendorUserId: string, repUserId: string): Promise<RepPricingRow[]> {
+  const { data, error } = await supabase
+    .from("working_terms_rows")
+    .select("state_code, county_name, inspection_type, rate")
+    .eq("vendor_id", vendorUserId)
+    .eq("rep_id", repUserId)
+    .eq("status", "active")
+    .eq("included", true);
+
+  if (error) {
+    console.error("[RepPricing] Failed to fetch rep pricing:", error);
+    throw error;
+  }
+
+  return (data || []).map((row: any) => ({
+    stateCode: row.state_code,
+    countyName: row.county_name,
+    inspectionType: row.inspection_type,
+    rate: row.rate,
+  }));
+}
+
+/**
+ * Find rep cost for a proposal line based on working terms
+ */
+export function findRepCostForLine(
+  line: { state_code: string; county_name: string | null; is_all_counties: boolean; order_type: OrderType },
+  repPricing: RepPricingRow[]
+): { rate: number | null; warning?: string } {
+  const inspectionTypes = mapOrderTypeToInspectionType(line.order_type);
+  const countyName = line.is_all_counties ? null : line.county_name;
+
+  for (const inspType of inspectionTypes) {
+    // Try exact county match first
+    if (countyName) {
+      const countyMatch = repPricing.find(
+        (p) =>
+          p.stateCode === line.state_code &&
+          p.countyName?.toLowerCase() === countyName.toLowerCase() &&
+          p.inspectionType === inspType
+      );
+      if (countyMatch?.rate != null) {
+        return { rate: countyMatch.rate };
+      }
+    }
+
+    // Fallback to state-level (county_name is null)
+    const stateMatch = repPricing.find(
+      (p) =>
+        p.stateCode === line.state_code &&
+        !p.countyName &&
+        p.inspectionType === inspType
+    );
+    if (stateMatch?.rate != null) {
+      if (line.order_type === "rush") {
+        return { rate: stateMatch.rate, warning: "No rush term; using standard rate" };
+      }
+      return { rate: stateMatch.rate };
+    }
+  }
+
+  return { rate: null, warning: "No rep terms found" };
+}
+
+/**
+ * Sync rep costs to proposal lines
+ */
+export async function syncRepCostsToProposal(
+  proposalId: string,
+  vendorUserId: string,
+  repUserId: string
+): Promise<{ updatedCount: number; errors: string[] }> {
+  // Fetch rep pricing
+  const repPricing = await fetchRepPricing(vendorUserId, repUserId);
+
+  if (repPricing.length === 0) {
+    return { updatedCount: 0, errors: ["No active rep terms found"] };
+  }
+
+  // Fetch proposal lines
+  const lines = await fetchProposalLines(proposalId);
+
+  let updatedCount = 0;
+  const errors: string[] = [];
+
+  for (const line of lines) {
+    // Skip if manually overridden (has internal_note with "manual")
+    if (line.internal_note?.toLowerCase().includes("manual")) {
+      continue;
+    }
+
+    const { rate } = findRepCostForLine(line, repPricing);
+
+    if (rate !== null && rate !== line.internal_rep_rate) {
+      try {
+        await updateProposalLine(line.id, { internal_rep_rate: rate });
+        updatedCount++;
+      } catch (err: any) {
+        errors.push(`${line.state_code}/${line.county_name || "All"}: ${err.message}`);
+      }
+    }
+  }
+
+  return { updatedCount, errors };
+}
 
 interface VendorCoverageArea {
   state_code: string;

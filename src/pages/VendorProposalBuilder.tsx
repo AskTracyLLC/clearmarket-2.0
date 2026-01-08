@@ -60,6 +60,12 @@ import {
   VendorProposalLine,
   ORDER_TYPE_LABELS,
   ORDER_TYPES,
+  fetchConnectedReps,
+  fetchRepPricing,
+  findRepCostForLine,
+  syncRepCostsToProposal,
+  RepPricingRow,
+  OrderType,
 } from "@/lib/vendorProposals";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { US_STATES } from "@/lib/constants";
@@ -75,6 +81,8 @@ import {
   MoreHorizontal,
   FileDown,
   CheckCircle,
+  RefreshCw,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -121,6 +129,14 @@ export default function VendorProposalBuilder() {
 
   // Export state
   const [exportStyle, setExportStyle] = useState<"matrix" | "detailed">("matrix");
+
+  // Rep Pricing Reference state
+  const [connectedReps, setConnectedReps] = useState<{ id: string; name: string }[]>([]);
+  const [selectedRepId, setSelectedRepId] = useState<string>("");
+  const [repPricing, setRepPricing] = useState<RepPricingRow[]>([]);
+  const [syncingRepCosts, setSyncingRepCosts] = useState(false);
+  const [showBelowCostOnly, setShowBelowCostOnly] = useState(false);
+  const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
 
   // Matrix rows for export (blank = missing, not "—")
   const matrixRows = useMemo(() => {
@@ -169,6 +185,109 @@ export default function VendorProposalBuilder() {
       return a.countyDisplay.localeCompare(b.countyDisplay);
     });
   }, [lines]);
+
+  // Print to PDF - opens clean window for single-page output
+  const handlePrintExport = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Pop-up blocked. Please allow pop-ups for printing.");
+      return;
+    }
+
+    const effectiveDateStr = proposal?.effective_as_of 
+      ? format(new Date(proposal.effective_as_of), "MMMM d, yyyy") 
+      : "";
+
+    // Build table HTML based on export style
+    let tableHtml = "";
+    if (exportStyle === "matrix") {
+      tableHtml = `
+        <table>
+          <thead>
+            <tr class="header-group">
+              <th colspan="2" style="text-align:center;border-right:2px solid #999;">Coverage Proposal</th>
+              <th colspan="3" style="text-align:center;">Order Type Rates</th>
+            </tr>
+            <tr>
+              <th style="width:150px;">State</th>
+              <th style="border-right:1px solid #ddd;">County</th>
+              <th style="text-align:right;width:100px;">Standard</th>
+              <th style="text-align:right;width:100px;">Appt-based</th>
+              <th style="text-align:right;width:100px;">Rush</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${matrixRows.map(row => `
+              <tr>
+                <td>${row.stateDisplay}</td>
+                <td style="border-right:1px solid #ddd;">${row.countyDisplay}</td>
+                <td style="text-align:right;">${row.standard || ""}</td>
+                <td style="text-align:right;">${row.appointment || ""}</td>
+                <td style="text-align:right;">${row.rush || ""}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    } else {
+      tableHtml = `
+        <table>
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>County</th>
+              <th>Order Type</th>
+              <th style="text-align:right;">Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${lines.map(line => `
+              <tr>
+                <td>${line.state_name} (${line.state_code})</td>
+                <td>${line.is_all_counties ? "All counties" : line.county_name}</td>
+                <td>${ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS]}</td>
+                <td style="text-align:right;">${line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : ""}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${name || "Proposal"}</title>
+        <style>
+          @page { margin: 12mm; size: letter; }
+          * { box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11pt; line-height: 1.4; color: #000; margin: 0; padding: 0; }
+          .header { margin-bottom: 16px; }
+          .header h1 { font-size: 18pt; margin: 0 0 4px 0; }
+          .header p { margin: 2px 0; color: #444; }
+          .disclaimer { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; margin: 12px 0; border-radius: 4px; font-size: 10pt; }
+          table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+          th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+          th { background: #f0f0f0; font-weight: 600; }
+          .header-group th { background: #e0e0e0; }
+          tbody tr:nth-child(even) { background: #fafafa; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${name || "Coverage Proposal"}</h1>
+          ${clientName ? `<p><strong>Client:</strong> ${clientName}</p>` : ""}
+          ${effectiveDateStr ? `<p><strong>Effective:</strong> ${effectiveDateStr}</p>` : ""}
+        </div>
+        ${disclaimer ? `<div class="disclaimer">${disclaimer}</div>` : ""}
+        ${tableHtml}
+        <script>window.onload = function() { window.print(); window.close(); }</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   // CSV Export handler - Excel-safe with UTF-8 BOM
   const handleExportCSV = () => {
@@ -227,6 +346,29 @@ export default function VendorProposalBuilder() {
     toast.success("CSV exported");
   };
 
+  // Load connected reps on mount
+  useEffect(() => {
+    if (user?.id) {
+      fetchConnectedReps(user.id)
+        .then(setConnectedReps)
+        .catch((err) => console.error("[RepPricing] Failed to load connected reps:", err));
+    }
+  }, [user?.id]);
+
+  // Load rep pricing when rep is selected
+  useEffect(() => {
+    if (user?.id && selectedRepId) {
+      fetchRepPricing(user.id, selectedRepId)
+        .then(setRepPricing)
+        .catch((err) => {
+          console.error("[RepPricing] Failed to load rep pricing:", err);
+          setRepPricing([]);
+        });
+    } else {
+      setRepPricing([]);
+    }
+  }, [user?.id, selectedRepId]);
+
   useEffect(() => {
     if (!isNew && proposalId && user?.id) {
       loadProposal();
@@ -258,6 +400,61 @@ export default function VendorProposalBuilder() {
       setLoading(false);
     }
   };
+
+  // Rep selection handler - show sync dialog
+  const handleRepSelect = (repId: string) => {
+    setSelectedRepId(repId);
+    if (repId && lines.length > 0) {
+      setSyncConfirmOpen(true);
+    }
+  };
+
+  // Sync rep costs to proposal lines
+  const handleSyncRepCosts = async () => {
+    if (!proposal || !user?.id || !selectedRepId) return;
+    setSyncingRepCosts(true);
+    setSyncConfirmOpen(false);
+    try {
+      const result = await syncRepCostsToProposal(proposal.id, user.id, selectedRepId);
+      if (result.errors.length > 0) {
+        toast.warning(`Updated ${result.updatedCount} lines with ${result.errors.length} errors`);
+      } else if (result.updatedCount > 0) {
+        toast.success(`Synced rep costs to ${result.updatedCount} lines`);
+      } else {
+        toast.info("No matching rep terms found for these lines");
+      }
+      loadProposal();
+    } catch (err: any) {
+      console.error("[RepPricing] Sync failed:", err);
+      toast.error(`Sync failed: ${err.message}`);
+    } finally {
+      setSyncingRepCosts(false);
+    }
+  };
+
+  // Compute lines with rep cost info
+  const linesWithRepCost = useMemo(() => {
+    if (!repPricing.length) return lines.map((l) => ({ ...l, repCost: null, margin: null, repWarning: null }));
+    
+    return lines.map((line) => {
+      const { rate, warning } = findRepCostForLine(
+        { 
+          state_code: line.state_code, 
+          county_name: line.county_name, 
+          is_all_counties: line.is_all_counties, 
+          order_type: line.order_type as OrderType 
+        },
+        repPricing
+      );
+      const margin = rate != null ? line.proposed_rate - rate : null;
+      return { ...line, repCost: rate, margin, repWarning: warning };
+    });
+  }, [lines, repPricing]);
+
+  // Count lines below rep cost
+  const belowCostCount = useMemo(() => {
+    return linesWithRepCost.filter((l) => l.repCost != null && l.proposed_rate < l.repCost).length;
+  }, [linesWithRepCost]);
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -518,9 +715,17 @@ Details: ${autoFillDebug.details || "N/A"}`;
     }
   };
 
-  // Filtered lines
+  // Filtered lines - with rep cost data and optional below-cost filter
   const filteredLines = useMemo(() => {
-    return lines.filter((line) => {
+    let result = linesWithRepCost;
+    
+    // Apply below-cost filter if active
+    if (showBelowCostOnly) {
+      result = result.filter((l) => l.repCost != null && l.proposed_rate < l.repCost);
+    }
+    
+    // Apply state/order type/county filters
+    return result.filter((line) => {
       if (filterState !== "all" && line.state_code !== filterState) return false;
       if (filterOrderType !== "all" && line.order_type !== filterOrderType) return false;
       if (searchCounty && line.county_name) {
@@ -528,7 +733,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
       }
       return true;
     });
-  }, [lines, filterState, filterOrderType, searchCounty]);
+  }, [linesWithRepCost, filterState, filterOrderType, searchCounty, showBelowCostOnly]);
 
   // Unique states for filter
   const uniqueStates = useMemo(() => {
@@ -648,6 +853,71 @@ Details: ${autoFillDebug.details || "N/A"}`;
         {/* Lines Section - only show after proposal is created */}
         {proposal && (
           <>
+            {/* Rep Pricing Reference Card */}
+            {connectedReps.length > 0 && (
+              <Card className="border-secondary/30 bg-secondary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="w-4 h-4 text-secondary" />
+                    Reference Field Rep Pricing (optional)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Compare your proposal rates against established rep terms. Reps will not see proposal pricing.
+                  </p>
+                  <div className="flex flex-wrap gap-3 items-center">
+                    <Select value={selectedRepId} onValueChange={handleRepSelect}>
+                      <SelectTrigger className="w-[250px]">
+                        <SelectValue placeholder="Select a connected rep..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {connectedReps.map((rep) => (
+                          <SelectItem key={rep.id} value={rep.id}>
+                            {rep.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedRepId && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleSyncRepCosts}
+                        disabled={syncingRepCosts}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${syncingRepCosts ? "animate-spin" : ""}`} />
+                        Sync Rep Rates
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Below Cost Warning Banner */}
+            {selectedRepId && belowCostCount > 0 && (
+              <Alert className="border-destructive/50 bg-destructive/10">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">
+                  {belowCostCount} line{belowCostCount !== 1 ? "s" : ""} below rep cost
+                </AlertTitle>
+                <AlertDescription className="flex items-center gap-3">
+                  <span className="text-muted-foreground">
+                    Some proposed rates are lower than your established rep pricing.
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowBelowCostOnly(!showBelowCostOnly)}
+                  >
+                    {showBelowCostOnly ? "Show All" : "Filter to Warnings"}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Actions Bar */}
             <div className="flex flex-wrap gap-2 items-center justify-between">
               <div className="flex flex-wrap gap-2">
@@ -780,6 +1050,12 @@ Details: ${autoFillDebug.details || "N/A"}`;
                       <TableHead>County</TableHead>
                       <TableHead>Order Type</TableHead>
                       <TableHead className="text-right">Proposed Rate</TableHead>
+                      {selectedRepId && (
+                        <>
+                          <TableHead className="text-right">Rep Cost</TableHead>
+                          <TableHead className="text-right">Margin</TableHead>
+                        </>
+                      )}
                       <TableHead className="text-right">Approved Limit</TableHead>
                       <TableHead className="w-[40px]"></TableHead>
                     </TableRow>
@@ -787,8 +1063,12 @@ Details: ${autoFillDebug.details || "N/A"}`;
                   <TableBody>
                     {filteredLines.map((line) => {
                       const isAboveApproved = line.approved_rate !== null && line.proposed_rate > line.approved_rate;
+                      const isBelowRepCost = line.repCost != null && line.proposed_rate < line.repCost;
                       return (
-                        <TableRow key={line.id}>
+                        <TableRow 
+                          key={line.id}
+                          className={isBelowRepCost ? "bg-destructive/10" : ""}
+                        >
                           <TableCell>
                             <Checkbox
                               checked={selectedLineIds.has(line.id)}
@@ -817,6 +1097,11 @@ Details: ${autoFillDebug.details || "N/A"}`;
                                 onChange={(e) => handleRateChange(line.id, e.target.value)}
                                 className="w-24 text-right"
                               />
+                              {isBelowRepCost && (
+                                <span title="Below rep cost">
+                                  <AlertTriangle className="w-4 h-4 text-destructive" />
+                                </span>
+                              )}
                               {isAboveApproved && (
                                 <span title="Above approved limit">
                                   <AlertTriangle className="w-4 h-4 text-yellow-500" />
@@ -824,6 +1109,28 @@ Details: ${autoFillDebug.details || "N/A"}`;
                               )}
                             </div>
                           </TableCell>
+                          {selectedRepId && (
+                            <>
+                              <TableCell className="text-right">
+                                {line.repCost != null ? (
+                                  <span className="text-muted-foreground">${line.repCost.toFixed(2)}</span>
+                                ) : line.repWarning ? (
+                                  <span className="text-xs text-muted-foreground italic" title={line.repWarning}>—</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {line.margin != null ? (
+                                  <span className={line.margin < 0 ? "text-destructive font-medium" : "text-green-500"}>
+                                    {line.margin >= 0 ? "+" : ""}${line.margin.toFixed(2)}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                            </>
+                          )}
                           <TableCell className="text-right text-muted-foreground">
                             {line.approved_rate !== null ? `$${line.approved_rate.toFixed(2)}` : "—"}
                           </TableCell>
@@ -1066,9 +1373,31 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 <FileDown className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
-              <Button onClick={() => window.print()}>
+              <Button onClick={handlePrintExport}>
                 <Download className="w-4 h-4 mr-2" />
                 Print / Save PDF
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Sync Rep Costs Confirmation Dialog */}
+        <Dialog open={syncConfirmOpen} onOpenChange={setSyncConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Sync Rep Costs?</DialogTitle>
+              <DialogDescription>
+                This will update the internal rep cost column for all proposal lines based on the selected rep's established pricing. 
+                Lines with "manual override" notes will be skipped.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSyncConfirmOpen(false)}>
+                Skip
+              </Button>
+              <Button onClick={handleSyncRepCosts}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Sync Rep Rates
               </Button>
             </DialogFooter>
           </DialogContent>
