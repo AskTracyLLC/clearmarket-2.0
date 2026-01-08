@@ -173,6 +173,23 @@ serve(async (req) => {
       verifiedWith: verifiedWithSecret 
     });
 
+    // Log to stripe_webhook_health table for health monitoring
+    try {
+      await supabaseAdmin
+        .from("stripe_webhook_health")
+        .upsert({
+          event_id: event.id,
+          event_type: event.type,
+          livemode: event.livemode,
+          received_at: new Date().toISOString(),
+        }, { onConflict: "event_id" });
+      logStep("Webhook health logged", { eventId: event.id });
+    } catch (healthLogError) {
+      logStep("Warning: Failed to log webhook health", { 
+        error: healthLogError instanceof Error ? healthLogError.message : String(healthLogError) 
+      });
+    }
+
     // Check if this event was already processed (idempotency check)
     const { data: existingLog } = await supabaseAdmin
       .from("stripe_webhook_logs")

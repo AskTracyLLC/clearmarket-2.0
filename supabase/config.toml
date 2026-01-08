@@ -50,3 +50,6 @@ verify_jwt = true
 
 [functions.reconcile-pending-purchases]
 verify_jwt = false
+
+[functions.stripe-health]
+verify_jwt = true
