@@ -66,6 +66,17 @@ const Tools = () => {
           ))}
         </div>
 
+        <p className="text-sm text-muted-foreground mt-6 text-center">
+          Have an idea for a helpful tool?{" "}
+          <Link
+            to="/support?category=feature"
+            className="text-primary underline underline-offset-2 hover:text-primary/80"
+          >
+            Submit it here
+          </Link>
+          .
+        </p>
+
         {/* ClearBooking Modal */}
         <Dialog open={openModal === "clearbooking"} onOpenChange={(open) => !open && setOpenModal(null)}>
           <DialogContent className="sm:max-w-lg">

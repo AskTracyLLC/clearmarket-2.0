@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import { SupportImageGallery } from "@/components/SupportImageGallery";
 export default function Support() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const sectionCounts = useSectionCounts();
 
@@ -47,9 +48,13 @@ export default function Support() {
   const [ticketMessages, setTicketMessages] = useState<SupportTicketMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // New ticket form
+  // New ticket form - prefill category from query param if valid
+  const categoryParam = searchParams.get("category") as SupportTicketCategory | null;
+  const validCategories: SupportTicketCategory[] = ["bug", "account", "billing", "feature", "other"];
+  const initialCategory = categoryParam && validCategories.includes(categoryParam) ? categoryParam : "other";
+
   const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState<SupportTicketCategory>("other");
+  const [category, setCategory] = useState<SupportTicketCategory>(initialCategory);
   const [message, setMessage] = useState("");
   const [priority, setPriority] = useState<SupportTicketPriority>("normal");
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
