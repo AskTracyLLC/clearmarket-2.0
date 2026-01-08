@@ -122,9 +122,8 @@ export default function VendorProposalBuilder() {
   // Export state
   const [exportStyle, setExportStyle] = useState<"matrix" | "detailed">("matrix");
 
-  // Matrix rows for export
+  // Matrix rows for export (blank = missing, not "—")
   const matrixRows = useMemo(() => {
-    // Group lines by state+county, then pivot order types into columns
     type MatrixRow = {
       stateCode: string;
       stateDisplay: string;
@@ -147,14 +146,15 @@ export default function VendorProposalBuilder() {
           stateDisplay: `${line.state_name} (${line.state_code})`,
           countyDisplay,
           isAllCounties: line.is_all_counties,
-          standard: "—",
-          appointment: "—",
-          rush: "—",
+          standard: "",
+          appointment: "",
+          rush: "",
         });
       }
 
       const row = grouped.get(key)!;
-      const rateStr = line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : "—";
+      // Only show rate if it exists; blank otherwise
+      const rateStr = line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : "";
 
       if (line.order_type === "standard") row.standard = rateStr;
       else if (line.order_type === "appointment") row.appointment = rateStr;
@@ -170,12 +170,22 @@ export default function VendorProposalBuilder() {
     });
   }, [lines]);
 
-  // CSV Export handler
+  // CSV Export handler - Excel-safe with UTF-8 BOM
   const handleExportCSV = () => {
     if (!lines.length) {
       toast.error("No data to export");
       return;
     }
+
+    // Helper: escape CSV field (quote if contains comma/quote/newline, double quotes)
+    const escapeCSV = (value: string | null | undefined): string => {
+      if (value == null) return "";
+      const str = String(value);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
 
     let csvContent: string;
     let filename: string;
@@ -184,28 +194,30 @@ export default function VendorProposalBuilder() {
       // Matrix format: state, county, standard_rate, appt_rate, rush_rate
       const headers = ["State", "County", "Standard Rate", "Appt-based Rate", "Rush Rate"];
       const rows = matrixRows.map((row) => [
-        row.stateDisplay,
-        row.countyDisplay,
-        row.standard,
-        row.appointment,
-        row.rush,
-      ]);
-      csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+        escapeCSV(row.stateDisplay),
+        escapeCSV(row.countyDisplay),
+        escapeCSV(row.standard),
+        escapeCSV(row.appointment),
+        escapeCSV(row.rush),
+      ].join(","));
+      csvContent = [headers.join(","), ...rows].join("\n");
       filename = `${name || "proposal"}_matrix.csv`;
     } else {
       // Detailed format: state, county, order_type, rate
       const headers = ["State", "County", "Order Type", "Rate"];
       const rows = lines.map((line) => [
-        `${line.state_name} (${line.state_code})`,
-        line.is_all_counties ? "All counties" : line.county_name,
-        ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS],
-        `$${line.proposed_rate.toFixed(2)}`,
-      ]);
-      csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+        escapeCSV(`${line.state_name} (${line.state_code})`),
+        escapeCSV(line.is_all_counties ? "All counties" : line.county_name),
+        escapeCSV(ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS]),
+        escapeCSV(line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : ""),
+      ].join(","));
+      csvContent = [headers.join(","), ...rows].join("\n");
       filename = `${name || "proposal"}_detailed.csv`;
     }
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    // Prepend UTF-8 BOM for Excel compatibility
+    const bom = "\ufeff";
+    const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -974,24 +986,24 @@ Details: ${autoFillDebug.details || "N/A"}`;
               </div>
             </div>
 
-            <div className="py-4 space-y-6 print:text-black print:bg-white">
+            <div className="proposal-export-content py-4 space-y-6">
               <div className="space-y-2">
                 <h2 className="text-xl font-bold">{name}</h2>
-                {clientName && <p className="text-muted-foreground print:text-gray-600">Client: {clientName}</p>}
+                {clientName && <p className="text-muted-foreground">Client: {clientName}</p>}
                 {proposal?.effective_as_of && (
-                  <p className="text-muted-foreground print:text-gray-600">
+                  <p className="text-muted-foreground">
                     Effective: {format(new Date(proposal.effective_as_of), "MMMM d, yyyy")}
                   </p>
                 )}
               </div>
               {disclaimer && (
-                <div className="p-4 bg-muted rounded-lg print:bg-gray-100 print:border print:border-gray-300">
+                <div className="disclaimer-box p-4 bg-muted rounded-lg">
                   <p className="text-sm whitespace-pre-wrap">{disclaimer}</p>
                 </div>
               )}
 
               {exportStyle === "matrix" ? (
-                <Table className="print:text-sm">
+                <Table>
                   <TableHeader>
                     <TableRow className="border-b-2">
                       <TableHead colSpan={2} className="text-center border-r font-bold">
@@ -1014,9 +1026,9 @@ Details: ${autoFillDebug.details || "N/A"}`;
                       <TableRow key={idx}>
                         <TableCell className="font-medium">{row.stateDisplay}</TableCell>
                         <TableCell className="border-r">{row.countyDisplay}</TableCell>
-                        <TableCell className="text-right">{row.standard}</TableCell>
-                        <TableCell className="text-right">{row.appointment}</TableCell>
-                        <TableCell className="text-right">{row.rush}</TableCell>
+                        <TableCell className="text-right">{row.standard || "—"}</TableCell>
+                        <TableCell className="text-right">{row.appointment || "—"}</TableCell>
+                        <TableCell className="text-right">{row.rush || "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1037,7 +1049,9 @@ Details: ${autoFillDebug.details || "N/A"}`;
                         <TableCell>{line.state_name} ({line.state_code})</TableCell>
                         <TableCell>{line.is_all_counties ? "All counties" : line.county_name}</TableCell>
                         <TableCell>{ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS]}</TableCell>
-                        <TableCell className="text-right">${line.proposed_rate.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                          {line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : "—"}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

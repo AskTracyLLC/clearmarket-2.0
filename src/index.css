@@ -242,3 +242,96 @@
     text-rendering: optimizeLegibility;
   }
 }
+
+/* ===== Print Styles for Proposal Export ===== */
+@media print {
+  /* Page setup */
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+
+  /* Hide everything except the export content */
+  body > *:not(.print-export-root),
+  header,
+  nav,
+  aside,
+  footer,
+  [data-radix-portal],
+  .print\\:hidden,
+  [class*="print:hidden"] {
+    display: none !important;
+  }
+
+  /* Reset body for print */
+  body {
+    background: white !important;
+    color: black !important;
+    min-height: auto !important;
+  }
+
+  /* Export container reset */
+  .proposal-export-content {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+  }
+
+  /* Table styling for print */
+  .proposal-export-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11pt !important;
+    page-break-inside: auto !important;
+  }
+
+  .proposal-export-content thead {
+    display: table-header-group !important;
+  }
+
+  .proposal-export-content tr {
+    page-break-inside: avoid !important;
+  }
+
+  .proposal-export-content th,
+  .proposal-export-content td {
+    border: 1px solid #ccc !important;
+    padding: 6px 8px !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .proposal-export-content th {
+    background: #f5f5f5 !important;
+    font-weight: 600 !important;
+  }
+
+  /* Header section */
+  .proposal-export-content h2 {
+    font-size: 16pt !important;
+    margin-bottom: 8px !important;
+    color: black !important;
+  }
+
+  .proposal-export-content p {
+    color: #333 !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Disclaimer box */
+  .proposal-export-content .disclaimer-box {
+    background: #f9f9f9 !important;
+    border: 1px solid #ddd !important;
+    padding: 12px !important;
+    margin: 12px 0 !important;
+    border-radius: 4px !important;
+  }
+}
