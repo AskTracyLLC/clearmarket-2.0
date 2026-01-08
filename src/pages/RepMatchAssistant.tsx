@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -207,16 +207,14 @@ export default function RepMatchAssistant() {
 
   if (authLoading || flagsLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="container mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="mb-6">
@@ -315,6 +313,6 @@ export default function RepMatchAssistant() {
           </div>
         )}
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

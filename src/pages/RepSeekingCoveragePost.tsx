@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowLeft, MapPin, Calendar, Building2, Clock, Shield, CheckCircle, AlertTriangle } from "lucide-react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { format, parseISO } from "date-fns";
@@ -205,7 +205,7 @@ export default function RepSeekingCoveragePost() {
   const isActive = post.status === "active" && post.is_accepting_responses;
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container py-6 max-w-3xl">
         {/* Back button */}
         <Button
@@ -365,6 +365,6 @@ export default function RepSeekingCoveragePost() {
           />
         )}
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

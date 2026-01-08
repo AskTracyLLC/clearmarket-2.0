@@ -46,7 +46,7 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parseISO, isToday } from "date-fns";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { RepVendorContactsCard } from "@/components/RepVendorContactsCard";
 import { PlannedRouteConfirmBanner } from "@/components/PlannedRouteConfirmBanner";
 
@@ -700,7 +700,7 @@ export default function RepAvailability() {
   const pastEntries = availabilityEntries.filter(e => e.end_date < today);
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
@@ -1199,6 +1199,6 @@ export default function RepAvailability() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AuthenticatedLayout>
+    </>
   );
 }

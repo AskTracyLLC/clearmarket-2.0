@@ -28,7 +28,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { ArrowLeft, Plus, Trash2, AlertCircle } from "lucide-react";
 import {
   fetchRepCoverageRows,
@@ -387,11 +387,9 @@ const RepWorkingTermsRequest = () => {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
@@ -409,7 +407,7 @@ const RepWorkingTermsRequest = () => {
   };
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container max-w-4xl py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -808,7 +806,7 @@ const RepWorkingTermsRequest = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 };
 
