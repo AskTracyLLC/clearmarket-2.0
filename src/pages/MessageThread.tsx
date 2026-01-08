@@ -38,7 +38,7 @@ import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { checkAlreadyReported } from "@/lib/reports";
 import { useBlockStatus } from "@/hooks/useBlockStatus";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { AssignTerritoryDialog } from "@/components/AssignTerritoryDialog";
 import { TerritoryAssignmentBanner } from "@/components/TerritoryAssignmentBanner";
 import { 
@@ -685,16 +685,14 @@ export default function MessageThread() {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Back button and header */}
         <div className="flex items-center justify-between mb-6">
@@ -1113,6 +1111,6 @@ export default function MessageThread() {
           }}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }
