@@ -87,6 +87,8 @@ import BroadcastFeedbackPage from "./pages/BroadcastFeedbackPage";
 import Tools from "./pages/Tools";
 import CoverageMap from "./pages/CoverageMap";
 import AdminDualRoleRequests from "./pages/AdminDualRoleRequests";
+import VendorProposals from "./pages/VendorProposals";
+import VendorProposalBuilder from "./pages/VendorProposalBuilder";
 
 
 const queryClient = new QueryClient();
@@ -140,6 +142,8 @@ const App = () => (
               <Route path="/rep/reviews" element={<RepReviews />} />
               <Route path="/vendor/credits" element={<VendorCredits />} />
               <Route path="/vendor/checklists" element={<VendorChecklists />} />
+              <Route path="/vendor/proposals" element={<VendorProposals />} />
+              <Route path="/vendor/proposals/:proposalId" element={<VendorProposalBuilder />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/settings" element={<Settings />} />

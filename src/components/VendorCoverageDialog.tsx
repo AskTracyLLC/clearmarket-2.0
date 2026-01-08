@@ -30,6 +30,8 @@ interface VendorCoverageDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (data: VendorCoverageArea) => void;
   editData?: VendorCoverageArea | null;
+  /** Mode: "profile" saves to vendor_coverage_areas, "proposal" returns selection only */
+  mode?: "profile" | "proposal";
 }
 
 const INSPECTION_TYPES = [
@@ -42,7 +44,8 @@ const INSPECTION_TYPES = [
  * Dialog for adding/editing vendor coverage areas.
  * Supports: entire state, entire state except counties, or selected counties only.
  */
-export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: VendorCoverageDialogProps) => {
+export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData, mode = "profile" }: VendorCoverageDialogProps) => {
+  const isProposalMode = mode === "proposal";
   const [stateCode, setStateCode] = useState("");
   const [coverageMode, setCoverageMode] = useState<"entire_state" | "entire_state_except" | "selected_counties">("entire_state");
   const [excludedCountyIds, setExcludedCountyIds] = useState<string[]>([]);
@@ -178,8 +181,24 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <DialogHeader>
-          <DialogTitle>{editData ? "Edit Coverage Area" : "Add Coverage Area"}</DialogTitle>
+          <DialogTitle>
+            {isProposalMode 
+              ? "Add Coverage to Proposal" 
+              : editData 
+                ? "Edit Coverage Area" 
+                : "Add Coverage Area"
+            }
+          </DialogTitle>
         </DialogHeader>
+
+        {isProposalMode && (
+          <Alert className="border-blue-500/30 bg-blue-500/5">
+            <AlertCircle className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-muted-foreground">
+              This selects coverage for the proposal only. It does not change your profile coverage.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="space-y-6 py-4">
           {/* State (required) */}
@@ -217,12 +236,15 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
                   Entire state (all counties)
                 </Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="entire_state_except" id="mode-except" />
-                <Label htmlFor="mode-except" className="font-normal cursor-pointer">
-                  Entire state except specific counties
-                </Label>
-              </div>
+              {/* Hide "entire_state_except" in proposal mode */}
+              {!isProposalMode && (
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="entire_state_except" id="mode-except" />
+                  <Label htmlFor="mode-except" className="font-normal cursor-pointer">
+                    Entire state except specific counties
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="selected_counties" id="mode-selected" />
                 <Label htmlFor="mode-selected" className="font-normal cursor-pointer">
@@ -270,60 +292,64 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
             </div>
           )}
 
-          {/* Region Note */}
-          <div className="space-y-2">
-            <Label htmlFor="region-note">Region notes (optional)</Label>
-            <Textarea
-              id="region-note"
-              placeholder="e.g., Focus on SE Wisconsin / Milwaukee–Racine corridor"
-              value={regionNote}
-              onChange={(e) => setRegionNote(e.target.value)}
-              rows={2}
-            />
-            <p className="text-xs text-muted-foreground">
-              Any special notes about this area that would help reps understand your footprint.
-            </p>
-          </div>
-
-          {/* Inspection Types (optional region-specific override) */}
-          <div className="space-y-2">
-            <Label>Inspection Types for this region (optional)</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Leave blank to use your profile-level inspection types.
-            </p>
+          {/* Region Note - hide in proposal mode */}
+          {!isProposalMode && (
             <div className="space-y-2">
-              {INSPECTION_TYPES.map((type) => (
-                <div key={type} className="flex items-center space-x-2">
+              <Label htmlFor="region-note">Region notes (optional)</Label>
+              <Textarea
+                id="region-note"
+                placeholder="e.g., Focus on SE Wisconsin / Milwaukee–Racine corridor"
+                value={regionNote}
+                onChange={(e) => setRegionNote(e.target.value)}
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground">
+                Any special notes about this area that would help reps understand your footprint.
+              </p>
+            </div>
+          )}
+
+          {/* Inspection Types - hide in proposal mode */}
+          {!isProposalMode && (
+            <div className="space-y-2">
+              <Label>Inspection Types for this region (optional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Leave blank to use your profile-level inspection types.
+              </p>
+              <div className="space-y-2">
+                {INSPECTION_TYPES.map((type) => (
+                  <div key={type} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`inspection-${type}`}
+                      checked={inspectionTypes.includes(type)}
+                      onCheckedChange={() => handleInspectionTypeToggle(type)}
+                    />
+                    <Label htmlFor={`inspection-${type}`} className="cursor-pointer font-normal">
+                      {type}
+                    </Label>
+                  </div>
+                ))}
+                <div className="flex items-center space-x-2">
                   <Checkbox
-                    id={`inspection-${type}`}
-                    checked={inspectionTypes.includes(type)}
-                    onCheckedChange={() => handleInspectionTypeToggle(type)}
+                    id="inspection-Other"
+                    checked={inspectionTypes.includes("Other")}
+                    onCheckedChange={() => handleInspectionTypeToggle("Other")}
                   />
-                  <Label htmlFor={`inspection-${type}`} className="cursor-pointer font-normal">
-                    {type}
+                  <Label htmlFor="inspection-Other" className="cursor-pointer font-normal">
+                    Other
                   </Label>
                 </div>
-              ))}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="inspection-Other"
-                  checked={inspectionTypes.includes("Other")}
-                  onCheckedChange={() => handleInspectionTypeToggle("Other")}
-                />
-                <Label htmlFor="inspection-Other" className="cursor-pointer font-normal">
-                  Other
-                </Label>
+                {inspectionTypes.includes("Other") && (
+                  <Input
+                    placeholder="Specify other inspection type"
+                    value={otherInspectionType}
+                    onChange={(e) => setOtherInspectionType(e.target.value)}
+                    className="ml-6"
+                  />
+                )}
               </div>
-              {inspectionTypes.includes("Other") && (
-                <Input
-                  placeholder="Specify other inspection type"
-                  value={otherInspectionType}
-                  onChange={(e) => setOtherInspectionType(e.target.value)}
-                  className="ml-6"
-                />
-              )}
             </div>
-          </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -331,7 +357,7 @@ export const VendorCoverageDialog = ({ open, onOpenChange, onSave, editData }: V
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!stateCode}>
-            Save Coverage Area
+            {isProposalMode ? "Add to Proposal" : "Save Coverage Area"}
           </Button>
         </DialogFooter>
       </DialogContent>
