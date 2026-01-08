@@ -221,6 +221,7 @@ export default function VendorProposalBuilder() {
         if (data.coverage_mode === "entire_state" || data.coverage_mode === "entire_state_except") {
           // Create all-counties rows for each order type
           for (const orderType of ORDER_TYPES) {
+            const regionKey = '__ALL__';
             const { error } = await supabase.from("vendor_client_proposal_lines").upsert(
               {
                 proposal_id: proposal.id,
@@ -229,10 +230,11 @@ export default function VendorProposalBuilder() {
                 county_id: null,
                 county_name: null,
                 is_all_counties: true,
+                region_key: regionKey,
                 order_type: orderType,
                 proposed_rate: 0,
-              },
-              { onConflict: "proposal_id,state_code,order_type", ignoreDuplicates: false }
+              } as any,
+              { onConflict: "proposal_id,state_code,order_type,region_key" }
             );
             if (error && !error.message.includes("duplicate")) {
               throw error;
@@ -253,6 +255,7 @@ export default function VendorProposalBuilder() {
             if (!countyName) continue;
 
             for (const orderType of ORDER_TYPES) {
+              const regionKey = countyId;
               const { error } = await supabase.from("vendor_client_proposal_lines").upsert(
                 {
                   proposal_id: proposal.id,
@@ -261,10 +264,11 @@ export default function VendorProposalBuilder() {
                   county_id: countyId,
                   county_name: countyName,
                   is_all_counties: false,
+                  region_key: regionKey,
                   order_type: orderType,
                   proposed_rate: 0,
-                },
-                { onConflict: "proposal_id,state_code,county_name,order_type", ignoreDuplicates: false }
+                } as any,
+                { onConflict: "proposal_id,state_code,order_type,region_key" }
               );
               if (error && !error.message.includes("duplicate")) {
                 throw error;

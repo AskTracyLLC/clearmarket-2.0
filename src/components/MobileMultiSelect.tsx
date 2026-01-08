@@ -20,6 +20,8 @@ interface MobileMultiSelectProps {
   options: Option[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  onSelectMany?: (ids: string[]) => void;
+  onClearAll?: () => void;
   placeholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
@@ -39,6 +41,8 @@ export const MobileMultiSelect = ({
   options,
   selectedIds,
   onToggle,
+  onSelectMany,
+  onClearAll,
   placeholder = "Select items...",
   emptyMessage = "No items available",
   disabled = false,
@@ -112,9 +116,40 @@ export const MobileMultiSelect = ({
         >
           {/* Header */}
           <div className="shrink-0 p-2 border-b border-border bg-muted/50">
-            <p className="text-xs font-medium text-muted-foreground px-2">
-              {headerText || `Select items (${options.length} total)`}
-            </p>
+            <div className="flex items-center justify-between px-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {headerText || `Select items (${options.length} total)`}
+              </p>
+              {(onSelectMany || onClearAll) && (
+                <div className="flex items-center gap-1">
+                  {onSelectMany && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-primary hover:text-primary"
+                      onClick={() => {
+                        const idsToSelect = filteredOptions.map((opt) => opt.id);
+                        onSelectMany(idsToSelect);
+                      }}
+                    >
+                      {searchQuery.trim() ? "Select Results" : "Select All"}
+                    </Button>
+                  )}
+                  {onClearAll && selectedIds.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={onClearAll}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Search */}
