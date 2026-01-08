@@ -105,6 +105,7 @@ import { ShareProposalDialog } from "@/components/ShareProposalDialog";
 import { PaidFeatureBadge } from "@/components/PaidFeatureBadge";
 import { vendorProposalsCopy as proposalCopy } from "@/copy/vendorProposalsCopy";
 import { usePaidFeature } from "@/hooks/usePaidFeature";
+import { OutOfCreditsDialog } from "@/components/OutOfCreditsDialog";
 import {
   Tooltip,
   TooltipContent,
@@ -155,7 +156,18 @@ export default function VendorProposalBuilder() {
   const { debugState, withDebug, clear: clearDebug } = useProposalDebug(proposalId);
 
   // Paid feature gating (Compare + CSV export)
-  const { executePaidAction, PaidFeatureDialogs } = usePaidFeature();
+  const comparePaid = usePaidFeature("proposal_compare", {
+    cost: 1,
+    actionType: "proposal_compare_refresh",
+    metadata: { proposal_id: proposalId },
+    isBetaFree: true,
+  });
+  const csvPaid = usePaidFeature("proposal_csv_export", {
+    cost: 1,
+    actionType: "proposal_csv_export",
+    metadata: { proposal_id: proposalId },
+    isBetaFree: true,
+  });
 
   // Export state
   const [exportStyle, setExportStyle] = useState<"matrix" | "detailed">("matrix");
@@ -463,7 +475,9 @@ export default function VendorProposalBuilder() {
       toast.error("No data to export");
       return;
     }
-    await executePaidAction("csv_export", executeCSVExport);
+    const res = await csvPaid.consume();
+    if (!res.ok) return;
+    await executeCSVExport();
   };
 
   // Load connected reps on mount
@@ -572,7 +586,9 @@ export default function VendorProposalBuilder() {
 
   // Sync rep costs with paid feature gating
   const handleSyncRepCosts = async () => {
-    await executePaidAction("compare", executeSyncRepCosts);
+    const res = await comparePaid.consume();
+    if (!res.ok) return;
+    await executeSyncRepCosts();
   };
 
   // Compute lines with rep cost info (use baseline from DB)
@@ -2200,8 +2216,15 @@ Details: ${autoFillDebug.details || "N/A"}`;
           />
         )}
 
-        {/* Paid Feature Dialogs (Credit Confirm + Out of Credits) */}
-        {PaidFeatureDialogs}
+        {/* Out of Credits Dialogs */}
+        <OutOfCreditsDialog
+          open={comparePaid.outOfCreditsOpen}
+          onOpenChange={comparePaid.setOutOfCreditsOpen}
+        />
+        <OutOfCreditsDialog
+          open={csvPaid.outOfCreditsOpen}
+          onOpenChange={csvPaid.setOutOfCreditsOpen}
+        />
       </div>
     </AppLayout>
   );
