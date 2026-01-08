@@ -4238,6 +4238,110 @@ export type Database = {
           },
         ]
       }
+      vendor_client_proposal_lines: {
+        Row: {
+          approved_rate: number | null
+          county_id: string | null
+          county_name: string | null
+          created_at: string
+          id: string
+          internal_note: string | null
+          internal_rep_rate: number | null
+          is_all_counties: boolean
+          order_type: string
+          proposal_id: string
+          proposed_rate: number
+          state_code: string
+          state_name: string
+          updated_at: string
+        }
+        Insert: {
+          approved_rate?: number | null
+          county_id?: string | null
+          county_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          internal_rep_rate?: number | null
+          is_all_counties?: boolean
+          order_type: string
+          proposal_id: string
+          proposed_rate?: number
+          state_code: string
+          state_name: string
+          updated_at?: string
+        }
+        Update: {
+          approved_rate?: number | null
+          county_id?: string | null
+          county_name?: string | null
+          created_at?: string
+          id?: string
+          internal_note?: string | null
+          internal_rep_rate?: number | null
+          is_all_counties?: boolean
+          order_type?: string
+          proposal_id?: string
+          proposed_rate?: number
+          state_code?: string
+          state_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_client_proposal_lines_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_client_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_client_proposals: {
+        Row: {
+          client_name: string | null
+          client_rep_email: string | null
+          client_rep_name: string | null
+          created_at: string
+          disclaimer: string | null
+          effective_as_of: string | null
+          id: string
+          is_template: boolean
+          name: string
+          status: string
+          updated_at: string
+          vendor_user_id: string
+        }
+        Insert: {
+          client_name?: string | null
+          client_rep_email?: string | null
+          client_rep_name?: string | null
+          created_at?: string
+          disclaimer?: string | null
+          effective_as_of?: string | null
+          id?: string
+          is_template?: boolean
+          name: string
+          status?: string
+          updated_at?: string
+          vendor_user_id: string
+        }
+        Update: {
+          client_name?: string | null
+          client_rep_email?: string | null
+          client_rep_name?: string | null
+          created_at?: string
+          disclaimer?: string | null
+          effective_as_of?: string | null
+          id?: string
+          is_template?: boolean
+          name?: string
+          status?: string
+          updated_at?: string
+          vendor_user_id?: string
+        }
+        Relationships: []
+      }
       vendor_connections: {
         Row: {
           conversation_id: string | null
