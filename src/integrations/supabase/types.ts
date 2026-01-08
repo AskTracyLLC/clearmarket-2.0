@@ -1413,6 +1413,45 @@ export type Database = {
           },
         ]
       }
+      mimic_audit: {
+        Row: {
+          admin_id: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          target_user_id: string
+        }
+        Insert: {
+          admin_id: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id: string
+        }
+        Update: {
+          admin_id?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mimic_audit_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mimic_audit_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -1497,6 +1536,7 @@ export type Database = {
           read_at: string | null
           ref_id: string | null
           review_later: boolean
+          role_filter: string
           status: string | null
           target_url: string | null
           title: string
@@ -1515,6 +1555,7 @@ export type Database = {
           read_at?: string | null
           ref_id?: string | null
           review_later?: boolean
+          role_filter?: string
           status?: string | null
           target_url?: string | null
           title: string
@@ -1533,6 +1574,7 @@ export type Database = {
           read_at?: string | null
           ref_id?: string | null
           review_later?: boolean
+          role_filter?: string
           status?: string | null
           target_url?: string | null
           title?: string
@@ -2481,6 +2523,38 @@ export type Database = {
           {
             foreignKeyName: "reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_switch_audit: {
+        Row: {
+          created_at: string
+          from_role: string | null
+          id: string
+          to_role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_role?: string | null
+          id?: string
+          to_role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_role?: string | null
+          id?: string
+          to_role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_switch_audit_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
