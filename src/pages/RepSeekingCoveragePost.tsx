@@ -147,34 +147,30 @@ export default function RepSeekingCoveragePost() {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="container py-8">
-          <Card className="animate-pulse">
-            <CardContent className="py-8">
-              <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
-              <div className="h-4 bg-muted rounded w-2/3 mb-2"></div>
-              <div className="h-4 bg-muted rounded w-1/2"></div>
-            </CardContent>
-          </Card>
-        </div>
-      </AuthenticatedLayout>
+      <div className="container py-8">
+        <Card className="animate-pulse">
+          <CardContent className="py-8">
+            <div className="h-6 bg-muted rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-muted rounded w-2/3 mb-2"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!post || !vendor) {
     return (
-      <AuthenticatedLayout>
-        <div className="container py-8">
-          <Card>
-            <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">Post not found.</p>
-              <Button variant="outline" className="mt-4" onClick={() => navigate("/dashboard")}>
-                Back to Dashboard
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </AuthenticatedLayout>
+      <div className="container py-8">
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">Post not found.</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate("/dashboard")}>
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
