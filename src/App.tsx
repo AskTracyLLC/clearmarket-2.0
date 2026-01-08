@@ -169,6 +169,7 @@ const App = () => (
               <Route path="/admin/broadcasts/new" element={<AdminBroadcastNew />} />
               <Route path="/admin/broadcasts/:id" element={<AdminBroadcastDetail />} />
               <Route path="/admin/broadcasts/:id/edit" element={<AdminBroadcastEdit />} />
+              <Route path="/admin/requests/dual-role" element={<AdminDualRoleRequests />} />
               <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
               <Route path="/help" element={<HelpCenter />} />
               <Route path="/help/:slug" element={<HelpCenter />} />
