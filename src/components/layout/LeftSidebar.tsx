@@ -58,6 +58,8 @@ interface LeftSidebarProps {
   userProfile?: {
     full_name?: string;
     email?: string;
+    rep_anonymous_id?: string;
+    vendor_anonymous_id?: string;
   } | null;
   /** Called after navigation on mobile to close the sheet */
   onNavigate?: () => void;
@@ -220,18 +222,17 @@ export function LeftSidebar({
     .slice(0, 2)
     .toUpperCase() || "U";
 
-  // Generate role-specific user ID (e.g., FieldRep#ABC123, Vendor#ABC123)
+  // Generate role-specific user ID label (e.g., FieldRep#1, Vendor#1)
   const getRoleIdLabel = () => {
-    // Use last 6 characters of user ID as short identifier (safe fallback)
-    // TODO: Use public anonymous_id from rep_profile/vendor_profile if available
-    const shortId = userProfile?.email?.split("@")[0]?.slice(0, 8) || "User";
     if (isAdmin) {
-      return `Admin#${shortId}`;
+      return "Admin";
     }
     if (effectiveRole === "vendor" || isVendor) {
-      return `Vendor#${shortId}`;
+      // Use the vendor anonymous_id if available
+      return userProfile?.vendor_anonymous_id || "Vendor";
     }
-    return `FieldRep#${shortId}`;
+    // Use the rep anonymous_id if available
+    return userProfile?.rep_anonymous_id || "FieldRep";
   };
 
   const roleIdLabel = getRoleIdLabel();
