@@ -32,10 +32,26 @@ export interface VendorProposalLine {
   order_type: "standard" | "appointment" | "rush";
   proposed_rate: number;
   internal_rep_rate: number | null;
+  internal_rep_rate_baseline: number | null;
+  internal_rep_source_rep_id: string | null;
   internal_note: string | null;
   approved_rate: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export type CompareMode = "lowest" | "average" | "specific";
+
+export interface RepRateSnapshot {
+  id: string;
+  proposal_id: string;
+  rep_user_id: string;
+  state_code: string;
+  county_id: string | null;
+  region_key: string;
+  order_type: OrderType;
+  rep_rate: number;
+  created_at: string;
 }
 
 export type OrderType = "standard" | "appointment" | "rush";
@@ -449,6 +465,256 @@ export async function syncRepCostsToProposal(
   }
 
   return { updatedCount, errors };
+}
+
+// ============== MULTI-REP PRICING SYNC ==============
+
+export interface MultiRepSyncResult {
+  repsProcessed: number;
+  snapshotsCreated: number;
+  linesUpdated: number;
+  warningsCount: number;
+  errors: string[];
+}
+
+/**
+ * Clear existing snapshots for a proposal
+ */
+async function clearProposalSnapshots(proposalId: string): Promise<void> {
+  const { error } = await supabase
+    .from("vendor_proposal_rep_rate_snapshots" as any)
+    .delete()
+    .eq("proposal_id", proposalId);
+    
+  if (error) {
+    console.error("[MultiRepSync] Failed to clear snapshots:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch working terms for all connected reps
+ */
+async function fetchAllRepsPricing(vendorUserId: string): Promise<Map<string, RepPricingRow[]>> {
+  // First get all connected reps
+  const reps = await fetchConnectedReps(vendorUserId);
+  const repPricingMap = new Map<string, RepPricingRow[]>();
+  
+  for (const rep of reps) {
+    try {
+      const pricing = await fetchRepPricing(vendorUserId, rep.id);
+      if (pricing.length > 0) {
+        repPricingMap.set(rep.id, pricing);
+      }
+    } catch (err) {
+      console.warn(`[MultiRepSync] Failed to fetch pricing for rep ${rep.id}:`, err);
+    }
+  }
+  
+  return repPricingMap;
+}
+
+/**
+ * Create snapshot rows for all reps and their pricing
+ */
+async function createRepSnapshots(
+  proposalId: string,
+  lines: VendorProposalLine[],
+  repPricingMap: Map<string, RepPricingRow[]>
+): Promise<number> {
+  let created = 0;
+  const snapshots: any[] = [];
+  
+  for (const [repId, pricingRows] of repPricingMap) {
+    for (const line of lines) {
+      const { rate } = findRepCostForLine(
+        {
+          state_code: line.state_code,
+          county_name: line.county_name,
+          is_all_counties: line.is_all_counties,
+          order_type: line.order_type as OrderType,
+        },
+        pricingRows
+      );
+      
+      if (rate !== null) {
+        snapshots.push({
+          proposal_id: proposalId,
+          rep_user_id: repId,
+          state_code: line.state_code,
+          county_id: line.county_id,
+          region_key: line.region_key,
+          order_type: line.order_type,
+          rep_rate: rate,
+        });
+      }
+    }
+  }
+  
+  if (snapshots.length > 0) {
+    // Insert in batches of 100
+    for (let i = 0; i < snapshots.length; i += 100) {
+      const batch = snapshots.slice(i, i + 100);
+      const { error } = await supabase
+        .from("vendor_proposal_rep_rate_snapshots" as any)
+        .upsert(batch, { onConflict: "proposal_id,rep_user_id,state_code,region_key,order_type" });
+        
+      if (error) {
+        console.error("[MultiRepSync] Snapshot insert error:", error);
+        throw error;
+      }
+      created += batch.length;
+    }
+  }
+  
+  return created;
+}
+
+/**
+ * Compute baseline rep cost based on compare mode
+ */
+function computeBaseline(
+  line: VendorProposalLine,
+  repPricingMap: Map<string, RepPricingRow[]>,
+  mode: CompareMode,
+  specificRepId?: string
+): { baseline: number | null; sourceRepId: string | null } {
+  if (mode === "specific" && specificRepId) {
+    const pricing = repPricingMap.get(specificRepId);
+    if (!pricing) return { baseline: null, sourceRepId: null };
+    
+    const { rate } = findRepCostForLine(
+      {
+        state_code: line.state_code,
+        county_name: line.county_name,
+        is_all_counties: line.is_all_counties,
+        order_type: line.order_type as OrderType,
+      },
+      pricing
+    );
+    return { baseline: rate, sourceRepId: rate !== null ? specificRepId : null };
+  }
+  
+  // Compute rates for all reps
+  const rates: { rate: number; repId: string }[] = [];
+  
+  for (const [repId, pricingRows] of repPricingMap) {
+    const { rate } = findRepCostForLine(
+      {
+        state_code: line.state_code,
+        county_name: line.county_name,
+        is_all_counties: line.is_all_counties,
+        order_type: line.order_type as OrderType,
+      },
+      pricingRows
+    );
+    if (rate !== null) {
+      rates.push({ rate, repId });
+    }
+  }
+  
+  if (rates.length === 0) return { baseline: null, sourceRepId: null };
+  
+  if (mode === "lowest") {
+    const min = rates.reduce((a, b) => (a.rate < b.rate ? a : b));
+    return { baseline: min.rate, sourceRepId: min.repId };
+  }
+  
+  if (mode === "average") {
+    const avg = rates.reduce((sum, r) => sum + r.rate, 0) / rates.length;
+    return { baseline: Math.round(avg * 100) / 100, sourceRepId: null };
+  }
+  
+  return { baseline: null, sourceRepId: null };
+}
+
+/**
+ * Sync rep costs for all connected reps to a proposal
+ */
+export async function syncAllRepCostsToProposal(
+  proposalId: string,
+  vendorUserId: string,
+  mode: CompareMode,
+  specificRepId?: string
+): Promise<MultiRepSyncResult> {
+  console.log("[MultiRepSync] Starting sync:", { proposalId, vendorUserId, mode, specificRepId });
+  
+  const result: MultiRepSyncResult = {
+    repsProcessed: 0,
+    snapshotsCreated: 0,
+    linesUpdated: 0,
+    warningsCount: 0,
+    errors: [],
+  };
+  
+  try {
+    // Clear old snapshots
+    await clearProposalSnapshots(proposalId);
+    
+    // Fetch pricing for all connected reps
+    const repPricingMap = await fetchAllRepsPricing(vendorUserId);
+    result.repsProcessed = repPricingMap.size;
+    
+    if (repPricingMap.size === 0) {
+      result.errors.push("No connected reps with active pricing found");
+      return result;
+    }
+    
+    // Fetch proposal lines
+    const lines = await fetchProposalLines(proposalId);
+    
+    if (lines.length === 0) {
+      result.errors.push("No proposal lines to update");
+      return result;
+    }
+    
+    // Create snapshots
+    result.snapshotsCreated = await createRepSnapshots(proposalId, lines, repPricingMap);
+    
+    // Update each line with baseline
+    for (const line of lines) {
+      // Skip if manually overridden
+      if (line.internal_note?.toLowerCase().includes("manual")) {
+        continue;
+      }
+      
+      const { baseline, sourceRepId } = computeBaseline(line, repPricingMap, mode, specificRepId);
+      
+      // Track warnings
+      if (baseline !== null && line.proposed_rate < baseline) {
+        result.warningsCount++;
+      }
+      
+      // Update line if baseline changed
+      if (baseline !== line.internal_rep_rate_baseline || sourceRepId !== line.internal_rep_source_rep_id) {
+        try {
+          const { error } = await supabase
+            .from("vendor_client_proposal_lines")
+            .update({
+              internal_rep_rate_baseline: baseline,
+              internal_rep_source_rep_id: sourceRepId,
+            })
+            .eq("id", line.id);
+            
+          if (error) {
+            result.errors.push(`Line ${line.state_code}/${line.county_name || "All"}: ${error.message}`);
+          } else {
+            result.linesUpdated++;
+          }
+        } catch (err: any) {
+          result.errors.push(`Line ${line.state_code}/${line.county_name || "All"}: ${err.message}`);
+        }
+      }
+    }
+    
+    console.log("[MultiRepSync] Complete:", result);
+    return result;
+    
+  } catch (err: any) {
+    console.error("[MultiRepSync] Failed:", err);
+    result.errors.push(err.message || String(err));
+    return result;
+  }
 }
 
 interface VendorCoverageArea {

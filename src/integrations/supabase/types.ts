@@ -4247,6 +4247,8 @@ export type Database = {
           id: string
           internal_note: string | null
           internal_rep_rate: number | null
+          internal_rep_rate_baseline: number | null
+          internal_rep_source_rep_id: string | null
           is_all_counties: boolean
           order_type: string
           proposal_id: string
@@ -4264,6 +4266,8 @@ export type Database = {
           id?: string
           internal_note?: string | null
           internal_rep_rate?: number | null
+          internal_rep_rate_baseline?: number | null
+          internal_rep_source_rep_id?: string | null
           is_all_counties?: boolean
           order_type: string
           proposal_id: string
@@ -4281,6 +4285,8 @@ export type Database = {
           id?: string
           internal_note?: string | null
           internal_rep_rate?: number | null
+          internal_rep_rate_baseline?: number | null
+          internal_rep_source_rep_id?: string | null
           is_all_counties?: boolean
           order_type?: string
           proposal_id?: string
@@ -4703,6 +4709,50 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      vendor_proposal_rep_rate_snapshots: {
+        Row: {
+          county_id: string | null
+          created_at: string
+          id: string
+          order_type: string
+          proposal_id: string
+          region_key: string
+          rep_rate: number
+          rep_user_id: string
+          state_code: string
+        }
+        Insert: {
+          county_id?: string | null
+          created_at?: string
+          id?: string
+          order_type: string
+          proposal_id: string
+          region_key: string
+          rep_rate: number
+          rep_user_id: string
+          state_code: string
+        }
+        Update: {
+          county_id?: string | null
+          created_at?: string
+          id?: string
+          order_type?: string
+          proposal_id?: string
+          region_key?: string
+          rep_rate?: number
+          rep_user_id?: string
+          state_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_proposal_rep_rate_snapshots_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_client_proposals"
+            referencedColumns: ["id"]
           },
         ]
       }

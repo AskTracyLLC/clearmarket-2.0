@@ -64,8 +64,10 @@ import {
   fetchRepPricing,
   findRepCostForLine,
   syncRepCostsToProposal,
+  syncAllRepCostsToProposal,
   RepPricingRow,
   OrderType,
+  CompareMode,
 } from "@/lib/vendorProposals";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { US_STATES } from "@/lib/constants";
@@ -132,11 +134,13 @@ export default function VendorProposalBuilder() {
 
   // Rep Pricing Reference state
   const [connectedReps, setConnectedReps] = useState<{ id: string; name: string }[]>([]);
+  const [compareMode, setCompareMode] = useState<CompareMode>("lowest");
   const [selectedRepId, setSelectedRepId] = useState<string>("");
   const [repPricing, setRepPricing] = useState<RepPricingRow[]>([]);
   const [syncingRepCosts, setSyncingRepCosts] = useState(false);
   const [showBelowCostOnly, setShowBelowCostOnly] = useState(false);
   const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
+  const [repSearchQuery, setRepSearchQuery] = useState("");
 
   // Matrix rows for export (blank = missing, not "—")
   const matrixRows = useMemo(() => {
@@ -401,29 +405,45 @@ export default function VendorProposalBuilder() {
     }
   };
 
-  // Rep selection handler - show sync dialog
+  // Rep selection handler for specific rep mode
   const handleRepSelect = (repId: string) => {
-    // "none" is used as placeholder since Radix Select doesn't allow empty string values
     const actualId = repId === "none" ? "" : repId;
     setSelectedRepId(actualId);
-    if (actualId && lines.length > 0) {
-      setSyncConfirmOpen(true);
-    }
   };
 
-  // Sync rep costs to proposal lines
+  // Sync rep costs to proposal lines (supports all modes)
   const handleSyncRepCosts = async () => {
-    if (!proposal || !user?.id || !selectedRepId) return;
+    if (!proposal || !user?.id) return;
+    
+    // Validate specific mode has rep selected
+    if (compareMode === "specific" && !selectedRepId) {
+      toast.error("Please select a rep to compare against");
+      return;
+    }
+    
     setSyncingRepCosts(true);
     setSyncConfirmOpen(false);
+    
     try {
-      const result = await syncRepCostsToProposal(proposal.id, user.id, selectedRepId);
+      const result = await syncAllRepCostsToProposal(
+        proposal.id,
+        user.id,
+        compareMode,
+        compareMode === "specific" ? selectedRepId : undefined
+      );
+      
       if (result.errors.length > 0) {
-        toast.warning(`Updated ${result.updatedCount} lines with ${result.errors.length} errors`);
-      } else if (result.updatedCount > 0) {
-        toast.success(`Synced rep costs to ${result.updatedCount} lines`);
+        toast.warning(`Synced ${result.repsProcessed} reps, ${result.linesUpdated} lines updated, ${result.errors.length} errors`);
+      } else if (result.linesUpdated > 0) {
+        toast.success(
+          `Synced pricing from ${result.repsProcessed} reps. ${result.linesUpdated} lines updated.${
+            result.warningsCount > 0 ? ` ${result.warningsCount} below cost.` : ""
+          }`
+        );
+      } else if (result.repsProcessed === 0) {
+        toast.info("No connected reps with active pricing found");
       } else {
-        toast.info("No matching rep terms found for these lines");
+        toast.info(`Processed ${result.repsProcessed} reps - no changes needed`);
       }
       loadProposal();
     } catch (err: any) {
@@ -434,24 +454,14 @@ export default function VendorProposalBuilder() {
     }
   };
 
-  // Compute lines with rep cost info
+  // Compute lines with rep cost info (use baseline from DB)
   const linesWithRepCost = useMemo(() => {
-    if (!repPricing.length) return lines.map((l) => ({ ...l, repCost: null, margin: null, repWarning: null }));
-    
     return lines.map((line) => {
-      const { rate, warning } = findRepCostForLine(
-        { 
-          state_code: line.state_code, 
-          county_name: line.county_name, 
-          is_all_counties: line.is_all_counties, 
-          order_type: line.order_type as OrderType 
-        },
-        repPricing
-      );
-      const margin = rate != null ? line.proposed_rate - rate : null;
-      return { ...line, repCost: rate, margin, repWarning: warning };
+      const baseline = line.internal_rep_rate_baseline;
+      const margin = baseline != null ? line.proposed_rate - baseline : null;
+      return { ...line, repCost: baseline, margin, repWarning: null };
     });
-  }, [lines, repPricing]);
+  }, [lines]);
 
   // Count lines below rep cost
   const belowCostCount = useMemo(() => {
@@ -861,45 +871,98 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Users className="w-4 h-4 text-secondary" />
-                    Reference Field Rep Pricing (optional)
+                    Compare Against Field Rep Pricing
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   <p className="text-sm text-muted-foreground">
                     Compare your proposal rates against established rep terms. Reps will not see proposal pricing.
                   </p>
                   <div className="flex flex-wrap gap-3 items-center">
-                    <Select value={selectedRepId || "none"} onValueChange={handleRepSelect}>
-                      <SelectTrigger className="w-[250px]">
-                        <SelectValue placeholder="Select a connected rep..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {connectedReps.map((rep) => (
-                          <SelectItem key={rep.id} value={rep.id}>
-                            {rep.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedRepId && (
+                    {/* Compare Mode Selector */}
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs text-muted-foreground">Compare Against</Label>
+                      <Select value={compareMode} onValueChange={(v) => setCompareMode(v as CompareMode)}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lowest">Lowest Rep Cost</SelectItem>
+                          <SelectItem value="average">Average Rep Cost</SelectItem>
+                          <SelectItem value="specific">Specific Rep</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Specific Rep Selector - only shown when mode is specific */}
+                    {compareMode === "specific" && (
+                      <div className="flex flex-col gap-1">
+                        <Label className="text-xs text-muted-foreground">Select Rep</Label>
+                        <Select value={selectedRepId || "none"} onValueChange={handleRepSelect}>
+                          <SelectTrigger className="w-[220px]">
+                            <SelectValue placeholder="Choose a rep..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <div className="px-2 py-1.5">
+                              <Input
+                                placeholder="Search reps..."
+                                value={repSearchQuery}
+                                onChange={(e) => setRepSearchQuery(e.target.value)}
+                                className="h-8"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <SelectItem value="none">None</SelectItem>
+                            {connectedReps
+                              .filter((rep) =>
+                                rep.name.toLowerCase().includes(repSearchQuery.toLowerCase())
+                              )
+                              .map((rep) => (
+                                <SelectItem key={rep.id} value={rep.id}>
+                                  {rep.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Sync Button */}
+                    <div className="flex flex-col gap-1">
+                      <Label className="text-xs text-muted-foreground invisible">Action</Label>
                       <Button 
-                        variant="outline" 
+                        variant="default" 
                         size="sm" 
-                        onClick={handleSyncRepCosts}
-                        disabled={syncingRepCosts}
+                        onClick={() => {
+                          if (lines.length > 0) {
+                            setSyncConfirmOpen(true);
+                          } else {
+                            toast.info("Add proposal lines first before syncing rep costs");
+                          }
+                        }}
+                        disabled={syncingRepCosts || (compareMode === "specific" && !selectedRepId)}
                       >
                         <RefreshCw className={`w-4 h-4 mr-2 ${syncingRepCosts ? "animate-spin" : ""}`} />
-                        Sync Rep Rates
+                        Sync Rep Rates ({connectedReps.length} reps)
                       </Button>
-                    )}
+                    </div>
                   </div>
+                  
+                  {/* Rep count info */}
+                  <p className="text-xs text-muted-foreground">
+                    {compareMode === "lowest" && `Will use the lowest rate from your ${connectedReps.length} connected reps for each line.`}
+                    {compareMode === "average" && `Will calculate the average rate across your ${connectedReps.length} connected reps for each line.`}
+                    {compareMode === "specific" && selectedRepId && 
+                      `Will use rates from ${connectedReps.find(r => r.id === selectedRepId)?.name || "selected rep"} only.`}
+                    {compareMode === "specific" && !selectedRepId && 
+                      "Select a specific rep to compare against."}
+                  </p>
                 </CardContent>
               </Card>
             )}
 
             {/* Below Cost Warning Banner */}
-            {selectedRepId && belowCostCount > 0 && (
+            {belowCostCount > 0 && (
               <Alert className="border-destructive/50 bg-destructive/10">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 <AlertTitle className="text-destructive">
@@ -907,7 +970,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 </AlertTitle>
                 <AlertDescription className="flex items-center gap-3">
                   <span className="text-muted-foreground">
-                    Some proposed rates are lower than your established rep pricing.
+                    Some proposed rates are lower than your referenced rep pricing baseline.
                   </span>
                   <Button 
                     variant="outline" 
@@ -1052,9 +1115,9 @@ Details: ${autoFillDebug.details || "N/A"}`;
                       <TableHead>County</TableHead>
                       <TableHead>Order Type</TableHead>
                       <TableHead className="text-right">Proposed Rate</TableHead>
-                      {selectedRepId && (
+                      {lines.some(l => l.internal_rep_rate_baseline !== null) && (
                         <>
-                          <TableHead className="text-right">Rep Cost</TableHead>
+                          <TableHead className="text-right">Rep Cost (Baseline)</TableHead>
                           <TableHead className="text-right">Margin</TableHead>
                         </>
                       )}
@@ -1111,7 +1174,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
                               )}
                             </div>
                           </TableCell>
-                          {selectedRepId && (
+                          {lines.some(l => l.internal_rep_rate_baseline !== null) && (
                             <>
                               <TableCell className="text-right">
                                 {line.repCost != null ? (
@@ -1389,17 +1452,32 @@ Details: ${autoFillDebug.details || "N/A"}`;
             <DialogHeader>
               <DialogTitle>Sync Rep Costs?</DialogTitle>
               <DialogDescription>
-                This will update the internal rep cost column for all proposal lines based on the selected rep's established pricing. 
+                {compareMode === "lowest" && 
+                  `This will calculate the LOWEST cost from your ${connectedReps.length} connected reps for each proposal line.`}
+                {compareMode === "average" && 
+                  `This will calculate the AVERAGE cost across your ${connectedReps.length} connected reps for each proposal line.`}
+                {compareMode === "specific" && 
+                  `This will use costs from ${connectedReps.find(r => r.id === selectedRepId)?.name || "the selected rep"} only.`}
+                <br />
                 Lines with "manual override" notes will be skipped.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSyncConfirmOpen(false)}>
-                Skip
+                Cancel
               </Button>
-              <Button onClick={handleSyncRepCosts}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Sync Rep Rates
+              <Button onClick={handleSyncRepCosts} disabled={syncingRepCosts}>
+                {syncingRepCosts ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Sync Rep Rates
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
