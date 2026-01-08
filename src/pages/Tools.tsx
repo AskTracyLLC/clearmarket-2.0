@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,7 +32,7 @@ const Tools = () => {
   ];
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Tools</h1>
@@ -133,7 +133,7 @@ const Tools = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

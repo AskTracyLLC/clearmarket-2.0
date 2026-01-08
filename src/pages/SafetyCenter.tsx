@@ -14,7 +14,7 @@ import { unblockUser } from "@/lib/blocks";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { KnownIssuesPanel } from "@/components/KnownIssuesPanel";
 import { PageHeader } from "@/components/PageHeader";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 
 interface BlockedUser {
   id: string;
@@ -220,18 +220,16 @@ export default function SafetyCenter() {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="min-h-screen bg-background p-8">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <PageHeader
@@ -425,6 +423,6 @@ export default function SafetyCenter() {
           />
         )}
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

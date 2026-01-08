@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,7 +77,7 @@ export default function CoverageMap() {
   };
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <PageHeader
           title="Coverage Map"
@@ -153,6 +153,6 @@ export default function CoverageMap() {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

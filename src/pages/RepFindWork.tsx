@@ -18,7 +18,7 @@ import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import RepMatchSettingsDialog from "@/components/RepMatchSettingsDialog";
 import { getRepMatchSettings } from "@/lib/matchAlerts";
 import AdminViewBanner from "@/components/AdminViewBanner";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { NotInterestedDialog } from "@/components/NotInterestedDialog";
 import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
@@ -574,7 +574,7 @@ export default function RepFindWork() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-6">
@@ -1196,6 +1196,6 @@ export default function RepFindWork() {
           onConfirmed={() => handleNotInterestedConfirmed(notInterestedPost.id)}
         />
       )}
-    </AuthenticatedLayout>
+    </>
   );
 }

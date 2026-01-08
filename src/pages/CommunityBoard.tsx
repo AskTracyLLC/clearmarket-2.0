@@ -8,7 +8,7 @@ import { NetworkAlertsFeed } from "@/components/NetworkAlertsFeed";
 import { SavedPostsTab } from "@/components/SavedPostsTab";
 import { CountBadge } from "@/components/CountBadge";
 import { PageHeader } from "@/components/PageHeader";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { Users, Megaphone, Newspaper, Bookmark } from "lucide-react";
 import { getSavedPostsCount } from "@/lib/postSaves";
 import { communityCopy } from "@/copy/communityCopy";
@@ -143,7 +143,7 @@ const CommunityBoard = () => {
   const tabDescription = getTabDescription(activeTab);
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <PageHeader
@@ -209,7 +209,7 @@ const CommunityBoard = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

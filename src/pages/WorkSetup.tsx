@@ -18,7 +18,7 @@ import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2, ChevronDown } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { CoverageAreaDialog, CoverageArea, CoverageMode } from "@/components/CoverageAreaDialog";
 import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
@@ -349,7 +349,7 @@ const WorkSetup = () => {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-12 max-w-3xl">
         <div className="mb-6 flex items-center gap-4">
           <Link to="/dashboard">
@@ -1042,7 +1042,7 @@ const WorkSetup = () => {
           />
         )}
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 };
 
