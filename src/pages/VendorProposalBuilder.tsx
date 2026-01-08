@@ -119,6 +119,102 @@ export default function VendorProposalBuilder() {
   // Debug
   const { debugState, withDebug, clear: clearDebug } = useProposalDebug(proposalId);
 
+  // Export state
+  const [exportStyle, setExportStyle] = useState<"matrix" | "detailed">("matrix");
+
+  // Matrix rows for export
+  const matrixRows = useMemo(() => {
+    // Group lines by state+county, then pivot order types into columns
+    type MatrixRow = {
+      stateCode: string;
+      stateDisplay: string;
+      countyDisplay: string;
+      isAllCounties: boolean;
+      standard: string;
+      appointment: string;
+      rush: string;
+    };
+
+    const grouped = new Map<string, MatrixRow>();
+
+    for (const line of lines) {
+      const countyDisplay = line.is_all_counties ? "All counties" : (line.county_name || "Unknown");
+      const key = `${line.state_code}|${countyDisplay}`;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          stateCode: line.state_code,
+          stateDisplay: `${line.state_name} (${line.state_code})`,
+          countyDisplay,
+          isAllCounties: line.is_all_counties,
+          standard: "—",
+          appointment: "—",
+          rush: "—",
+        });
+      }
+
+      const row = grouped.get(key)!;
+      const rateStr = line.proposed_rate != null ? `$${line.proposed_rate.toFixed(2)}` : "—";
+
+      if (line.order_type === "standard") row.standard = rateStr;
+      else if (line.order_type === "appointment") row.appointment = rateStr;
+      else if (line.order_type === "rush") row.rush = rateStr;
+    }
+
+    // Sort: state asc, then "All counties" first, then county asc
+    return Array.from(grouped.values()).sort((a, b) => {
+      if (a.stateCode !== b.stateCode) return a.stateCode.localeCompare(b.stateCode);
+      if (a.isAllCounties && !b.isAllCounties) return -1;
+      if (!a.isAllCounties && b.isAllCounties) return 1;
+      return a.countyDisplay.localeCompare(b.countyDisplay);
+    });
+  }, [lines]);
+
+  // CSV Export handler
+  const handleExportCSV = () => {
+    if (!lines.length) {
+      toast.error("No data to export");
+      return;
+    }
+
+    let csvContent: string;
+    let filename: string;
+
+    if (exportStyle === "matrix") {
+      // Matrix format: state, county, standard_rate, appt_rate, rush_rate
+      const headers = ["State", "County", "Standard Rate", "Appt-based Rate", "Rush Rate"];
+      const rows = matrixRows.map((row) => [
+        row.stateDisplay,
+        row.countyDisplay,
+        row.standard,
+        row.appointment,
+        row.rush,
+      ]);
+      csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+      filename = `${name || "proposal"}_matrix.csv`;
+    } else {
+      // Detailed format: state, county, order_type, rate
+      const headers = ["State", "County", "Order Type", "Rate"];
+      const rows = lines.map((line) => [
+        `${line.state_name} (${line.state_code})`,
+        line.is_all_counties ? "All counties" : line.county_name,
+        ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS],
+        `$${line.proposed_rate.toFixed(2)}`,
+      ]);
+      csvContent = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
+      filename = `${name || "proposal"}_detailed.csv`;
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
+
   useEffect(() => {
     if (!isNew && proposalId && user?.id) {
       loadProposal();
@@ -778,45 +874,111 @@ export default function VendorProposalBuilder() {
                 This is a preview of your proposal. You can print or save this page.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-6 print:text-black">
+
+            {/* Export Style Toggle */}
+            <div className="flex items-center gap-4 print:hidden">
+              <span className="text-sm text-muted-foreground">Export Style:</span>
+              <div className="flex rounded-md border border-border overflow-hidden">
+                <button
+                  onClick={() => setExportStyle("matrix")}
+                  className={`px-3 py-1.5 text-sm transition-colors ${
+                    exportStyle === "matrix"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  Client Table (Matrix)
+                </button>
+                <button
+                  onClick={() => setExportStyle("detailed")}
+                  className={`px-3 py-1.5 text-sm transition-colors ${
+                    exportStyle === "detailed"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  Detailed (List)
+                </button>
+              </div>
+            </div>
+
+            <div className="py-4 space-y-6 print:text-black print:bg-white">
               <div className="space-y-2">
                 <h2 className="text-xl font-bold">{name}</h2>
-                {clientName && <p className="text-muted-foreground">Client: {clientName}</p>}
+                {clientName && <p className="text-muted-foreground print:text-gray-600">Client: {clientName}</p>}
                 {proposal?.effective_as_of && (
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground print:text-gray-600">
                     Effective: {format(new Date(proposal.effective_as_of), "MMMM d, yyyy")}
                   </p>
                 )}
               </div>
               {disclaimer && (
-                <div className="p-4 bg-muted rounded-lg">
+                <div className="p-4 bg-muted rounded-lg print:bg-gray-100 print:border print:border-gray-300">
                   <p className="text-sm whitespace-pre-wrap">{disclaimer}</p>
                 </div>
               )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>State</TableHead>
-                    <TableHead>County</TableHead>
-                    <TableHead>Order Type</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell>{line.state_name} ({line.state_code})</TableCell>
-                      <TableCell>{line.is_all_counties ? "All counties" : line.county_name}</TableCell>
-                      <TableCell>{ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS]}</TableCell>
-                      <TableCell className="text-right">${line.proposed_rate.toFixed(2)}</TableCell>
+
+              {exportStyle === "matrix" ? (
+                <Table className="print:text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b-2">
+                      <TableHead colSpan={2} className="text-center border-r font-bold">
+                        Coverage Proposal
+                      </TableHead>
+                      <TableHead colSpan={3} className="text-center font-bold">
+                        Order Type Rates
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    <TableRow>
+                      <TableHead className="w-32">State</TableHead>
+                      <TableHead className="border-r">County</TableHead>
+                      <TableHead className="text-right w-24">Standard</TableHead>
+                      <TableHead className="text-right w-24">Appt-based</TableHead>
+                      <TableHead className="text-right w-24">Rush</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matrixRows.map((row, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{row.stateDisplay}</TableCell>
+                        <TableCell className="border-r">{row.countyDisplay}</TableCell>
+                        <TableCell className="text-right">{row.standard}</TableCell>
+                        <TableCell className="text-right">{row.appointment}</TableCell>
+                        <TableCell className="text-right">{row.rush}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>State</TableHead>
+                      <TableHead>County</TableHead>
+                      <TableHead>Order Type</TableHead>
+                      <TableHead className="text-right">Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell>{line.state_name} ({line.state_code})</TableCell>
+                        <TableCell>{line.is_all_counties ? "All counties" : line.county_name}</TableCell>
+                        <TableCell>{ORDER_TYPE_LABELS[line.order_type as keyof typeof ORDER_TYPE_LABELS]}</TableCell>
+                        <TableCell className="text-right">${line.proposed_rate.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="print:hidden gap-2 flex-wrap">
               <Button variant="outline" onClick={() => setExportDialogOpen(false)}>
                 Close
+              </Button>
+              <Button variant="outline" onClick={handleExportCSV}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Export CSV
               </Button>
               <Button onClick={() => window.print()}>
                 <Download className="w-4 h-4 mr-2" />
