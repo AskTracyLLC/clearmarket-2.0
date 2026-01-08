@@ -279,9 +279,9 @@ interface VendorCoverageArea {
 
 export async function fetchVendorCoverageForAutoFill(vendorUserId: string): Promise<VendorCoverageArea[]> {
   const { data, error } = await supabase
-    .from("vendor_coverage_areas")
+    .from("vendor_coverage_areas" as any)
     .select("state_code, state_name")
-    .eq("vendor_user_id", vendorUserId);
+    .eq("vendor_user_id", vendorUserId) as { data: { state_code: string; state_name: string }[] | null; error: any };
 
   if (error) throw error;
 
