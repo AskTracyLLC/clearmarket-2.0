@@ -45,6 +45,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
+import { useProposalDebug } from "@/hooks/useProposalDebug";
+import { ProposalDebugPanel } from "@/components/ProposalDebugPanel";
 import {
   fetchProposalById,
   fetchProposalLines,
@@ -114,6 +116,9 @@ export default function VendorProposalBuilder() {
   // Batch rate
   const [batchRate, setBatchRate] = useState("");
 
+  // Debug
+  const { debugState, withDebug, clear: clearDebug } = useProposalDebug(proposalId);
+
   useEffect(() => {
     if (!isNew && proposalId && user?.id) {
       loadProposal();
@@ -156,25 +161,32 @@ export default function VendorProposalBuilder() {
     setSaving(true);
     try {
       if (isNew) {
-        const newProposal = await createProposal(user.id, name.trim());
-        await updateProposal(newProposal.id, {
-          client_name: clientName.trim() || null,
-          disclaimer: disclaimer.trim() || null,
-        });
+        const payload = { vendor_user_id: user.id, name: name.trim() };
+        const newProposal = await withDebug("create_proposal", payload, () =>
+          createProposal(user.id, name.trim())
+        );
+        await withDebug("update_proposal_header", { proposalId: newProposal.id, clientName, disclaimer }, () =>
+          updateProposal(newProposal.id, {
+            client_name: clientName.trim() || null,
+            disclaimer: disclaimer.trim() || null,
+          })
+        );
         toast.success("Proposal created");
         navigate(`/vendor/proposals/${newProposal.id}`, { replace: true });
       } else if (proposal) {
-        await updateProposal(proposal.id, {
-          name: name.trim(),
-          client_name: clientName.trim() || null,
-          disclaimer: disclaimer.trim() || null,
-        });
+        const payload = { proposalId: proposal.id, name, clientName, disclaimer };
+        await withDebug("update_proposal_header", payload, () =>
+          updateProposal(proposal.id, {
+            name: name.trim(),
+            client_name: clientName.trim() || null,
+            disclaimer: disclaimer.trim() || null,
+          })
+        );
         toast.success("Proposal saved");
         loadProposal();
       }
     } catch (err) {
-      console.error("Error saving proposal:", err);
-      toast.error("Failed to save proposal");
+      // Error already handled by withDebug
     } finally {
       setSaving(false);
     }
@@ -183,12 +195,13 @@ export default function VendorProposalBuilder() {
   const handleAutoFill = async () => {
     if (!proposal || !user?.id) return;
     try {
-      const count = await autoFillFromCoverage(proposal.id, user.id);
+      const count = await withDebug("auto_fill_from_coverage", { proposalId: proposal.id, vendorUserId: user.id }, () =>
+        autoFillFromCoverage(proposal.id, user.id)
+      );
       toast.success(`Added ${count} line${count !== 1 ? "s" : ""} from your coverage areas`);
       loadProposal();
     } catch (err) {
-      console.error("Error auto-filling:", err);
-      toast.error("Failed to auto-fill from coverage");
+      // Error already handled by withDebug
     }
   };
 
@@ -200,94 +213,100 @@ export default function VendorProposalBuilder() {
   }) => {
     if (!proposal) return;
 
+    const payload = { proposalId: proposal.id, ...data };
+    
     try {
-      // For proposal mode, we create lines based on selection
-      if (data.coverage_mode === "entire_state" || data.coverage_mode === "entire_state_except") {
-        // Create all-counties rows for each order type
-        for (const orderType of ORDER_TYPES) {
-          const { error } = await supabase.from("vendor_client_proposal_lines").upsert(
-            {
-              proposal_id: proposal.id,
-              state_code: data.state_code,
-              state_name: data.state_name,
-              county_id: null,
-              county_name: null,
-              is_all_counties: true,
-              order_type: orderType,
-              proposed_rate: 0,
-            },
-            { onConflict: "proposal_id,state_code,order_type", ignoreDuplicates: false }
-          );
-          if (error && !error.message.includes("duplicate")) {
-            console.error("Error inserting line:", error);
-          }
-        }
-      } else if (data.coverage_mode === "selected_counties" && data.included_county_ids?.length) {
-        // Fetch county names
-        const { data: counties } = await supabase
-          .from("us_counties")
-          .select("id, county_name")
-          .in("id", data.included_county_ids);
-
-        const countyMap = new Map((counties || []).map((c) => [c.id, c.county_name]));
-
-        // Create county-specific rows
-        for (const countyId of data.included_county_ids) {
-          const countyName = countyMap.get(countyId);
-          if (!countyName) continue;
-
+      await withDebug("add_coverage_lines", payload, async () => {
+        // For proposal mode, we create lines based on selection
+        if (data.coverage_mode === "entire_state" || data.coverage_mode === "entire_state_except") {
+          // Create all-counties rows for each order type
           for (const orderType of ORDER_TYPES) {
             const { error } = await supabase.from("vendor_client_proposal_lines").upsert(
               {
                 proposal_id: proposal.id,
                 state_code: data.state_code,
                 state_name: data.state_name,
-                county_id: countyId,
-                county_name: countyName,
-                is_all_counties: false,
+                county_id: null,
+                county_name: null,
+                is_all_counties: true,
                 order_type: orderType,
                 proposed_rate: 0,
               },
-              { onConflict: "proposal_id,state_code,county_name,order_type", ignoreDuplicates: false }
+              { onConflict: "proposal_id,state_code,order_type", ignoreDuplicates: false }
             );
             if (error && !error.message.includes("duplicate")) {
-              console.error("Error inserting line:", error);
+              throw error;
+            }
+          }
+        } else if (data.coverage_mode === "selected_counties" && data.included_county_ids?.length) {
+          // Fetch county names
+          const { data: counties } = await supabase
+            .from("us_counties")
+            .select("id, county_name")
+            .in("id", data.included_county_ids);
+
+          const countyMap = new Map((counties || []).map((c) => [c.id, c.county_name]));
+
+          // Create county-specific rows
+          for (const countyId of data.included_county_ids) {
+            const countyName = countyMap.get(countyId);
+            if (!countyName) continue;
+
+            for (const orderType of ORDER_TYPES) {
+              const { error } = await supabase.from("vendor_client_proposal_lines").upsert(
+                {
+                  proposal_id: proposal.id,
+                  state_code: data.state_code,
+                  state_name: data.state_name,
+                  county_id: countyId,
+                  county_name: countyName,
+                  is_all_counties: false,
+                  order_type: orderType,
+                  proposed_rate: 0,
+                },
+                { onConflict: "proposal_id,state_code,county_name,order_type", ignoreDuplicates: false }
+              );
+              if (error && !error.message.includes("duplicate")) {
+                throw error;
+              }
             }
           }
         }
-      }
+      });
 
       toast.success("Coverage added to proposal");
       loadProposal();
     } catch (err) {
-      console.error("Error adding coverage:", err);
-      toast.error("Failed to add coverage");
+      // Error already handled by withDebug
     }
   };
 
   const handleRateChange = async (lineId: string, rate: string) => {
     const numRate = parseFloat(rate) || 0;
     try {
-      await updateProposalLine(lineId, { proposed_rate: numRate });
+      await withDebug("update_line_rate", { lineId, proposed_rate: numRate }, () =>
+        updateProposalLine(lineId, { proposed_rate: numRate })
+      );
       setLines((prev) =>
         prev.map((l) => (l.id === lineId ? { ...l, proposed_rate: numRate } : l))
       );
     } catch (err) {
-      console.error("Error updating rate:", err);
-      toast.error("Failed to update rate");
+      // Error already handled by withDebug
     }
   };
 
   const handleDeleteSelected = async () => {
     if (selectedLineIds.size === 0) return;
+    const lineIds = Array.from(selectedLineIds);
     try {
-      await deleteProposalLines(Array.from(selectedLineIds));
+      await withDebug("delete_lines", { lineIds }, () =>
+        deleteProposalLines(lineIds)
+      );
       toast.success(`Deleted ${selectedLineIds.size} line${selectedLineIds.size !== 1 ? "s" : ""}`);
       setSelectedLineIds(new Set());
       loadProposal();
     } catch (err) {
-      console.error("Error deleting lines:", err);
-      toast.error("Failed to delete lines");
+      // Error already handled by withDebug
     }
   };
 
@@ -298,16 +317,18 @@ export default function VendorProposalBuilder() {
       toast.error("Please enter a valid rate");
       return;
     }
+    const lineIds = Array.from(selectedLineIds);
     try {
-      await batchUpdateProposedRate(Array.from(selectedLineIds), rate);
+      await withDebug("batch_update_rates", { lineIds, proposed_rate: rate }, () =>
+        batchUpdateProposedRate(lineIds, rate)
+      );
       toast.success("Rates updated");
       setBatchRateDialogOpen(false);
       setBatchRate("");
       setSelectedLineIds(new Set());
       loadProposal();
     } catch (err) {
-      console.error("Error batch updating rates:", err);
-      toast.error("Failed to update rates");
+      // Error already handled by withDebug
     }
   };
 
@@ -318,19 +339,28 @@ export default function VendorProposalBuilder() {
       return;
     }
 
+    const payload = {
+      proposalId: proposal.id,
+      status: "active",
+      effective_as_of: effectiveDate,
+      client_rep_name: clientRepName.trim(),
+      client_rep_email: clientRepEmail.trim(),
+    };
+
     try {
-      await updateProposal(proposal.id, {
-        status: "active",
-        effective_as_of: effectiveDate,
-        client_rep_name: clientRepName.trim(),
-        client_rep_email: clientRepEmail.trim(),
-      });
+      await withDebug("activate_proposal", payload, () =>
+        updateProposal(proposal.id, {
+          status: "active",
+          effective_as_of: effectiveDate,
+          client_rep_name: clientRepName.trim(),
+          client_rep_email: clientRepEmail.trim(),
+        })
+      );
       toast.success("Proposal activated");
       setActivateDialogOpen(false);
       loadProposal();
     } catch (err) {
-      console.error("Error activating proposal:", err);
-      toast.error("Failed to activate proposal");
+      // Error already handled by withDebug
     }
   };
 
@@ -791,6 +821,13 @@ export default function VendorProposalBuilder() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Debug Panel */}
+        <ProposalDebugPanel 
+          proposalId={proposalId} 
+          debugState={debugState} 
+          onClear={clearDebug} 
+        />
       </div>
     </AppLayout>
   );

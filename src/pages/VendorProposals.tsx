@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
+import { useProposalDebug } from "@/hooks/useProposalDebug";
+import { ProposalDebugPanel } from "@/components/ProposalDebugPanel";
 import {
   fetchVendorProposals,
   deleteProposal,
@@ -52,6 +54,8 @@ export default function VendorProposals() {
   const [proposals, setProposals] = useState<VendorProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  
+  const { debugState, withDebug, clear: clearDebug } = useProposalDebug();
 
   useEffect(() => {
     if (user?.id) {
@@ -76,35 +80,39 @@ export default function VendorProposals() {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await deleteProposal(deleteId);
+      await withDebug("delete_proposal", { proposalId: deleteId }, () => 
+        deleteProposal(deleteId)
+      );
       toast.success("Proposal deleted");
       setDeleteId(null);
       loadProposals();
     } catch (err) {
-      console.error("Error deleting proposal:", err);
-      toast.error("Failed to delete proposal");
+      // Error already handled by withDebug
+      setDeleteId(null);
     }
   };
 
   const handleDuplicateAsTemplate = async (proposalId: string) => {
     try {
-      await duplicateProposalAsTemplate(proposalId);
+      await withDebug("duplicate_as_template", { proposalId }, () =>
+        duplicateProposalAsTemplate(proposalId)
+      );
       toast.success("Template created");
       loadProposals();
     } catch (err) {
-      console.error("Error creating template:", err);
-      toast.error("Failed to create template");
+      // Error already handled by withDebug
     }
   };
 
   const handleCreateFromTemplate = async (templateId: string) => {
     try {
-      const newProposal = await createProposalFromTemplate(templateId);
+      const newProposal = await withDebug("create_from_template", { templateId }, () =>
+        createProposalFromTemplate(templateId)
+      );
       toast.success("Proposal created from template");
       navigate(`/vendor/proposals/${newProposal.id}`);
     } catch (err) {
-      console.error("Error creating from template:", err);
-      toast.error("Failed to create from template");
+      // Error already handled by withDebug
     }
   };
 
@@ -262,6 +270,9 @@ export default function VendorProposals() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Debug Panel */}
+        <ProposalDebugPanel debugState={debugState} onClear={clearDebug} />
       </div>
     </AppLayout>
   );
