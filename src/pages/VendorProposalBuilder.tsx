@@ -99,7 +99,11 @@ import {
   ArrowDown,
   Info,
   HelpCircle,
+  Link2,
 } from "lucide-react";
+import { ShareProposalDialog } from "@/components/ShareProposalDialog";
+import { PaidFeatureBadge } from "@/components/PaidFeatureBadge";
+import { vendorProposalsCopy as proposalCopy } from "@/copy/vendorProposalsCopy";
 import {
   Tooltip,
   TooltipContent,
@@ -178,6 +182,9 @@ export default function VendorProposalBuilder() {
   const [duplicateClientName, setDuplicateClientName] = useState("");
   const [duplicateKeepAsTemplate, setDuplicateKeepAsTemplate] = useState(false);
   const [duplicating, setDuplicating] = useState(false);
+
+  // Share dialog state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   // Sort state
   type SortField = "state" | "county" | "order_type" | "proposed_rate" | "rep_cost" | "margin" | "approved_rate";
@@ -1036,10 +1043,28 @@ Details: ${autoFillDebug.details || "N/A"}`;
             {getStatusBadge()}
           </PageHeader>
           {!isNew && proposal && (
-            <Button variant="outline" onClick={openDuplicateDialog}>
-              <Copy className="w-4 h-4 mr-2" />
-              Duplicate
-            </Button>
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" onClick={() => setShareDialogOpen(true)}>
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Share
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-medium">{proposalCopy.shareButton.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {proposalCopy.shareButton.body}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <Button variant="outline" onClick={openDuplicateDialog}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </Button>
+            </div>
           )}
         </div>
 
@@ -1118,11 +1143,12 @@ Details: ${autoFillDebug.details || "N/A"}`;
           <>
             {/* Rep Pricing Reference Card */}
             {connectedReps.length > 0 && (
-              <Card className="border-secondary/30 bg-secondary/5">
+            <Card className="border-secondary/30 bg-secondary/5">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Users className="w-4 h-4 text-secondary" />
                     Compare Against Field Rep Pricing
+                    <PaidFeatureBadge />
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
