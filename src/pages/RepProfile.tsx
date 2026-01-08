@@ -25,7 +25,7 @@ import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { 
   fetchMyBackgroundCheck, 
   submitBackgroundCheck, 
@@ -468,16 +468,7 @@ const RepProfile = () => {
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <div className="mb-4">
-          <Link to="/dashboard">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
-        </div>
+    <div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Field Rep Profile</h1>
           <p className="text-muted-foreground">
@@ -1266,8 +1257,7 @@ const RepProfile = () => {
             </div>
           </Card>
         </form>
-      </div>
-    </AuthenticatedLayout>
+    </div>
   );
 };
 
