@@ -27,9 +27,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
 import { VendorMatchAssistantCard } from "@/components/dashboard/VendorMatchAssistantCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { AuthenticatedNav } from "@/components/AuthenticatedNav";
-import { SiteFooter } from "@/components/SiteFooter";
-import { MimicBanner } from "@/components/MimicBanner";
+// AuthenticatedNav, SiteFooter, MimicBanner now come from AppShell wrapper
 import { useMimic } from "@/hooks/useMimic";
 import { AdminReviewSummaryCard } from "@/components/admin/AdminReviewSummaryCard";
 import { PlannedRouteAlertDialog } from "@/components/PlannedRouteAlertDialog";
@@ -506,17 +504,7 @@ const Dashboard = () => {
     : { title: "Onboarding", items: [], completedCount: 0, totalCount: 0, extras: [] as ExtrasItem[] };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Mimic Mode Banner - from context, no props needed */}
-      <MimicBanner />
-      
-      <AuthenticatedNav 
-        isAdmin={profile?.is_admin}
-        isVendor={mimickedUser ? mimickedUser.is_vendor_admin : hasVendorRole}
-        isRep={mimickedUser ? mimickedUser.is_fieldrep : hasRepRole}
-        vendorCredits={vendorCredits}
-      />
-
+    <>
       <div className="container mx-auto px-4 py-8">
         {/* Admin Dashboard Content */}
         {isAdminOnly && (
@@ -849,10 +837,6 @@ const Dashboard = () => {
         )}
       </div>
 
-      <div className="mt-auto">
-        <SiteFooter />
-      </div>
-
       {/* Planned Route Alert Dialog - opened from Extras */}
       {user && showingAsRep && (
         <PlannedRouteAlertDialog
@@ -861,7 +845,7 @@ const Dashboard = () => {
           userId={mimickedUser?.id || user.id}
         />
       )}
-    </div>
+    </>
   );
 };
 
