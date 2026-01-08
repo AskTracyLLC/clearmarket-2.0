@@ -16,7 +16,7 @@ import { VendorPostPricingAlert } from "@/components/VendorPostPricingAlert";
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { PageHeader } from "@/components/PageHeader";
 import AdminViewBanner from "@/components/AdminViewBanner";
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
@@ -693,7 +693,7 @@ Thank you again for your interest!`;
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Admin View Banner */}
         {profile?.is_admin && (
@@ -1242,7 +1242,7 @@ Thank you again for your interest!`;
           )}
         </DialogContent>
       </Dialog>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

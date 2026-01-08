@@ -12,7 +12,7 @@ import { Bell, Shield, Mail, CheckCircle2, Volume2, Play, UserCircle } from "luc
 import { DualRoleAccessCard } from "@/components/settings/DualRoleAccessCard";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { checklist } from "@/lib/checklistTracking";
 
 type NotificationPreferences = {
@@ -148,23 +148,21 @@ export default function Settings() {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="bg-background p-8">
-          <div className="max-w-4xl mx-auto">
-            <PageHeader
-              title="Settings"
-              subtitle="Control your notifications, account details, and preferences."
-              showBackToDashboard
-            />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
+      <div className="bg-background p-8">
+        <div className="max-w-4xl mx-auto">
+          <PageHeader
+            title="Settings"
+            subtitle="Control your notifications, account details, and preferences."
+            showBackToDashboard
+          />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="bg-background p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <PageHeader
@@ -554,6 +552,6 @@ export default function Settings() {
           </Tabs>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

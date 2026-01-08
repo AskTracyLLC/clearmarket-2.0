@@ -10,7 +10,7 @@ import { Bell, Clock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { format, isToday, isYesterday, isThisWeek, parseISO, startOfDay } from "date-fns";
 import { PageHeader } from "@/components/PageHeader";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { NotificationFeedItem, NotificationItem } from "@/components/dashboard/NotificationFeedItem";
 
 export default function Notifications() {
@@ -199,22 +199,20 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="bg-background p-8">
-          <div className="max-w-3xl mx-auto">
-            <PageHeader
-              title="All Notifications"
-              subtitle="View your complete notification history"
-            />
-            <p className="text-muted-foreground">Loading notifications...</p>
-          </div>
+      <div className="bg-background p-8">
+        <div className="max-w-3xl mx-auto">
+          <PageHeader
+            title="All Notifications"
+            subtitle="View your complete notification history"
+          />
+          <p className="text-muted-foreground">Loading notifications...</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="bg-background p-8">
         <div className="max-w-3xl mx-auto">
           <PageHeader
@@ -346,6 +344,6 @@ export default function Notifications() {
           </Tabs>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

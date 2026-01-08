@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { PageHeader } from "@/components/PageHeader";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 
 interface ConversationWithParticipant {
   id: string;
@@ -421,18 +421,16 @@ export default function MessagesList() {
 
   if (authLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
-          <div className="max-w-4xl mx-auto">
-            <p className="text-muted-foreground">Loading messages...</p>
-          </div>
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-muted-foreground">Loading messages...</p>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
@@ -673,6 +671,6 @@ export default function MessagesList() {
           targetUserId={selectedProfileUserId}
         />
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

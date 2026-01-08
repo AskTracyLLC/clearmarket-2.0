@@ -31,7 +31,7 @@ import {
 } from "@/lib/support";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { SupportImageUpload } from "@/components/SupportImageUpload";
 import { SupportImageGallery } from "@/components/SupportImageGallery";
 
@@ -166,7 +166,7 @@ export default function Support() {
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -434,6 +434,6 @@ export default function Support() {
           </SheetContent>
         </Sheet>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }
