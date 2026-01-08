@@ -65,9 +65,14 @@ import {
   findRepCostForLine,
   syncRepCostsToProposal,
   syncAllRepCostsToProposal,
+  previewAutoPrice,
+  applyAutoPrice,
   RepPricingRow,
   OrderType,
   CompareMode,
+  CostBasis,
+  MarkupType,
+  AutoPricePreviewResult,
 } from "@/lib/vendorProposals";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { US_STATES } from "@/lib/constants";
@@ -85,6 +90,8 @@ import {
   CheckCircle,
   RefreshCw,
   Users,
+  Calculator,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -141,6 +148,16 @@ export default function VendorProposalBuilder() {
   const [showBelowCostOnly, setShowBelowCostOnly] = useState(false);
   const [syncConfirmOpen, setSyncConfirmOpen] = useState(false);
   const [repSearchQuery, setRepSearchQuery] = useState("");
+
+  // Auto-Price state
+  const [autoPriceCostBasis, setAutoPriceCostBasis] = useState<CostBasis>("highest");
+  const [autoPriceMarkupType, setAutoPriceMarkupType] = useState<MarkupType>("dollar");
+  const [autoPriceMarkupValue, setAutoPriceMarkupValue] = useState("");
+  const [autoPriceScope, setAutoPriceScope] = useState<"selected" | "filtered" | "all">("all");
+  const [autoPriceOverwrite, setAutoPriceOverwrite] = useState(false);
+  const [autoPricePreview, setAutoPricePreview] = useState<AutoPricePreviewResult | null>(null);
+  const [autoPriceLoading, setAutoPriceLoading] = useState(false);
+  const [autoPriceConfirmOpen, setAutoPriceConfirmOpen] = useState(false);
 
   // Matrix rows for export (blank = missing, not "—")
   const matrixRows = useMemo(() => {
@@ -467,6 +484,103 @@ export default function VendorProposalBuilder() {
   const belowCostCount = useMemo(() => {
     return linesWithRepCost.filter((l) => l.repCost != null && l.proposed_rate < l.repCost).length;
   }, [linesWithRepCost]);
+
+  // Get target line IDs for auto-price based on scope
+  const getAutoPriceTargetIds = (): string[] => {
+    switch (autoPriceScope) {
+      case "selected":
+        return Array.from(selectedLineIds);
+      case "filtered":
+        return filteredLines.map((l) => l.id);
+      case "all":
+      default:
+        return lines.map((l) => l.id);
+    }
+  };
+
+  // Validate markup value input
+  const handleMarkupValueChange = (value: string) => {
+    // Allow empty, digits, and up to 2 decimal places
+    if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+      setAutoPriceMarkupValue(value);
+      setAutoPricePreview(null);
+    }
+  };
+
+  // Preview auto-price changes
+  const handleAutoPricePreview = async () => {
+    if (!proposal) return;
+    
+    const markupNum = parseFloat(autoPriceMarkupValue) || 0;
+    if (markupNum <= 0) {
+      toast.error("Please enter a markup value greater than 0");
+      return;
+    }
+    
+    const targetIds = getAutoPriceTargetIds();
+    if (targetIds.length === 0) {
+      toast.error("No lines in scope to price");
+      return;
+    }
+    
+    setAutoPriceLoading(true);
+    try {
+      const result = await previewAutoPrice(
+        proposal.id,
+        targetIds,
+        autoPriceCostBasis,
+        autoPriceMarkupType,
+        markupNum,
+        autoPriceOverwrite
+      );
+      setAutoPricePreview(result);
+      
+      if (result.updateCount === 0) {
+        toast.info(`No lines to update. ${result.skipReasons.noRepCost} have no rep cost, ${result.skipReasons.hasExistingRate} already have rates.`);
+      }
+    } catch (err: any) {
+      console.error("[AutoPrice] Preview failed:", err);
+      toast.error(`Preview failed: ${err.message}`);
+    } finally {
+      setAutoPriceLoading(false);
+    }
+  };
+
+  // Apply auto-price changes
+  const handleAutoPriceApply = async () => {
+    if (!proposal) return;
+    
+    const markupNum = parseFloat(autoPriceMarkupValue) || 0;
+    const targetIds = getAutoPriceTargetIds();
+    
+    setAutoPriceLoading(true);
+    setAutoPriceConfirmOpen(false);
+    
+    try {
+      const result = await applyAutoPrice(
+        proposal.id,
+        targetIds,
+        autoPriceCostBasis,
+        autoPriceMarkupType,
+        markupNum,
+        autoPriceOverwrite
+      );
+      
+      if (result.errors.length > 0) {
+        toast.warning(`Updated ${result.updatedCount} lines. ${result.errors.length} errors.`);
+      } else {
+        toast.success(`Updated ${result.updatedCount} lines. Skipped ${result.skippedCount} (no rep rates or existing rates).`);
+      }
+      
+      setAutoPricePreview(null);
+      loadProposal();
+    } catch (err: any) {
+      console.error("[AutoPrice] Apply failed:", err);
+      toast.error(`Apply failed: ${err.message}`);
+    } finally {
+      setAutoPriceLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -1020,6 +1134,193 @@ Details: ${autoFillDebug.details || "N/A"}`;
               </div>
             </div>
 
+            {/* Auto-Price Card */}
+            {lines.length > 0 && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-primary" />
+                    Auto-Price (Markup above Rep Cost)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Automatically set proposed rates based on a markup above rep cost. Requires synced rep rates.
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-4 items-end">
+                    {/* Cost Basis */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Cost Basis</Label>
+                      <Select value={autoPriceCostBasis} onValueChange={(v) => { setAutoPriceCostBasis(v as CostBasis); setAutoPricePreview(null); }}>
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="highest">Highest Rep Cost</SelectItem>
+                          <SelectItem value="average">Average Rep Cost</SelectItem>
+                          <SelectItem value="lowest">Lowest Rep Cost</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Markup Type */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Markup Type</Label>
+                      <Select value={autoPriceMarkupType} onValueChange={(v) => { setAutoPriceMarkupType(v as MarkupType); setAutoPricePreview(null); }}>
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dollar">+ $</SelectItem>
+                          <SelectItem value="percent">+ %</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Markup Value */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Markup {autoPriceMarkupType === "dollar" ? "($)" : "(%)"}
+                      </Label>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder={autoPriceMarkupType === "dollar" ? "e.g. 25" : "e.g. 15"}
+                        value={autoPriceMarkupValue}
+                        onChange={(e) => handleMarkupValueChange(e.target.value)}
+                        className="w-[100px]"
+                      />
+                    </div>
+                    
+                    {/* Apply Scope */}
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-xs text-muted-foreground">Apply To</Label>
+                      <Select value={autoPriceScope} onValueChange={(v) => { setAutoPriceScope(v as "selected" | "filtered" | "all"); setAutoPricePreview(null); }}>
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="selected" disabled={selectedLineIds.size === 0}>
+                            Selected ({selectedLineIds.size})
+                          </SelectItem>
+                          <SelectItem value="filtered">
+                            Filtered ({filteredLines.length})
+                          </SelectItem>
+                          <SelectItem value="all">
+                            All Lines ({lines.length})
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Overwrite Toggle */}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="autoprice-overwrite"
+                        checked={autoPriceOverwrite}
+                        onCheckedChange={(checked) => { setAutoPriceOverwrite(!!checked); setAutoPricePreview(null); }}
+                      />
+                      <Label htmlFor="autoprice-overwrite" className="text-sm cursor-pointer">
+                        Overwrite existing rates
+                      </Label>
+                    </div>
+                  </div>
+                  
+                  {/* Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleAutoPricePreview}
+                      disabled={autoPriceLoading || !autoPriceMarkupValue}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Preview Changes
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => {
+                        if (!autoPricePreview || autoPricePreview.updateCount === 0) {
+                          toast.info("Run preview first to see what will be updated");
+                          return;
+                        }
+                        setAutoPriceConfirmOpen(true);
+                      }}
+                      disabled={autoPriceLoading || !autoPricePreview || autoPricePreview.updateCount === 0}
+                    >
+                      <Calculator className="w-4 h-4 mr-2" />
+                      Apply Markup
+                    </Button>
+                  </div>
+                  
+                  {/* Preview Results */}
+                  {autoPricePreview && (
+                    <div className="mt-4 p-3 bg-muted/30 rounded-lg space-y-3">
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Will update: </span>
+                          <span className="font-medium text-primary">{autoPricePreview.updateCount}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Will skip: </span>
+                          <span className="font-medium">{autoPricePreview.skipCount}</span>
+                          {autoPricePreview.skipReasons.noRepCost > 0 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({autoPricePreview.skipReasons.noRepCost} no rep cost)
+                            </span>
+                          )}
+                          {autoPricePreview.skipReasons.hasExistingRate > 0 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({autoPricePreview.skipReasons.hasExistingRate} have rates)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {autoPricePreview.previewLines.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <Table className="text-sm">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="py-1">State</TableHead>
+                                <TableHead className="py-1">County</TableHead>
+                                <TableHead className="py-1">Type</TableHead>
+                                <TableHead className="py-1 text-right">Rep Cost</TableHead>
+                                <TableHead className="py-1 text-right">Old Rate</TableHead>
+                                <TableHead className="py-1 text-right">New Rate</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {autoPricePreview.previewLines.map((line) => (
+                                <TableRow key={line.lineId}>
+                                  <TableCell className="py-1">{line.stateCode}</TableCell>
+                                  <TableCell className="py-1">{line.countyName || "All"}</TableCell>
+                                  <TableCell className="py-1 capitalize">{line.orderType}</TableCell>
+                                  <TableCell className="py-1 text-right">${line.repCost.toFixed(2)}</TableCell>
+                                  <TableCell className="py-1 text-right text-muted-foreground">
+                                    {line.oldRate != null ? `$${line.oldRate.toFixed(2)}` : "—"}
+                                  </TableCell>
+                                  <TableCell className="py-1 text-right font-medium text-primary">
+                                    ${line.newRate.toFixed(2)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          {autoPricePreview.updateCount > autoPricePreview.previewLines.length && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Showing first {autoPricePreview.previewLines.length} of {autoPricePreview.updateCount} lines
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Auto-fill Debug Alert */}
             {autoFillDebug && (
               <Alert variant="destructive" className="mt-4">
@@ -1155,11 +1456,15 @@ Details: ${autoFillDebug.details || "N/A"}`;
                             <div className="flex items-center justify-end gap-2">
                               <span className="text-muted-foreground">$</span>
                               <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
+                                type="text"
+                                inputMode="decimal"
                                 value={line.proposed_rate}
-                                onChange={(e) => handleRateChange(line.id, e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                                    handleRateChange(line.id, val);
+                                  }
+                                }}
                                 className="w-24 text-right"
                               />
                               {isBelowRepCost && (
@@ -1252,11 +1557,15 @@ Details: ${autoFillDebug.details || "N/A"}`;
                 <Label htmlFor="batch-rate">Proposed Rate ($)</Label>
                 <Input
                   id="batch-rate"
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
                   value={batchRate}
-                  onChange={(e) => setBatchRate(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                      setBatchRate(val);
+                    }
+                  }}
                   placeholder="0.00"
                 />
               </div>
@@ -1476,6 +1785,39 @@ Details: ${autoFillDebug.details || "N/A"}`;
                   <>
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Sync Rep Rates
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Auto-Price Confirmation Dialog */}
+        <Dialog open={autoPriceConfirmOpen} onOpenChange={setAutoPriceConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Apply Auto-Pricing?</DialogTitle>
+              <DialogDescription>
+                This will update {autoPricePreview?.updateCount || 0} proposal lines with calculated rates 
+                based on {autoPriceCostBasis} rep cost + {autoPriceMarkupType === "dollar" ? `$${autoPriceMarkupValue}` : `${autoPriceMarkupValue}%`} markup.
+                <br /><br />
+                {autoPricePreview?.skipCount || 0} lines will be skipped (no rep cost or already have rates).
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAutoPriceConfirmOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAutoPriceApply} disabled={autoPriceLoading}>
+                {autoPriceLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <Calculator className="w-4 h-4 mr-2" />
+                    Apply to {autoPricePreview?.updateCount || 0} Lines
                   </>
                 )}
               </Button>

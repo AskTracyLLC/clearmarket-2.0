@@ -861,3 +861,240 @@ export async function autoFillFromCoverage(
 
   return { insertedCount };
 }
+
+// ============== AUTO-PRICE ==============
+
+export type CostBasis = "highest" | "average" | "lowest";
+export type MarkupType = "dollar" | "percent";
+
+export interface AutoPricePreviewLine {
+  lineId: string;
+  stateCode: string;
+  countyName: string | null;
+  orderType: OrderType;
+  repCost: number;
+  oldRate: number | null;
+  newRate: number;
+}
+
+export interface AutoPricePreviewResult {
+  updateCount: number;
+  skipCount: number;
+  skipReasons: { noRepCost: number; hasExistingRate: number };
+  previewLines: AutoPricePreviewLine[];
+}
+
+export interface AutoPriceApplyResult {
+  updatedCount: number;
+  skippedCount: number;
+  errors: string[];
+}
+
+/**
+ * Fetch rep rate snapshots for a proposal
+ */
+async function fetchRepRateSnapshots(proposalId: string): Promise<Map<string, number[]>> {
+  const { data, error } = await supabase
+    .from("vendor_proposal_rep_rate_snapshots" as any)
+    .select("state_code, region_key, order_type, rep_rate")
+    .eq("proposal_id", proposalId) as { 
+      data: { state_code: string; region_key: string; order_type: string; rep_rate: number }[] | null; 
+      error: any 
+    };
+    
+  if (error) {
+    console.error("[AutoPrice] Failed to fetch snapshots:", error);
+    throw error;
+  }
+  
+  // Group by line key: state_code|region_key|order_type
+  const snapshotMap = new Map<string, number[]>();
+  
+  for (const row of data || []) {
+    const key = `${row.state_code}|${row.region_key}|${row.order_type}`;
+    if (!snapshotMap.has(key)) {
+      snapshotMap.set(key, []);
+    }
+    snapshotMap.get(key)!.push(row.rep_rate);
+  }
+  
+  return snapshotMap;
+}
+
+/**
+ * Compute rep cost based on cost basis
+ */
+function computeRepCost(rates: number[], costBasis: CostBasis): number {
+  if (rates.length === 0) return 0;
+  
+  switch (costBasis) {
+    case "highest":
+      return Math.max(...rates);
+    case "lowest":
+      return Math.min(...rates);
+    case "average":
+      return Math.round((rates.reduce((a, b) => a + b, 0) / rates.length) * 100) / 100;
+  }
+}
+
+/**
+ * Compute new proposed rate with markup
+ */
+function computeMarkupRate(repCost: number, markupType: MarkupType, markupValue: number): number {
+  if (markupType === "dollar") {
+    return Math.round((repCost + markupValue) * 100) / 100;
+  } else {
+    return Math.round((repCost * (1 + markupValue / 100)) * 100) / 100;
+  }
+}
+
+/**
+ * Preview auto-price changes
+ */
+export async function previewAutoPrice(
+  proposalId: string,
+  targetLineIds: string[],
+  costBasis: CostBasis,
+  markupType: MarkupType,
+  markupValue: number,
+  overwriteExisting: boolean
+): Promise<AutoPricePreviewResult> {
+  console.log("[AutoPrice] Preview:", { proposalId, targetLineIds: targetLineIds.length, costBasis, markupType, markupValue, overwriteExisting });
+  
+  // Fetch snapshots
+  const snapshotMap = await fetchRepRateSnapshots(proposalId);
+  
+  // Fetch proposal lines
+  const lines = await fetchProposalLines(proposalId);
+  
+  // Filter to target lines
+  const targetLines = targetLineIds.length > 0 
+    ? lines.filter(l => targetLineIds.includes(l.id))
+    : lines;
+  
+  const result: AutoPricePreviewResult = {
+    updateCount: 0,
+    skipCount: 0,
+    skipReasons: { noRepCost: 0, hasExistingRate: 0 },
+    previewLines: [],
+  };
+  
+  for (const line of targetLines) {
+    const key = `${line.state_code}|${line.region_key}|${line.order_type}`;
+    const rates = snapshotMap.get(key);
+    
+    // Skip if no rep cost
+    if (!rates || rates.length === 0) {
+      result.skipCount++;
+      result.skipReasons.noRepCost++;
+      continue;
+    }
+    
+    // Skip if has existing rate and overwrite is off
+    if (!overwriteExisting && line.proposed_rate != null && line.proposed_rate > 0) {
+      result.skipCount++;
+      result.skipReasons.hasExistingRate++;
+      continue;
+    }
+    
+    const repCost = computeRepCost(rates, costBasis);
+    const newRate = computeMarkupRate(repCost, markupType, markupValue);
+    
+    result.updateCount++;
+    
+    // Add to preview (limit to first 10)
+    if (result.previewLines.length < 10) {
+      result.previewLines.push({
+        lineId: line.id,
+        stateCode: line.state_code,
+        countyName: line.is_all_counties ? "All counties" : line.county_name,
+        orderType: line.order_type as OrderType,
+        repCost,
+        oldRate: line.proposed_rate,
+        newRate,
+      });
+    }
+  }
+  
+  console.log("[AutoPrice] Preview result:", result);
+  return result;
+}
+
+/**
+ * Apply auto-price changes
+ */
+export async function applyAutoPrice(
+  proposalId: string,
+  targetLineIds: string[],
+  costBasis: CostBasis,
+  markupType: MarkupType,
+  markupValue: number,
+  overwriteExisting: boolean
+): Promise<AutoPriceApplyResult> {
+  console.log("[AutoPrice] Apply:", { proposalId, targetLineIds: targetLineIds.length, costBasis, markupType, markupValue, overwriteExisting });
+  
+  // Fetch snapshots
+  const snapshotMap = await fetchRepRateSnapshots(proposalId);
+  
+  // Fetch proposal lines
+  const lines = await fetchProposalLines(proposalId);
+  
+  // Filter to target lines
+  const targetLines = targetLineIds.length > 0 
+    ? lines.filter(l => targetLineIds.includes(l.id))
+    : lines;
+  
+  const result: AutoPriceApplyResult = {
+    updatedCount: 0,
+    skippedCount: 0,
+    errors: [],
+  };
+  
+  // Build updates batch
+  const updates: { id: string; proposed_rate: number }[] = [];
+  
+  for (const line of targetLines) {
+    const key = `${line.state_code}|${line.region_key}|${line.order_type}`;
+    const rates = snapshotMap.get(key);
+    
+    // Skip if no rep cost
+    if (!rates || rates.length === 0) {
+      result.skippedCount++;
+      continue;
+    }
+    
+    // Skip if has existing rate and overwrite is off
+    if (!overwriteExisting && line.proposed_rate != null && line.proposed_rate > 0) {
+      result.skippedCount++;
+      continue;
+    }
+    
+    const repCost = computeRepCost(rates, costBasis);
+    const newRate = computeMarkupRate(repCost, markupType, markupValue);
+    
+    updates.push({ id: line.id, proposed_rate: newRate });
+  }
+  
+  // Apply updates in batches
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+    const batch = updates.slice(i, i + BATCH_SIZE);
+    
+    // Update each line in the batch
+    for (const update of batch) {
+      const { error } = await supabase
+        .from("vendor_client_proposal_lines")
+        .update({ proposed_rate: update.proposed_rate })
+        .eq("id", update.id);
+        
+      if (error) {
+        result.errors.push(`Line ${update.id}: ${error.message}`);
+      } else {
+        result.updatedCount++;
+      }
+    }
+  }
+  
+  console.log("[AutoPrice] Apply result:", result);
+  return result;
+}
