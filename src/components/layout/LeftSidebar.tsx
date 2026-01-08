@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -57,9 +57,9 @@ interface LeftSidebarProps {
   userProfile?: {
     full_name?: string;
     email?: string;
-    avatar_url?: string;
-    anonymous_id?: string;
   } | null;
+  /** Called after navigation on mobile to close the sheet */
+  onNavigate?: () => void;
 }
 
 interface NavItem {
@@ -79,6 +79,7 @@ export function LeftSidebar({
   isRep,
   vendorCredits,
   userProfile,
+  onNavigate,
 }: LeftSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -88,6 +89,7 @@ export function LeftSidebar({
   const [moreOpen, setMoreOpen] = useState(false);
 
   const handleSignOut = async () => {
+    onNavigate?.();
     await signOut();
     toast({
       title: "Signed out",
@@ -118,10 +120,10 @@ export function LeftSidebar({
     { label: "Community", path: "/community", icon: <Users className="h-5 w-5" /> },
   ];
 
-  // Vendor-specific items
+  // Vendor-specific items - Interested Reps deep-links to Seeking Coverage with filters
   const vendorItems: NavItem[] = [
     { label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: sectionCounts.vendorPostsWithInterest },
-    { label: "Interested Reps", path: "/vendor/interested-reps", icon: <Bell className="h-5 w-5" />, badge: sectionCounts.vendorTotalInterestedReps },
+    { label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: sectionCounts.vendorTotalInterestedReps },
     { label: "My Reps", path: "/vendor/my-reps", icon: <Users className="h-5 w-5" /> },
     { label: "Proposals", path: "/vendor/proposals", icon: <FileText className="h-5 w-5" /> },
     { label: "Reviews", path: "/vendor/reviews", icon: <Star className="h-5 w-5" /> },
@@ -155,7 +157,12 @@ export function LeftSidebar({
   const roleItems = isAdmin ? adminItems : effectiveRole === "vendor" || isVendor ? vendorItems : repItems;
 
   const renderNavItem = (item: NavItem, showLabel: boolean = true) => {
-    const active = isActive(item.path);
+    const active = isActive(item.path.split("?")[0]); // Check path without query params
+    
+    const handleClick = () => {
+      navigate(item.path);
+      onNavigate?.();
+    };
     
     const content = (
       <Button
@@ -165,7 +172,7 @@ export function LeftSidebar({
           active && "bg-accent text-accent-foreground font-medium",
           collapsed && "justify-center px-0"
         )}
-        onClick={() => navigate(item.path)}
+        onClick={handleClick}
       >
         <span className={cn(active && "text-primary")}>{item.icon}</span>
         {showLabel && !collapsed && (
@@ -254,7 +261,7 @@ export function LeftSidebar({
                   variant="default"
                   size="icon"
                   className="w-full h-10"
-                  onClick={() => navigate(quickAction.path)}
+                  onClick={() => { navigate(quickAction.path); onNavigate?.(); }}
                 >
                   {quickAction.icon}
                 </Button>
@@ -265,7 +272,7 @@ export function LeftSidebar({
             <Button
               variant="default"
               className="w-full gap-2"
-              onClick={() => navigate(quickAction.path)}
+              onClick={() => { navigate(quickAction.path); onNavigate?.(); }}
             >
               {quickAction.icon}
               {quickAction.label}
@@ -325,7 +332,7 @@ export function LeftSidebar({
                       <Button
                         variant="ghost"
                         className="w-full justify-center h-10 px-0"
-                        onClick={() => navigate("/vendor/credits")}
+                        onClick={() => { navigate("/vendor/credits"); onNavigate?.(); }}
                       >
                         <CreditCard className="h-5 w-5 text-secondary" />
                       </Button>
@@ -338,7 +345,7 @@ export function LeftSidebar({
                   <Button
                     variant="ghost"
                     className="w-full justify-start gap-3 h-10 px-3"
-                    onClick={() => navigate("/vendor/credits")}
+                    onClick={() => { navigate("/vendor/credits"); onNavigate?.(); }}
                   >
                     <CreditCard className="h-5 w-5 text-secondary" />
                     <span className="flex-1 text-left">Credits</span>
@@ -390,21 +397,17 @@ export function LeftSidebar({
               {collapsed ? (
                 <Button variant="ghost" size="icon" className="w-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={userProfile?.avatar_url || undefined} />
                     <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
               ) : (
                 <Button variant="ghost" className="w-full justify-start gap-3 h-auto py-2 px-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={userProfile?.avatar_url || undefined} />
                     <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-left min-w-0">
                     <p className="text-sm font-medium truncate">{userProfile?.full_name || "User"}</p>
-                    {userProfile?.anonymous_id && (
-                      <p className="text-xs text-muted-foreground truncate">@{userProfile.anonymous_id}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground truncate">{userProfile?.email}</p>
                   </div>
                   <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </Button>
@@ -413,14 +416,14 @@ export function LeftSidebar({
             <DropdownMenuContent align="end" className="w-56">
               {isDualRole && (
                 <>
-                  <DropdownMenuItem onClick={() => switchRole("rep")} className={effectiveRole === "rep" ? "bg-accent" : ""}>
+                  <DropdownMenuItem onClick={() => { switchRole("rep"); onNavigate?.(); }} className={effectiveRole === "rep" ? "bg-accent" : ""}>
                     <Briefcase className="h-4 w-4 mr-2" />
                     <div className="flex flex-col">
                       <span>Field Rep</span>
                       <span className="text-xs text-muted-foreground">Perform inspections</span>
                     </div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => switchRole("vendor")} className={effectiveRole === "vendor" ? "bg-accent" : ""}>
+                  <DropdownMenuItem onClick={() => { switchRole("vendor"); onNavigate?.(); }} className={effectiveRole === "vendor" ? "bg-accent" : ""}>
                     <Building2 className="h-4 w-4 mr-2" />
                     <div className="flex flex-col">
                       <span>Vendor</span>
@@ -430,7 +433,7 @@ export function LeftSidebar({
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <DropdownMenuItem onClick={() => { navigate("/settings"); onNavigate?.(); }}>
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>
