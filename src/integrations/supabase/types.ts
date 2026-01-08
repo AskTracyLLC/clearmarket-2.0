@@ -4251,6 +4251,7 @@ export type Database = {
           order_type: string
           proposal_id: string
           proposed_rate: number
+          region_key: string
           state_code: string
           state_name: string
           updated_at: string
@@ -4267,6 +4268,7 @@ export type Database = {
           order_type: string
           proposal_id: string
           proposed_rate?: number
+          region_key: string
           state_code: string
           state_name: string
           updated_at?: string
@@ -4283,6 +4285,7 @@ export type Database = {
           order_type?: string
           proposal_id?: string
           proposed_rate?: number
+          region_key?: string
           state_code?: string
           state_name?: string
           updated_at?: string

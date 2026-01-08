@@ -28,6 +28,7 @@ export interface VendorProposalLine {
   county_id: string | null;
   county_name: string | null;
   is_all_counties: boolean;
+  region_key: string;
   order_type: "standard" | "appointment" | "rush";
   proposed_rate: number;
   internal_rep_rate: number | null;
@@ -138,6 +139,7 @@ export async function duplicateProposalAsTemplate(proposalId: string): Promise<V
       county_id: line.county_id,
       county_name: line.county_name,
       is_all_counties: line.is_all_counties,
+      region_key: line.region_key,
       order_type: line.order_type,
       proposed_rate: line.proposed_rate,
       internal_rep_rate: line.internal_rep_rate,
@@ -182,6 +184,7 @@ export async function createProposalFromTemplate(templateId: string): Promise<Ve
       county_id: line.county_id,
       county_name: line.county_name,
       is_all_counties: line.is_all_counties,
+      region_key: line.region_key,
       order_type: line.order_type,
       proposed_rate: line.proposed_rate,
       internal_rep_rate: line.internal_rep_rate,
@@ -211,13 +214,31 @@ export async function fetchProposalLines(proposalId: string): Promise<VendorProp
   return (data || []) as VendorProposalLine[];
 }
 
+/**
+ * Generate region_key for proposal lines
+ * - '__ALL__' for all-counties rows
+ * - county_id (or county_name as fallback) for specific county overrides
+ */
+export function generateRegionKey(isAllCounties: boolean, countyId: string | null, countyName: string | null): string {
+  if (isAllCounties) return '__ALL__';
+  return countyId || countyName || '__UNKNOWN__';
+}
+
 export async function upsertProposalLine(
   line: Omit<VendorProposalLine, "id" | "created_at" | "updated_at">
 ): Promise<VendorProposalLine> {
-  // Insert directly - rely on unique indexes to prevent duplicates
+  // Ensure region_key is set
+  const lineWithRegionKey = {
+    ...line,
+    region_key: line.region_key || generateRegionKey(line.is_all_counties, line.county_id, line.county_name),
+  };
+
+  // Use upsert with the unified unique index
   const { data, error } = await supabase
     .from("vendor_client_proposal_lines")
-    .insert(line as any)
+    .upsert(lineWithRegionKey as any, {
+      onConflict: "proposal_id,state_code,order_type,region_key",
+    })
     .select()
     .single();
 
@@ -309,20 +330,24 @@ export async function autoFillFromCoverage(
   for (const area of coverage) {
     for (const orderType of ORDER_TYPES) {
       try {
+        const regionKey = generateRegionKey(true, null, null);
         const { error } = await supabase
           .from("vendor_client_proposal_lines")
-          .insert({
+          .upsert({
             proposal_id: proposalId,
             state_code: area.state_code,
             state_name: area.state_name,
             county_id: null,
             county_name: null,
             is_all_counties: true,
+            region_key: regionKey,
             order_type: orderType,
             proposed_rate: 0,
             internal_rep_rate: null,
             internal_note: null,
             approved_rate: null,
+          } as any, {
+            onConflict: "proposal_id,state_code,order_type,region_key",
           });
         if (!error) insertedCount++;
       } catch (err) {
