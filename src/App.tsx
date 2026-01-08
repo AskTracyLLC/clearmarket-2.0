@@ -89,6 +89,7 @@ import CoverageMap from "./pages/CoverageMap";
 import AdminDualRoleRequests from "./pages/AdminDualRoleRequests";
 import VendorProposals from "./pages/VendorProposals";
 import VendorProposalBuilder from "./pages/VendorProposalBuilder";
+import PublicProposalView from "./pages/PublicProposalView";
 
 
 const queryClient = new QueryClient();
@@ -144,6 +145,7 @@ const App = () => (
               <Route path="/vendor/checklists" element={<VendorChecklists />} />
               <Route path="/vendor/proposals" element={<VendorProposals />} />
               <Route path="/vendor/proposals/:proposalId" element={<VendorProposalBuilder />} />
+              <Route path="/p/:shareToken" element={<PublicProposalView />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/settings" element={<Settings />} />
