@@ -81,9 +81,12 @@ export default function CoverageMap() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <PageHeader
           title="Coverage Map"
-          subtitle="Aggregated state-level counts only. No member locations are shown."
+          subtitle="Coverage is expanding — watch us grow as ClearMarket connects more Field Reps and Vendors nationwide."
           backTo="/dashboard"
         />
+        <p className="text-xs text-muted-foreground -mt-4 mb-2">
+          Aggregated state-level counts only. No member locations are shown.
+        </p>
 
         <Card className="mt-6">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
