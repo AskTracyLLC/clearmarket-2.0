@@ -92,6 +92,9 @@ import {
   Users,
   Calculator,
   Eye,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -158,6 +161,20 @@ export default function VendorProposalBuilder() {
   const [autoPricePreview, setAutoPricePreview] = useState<AutoPricePreviewResult | null>(null);
   const [autoPriceLoading, setAutoPriceLoading] = useState(false);
   const [autoPriceConfirmOpen, setAutoPriceConfirmOpen] = useState(false);
+
+  // Sort state
+  type SortField = "state" | "county" | "order_type" | "proposed_rate" | "rep_cost" | "margin" | "approved_rate";
+  const [sortField, setSortField] = useState<SortField>("state");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
 
   // Matrix rows for export (blank = missing, not "—")
   const matrixRows = useMemo(() => {
@@ -843,7 +860,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
     }
   };
 
-  // Filtered lines - with rep cost data and optional below-cost filter
+  // Filtered and sorted lines - with rep cost data and optional below-cost filter
   const filteredLines = useMemo(() => {
     let result = linesWithRepCost;
     
@@ -853,7 +870,7 @@ Details: ${autoFillDebug.details || "N/A"}`;
     }
     
     // Apply state/order type/county filters
-    return result.filter((line) => {
+    result = result.filter((line) => {
       if (filterState !== "all" && line.state_code !== filterState) return false;
       if (filterOrderType !== "all" && line.order_type !== filterOrderType) return false;
       if (searchCounty && line.county_name) {
@@ -861,7 +878,33 @@ Details: ${autoFillDebug.details || "N/A"}`;
       }
       return true;
     });
-  }, [linesWithRepCost, filterState, filterOrderType, searchCounty, showBelowCostOnly]);
+
+    // Apply sorting
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return result.sort((a, b) => {
+      switch (sortField) {
+        case "state":
+          return dir * a.state_code.localeCompare(b.state_code);
+        case "county": {
+          const aCounty = a.is_all_counties ? "" : (a.county_name || "");
+          const bCounty = b.is_all_counties ? "" : (b.county_name || "");
+          return dir * aCounty.localeCompare(bCounty);
+        }
+        case "order_type":
+          return dir * a.order_type.localeCompare(b.order_type);
+        case "proposed_rate":
+          return dir * ((a.proposed_rate || 0) - (b.proposed_rate || 0));
+        case "rep_cost":
+          return dir * ((a.repCost || 0) - (b.repCost || 0));
+        case "margin":
+          return dir * ((a.margin || 0) - (b.margin || 0));
+        case "approved_rate":
+          return dir * ((a.approved_rate || 0) - (b.approved_rate || 0));
+        default:
+          return 0;
+      }
+    });
+  }, [linesWithRepCost, filterState, filterOrderType, searchCounty, showBelowCostOnly, sortField, sortDirection]);
 
   // Unique states for filter
   const uniqueStates = useMemo(() => {
@@ -1414,17 +1457,87 @@ Details: ${autoFillDebug.details || "N/A"}`;
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
-                      <TableHead>State</TableHead>
-                      <TableHead>County</TableHead>
-                      <TableHead>Order Type</TableHead>
-                      <TableHead className="text-right">Proposed Rate</TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none hover:bg-muted/50"
+                        onClick={() => handleSort("state")}
+                      >
+                        <div className="flex items-center gap-1">
+                          State
+                          {sortField === "state" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none hover:bg-muted/50"
+                        onClick={() => handleSort("county")}
+                      >
+                        <div className="flex items-center gap-1">
+                          County
+                          {sortField === "county" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none hover:bg-muted/50"
+                        onClick={() => handleSort("order_type")}
+                      >
+                        <div className="flex items-center gap-1">
+                          Order Type
+                          {sortField === "order_type" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                        onClick={() => handleSort("proposed_rate")}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Proposed Rate
+                          {sortField === "proposed_rate" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                        </div>
+                      </TableHead>
                       {lines.some(l => l.internal_rep_rate_baseline !== null) && (
                         <>
-                          <TableHead className="text-right">Rep Cost (Baseline)</TableHead>
-                          <TableHead className="text-right">Margin</TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                            onClick={() => handleSort("rep_cost")}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              Rep Cost (Baseline)
+                              {sortField === "rep_cost" ? (
+                                sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                            onClick={() => handleSort("margin")}
+                          >
+                            <div className="flex items-center justify-end gap-1">
+                              Margin
+                              {sortField === "margin" ? (
+                                sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                              ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                            </div>
+                          </TableHead>
                         </>
                       )}
-                      <TableHead className="text-right">Approved Limit</TableHead>
+                      <TableHead 
+                        className="cursor-pointer select-none hover:bg-muted/50 text-right"
+                        onClick={() => handleSort("approved_rate")}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Approved Limit
+                          {sortField === "approved_rate" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                          ) : <ArrowUpDown className="w-3 h-3 text-muted-foreground" />}
+                        </div>
+                      </TableHead>
                       <TableHead className="w-[40px]"></TableHead>
                     </TableRow>
                   </TableHeader>
