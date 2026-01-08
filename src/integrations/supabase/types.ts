@@ -4756,6 +4756,88 @@ export type Database = {
           },
         ]
       }
+      vendor_proposal_share_views: {
+        Row: {
+          id: string
+          share_id: string
+          viewed_at: string
+          viewer_ip: string | null
+          viewer_user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          share_id: string
+          viewed_at?: string
+          viewer_ip?: string | null
+          viewer_user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          share_id?: string
+          viewed_at?: string
+          viewer_ip?: string | null
+          viewer_user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_proposal_share_views_share_id_fkey"
+            columns: ["share_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_proposal_shares"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_proposal_shares: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          failed_attempts: number
+          id: string
+          locked_until: string | null
+          passcode_hash: string | null
+          proposal_id: string
+          revoked_at: string | null
+          share_token: string
+          updated_at: string
+          vendor_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          failed_attempts?: number
+          id?: string
+          locked_until?: string | null
+          passcode_hash?: string | null
+          proposal_id: string
+          revoked_at?: string | null
+          share_token?: string
+          updated_at?: string
+          vendor_user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          failed_attempts?: number
+          id?: string
+          locked_until?: string | null
+          passcode_hash?: string | null
+          proposal_id?: string
+          revoked_at?: string | null
+          share_token?: string
+          updated_at?: string
+          vendor_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_proposal_shares_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_client_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_rep_agreements: {
         Row: {
           base_rate: number | null
@@ -5253,9 +5335,21 @@ export type Database = {
         Args: { p_auto_track_key: string; p_user_id: string }
         Returns: undefined
       }
+      create_proposal_share: {
+        Args: {
+          p_expires_in_days?: number
+          p_passcode?: string
+          p_proposal_id: string
+        }
+        Returns: Json
+      }
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
+      }
+      get_shared_proposal: {
+        Args: { p_passcode?: string; p_share_token: string }
+        Returns: Json
       }
       get_user_vendor_profile_id: {
         Args: { p_user_id: string }
@@ -5277,6 +5371,7 @@ export type Database = {
         }
         Returns: Json
       }
+      revoke_proposal_share: { Args: { p_share_id: string }; Returns: Json }
       send_admin_broadcast: { Args: { p_broadcast_id: string }; Returns: Json }
       unlock_rep_contact: {
         Args: { p_rep_user_id: string; p_vendor_user_id: string }
