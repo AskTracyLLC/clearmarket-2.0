@@ -23,4 +23,37 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  // Prevent pages from importing layout/nav components (nav is handled by App.tsx)
+  {
+    files: ["src/pages/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/components/AuthenticatedLayout",
+              message: "Pages should not import AuthenticatedLayout. App.tsx wraps all authenticated routes.",
+            },
+            {
+              name: "@/components/layout/AppShell",
+              message: "Pages should not import AppShell. App.tsx wraps all authenticated routes.",
+            },
+            {
+              name: "@/components/layout/TopNavRow",
+              message: "Pages should not import TopNavRow. Navigation is handled globally by AuthenticatedLayout.",
+            },
+            {
+              name: "@/components/layout/TopHeader",
+              message: "Pages should not import TopHeader. Navigation is handled globally by AuthenticatedLayout.",
+            },
+            {
+              name: "@/components/layout/LeftSidebar",
+              message: "Pages should not import LeftSidebar. Navigation is handled globally by AuthenticatedLayout.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
