@@ -266,6 +266,10 @@ export function PublicProfileDialog({
   const [activePostsCount, setActivePostsCount] = useState<number>(0);
   const [shareProfileSlug, setShareProfileSlug] = useState<string | null>(null);
   const [shareProfileEnabled, setShareProfileEnabled] = useState(false);
+  const [isConnectedRep, setIsConnectedRep] = useState(false);
+  const [contactAllowed, setContactAllowed] = useState(false);
+  const [hasLoggedContactView, setHasLoggedContactView] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
   
   // Credit confirmation hook
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
@@ -308,10 +312,26 @@ export function PublicProfileDialog({
       setViewerIsVendor(isVendor);
       setViewerIsAdmin(viewerProfile?.is_admin || false);
 
-      // If vendor viewing a rep, check unlock status
+      // If vendor viewing a rep:
+      // 1) check if connected (vendor_connections)
+      // 2) check if unlocked (rep_contact_unlocks)
       if (isVendor) {
-        const unlocked = await checkContactUnlocked(user.id, targetUserId);
-        setIsContactUnlocked(unlocked);
+        const [{ data: conn }, unlocked] = await Promise.all([
+          supabase
+            .from("vendor_connections")
+            .select("id")
+            .eq("vendor_id", user.id)
+            .eq("field_rep_id", targetUserId)
+            .eq("status", "connected")
+            .maybeSingle(),
+          checkContactUnlocked(user.id, targetUserId),
+        ]);
+
+        setIsConnectedRep(Boolean(conn?.id));
+        setIsContactUnlocked(Boolean(unlocked));
+      } else {
+        setIsConnectedRep(false);
+        setIsContactUnlocked(false);
       }
 
       // Check if user has already reported this person
@@ -321,6 +341,78 @@ export function PublicProfileDialog({
 
     checkViewerAndUnlock();
   }, [open, targetUserId, user]);
+
+  // Reset contact gating per open/target change
+  useEffect(() => {
+    if (!open) {
+      setContactAllowed(false);
+      setHasLoggedContactView(false);
+      setRepEmail(null);
+      setContactLoading(false);
+    }
+  }, [open]);
+
+  // Helper: call Edge Function guard (rate-limit + log) and optionally return contact
+  const guardContactAccess = async (accessType: "view_contact" | "unlock_contact" | "export_contact") => {
+    if (!user || !targetUserId) return { allowed: false as const, reason: "NOT_AUTHENTICATED" };
+    try {
+      const { data, error } = await supabase.functions.invoke("guard_contact_access", {
+        body: {
+          repUserId: targetUserId,
+          accessType,
+          // ask it to include email so we don't have to ever select profiles.email client-side
+          includeContact: accessType === "view_contact",
+        },
+      });
+      if (error) {
+        // Supabase functions returns error objects; also handle 429 style errors via data payload
+        return { allowed: false as const, reason: "FUNCTION_ERROR" };
+      }
+      if (!data?.allowed) {
+        return { allowed: false as const, reason: data?.reason || "BLOCKED" };
+      }
+      return { allowed: true as const, contact: data?.contact || null };
+    } catch (e) {
+      console.error("guard_contact_access failed:", e);
+      return { allowed: false as const, reason: "NETWORK_ERROR" };
+    }
+  };
+
+  // When dialog opens and contact is eligible (connected/unlocked), log + allow view once and fetch email
+  useEffect(() => {
+    if (!open || !viewerIsVendor || !targetUserId) return;
+
+    const canViewContact = isConnectedRep || isContactUnlocked;
+    if (!canViewContact) {
+      setContactAllowed(false);
+      setRepEmail(null);
+      setHasLoggedContactView(false);
+      return;
+    }
+    if (hasLoggedContactView) return;
+
+    (async () => {
+      setContactLoading(true);
+      const res = await guardContactAccess("view_contact");
+      if (!res.allowed) {
+        setContactAllowed(false);
+        setRepEmail(null);
+        toast.error("Slow down — too many contact views.", {
+          description: "Please try again later.",
+        });
+        setContactLoading(false);
+        return;
+      }
+
+      setContactAllowed(true);
+      setHasLoggedContactView(true);
+
+      // Email returned from Edge Function (service role) — no profiles.email leakage
+      const email = res.contact?.email || null;
+      setRepEmail(email);
+      setContactLoading(false);
+    })();
+  }, [open, viewerIsVendor, targetUserId, isConnectedRep, isContactUnlocked, hasLoggedContactView]);
 
   // Fetch active Seeking Coverage posts count for vendor profiles
   useEffect(() => {
@@ -346,10 +438,10 @@ export function PublicProfileDialog({
     async function loadPublicProfile() {
       setLoading(true);
       try {
-        // Load base profile (for display name and email)
+        // Load base profile (DO NOT fetch email here — contact is protected via Edge Function)
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, email, is_fieldrep, is_vendor_admin, last_seen_at, share_profile_slug, share_profile_enabled")
+          .select("full_name, is_fieldrep, is_vendor_admin, last_seen_at, share_profile_slug, share_profile_enabled")
           .eq("id", targetUserId)
           .maybeSingle();
 
@@ -380,9 +472,7 @@ export function PublicProfileDialog({
 
         // If rep profile exists, use it (priority if user has both roles)
         if (repProfile) {
-          // Store rep email for contact unlock feature
-          setRepEmail(profile?.email || null);
-          // Store share profile info
+          // Store share profile info (email is now fetched via Edge Function, not here)
           setShareProfileSlug(profile?.share_profile_slug || null);
           setShareProfileEnabled(profile?.share_profile_enabled || false);
 
@@ -557,6 +647,15 @@ export function PublicProfileDialog({
 
     setUnlocking(true);
     try {
+      // Guard + log unlock attempt before calling unlock RPC
+      const guard = await guardContactAccess("unlock_contact");
+      if (!guard.allowed) {
+        toast.error("Unlock blocked", {
+          description: "Too many unlock attempts. Please try again later.",
+        });
+        return;
+      }
+
       const result = await unlockRepContact(user.id, targetUserId);
 
       if (result.success) {
@@ -568,6 +667,9 @@ export function PublicProfileDialog({
           // Trigger wallet refresh if you have a global refresh mechanism
           window.dispatchEvent(new Event("walletUpdated"));
         }
+
+        // After unlock, ensure view is allowed + fetch email (same path as dialog-open)
+        setHasLoggedContactView(false);
       } else {
         if (result.error === "Insufficient credits") {
           toast.error("Not enough credits", {
@@ -989,19 +1091,33 @@ export function PublicProfileDialog({
               {viewerIsVendor && (
                 <Card className="p-4 bg-card-elevated border-2 border-primary/20">
                   <div className="flex items-start gap-3">
-                    {isContactUnlocked ? (
+                    {(isConnectedRep || isContactUnlocked) ? (
                       <Unlock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     ) : (
                       <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground mb-2">Contact Information</h3>
-                      
-                      {isContactUnlocked ? (
+
+                      {contactLoading && (isConnectedRep || isContactUnlocked) && (
+                        <p className="text-sm text-muted-foreground">Loading contact…</p>
+                      )}
+
+                      {(isConnectedRep || isContactUnlocked) && !contactAllowed && !contactLoading ? (
+                        <div className="space-y-2">
+                          <Badge variant="secondary" className="mb-2">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Contact temporarily hidden
+                          </Badge>
+                          <p className="text-sm text-muted-foreground">
+                            Too many contact views. Please try again later.
+                          </p>
+                        </div>
+                      ) : (isConnectedRep || isContactUnlocked) && contactAllowed ? (
                         <div className="space-y-2">
                           <Badge variant="default" className="mb-2">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            Contact unlocked
+                            {isConnectedRep ? "Connected rep" : "Contact unlocked"}
                           </Badge>
                           {repEmail && (
                             <div className="text-sm">
@@ -1013,6 +1129,11 @@ export function PublicProfileDialog({
                                 {repEmail}
                               </a>
                             </div>
+                          )}
+                          {!repEmail && (
+                            <p className="text-sm text-muted-foreground">
+                              Contact email not available.
+                            </p>
                           )}
                         </div>
                       ) : (
