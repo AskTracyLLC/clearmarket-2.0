@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Megaphone,
   User,
+  Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -148,6 +149,7 @@ export function LeftSidebar({
     { label: "Support", path: "/admin/support", icon: <MessageSquare className="h-5 w-5" />, badge: sectionCounts.adminOpenTickets },
     { label: "Users", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
     { label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
+    { label: "Launch Readiness", path: "/admin/launch-readiness", icon: <Rocket className="h-5 w-5" /> },
   ];
 
   // Tools is a primary nav item (not under More)
