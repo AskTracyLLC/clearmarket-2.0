@@ -42,6 +42,8 @@ interface AuditLogEntry {
   action_summary: string;
   action_details: Record<string, unknown> | null;
   source_page: string | null;
+  actor_role: string | null;
+  actor_code: string | null;
   actor?: {
     full_name: string | null;
     email: string;
@@ -140,7 +142,9 @@ export default function AdminAuditLog() {
           action_type,
           action_summary,
           action_details,
-          source_page
+          source_page,
+          actor_role,
+          actor_code
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -192,6 +196,8 @@ export default function AdminAuditLog() {
       const enrichedLogs: AuditLogEntry[] = (logsData || []).map(log => ({
         ...log,
         action_details: log.action_details as Record<string, unknown> | null,
+        actor_role: log.actor_role ?? null,
+        actor_code: log.actor_code ?? null,
         actor: profilesMap[log.actor_user_id] || null,
         target: log.target_user_id ? profilesMap[log.target_user_id] || null : null,
       }));
@@ -221,7 +227,9 @@ export default function AdminAuditLog() {
         log.actor?.full_name?.toLowerCase().includes(term) ||
         log.target?.email?.toLowerCase().includes(term) ||
         log.target?.full_name?.toLowerCase().includes(term) ||
-        log.action_type.toLowerCase().includes(term)
+        log.action_type.toLowerCase().includes(term) ||
+        log.actor_code?.toLowerCase().includes(term) ||
+        log.actor_role?.toLowerCase().includes(term)
       );
     });
   }, [logs, searchTerm, actionTypeFilter]);
@@ -373,12 +381,28 @@ export default function AdminAuditLog() {
                           {format(new Date(log.created_at), "MMM d, yyyy HH:mm")}
                         </TableCell>
                         <TableCell>
-                          <button
-                            onClick={() => setProfileDialog({ open: true, userId: log.actor_user_id })}
-                            className="text-sm font-medium text-primary hover:underline"
-                          >
-                            {formatUserDisplay(log.actor)}
-                          </button>
+                          <div className="flex flex-col gap-0.5">
+                            {log.actor_code ? (
+                              <button
+                                onClick={() => setProfileDialog({ open: true, userId: log.actor_user_id })}
+                                className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
+                              >
+                                {log.actor_code}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setProfileDialog({ open: true, userId: log.actor_user_id })}
+                                className="text-sm font-medium text-primary hover:underline"
+                              >
+                                {formatUserDisplay(log.actor)}
+                              </button>
+                            )}
+                            {log.actor_role && (
+                              <span className="text-xs text-muted-foreground">
+                                {log.actor_role.replace(/_/g, " ")}
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getActionBadgeClass(log.action_type)}>
@@ -451,7 +475,41 @@ export default function AdminAuditLog() {
                 <p className="text-sm font-medium mb-1">Summary</p>
                 <p className="text-sm text-muted-foreground">{detailsDialog.entry.action_summary}</p>
               </div>
-              {detailsDialog.entry.action_details && (
+              {/* Actor Attribution */}
+              <div>
+                <p className="text-sm font-medium mb-2">Actor</p>
+                <div className="bg-muted rounded-md p-3 space-y-2">
+                  {detailsDialog.entry.actor_code && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Code:</span>
+                      <span className="font-semibold">{detailsDialog.entry.actor_code}</span>
+                    </div>
+                  )}
+                  {detailsDialog.entry.actor_role && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Role:</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {detailsDialog.entry.actor_role.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">User ID:</span>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {detailsDialog.entry.actor_user_id}
+                    </span>
+                  </div>
+                  {detailsDialog.entry.actor && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Name/Email:</span>
+                      <span className="text-xs">
+                        {formatUserDisplay(detailsDialog.entry.actor)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {detailsDialog.entry.action_details && Object.keys(detailsDialog.entry.action_details).length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-2">Additional Details</p>
                   <div className="bg-muted rounded-md p-3 space-y-2">

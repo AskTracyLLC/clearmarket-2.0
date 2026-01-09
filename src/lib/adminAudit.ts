@@ -8,20 +8,28 @@ export type AdminActionType =
   | "staff.invited"
   | "staff.invite_resent"
   | "staff.role_changed"
+  | "staff.disabled"
+  | "staff.enabled"
   | "user.blocked"
   | "user.unblocked"
   | "review.hidden"
   | "review.restored"
   | "report.resolved"
   | "credits.adjusted"
-  | "support.reply_added";
+  | "support.reply_added"
+  | "vendor_staff.invited"
+  | "vendor_staff.role_changed"
+  | "vendor_staff.disabled"
+  | "vendor_staff.enabled";
 
 export interface AdminAuditPayload {
   actionType: AdminActionType;
   actionSummary: string;
   targetUserId?: string;
-  actionDetails?: Record<string, any>;
+  actionDetails?: Record<string, unknown>;
   sourcePage?: string;
+  actorRole?: string;
+  actorCode?: string;
 }
 
 /**
@@ -32,7 +40,15 @@ export async function logAdminAction(
   actorUserId: string,
   payload: AdminAuditPayload
 ): Promise<void> {
-  const { actionType, actionSummary, targetUserId, actionDetails, sourcePage } = payload;
+  const { 
+    actionType, 
+    actionSummary, 
+    targetUserId, 
+    actionDetails, 
+    sourcePage,
+    actorRole,
+    actorCode
+  } = payload;
 
   try {
     const { error } = await supabase.functions.invoke("admin-audit-log", {
@@ -43,6 +59,8 @@ export async function logAdminAction(
         action_summary: actionSummary,
         action_details: actionDetails ?? null,
         source_page: sourcePage ?? null,
+        actor_role: actorRole ?? null,
+        actor_code: actorCode ?? null,
       },
     });
 
