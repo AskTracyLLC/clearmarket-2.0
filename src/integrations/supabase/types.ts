@@ -1399,6 +1399,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          conversation_type: string | null
           created_at: string
           hidden_for_one: boolean
           hidden_for_two: boolean
@@ -1416,6 +1417,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          conversation_type?: string | null
           created_at?: string
           hidden_for_one?: boolean
           hidden_for_two?: boolean
@@ -1433,6 +1435,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          conversation_type?: string | null
           created_at?: string
           hidden_for_one?: boolean
           hidden_for_two?: boolean
@@ -5135,6 +5138,41 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_code_reservations: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string | null
+          reason: string | null
+          reserved_for_vendor_id: string | null
+          status: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by?: string | null
+          reason?: string | null
+          reserved_for_vendor_id?: string | null
+          status?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string | null
+          reason?: string | null
+          reserved_for_vendor_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_code_reservations_reserved_for_vendor_id_fkey"
+            columns: ["reserved_for_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_connections: {
         Row: {
           conversation_id: string | null
@@ -5536,51 +5574,111 @@ export type Database = {
       vendor_profile: {
         Row: {
           anonymous_id: string | null
+          bbb_url: string | null
+          business_bio: string | null
+          business_established_year: number | null
           city: string | null
           company_description: string | null
           company_name: string
           created_at: string
+          ein_provided: boolean | null
+          gl_insurance_note: string | null
           id: string
           is_accepting_new_reps: boolean | null
+          linkedin_url: string | null
+          poc_email: string | null
+          poc_name: string | null
+          poc_phone: string | null
+          poc_title: string | null
           primary_inspection_types: string[] | null
           regions_covered: string[] | null
           state: string | null
           systems_used: string[] | null
           updated_at: string
           user_id: string
+          vendor_public_code: string | null
+          vendor_public_code_requested: string | null
+          vendor_verification_status:
+            | Database["public"]["Enums"]["vendor_verification_status"]
+            | null
+          verification_notes: string | null
+          verification_submitted_at: string | null
+          verified_at: string | null
+          verified_by: string | null
           website: string | null
+          website_url: string | null
         }
         Insert: {
           anonymous_id?: string | null
+          bbb_url?: string | null
+          business_bio?: string | null
+          business_established_year?: number | null
           city?: string | null
           company_description?: string | null
           company_name: string
           created_at?: string
+          ein_provided?: boolean | null
+          gl_insurance_note?: string | null
           id?: string
           is_accepting_new_reps?: boolean | null
+          linkedin_url?: string | null
+          poc_email?: string | null
+          poc_name?: string | null
+          poc_phone?: string | null
+          poc_title?: string | null
           primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id: string
+          vendor_public_code?: string | null
+          vendor_public_code_requested?: string | null
+          vendor_verification_status?:
+            | Database["public"]["Enums"]["vendor_verification_status"]
+            | null
+          verification_notes?: string | null
+          verification_submitted_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           website?: string | null
+          website_url?: string | null
         }
         Update: {
           anonymous_id?: string | null
+          bbb_url?: string | null
+          business_bio?: string | null
+          business_established_year?: number | null
           city?: string | null
           company_description?: string | null
           company_name?: string
           created_at?: string
+          ein_provided?: boolean | null
+          gl_insurance_note?: string | null
           id?: string
           is_accepting_new_reps?: boolean | null
+          linkedin_url?: string | null
+          poc_email?: string | null
+          poc_name?: string | null
+          poc_phone?: string | null
+          poc_title?: string | null
           primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
           user_id?: string
+          vendor_public_code?: string | null
+          vendor_public_code_requested?: string | null
+          vendor_verification_status?:
+            | Database["public"]["Enums"]["vendor_verification_status"]
+            | null
+          verification_notes?: string | null
+          verification_submitted_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
           website?: string | null
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -5830,6 +5928,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      vendor_staff: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          disabled_at: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          invited_email: string
+          invited_name: string
+          role: Database["public"]["Enums"]["vendor_staff_role"]
+          staff_code: string | null
+          staff_user_id: string | null
+          status: Database["public"]["Enums"]["vendor_staff_status"]
+          updated_at: string | null
+          vendor_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          disabled_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          invited_email: string
+          invited_name: string
+          role?: Database["public"]["Enums"]["vendor_staff_role"]
+          staff_code?: string | null
+          staff_user_id?: string | null
+          status?: Database["public"]["Enums"]["vendor_staff_status"]
+          updated_at?: string | null
+          vendor_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          disabled_at?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          invited_email?: string
+          invited_name?: string
+          role?: Database["public"]["Enums"]["vendor_staff_role"]
+          staff_code?: string | null
+          staff_user_id?: string | null
+          status?: Database["public"]["Enums"]["vendor_staff_status"]
+          updated_at?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_staff_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6430,6 +6587,14 @@ export type Database = {
         Args: { p_assignment_id: string; p_rep_user_id: string }
         Returns: Json
       }
+      admin_assign_vendor_code: {
+        Args: {
+          p_admin_override?: boolean
+          p_code: string
+          p_vendor_profile_id: string
+        }
+        Returns: Json
+      }
       assign_default_checklists: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
@@ -6442,10 +6607,12 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      check_vendor_code_available: { Args: { p_code: string }; Returns: Json }
       complete_checklist_item_by_key: {
         Args: { p_auto_track_key: string; p_user_id: string }
         Returns: undefined
       }
+      compute_initials: { Args: { p_name: string }; Returns: string }
       create_proposal_share: {
         Args: {
           p_expires_in_days?: number
@@ -6457,6 +6624,10 @@ export type Database = {
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
+      }
+      generate_vendor_staff_code: {
+        Args: { p_name: string; p_vendor_id: string }
+        Returns: string
       }
       get_rep_contact_access_metrics: {
         Args: never
@@ -6550,6 +6721,15 @@ export type Database = {
         | "blocked"
         | "ended"
       vendor_rep_agreement_status: "active" | "paused" | "ended"
+      vendor_staff_role: "owner" | "admin" | "staff"
+      vendor_staff_status: "invited" | "active" | "disabled"
+      vendor_verification_status:
+        | "draft"
+        | "pending"
+        | "needs_review"
+        | "verified"
+        | "rejected"
+        | "suspended"
       verification_status: "none" | "submitted" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -6701,6 +6881,16 @@ export const Constants = {
         "ended",
       ],
       vendor_rep_agreement_status: ["active", "paused", "ended"],
+      vendor_staff_role: ["owner", "admin", "staff"],
+      vendor_staff_status: ["invited", "active", "disabled"],
+      vendor_verification_status: [
+        "draft",
+        "pending",
+        "needs_review",
+        "verified",
+        "rejected",
+        "suspended",
+      ],
       verification_status: ["none", "submitted", "verified", "rejected"],
     },
   },

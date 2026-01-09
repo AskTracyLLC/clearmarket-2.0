@@ -26,6 +26,7 @@ import {
   Megaphone,
   User,
   Rocket,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -131,6 +132,7 @@ export function LeftSidebar({
     { label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: sectionCounts.vendorPostsWithInterest },
     { label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: sectionCounts.vendorTotalInterestedReps },
     { label: "My Reps", path: "/vendor/my-reps", icon: <Users className="h-5 w-5" /> },
+    { label: "My Staff", path: "/vendor/staff", icon: <Users className="h-5 w-5" /> },
     { label: "Proposals", path: "/vendor/proposals", icon: <FileText className="h-5 w-5" /> },
     { label: "Reviews", path: "/vendor/reviews", icon: <Star className="h-5 w-5" /> },
   ];
@@ -157,11 +159,20 @@ export function LeftSidebar({
   const toolsItem: NavItem = { label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" /> };
 
   // More menu items (Tools NOT here - it's primary)
-  const moreItems: NavItem[] = [
+  // Vendor-specific more items include Share Profile
+  const baseMoreItems: NavItem[] = [
     { label: "Coverage Map", path: "/coverage-map", icon: <Map className="h-5 w-5" /> },
     { label: "Safety Center", path: "/safety", icon: <ShieldAlert className="h-5 w-5" /> },
     { label: "Help Center", path: "/help", icon: <HelpCircle className="h-5 w-5" /> },
   ];
+
+  // Add vendor-specific items to More section
+  const moreItems: NavItem[] = (effectiveRole === "vendor" || isVendor)
+    ? [
+        { label: "Share Profile", path: "/vendor/share-profile", icon: <Share2 className="h-5 w-5" /> },
+        ...baseMoreItems,
+      ]
+    : baseMoreItems;
 
   // Get role-specific items
   const roleItems = isAdmin ? adminItems : effectiveRole === "vendor" || isVendor ? vendorItems : repItems;
