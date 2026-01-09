@@ -41,12 +41,24 @@ interface Props {
   vendorId: string;
 }
 
+interface RecipientCounts {
+  connected: number;
+  offline: number;
+  total: number;
+  skippedOffline: number;
+}
+
 export function VendorNetworkAlertsCard({ vendorId }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [alerts, setAlerts] = useState<RepNetworkAlert[]>([]);
-  const [connectedRepCount, setConnectedRepCount] = useState(0);
+  const [recipientCounts, setRecipientCounts] = useState<RecipientCounts>({
+    connected: 0,
+    offline: 0,
+    total: 0,
+    skippedOffline: 0,
+  });
   const [cancellingAlertId, setCancellingAlertId] = useState<string | null>(null);
   
   // Form state
@@ -63,14 +75,70 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Get connected rep count
-      const { count } = await supabase
+      // Get connected rep count and their emails for deduplication
+      const { data: connections } = await supabase
         .from("vendor_connections")
-        .select("id", { count: "exact", head: true })
+        .select("field_rep_id")
         .eq("vendor_id", vendorId)
         .eq("status", "connected");
 
-      setConnectedRepCount(count || 0);
+      const connectedRepIds = connections?.map(c => c.field_rep_id) || [];
+      
+      // Fetch emails for connected reps for deduplication
+      let connectedEmails: Set<string> = new Set();
+      let connectedPhones: Set<string> = new Set();
+      
+      if (connectedRepIds.length > 0) {
+        const { data: repProfiles } = await supabase
+          .from("profiles")
+          .select("id, email")
+          .in("id", connectedRepIds);
+        
+        repProfiles?.forEach(p => {
+          if (p.email) connectedEmails.add(p.email.toLowerCase().trim());
+        });
+      }
+
+      // Get active offline rep contacts
+      const { data: offlineContacts } = await supabase
+        .from("vendor_offline_rep_contacts")
+        .select("id, email, phone")
+        .eq("vendor_id", vendorId)
+        .eq("status", "active");
+
+      // Count offline contacts that have deliverable info and aren't duplicates
+      let offlineWithContact = 0;
+      let skippedOffline = 0;
+      
+      offlineContacts?.forEach(c => {
+        const hasEmail = c.email && c.email.trim() !== "";
+        const hasPhone = c.phone && c.phone.trim() !== "";
+        
+        if (!hasEmail && !hasPhone) {
+          skippedOffline++;
+          return;
+        }
+
+        // Check for duplicates
+        const emailNorm = hasEmail ? c.email!.toLowerCase().trim() : null;
+        const phoneNorm = hasPhone ? c.phone!.replace(/\D/g, "") : null;
+        
+        const isDuplicateEmail = emailNorm && connectedEmails.has(emailNorm);
+        const isDuplicatePhone = phoneNorm && connectedPhones.has(phoneNorm);
+        
+        if (!isDuplicateEmail && !isDuplicatePhone) {
+          offlineWithContact++;
+        }
+      });
+
+      const total = connectedRepIds.length + offlineWithContact;
+
+      setRecipientCounts({
+        connected: connectedRepIds.length,
+        offline: offlineWithContact,
+        total,
+        skippedOffline,
+      });
 
       // Load recent alerts
       const { data: alertsData, error } = await supabase
@@ -108,10 +176,10 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
       return;
     }
 
-    if (connectedRepCount === 0) {
+    if (recipientCounts.total === 0) {
       toast({
-        title: "No Connected Reps",
-        description: "You don't have any connected Field Reps to send alerts to.",
+        title: "No Recipients",
+        description: "You don't have any connected Field Reps or active offline contacts to send alerts to.",
         variant: "default",
       });
       return;
@@ -153,7 +221,7 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
 
         toast({
           title: "Alert Sent",
-          description: `Notification sent to ${data?.results?.[0]?.recipientCount || connectedRepCount} connected Field Rep${connectedRepCount !== 1 ? 's' : ''}.`,
+          description: `Notification sent to ${data?.results?.[0]?.recipientCount || recipientCounts.total} recipient${recipientCounts.total !== 1 ? 's' : ''}.`,
         });
       } else {
         toast({
@@ -258,7 +326,12 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              This alert will be sent to {connectedRepCount} connected Field Rep{connectedRepCount !== 1 ? 's' : ''}. Use this to share important updates like policy changes, pay schedule updates, or coverage needs.
+              <div className="space-y-1">
+                <p>Connected recipients: {recipientCounts.connected} • Offline recipients: {recipientCounts.offline} • <strong>Total: {recipientCounts.total}</strong></p>
+                {recipientCounts.skippedOffline > 0 && (
+                  <p className="text-xs text-muted-foreground">Some offline contacts were skipped because they have no deliverable contact info.</p>
+                )}
+              </div>
             </AlertDescription>
           </Alert>
 
@@ -320,10 +393,10 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
             </div>
 
             <div className="text-sm text-muted-foreground">
-              This will be sent to ~{connectedRepCount} connected rep{connectedRepCount !== 1 ? 's' : ''}.
+              This will be sent to ~{recipientCounts.total} recipient{recipientCounts.total !== 1 ? 's' : ''}.
             </div>
 
-            <Button onClick={handleSendAlert} disabled={sending || connectedRepCount === 0} className="w-full">
+            <Button onClick={handleSendAlert} disabled={sending || recipientCounts.total === 0} className="w-full">
               <Send className="h-4 w-4 mr-2" />
               {sending ? "Sending..." : sendMode === "now" ? "Send Now" : "Schedule Alert"}
             </Button>
