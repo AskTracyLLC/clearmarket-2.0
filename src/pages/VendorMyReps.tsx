@@ -36,6 +36,7 @@ interface ConnectedRep {
   anonymousId: string;
   firstName: string;
   lastInitial: string;
+  displayName?: string | null;
   city: string | null;
   state: string | null;
   systemsUsed: string[];
@@ -221,6 +222,7 @@ const VendorMyReps = () => {
           anonymousId: repProfile.anonymous_id || `FieldRep#${connection.field_rep_id.substring(0, 6)}`,
           firstName,
           lastInitial,
+          displayName: fullName || null,
           city: repProfile.city,
           state: repProfile.state,
           systemsUsed: repProfile.systems_used || [],
