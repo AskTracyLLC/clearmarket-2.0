@@ -12,26 +12,26 @@ const corsHeaders = {
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amountCents: number; currency: string }> = {
   just_1: {
     credits: 1,
-    stripePriceId: "price_1SnSNSIZ7isA0IxEpKgQ6j2k",
-    amountCents: 150,
+    stripePriceId: "price_1SnVomIZ7isA0IxEFevjJUDl",
+    amountCents: 200,
     currency: "usd",
   },
   starter_10: {
     credits: 10,
     stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
-    amountCents: 499,
+    amountCents: 500,
     currency: "usd",
   },
   standard_25: {
     credits: 25,
     stripePriceId: "price_1Sa448IZ7isA0IxE40HI8lhW",
-    amountCents: 999,
+    amountCents: 1000,
     currency: "usd",
   },
   pro_50: {
     credits: 50,
     stripePriceId: "price_1Sa44oIZ7isA0IxEqglY4AOg",
-    amountCents: 1799,
+    amountCents: 2000,
     currency: "usd",
   },
 };
