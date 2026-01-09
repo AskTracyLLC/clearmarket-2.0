@@ -19,19 +19,19 @@ const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amo
   starter_10: {
     credits: 10,
     stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
-    amountCents: 500,
+    amountCents: 600,
     currency: "usd",
   },
   standard_25: {
     credits: 25,
     stripePriceId: "price_1Sa448IZ7isA0IxE40HI8lhW",
-    amountCents: 1000,
+    amountCents: 1300,
     currency: "usd",
   },
   pro_50: {
     credits: 50,
     stripePriceId: "price_1Sa44oIZ7isA0IxEqglY4AOg",
-    amountCents: 2000,
+    amountCents: 2300,
     currency: "usd",
   },
 };

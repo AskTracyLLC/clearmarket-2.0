@@ -34,7 +34,7 @@ export const CREDIT_PACKS: CreditPack[] = [
     label: "Starter Pack",
     description: "10 credits — good for testing ClearMarket",
     credits: 10,
-    priceUsd: 5.00,
+    priceUsd: 6.00,
     stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
   },
   {
@@ -42,7 +42,7 @@ export const CREDIT_PACKS: CreditPack[] = [
     label: "Standard Pack",
     description: "25 credits — for active vendors",
     credits: 25,
-    priceUsd: 10.00,
+    priceUsd: 13.00,
     stripePriceId: "price_1Sa448IZ7isA0IxE40HI8lhW",
   },
   {
@@ -50,7 +50,7 @@ export const CREDIT_PACKS: CreditPack[] = [
     label: "Pro Pack",
     description: "50 credits — for power users",
     credits: 50,
-    priceUsd: 20.00,
+    priceUsd: 23.00,
     stripePriceId: "price_1Sa44oIZ7isA0IxEqglY4AOg",
   },
 ];
