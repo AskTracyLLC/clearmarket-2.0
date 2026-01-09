@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.stripe-health]
 verify_jwt = true
+
+[functions.guard_contact_access]
+verify_jwt = false
