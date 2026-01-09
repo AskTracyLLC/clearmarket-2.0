@@ -127,6 +127,7 @@ export function LeftSidebar({
 
   // Vendor-specific items - Interested Reps deep-links to Seeking Coverage with filters
   const vendorItems: NavItem[] = [
+    { label: "My Profile", path: "/vendor/profile", icon: <User className="h-5 w-5" /> },
     { label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: sectionCounts.vendorPostsWithInterest },
     { label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: sectionCounts.vendorTotalInterestedReps },
     { label: "My Reps", path: "/vendor/my-reps", icon: <Users className="h-5 w-5" /> },
