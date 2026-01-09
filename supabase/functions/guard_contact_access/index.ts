@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Tightened CORS: only allow actual app origins
 const ALLOWED_ORIGINS = [
@@ -40,6 +40,7 @@ type AccessType = typeof VALID_ACCESS_TYPES[number];
  *   repUserId: string (UUID)
  *   accessType: "view_contact" | "unlock_contact" | "export_contact"
  *   includeContact?: boolean  // only valid for view_contact/export_contact
+ *   vendorProfileId?: string (UUID) // optional: for actor attribution when staff acts on behalf of vendor
  * 
  * Response:
  *   { allowed: true, contact?: { email?: string } }
@@ -50,6 +51,13 @@ interface RequestBody {
   repUserId: string;
   accessType: string;
   includeContact?: boolean;
+  vendorProfileId?: string;
+}
+
+interface ActorContext {
+  actor_user_id: string;
+  actor_role: string;
+  actor_code: string | null;
 }
 
 // Hash IP with server-side salt for privacy-preserving audit trail
@@ -69,6 +77,52 @@ function getClientIP(req: Request): string | null {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     null
   );
+}
+
+// Derive actor context server-side using the RPC
+async function getActorContext(
+  supabaseAdmin: SupabaseClient,
+  userId: string,
+  vendorProfileId: string | null
+): Promise<ActorContext> {
+  // If we have a vendor profile ID, use the RPC to get full context
+  if (vendorProfileId && UUID_REGEX.test(vendorProfileId)) {
+    const { data, error } = await supabaseAdmin.rpc("get_actor_context_for_vendor", {
+      p_vendor_id: vendorProfileId,
+    } as Record<string, unknown>);
+    
+    if (!error && data) {
+      const result = data as { actor_user_id?: string; actor_role?: string; actor_code?: string | null };
+      return {
+        actor_user_id: result.actor_user_id || userId,
+        actor_role: result.actor_role || "unknown",
+        actor_code: result.actor_code || null,
+      };
+    }
+  }
+
+  // Fallback: check if user is admin, otherwise assume vendor_owner
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const profileData = profile as { is_admin?: boolean } | null;
+  if (profileData?.is_admin) {
+    return {
+      actor_user_id: userId,
+      actor_role: "admin",
+      actor_code: "ADMIN",
+    };
+  }
+
+  // Default fallback for vendor owner without explicit profile ID
+  return {
+    actor_user_id: userId,
+    actor_role: "vendor_owner",
+    actor_code: null,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -119,7 +173,7 @@ Deno.serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const { repUserId, accessType, includeContact } = body;
+    const { repUserId, accessType, includeContact, vendorProfileId } = body;
 
     // === INPUT VALIDATION ===
 
@@ -169,8 +223,9 @@ Deno.serve(async (req) => {
       .eq("id", vendorUserId)
       .maybeSingle();
 
-    const isVendor = viewerProfile?.is_vendor_admin || viewerProfile?.is_vendor_staff || false;
-    const isAdmin = viewerProfile?.is_admin || false;
+    const profileData = viewerProfile as { is_vendor_admin?: boolean; is_vendor_staff?: boolean; is_admin?: boolean } | null;
+    const isVendor = profileData?.is_vendor_admin || profileData?.is_vendor_staff || false;
+    const isAdmin = profileData?.is_admin || false;
 
     if (!isVendor && !isAdmin) {
       return new Response(
@@ -202,8 +257,10 @@ Deno.serve(async (req) => {
           .maybeSingle(),
       ]);
 
-      isConnected = Boolean(connectionResult.data?.id);
-      isUnlocked = Boolean(unlockResult.data?.id);
+      const connData = connectionResult.data as { id?: string } | null;
+      const unlockData = unlockResult.data as { id?: string } | null;
+      isConnected = Boolean(connData?.id);
+      isUnlocked = Boolean(unlockData?.id);
 
       // For view/export: must be connected, unlocked, or admin
       if (!isAdmin && !isConnected && !isUnlocked) {
@@ -214,6 +271,11 @@ Deno.serve(async (req) => {
       }
     }
     // For unlock_contact: no access check here - the unlock RPC will handle it
+
+    // === ACTOR ATTRIBUTION ===
+    
+    // Derive actor context server-side (trusted, no spoofing possible)
+    const actorContext = await getActorContext(supabaseAdmin, vendorUserId, vendorProfileId || null);
 
     // === LOGGING + RATE LIMITING ===
 
@@ -233,7 +295,10 @@ Deno.serve(async (req) => {
         p_metadata: { includeContact: validatedIncludeContact },
         p_ip_hash: ipHash,
         p_user_agent: userAgent,
-      }
+        p_actor_user_id: actorContext.actor_user_id,
+        p_actor_role: actorContext.actor_role,
+        p_actor_code: actorContext.actor_code,
+      } as Record<string, unknown>
     );
 
     if (logError) {
@@ -245,7 +310,8 @@ Deno.serve(async (req) => {
     }
 
     // Check if rate limited
-    if (logResult && !logResult.allowed) {
+    const logResultData = logResult as { allowed?: boolean } | null;
+    if (logResultData && !logResultData.allowed) {
       return new Response(
         JSON.stringify({ allowed: false, reason: "RATE_LIMIT" }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -264,7 +330,8 @@ Deno.serve(async (req) => {
         .eq("id", repUserId)
         .maybeSingle();
 
-      contact = { email: repProfile?.email || null };
+      const repData = repProfile as { email?: string } | null;
+      contact = { email: repData?.email || null };
     }
 
     return new Response(
