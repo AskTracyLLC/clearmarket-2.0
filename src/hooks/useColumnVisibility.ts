@@ -49,7 +49,19 @@ export function useColumnVisibility({
           // Ensure required columns are always visible
           const requiredCols = columns.filter((c) => c.required).map((c) => c.id);
           const savedCols = data.visible_columns as string[];
-          const mergedCols = [...new Set([...requiredCols, ...savedCols])];
+          
+          // Filter out old column IDs that no longer exist
+          const validColumnIds = columns.map((c) => c.id);
+          const validSavedCols = savedCols.filter((id) => validColumnIds.includes(id));
+          
+          // Add new default columns that weren't in the saved preferences
+          // (so users see new features without manually resetting)
+          const defaults = defaultVisibleColumns || columns.map((c) => c.id);
+          const newDefaultCols = defaults.filter(
+            (id) => !savedCols.includes(id) && validColumnIds.includes(id)
+          );
+          
+          const mergedCols = [...new Set([...requiredCols, ...validSavedCols, ...newDefaultCols])];
           setVisibleColumns(mergedCols);
         }
       } catch (err) {
