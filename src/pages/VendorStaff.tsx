@@ -46,6 +46,7 @@ import { format } from "date-fns";
 interface VendorStaffMember {
   id: string;
   staff_code: string | null;
+  staff_user_id: string | null;
   invited_name: string;
   invited_email: string;
   role: "owner" | "admin" | "staff";
@@ -179,13 +180,8 @@ export default function VendorStaff() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Log the invite action (after successful insert, staff_id is returned)
-      if (data.staff_id && vendorProfile.id) {
-        await logStaffAction(vendorProfile.id, "vendor_staff.invited", data.staff_id, {
-          invited_email: inviteEmail.trim(),
-          invited_role: inviteRole,
-        });
-      }
+      // Note: Audit logging is now done server-side in the edge function
+      // This ensures the audit trail exists even if subsequent steps fail
 
       toast({
         title: "Invitation Sent",
@@ -213,7 +209,20 @@ export default function VendorStaff() {
   };
 
   const handleChangeRole = async (member: VendorStaffMember, newRole: "admin" | "staff") => {
-    if (!vendorProfile || member.role === newRole || member.role === "owner") return;
+    if (!vendorProfile || !user) return;
+    
+    // Guard: can't change owner role
+    if (member.role === "owner") {
+      toast({
+        title: "Not Allowed",
+        description: "The owner role cannot be changed.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Guard: no-op if same role
+    if (member.role === newRole) return;
 
     try {
       const { error } = await supabase
@@ -244,7 +253,27 @@ export default function VendorStaff() {
   };
 
   const handleToggleStatus = async (member: VendorStaffMember) => {
-    if (!vendorProfile || member.role === "owner") return;
+    if (!vendorProfile || !user) return;
+    
+    // Guard: can't disable owner
+    if (member.role === "owner") {
+      toast({
+        title: "Not Allowed",
+        description: "The owner cannot be disabled.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Guard: can't disable yourself
+    if (member.staff_user_id === user.id) {
+      toast({
+        title: "Not Allowed",
+        description: "You cannot disable yourself.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const newStatus = member.status === "disabled" ? "active" : "disabled";
     const actionType = newStatus === "disabled" ? "vendor_staff.disabled" : "vendor_staff.enabled";
@@ -279,6 +308,23 @@ export default function VendorStaff() {
         variant: "destructive",
       });
     }
+  };
+
+  // Helper to check if current user can manage a specific staff member
+  const canManageMember = (member: VendorStaffMember): boolean => {
+    if (!user) return false;
+    // Can't manage owner
+    if (member.role === "owner") return false;
+    // Can't manage yourself (for disable)
+    // Role change is allowed for self
+    return true;
+  };
+  
+  const canDisableMember = (member: VendorStaffMember): boolean => {
+    if (!user) return false;
+    if (member.role === "owner") return false;
+    if (member.staff_user_id === user.id) return false;
+    return true;
   };
 
   const isVerified = vendorProfile?.vendor_verification_status === "verified";
@@ -473,7 +519,7 @@ export default function VendorStaff() {
                     {format(new Date(member.invited_at), "MMM d, yyyy")}
                   </TableCell>
                   <TableCell>
-                    {member.role !== "owner" && (
+                    {canManageMember(member) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -487,14 +533,18 @@ export default function VendorStaff() {
                             <UserCog className="h-4 w-4 mr-2" />
                             {member.role === "admin" ? "Demote to Staff" : "Promote to Admin"}
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleToggleStatus(member)}
-                            className={member.status === "disabled" ? "text-green-600" : "text-destructive"}
-                          >
-                            <UserX className="h-4 w-4 mr-2" />
-                            {member.status === "disabled" ? "Re-enable" : "Disable"}
-                          </DropdownMenuItem>
+                          {canDisableMember(member) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleToggleStatus(member)}
+                                className={member.status === "disabled" ? "text-green-600" : "text-destructive"}
+                              >
+                                <UserX className="h-4 w-4 mr-2" />
+                                {member.status === "disabled" ? "Re-enable" : "Disable"}
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
