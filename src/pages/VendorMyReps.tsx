@@ -187,6 +187,7 @@ const VendorMyReps = () => {
         agreementMap.set(a.field_rep_id, a);
       });
 
+      // Fetch rep profiles for additional data (systems, inspection types, etc.)
       const { data: repProfiles } = await supabase
         .from("rep_profile")
         .select(`
@@ -198,10 +199,24 @@ const VendorMyReps = () => {
           systems_used,
           inspection_types,
           is_accepting_new_vendors,
-          willing_to_travel_out_of_state,
-          profiles:user_id ( full_name )
+          willing_to_travel_out_of_state
         `)
         .in("user_id", repUserIds);
+
+      // Fetch display names from secure view (only returns data for connected pairs)
+      const { data: displayInfoData } = await supabase
+        .from("connected_rep_display_info")
+        .select("rep_id, rep_display_name, rep_anonymous_label")
+        .in("rep_id", repUserIds);
+
+      // Create a map of rep_id -> display info
+      const displayInfoMap = new Map<string, { displayName: string; anonymousLabel: string }>();
+      (displayInfoData || []).forEach(info => {
+        displayInfoMap.set(info.rep_id, {
+          displayName: info.rep_display_name,
+          anonymousLabel: info.rep_anonymous_label,
+        });
+      });
 
       const repsArray: ConnectedRep[] = [];
 
@@ -210,8 +225,12 @@ const VendorMyReps = () => {
         
         if (!repProfile) continue;
 
-        const fullName = (repProfile.profiles as any)?.full_name || "";
-        const nameParts = fullName.split(" ");
+        // Get display info from secure view
+        const displayInfo = displayInfoMap.get(connection.field_rep_id);
+        const displayName = displayInfo?.displayName || null;
+        const anonymousId = displayInfo?.anonymousLabel || repProfile.anonymous_id || `FieldRep#${connection.field_rep_id.substring(0, 6)}`;
+        
+        const nameParts = (displayName || "").split(" ");
         const firstName = nameParts[0] || "";
         const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1].charAt(0) : "";
 
@@ -219,10 +238,10 @@ const VendorMyReps = () => {
 
         repsArray.push({
           repUserId: connection.field_rep_id,
-          anonymousId: repProfile.anonymous_id || `FieldRep#${connection.field_rep_id.substring(0, 6)}`,
+          anonymousId,
           firstName,
           lastInitial,
-          displayName: fullName || null,
+          displayName,
           city: repProfile.city,
           state: repProfile.state,
           systemsUsed: repProfile.systems_used || [],
