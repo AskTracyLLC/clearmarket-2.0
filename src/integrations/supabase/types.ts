@@ -2533,6 +2533,33 @@ export type Database = {
           },
         ]
       }
+      rep_contact_info: {
+        Row: {
+          business_name: string | null
+          city: string | null
+          created_at: string
+          rep_user_id: string
+          updated_at: string
+          zip_code: string | null
+        }
+        Insert: {
+          business_name?: string | null
+          city?: string | null
+          created_at?: string
+          rep_user_id: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Update: {
+          business_name?: string | null
+          city?: string | null
+          created_at?: string
+          rep_user_id?: string
+          updated_at?: string
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       rep_contact_unlocks: {
         Row: {
           created_at: string
@@ -6187,10 +6214,10 @@ export type Database = {
       rep_profile_public: {
         Row: {
           anonymous_id: string | null
-          background_check_is_active: boolean | null
           certifications: string[] | null
           coverage_areas: string[] | null
           created_at: string | null
+          equipment_notes: string | null
           has_hud_keys: boolean | null
           id: string | null
           inspection_types: string[] | null
@@ -6206,10 +6233,10 @@ export type Database = {
         }
         Insert: {
           anonymous_id?: string | null
-          background_check_is_active?: boolean | null
           certifications?: string[] | null
           coverage_areas?: string[] | null
           created_at?: string | null
+          equipment_notes?: string | null
           has_hud_keys?: boolean | null
           id?: string | null
           inspection_types?: string[] | null
@@ -6225,10 +6252,10 @@ export type Database = {
         }
         Update: {
           anonymous_id?: string | null
-          background_check_is_active?: boolean | null
           certifications?: string[] | null
           coverage_areas?: string[] | null
           created_at?: string | null
+          equipment_notes?: string | null
           has_hud_keys?: boolean | null
           id?: string | null
           inspection_types?: string[] | null
