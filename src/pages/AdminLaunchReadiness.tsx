@@ -23,6 +23,8 @@ import {
   ExternalLink,
   Copy,
   Clock,
+  AlertOctagon,
+  Globe,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -653,13 +655,26 @@ const AdminLaunchReadiness: React.FC = () => {
   // Copy report to clipboard
   const copyReport = () => {
     const lines: string[] = [];
+    const env = getEnvironment();
+    
     lines.push("=== ClearMarket Launch Readiness Report ===");
+    lines.push(`Environment: ${env.label} (${window.location.hostname})`);
     lines.push(`Generated: ${lastRunAt ? format(lastRunAt, "MMM d, yyyy h:mm:ss a") : "N/A"}`);
     lines.push("");
 
     const overallStatus = getOverallStatus();
-    lines.push(`OVERALL STATUS: ${overallStatus.toUpperCase()}`);
+    lines.push(`OVERALL STATUS: ${overallStatus === "ready" ? "READY" : "NOT READY"}`);
     lines.push("");
+
+    // Launch blockers
+    const blockers = getLaunchBlockers();
+    if (blockers.length > 0) {
+      lines.push("=== LAUNCH BLOCKERS ===");
+      blockers.forEach((b) => {
+        lines.push(`  ✗ ${b.name}: ${b.message}`);
+      });
+      lines.push("");
+    }
 
     sections.forEach((section) => {
       lines.push(`--- ${section.title} ---`);
@@ -680,11 +695,56 @@ const AdminLaunchReadiness: React.FC = () => {
     });
   };
 
-  // Get overall status
-  const getOverallStatus = (): "ready" | "not_ready" => {
+  // Critical checks that block launch (FAILs in these are NOT acceptable)
+  const CRITICAL_CHECK_IDS = [
+    "stripe_mode",      // Must be LIVE mode
+    "webhook_health",   // Webhook must work in livemode
+    "contact_unlock",   // Contact unlock must be enforced server-side
+    "terms_page",       // Legal pages must exist
+    "privacy_page",
+    "vendor_dashboard", // Core dashboards must render
+    "rep_dashboard",
+  ];
+
+  // Acceptable WARNs (these don't block launch)
+  const ACCEPTABLE_WARN_IDS = [
+    "stripe_mode",          // Mode inferred (no events yet) is OK
+    "webhook_health",       // No webhook events yet is OK
+    "connected_display_data", // No connected pairs yet is OK
+    "email_config",         // Email config missing is OK if not sending emails
+    "dual_role",            // No dual-role users is OK
+    "credits_wallet",       // Empty wallet is OK
+  ];
+
+  // Get launch blockers (critical FAILs)
+  const getLaunchBlockers = (): CheckResult[] => {
     const allChecks = sections.flatMap((s) => s.checks);
-    const hasFail = allChecks.some((c) => c.status === "fail");
-    return hasFail ? "not_ready" : "ready";
+    return allChecks.filter((c) => c.status === "fail" && CRITICAL_CHECK_IDS.includes(c.id));
+  };
+
+  // Get all FAILs (including non-critical)
+  const getAllFails = (): CheckResult[] => {
+    const allChecks = sections.flatMap((s) => s.checks);
+    return allChecks.filter((c) => c.status === "fail");
+  };
+
+  // Get overall status - READY if no critical FAILs
+  const getOverallStatus = (): "ready" | "not_ready" => {
+    const blockers = getLaunchBlockers();
+    return blockers.length > 0 ? "not_ready" : "ready";
+  };
+
+  // Get environment
+  const getEnvironment = (): { label: string; isProduction: boolean } => {
+    const hostname = window.location.hostname;
+    if (hostname === "useclearmarket.io" || hostname === "www.useclearmarket.io") {
+      return { label: "PRODUCTION", isProduction: true };
+    } else if (hostname.includes("lovable.app") || hostname.includes("lovableproject.com")) {
+      return { label: "PREVIEW", isProduction: false };
+    } else if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return { label: "LOCAL", isProduction: false };
+    }
+    return { label: "UNKNOWN", isProduction: false };
   };
 
   // Get section summary
@@ -734,9 +794,29 @@ const AdminLaunchReadiness: React.FC = () => {
 
   const overallStatus = getOverallStatus();
   const hasRun = lastRunAt !== null;
+  const launchBlockers = getLaunchBlockers();
+  const allFails = getAllFails();
+  const environment = getEnvironment();
 
   return (
     <div className="container mx-auto px-4 py-6 md:py-8 max-w-5xl">
+      {/* Environment Stamp */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Globe className="h-4 w-4 text-muted-foreground" />
+          <Badge 
+            variant="outline" 
+            className={environment.isProduction 
+              ? "bg-green-500/20 text-green-400 border-green-500/30" 
+              : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+            }
+          >
+            {environment.label}
+          </Badge>
+          <span className="text-xs text-muted-foreground">{window.location.hostname}</span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -759,6 +839,55 @@ const AdminLaunchReadiness: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Launch Blockers Section */}
+      {hasRun && launchBlockers.length > 0 && (
+        <Card className="mb-4 border-red-500/50 bg-red-500/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-red-400">
+              <AlertOctagon className="h-5 w-5" />
+              Launch Blockers ({launchBlockers.length})
+            </CardTitle>
+            <CardDescription className="text-red-300/70">
+              These critical issues must be resolved before launch
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {launchBlockers.map((blocker) => (
+                <div key={blocker.id} className="flex items-center justify-between gap-3 p-2 rounded bg-red-500/10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <XCircle className="h-4 w-4 text-red-400 shrink-0" />
+                    <span className="font-medium text-sm text-foreground truncate">{blocker.name}</span>
+                    <span className="text-xs text-muted-foreground truncate">— {blocker.message}</span>
+                  </div>
+                  {blocker.fixLink && (
+                    <Link to={blocker.fixLink}>
+                      <Button variant="ghost" size="sm" className="shrink-0 text-red-400 hover:text-red-300">
+                        Fix <ExternalLink className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Non-critical FAILs (if any, shown as warning) */}
+      {hasRun && allFails.length > launchBlockers.length && (
+        <Card className="mb-4 border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="py-3">
+            <div className="flex items-center gap-2 text-yellow-400">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-sm">
+                {allFails.length - launchBlockers.length} non-critical check(s) failed — review recommended but not blocking launch
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Overall Status Banner */}
       {hasRun && (
