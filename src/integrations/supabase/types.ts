@@ -2475,6 +2475,58 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_counters: {
+        Row: {
+          action_type: string
+          count: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          count?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          window_start: string
+        }
+        Update: {
+          action_type?: string
+          count?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_limit_counters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_limit_counters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rate_limit_counters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       rep_availability: {
         Row: {
           auto_reply_enabled: boolean
@@ -2527,6 +2579,79 @@ export type Database = {
           {
             foreignKeyName: "rep_availability_rep_user_id_fkey"
             columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      rep_contact_access_log: {
+        Row: {
+          access_type: string
+          created_at: string
+          id: string
+          ip_hash: string | null
+          rep_user_id: string
+          user_agent: string | null
+          vendor_user_id: string
+        }
+        Insert: {
+          access_type: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          rep_user_id: string
+          user_agent?: string | null
+          vendor_user_id: string
+        }
+        Update: {
+          access_type?: string
+          created_at?: string
+          id?: string
+          ip_hash?: string | null
+          rep_user_id?: string
+          user_agent?: string | null
+          vendor_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_contact_access_log_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
@@ -6327,6 +6452,17 @@ export type Database = {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
       }
+      get_rep_contact_access_metrics: {
+        Args: never
+        Returns: {
+          accesses_last_24h: number
+          accesses_last_hour: number
+          last_access_at: string
+          total_accesses: number
+          unique_reps_accessed: number
+          vendor_user_id: string
+        }[]
+      }
       get_shared_proposal: {
         Args: { p_passcode?: string; p_share_token: string }
         Returns: Json
@@ -6339,6 +6475,15 @@ export type Database = {
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
       is_staff_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_user: { Args: { user_id: string }; Returns: boolean }
+      log_rep_contact_access: {
+        Args: {
+          p_access_type: string
+          p_ip_hash?: string
+          p_rep_user_id: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
