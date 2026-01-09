@@ -6650,8 +6650,21 @@ export type Database = {
       }
       is_admin_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
+      is_platform_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_user: { Args: { user_id: string }; Returns: boolean }
+      is_vendor_owner: {
+        Args: { p_user_id: string; p_vendor_id: string }
+        Returns: boolean
+      }
+      is_vendor_staff_admin: {
+        Args: { p_user_id: string; p_vendor_id: string }
+        Returns: boolean
+      }
+      is_vendor_staff_member: {
+        Args: { p_user_id: string; p_vendor_id: string }
+        Returns: boolean
+      }
       log_rep_contact_access:
         | {
             Args: {
