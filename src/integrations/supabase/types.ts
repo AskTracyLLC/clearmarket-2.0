@@ -6700,6 +6700,21 @@ export type Database = {
             }
             Returns: Json
           }
+        | {
+            Args: {
+              p_access_type: string
+              p_actor_code?: string
+              p_actor_role?: string
+              p_actor_user_id?: string
+              p_ip_hash?: string
+              p_metadata?: Json
+              p_rep_user_id: string
+              p_source?: string
+              p_user_agent?: string
+              p_vendor_user_id: string
+            }
+            Returns: Json
+          }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
