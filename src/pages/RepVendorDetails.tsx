@@ -37,7 +37,6 @@ import { RepExitReviewDialog } from "@/components/RepExitReviewDialog";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { VendorCalendarDialog } from "@/components/VendorCalendarDialog";
-import { WorkingTermsDialog } from "@/components/WorkingTermsDialog";
 import { AgreementDetailsDialog } from "@/components/AgreementDetailsDialog";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { format } from "date-fns";
@@ -63,6 +62,7 @@ interface VendorDetails {
   notes?: VendorNote[];
   review?: Review | null;
   agreementId?: string | null;
+  connectionId?: string | null;
   coverageSummary?: string | null;
   pricingSummary?: string | null;
   baseRate?: number | null;
@@ -90,7 +90,7 @@ export default function RepVendorDetails() {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showExitReviewDialog, setShowExitReviewDialog] = useState(false);
-  const [showWorkingTermsDialog, setShowWorkingTermsDialog] = useState(false);
+  
   const [showAgreementDialog, setShowAgreementDialog] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   
@@ -229,6 +229,7 @@ export default function RepVendorDetails() {
         notes: notesData || [],
         review: reviewsData?.[0] as Review || null,
         agreementId: agreement?.id || null,
+        connectionId: connection.id,
         coverageSummary: agreement?.coverage_summary || null,
         pricingSummary: agreement?.pricing_summary || null,
         baseRate: agreement?.base_rate || null,
@@ -460,12 +461,10 @@ export default function RepVendorDetails() {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Messages
               </Button>
-              {vendor.agreementId && (
-                <Button variant="outline" onClick={() => setShowAgreementDialog(true)}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Agreement
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => setShowAgreementDialog(true)}>
+                <FileText className="h-4 w-4 mr-2" />
+                Agreement
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => setShowReviewDialog(true)}
@@ -482,43 +481,6 @@ export default function RepVendorDetails() {
                 Profile
               </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Working Terms Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Working Terms</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {vendor.statesCovered && vendor.statesCovered.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {vendor.statesCovered.map(state => (
-                    <Badge key={state} variant="secondary">{state}</Badge>
-                  ))}
-                </div>
-                {vendor.baseRate && (
-                  <p className="text-sm text-muted-foreground">
-                    Base rate: ${vendor.baseRate}
-                  </p>
-                )}
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-primary"
-                  onClick={() => setShowWorkingTermsDialog(true)}
-                >
-                  View working terms details →
-                </Button>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-muted-foreground mb-2">No working terms set up yet.</p>
-                <Button variant="outline" size="sm" onClick={() => setShowWorkingTermsDialog(true)}>
-                  Set Up Working Terms
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -696,14 +658,16 @@ export default function RepVendorDetails() {
         />
       )}
 
-      <WorkingTermsDialog
-        open={showWorkingTermsDialog}
-        onOpenChange={setShowWorkingTermsDialog}
-        vendorId={vendor.vendorUserId}
-        repId={user?.id || ""}
-        vendorName={vendor.companyName}
-        mode="rep"
-      />
+      {vendor.connectionId && (
+        <AgreementDetailsDialog
+          open={showAgreementDialog}
+          onOpenChange={setShowAgreementDialog}
+          connectionId={vendor.connectionId}
+          connectionLabel={vendor.anonymousId}
+          vendorId={vendor.vendorUserId}
+          repId={user?.id}
+        />
+      )}
     </>
   );
 }
