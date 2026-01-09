@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 // Credit pack definitions - must match frontend config
+// LIVE Stripe Price IDs (prod_*)
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amountCents: number; currency: string }> = {
   just_1: {
     credits: 1,
@@ -17,20 +18,20 @@ const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amo
   },
   starter_10: {
     credits: 10,
-    stripePriceId: "price_1Sa4EMIZ7isA0IxEtbEPua6I",
-    amountCents: 1000,
+    stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
+    amountCents: 499,
     currency: "usd",
   },
   standard_25: {
     credits: 25,
-    stripePriceId: "price_1Sa4EhIZ7isA0IxEKfZMFClq",
-    amountCents: 2000,
+    stripePriceId: "price_1Sa448IZ7isA0IxE40HI8lhW",
+    amountCents: 999,
     currency: "usd",
   },
   pro_50: {
     credits: 50,
-    stripePriceId: "price_1Sa4FJIZ7isA0IxEFHF6VYoL",
-    amountCents: 3500,
+    stripePriceId: "price_1Sa44oIZ7isA0IxEqglY4AOg",
+    amountCents: 1799,
     currency: "usd",
   },
 };
@@ -82,10 +83,10 @@ serve(async (req) => {
     }
     logStep("Pack validated", { packId, credits: pack.credits });
 
-    // Initialize Stripe
-    const stripeKey = Deno.env.get("STRIPE_SECRET_TESTKEY");
+    // Initialize Stripe - prefer LIVE key (STRIPE_SECRET_KEY2 is live in this project)
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY2") || Deno.env.get("STRIPE_SECRET_KEY_LIVE") || Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_TESTKEY");
     if (!stripeKey) {
-      throw new Error("STRIPE_SECRET_TESTKEY is not set");
+      throw new Error("No Stripe secret key is configured");
     }
     
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
