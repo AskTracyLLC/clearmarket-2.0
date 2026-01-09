@@ -6642,6 +6642,18 @@ export type Database = {
         Args: { p_vendor_id: string }
         Returns: Json
       }
+      get_contact_access_abuse_flags: {
+        Args: never
+        Returns: {
+          accesses_last_hour: number
+          export_count_24h: number
+          flag_reason: string
+          total_accesses_24h: number
+          unique_reps_24h: number
+          vendor_code: string
+          vendor_user_id: string
+        }[]
+      }
       get_rep_contact_access_metrics: {
         Args: never
         Returns: {
@@ -6715,6 +6727,15 @@ export type Database = {
             }
             Returns: Json
           }
+      log_vendor_staff_action: {
+        Args: {
+          p_action_type: string
+          p_details?: Json
+          p_target_staff_id: string
+          p_vendor_id: string
+        }
+        Returns: Json
+      }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
