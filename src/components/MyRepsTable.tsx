@@ -55,13 +55,14 @@ import { WorkingTermsDialog } from "@/components/WorkingTermsDialog";
 const MY_REPS_COLUMNS: ColumnDefinition[] = [
   { id: "rep", label: "Rep", description: "Field rep name and identifier", required: true },
   { id: "location", label: "Location", description: "City and state" },
+  { id: "trustScore", label: "Trust Score", description: "Rating based on verified reviews" },
   { id: "connectedSince", label: "Connected since", description: "Date you connected with this rep" },
   { id: "agreement", label: "Agreement", description: "Current agreement status" },
   { id: "notes", label: "Notes", description: "Your private notes about this rep" },
   { id: "actions", label: "Actions", description: "Available actions", required: true },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = ["rep", "location", "connectedSince", "agreement", "notes", "actions"];
+const DEFAULT_VISIBLE_COLUMNS = ["rep", "location", "trustScore", "connectedSince", "agreement", "notes", "actions"];
 
 interface RepNote {
   id: string;
@@ -410,6 +411,9 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
               {isColumnVisible("location") && (
                 <TableHead className="hidden md:table-cell">Location</TableHead>
               )}
+              {isColumnVisible("trustScore") && (
+                <TableHead>Trust Score</TableHead>
+              )}
               {isColumnVisible("connectedSince") && (
                 <TableHead className="hidden md:table-cell">
                   <SortableHeader label="Connected since" sortKeyName="connectedAt" />
@@ -482,6 +486,24 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                     {isColumnVisible("location") && (
                       <TableCell className="hidden md:table-cell text-sm">
                         {rep.city && rep.state ? `${rep.city}, ${rep.state}` : rep.city || rep.state || "—"}
+                      </TableCell>
+                    )}
+                    
+                    {/* Trust Score */}
+                    {isColumnVisible("trustScore") && (
+                      <TableCell>
+                        {rep.trustScore != null && rep.trustScore > 0 ? (
+                          <span className={`font-medium ${rep.trustScore >= 4.5 ? "text-green-500" : rep.trustScore >= 4.0 ? "text-blue-500" : rep.trustScore >= 3.0 ? "text-yellow-500" : "text-muted-foreground"}`}>
+                            {rep.trustScore.toFixed(1)}
+                            {rep.trustScoreCount != null && rep.trustScoreCount > 0 && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({rep.trustScoreCount})
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     )}
                     
