@@ -62,63 +62,104 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
 
   const loadProfile = async () => {
     if (!user) return;
+    const targetUserId = mimickedUser?.id || user.id;
+    
+    let profileData: {
+      is_admin?: boolean | null;
+      is_vendor_admin?: boolean | null;
+      is_fieldrep?: boolean | null;
+      full_name?: string | null;
+      email?: string | null;
+    } | null = null;
+
+    // Fetch main profile (self-only RLS)
     try {
-      const targetUserId = mimickedUser?.id || user.id;
-      
-      // Fetch main profile
-      const { data: profileData } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("is_admin, is_vendor_admin, is_fieldrep, full_name, email")
         .eq("id", targetUserId)
-        .single();
+        .maybeSingle();
+      
+      if (error) {
+        console.warn("AppShell: Could not fetch profiles row (RLS or permission issue):", error.message);
+      } else {
+        profileData = data;
+      }
+    } catch (err) {
+      console.warn("AppShell: Unexpected error fetching profile:", err);
+    }
 
-      // Fetch rep_profile anonymous_id if applicable
-      let repAnonymousId: string | undefined;
-      if (profileData?.is_fieldrep) {
-        const { data: repProfile } = await supabase
-          .from("rep_profile")
+    // Fetch rep anonymous_id from rep_profile_public view (self-only via RLS on underlying table)
+    let repAnonymousId: string | undefined;
+    if (profileData?.is_fieldrep) {
+      try {
+        const { data: repProfile, error } = await supabase
+          .from("rep_profile_public")
           .select("anonymous_id")
           .eq("user_id", targetUserId)
           .maybeSingle();
-        repAnonymousId = repProfile?.anonymous_id ?? undefined;
+        
+        if (error) {
+          console.warn("AppShell: Could not fetch rep_profile_public anonymous_id:", error.message);
+        } else {
+          repAnonymousId = repProfile?.anonymous_id ?? undefined;
+        }
+      } catch (err) {
+        console.warn("AppShell: Unexpected error fetching rep anonymous_id:", err);
       }
+    }
 
-      // Fetch vendor_profile anonymous_id if applicable
-      let vendorAnonymousId: string | undefined;
-      if (profileData?.is_vendor_admin) {
-        const { data: vendorProfile } = await supabase
+    // Fetch vendor_profile anonymous_id if applicable
+    let vendorAnonymousId: string | undefined;
+    if (profileData?.is_vendor_admin) {
+      try {
+        const { data: vendorProfile, error } = await supabase
           .from("vendor_profile")
           .select("anonymous_id")
           .eq("user_id", targetUserId)
           .maybeSingle();
-        vendorAnonymousId = vendorProfile?.anonymous_id ?? undefined;
+        
+        if (error) {
+          console.warn("AppShell: Could not fetch vendor_profile anonymous_id:", error.message);
+        } else {
+          vendorAnonymousId = vendorProfile?.anonymous_id ?? undefined;
+        }
+      } catch (err) {
+        console.warn("AppShell: Unexpected error fetching vendor anonymous_id:", err);
       }
+    }
 
-      if (profileData) {
-        setProfile({
-          is_admin: profileData.is_admin ?? undefined,
-          is_vendor_admin: profileData.is_vendor_admin ?? undefined,
-          is_fieldrep: profileData.is_fieldrep ?? undefined,
-          full_name: profileData.full_name ?? undefined,
-          email: profileData.email ?? undefined,
-          rep_anonymous_id: repAnonymousId,
-          vendor_anonymous_id: vendorAnonymousId,
-        });
+    // Set profile with fallbacks
+    setProfile({
+      is_admin: profileData?.is_admin ?? undefined,
+      is_vendor_admin: profileData?.is_vendor_admin ?? undefined,
+      is_fieldrep: profileData?.is_fieldrep ?? undefined,
+      full_name: profileData?.full_name ?? undefined,
+      email: profileData?.email ?? undefined,
+      rep_anonymous_id: repAnonymousId,
+      vendor_anonymous_id: vendorAnonymousId,
+    });
 
-        if (profileData.is_vendor_admin) {
-          const { data: walletData } = await supabase
-            .from("user_wallet")
-            .select("credits")
-            .eq("user_id", targetUserId)
-            .maybeSingle();
+    // Fetch vendor credits if applicable
+    if (profileData?.is_vendor_admin) {
+      try {
+        const { data: walletData, error } = await supabase
+          .from("user_wallet")
+          .select("credits")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        
+        if (error) {
+          console.warn("AppShell: Could not fetch vendor credits:", error.message);
+        } else {
           setVendorCredits(walletData?.credits ?? 0);
         }
+      } catch (err) {
+        console.warn("AppShell: Unexpected error fetching credits:", err);
       }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    } finally {
-      setProfileLoading(false);
     }
+
+    setProfileLoading(false);
   };
 
   if (authLoading || profileLoading) {
