@@ -284,6 +284,24 @@ export type Database = {
           },
         ]
       }
+      admin_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       background_checks: {
         Row: {
           check_id: string
@@ -3350,6 +3368,27 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      staff_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       stripe_webhook_health: {
         Row: {
