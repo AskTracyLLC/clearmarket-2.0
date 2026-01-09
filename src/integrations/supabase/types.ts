@@ -2591,7 +2591,9 @@ export type Database = {
           created_at: string
           id: string
           ip_hash: string | null
+          metadata: Json
           rep_user_id: string
+          source: string | null
           user_agent: string | null
           vendor_user_id: string
         }
@@ -2600,7 +2602,9 @@ export type Database = {
           created_at?: string
           id?: string
           ip_hash?: string | null
+          metadata?: Json
           rep_user_id: string
+          source?: string | null
           user_agent?: string | null
           vendor_user_id: string
         }
@@ -2609,7 +2613,9 @@ export type Database = {
           created_at?: string
           id?: string
           ip_hash?: string | null
+          metadata?: Json
           rep_user_id?: string
+          source?: string | null
           user_agent?: string | null
           vendor_user_id?: string
         }
@@ -6475,15 +6481,28 @@ export type Database = {
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
       is_staff_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_user: { Args: { user_id: string }; Returns: boolean }
-      log_rep_contact_access: {
-        Args: {
-          p_access_type: string
-          p_ip_hash?: string
-          p_rep_user_id: string
-          p_user_agent?: string
-        }
-        Returns: Json
-      }
+      log_rep_contact_access:
+        | {
+            Args: {
+              p_access_type: string
+              p_ip_hash?: string
+              p_rep_user_id: string
+              p_user_agent?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_access_type: string
+              p_ip_hash?: string
+              p_metadata?: Json
+              p_rep_user_id: string
+              p_source?: string
+              p_user_agent?: string
+              p_vendor_user_id: string
+            }
+            Returns: Json
+          }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
