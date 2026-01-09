@@ -151,7 +151,31 @@ serve(async (req) => {
       throw insertError;
     }
 
-    console.log(`Staff invited: ${staffRecord.staff_code} by ${authResult.actorCode} (${authResult.actorRole})`);
+    // Log the invite action IMMEDIATELY after insert (before any email attempt)
+    // This ensures the audit trail exists even if email fails
+    let auditLogged = false;
+    let auditError: string | null = null;
+    try {
+      await serviceClient.rpc("log_vendor_staff_action", {
+        p_vendor_id: vendorProfileId,
+        p_action_type: "vendor_staff.invited",
+        p_target_staff_id: staffRecord.id,
+        p_details: {
+          invited_email: email.trim().toLowerCase(),
+          invited_role: role || "staff",
+          invited_by_code: authResult.actorCode,
+        },
+      });
+      auditLogged = true;
+    } catch (err) {
+      console.error("Failed to log invite action:", err);
+      auditError = err instanceof Error ? err.message : "Unknown audit error";
+    }
+
+    console.log(`Staff invited: ${staffRecord.staff_code} by ${authResult.actorCode} (${authResult.actorRole}), audit_logged: ${auditLogged}`);
+
+    // TODO: Send invite email via Supabase Auth admin invite or custom email
+    // Email sending would go here - if it fails, audit is already logged
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -159,6 +183,8 @@ serve(async (req) => {
       staff_id: staffRecord.id,
       invited_by_code: authResult.actorCode,
       invited_by_role: authResult.actorRole,
+      audit_logged: auditLogged,
+      audit_error: auditError,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
