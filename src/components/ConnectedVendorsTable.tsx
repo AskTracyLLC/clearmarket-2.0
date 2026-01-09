@@ -30,6 +30,8 @@ interface ConnectedVendor {
   connectedAt?: string | null;
   conversationId?: string;
   hasActiveWorkingTerms?: boolean;
+  trustScore?: number | null;
+  reviewCount?: number;
 }
 
 interface Props {
@@ -75,13 +77,20 @@ export function ConnectedVendorsTable({ vendors, currentUserId }: Props) {
     );
   }
 
+  const getTrustScoreColor = (score: number) => {
+    if (score >= 4.5) return "text-green-500";
+    if (score >= 4.0) return "text-blue-500";
+    if (score >= 3.0) return "text-yellow-500";
+    return "text-muted-foreground";
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Vendor</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Trust Score</TableHead>
             <TableHead>Working Terms</TableHead>
             <TableHead>Connected Since</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -107,9 +116,31 @@ export function ConnectedVendorsTable({ vendors, currentUserId }: Props) {
                 )}
               </TableCell>
 
-              {/* Status */}
+              {/* Trust Score */}
               <TableCell>
-                <Badge variant="default">Connected</Badge>
+                {vendor.trustScore != null && vendor.trustScore > 0 ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`font-medium ${getTrustScoreColor(vendor.trustScore)}`}>
+                          {vendor.trustScore.toFixed(1)}
+                          {vendor.reviewCount != null && vendor.reviewCount > 0 && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({vendor.reviewCount})
+                            </span>
+                          )}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs max-w-[200px]">
+                          Trust Score fluctuates based on verified reviews and platform activity.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
 
               {/* Working Terms */}
