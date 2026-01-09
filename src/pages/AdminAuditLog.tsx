@@ -28,7 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw, ArrowLeft } from "lucide-react";
+import { Search, Activity, Eye, Clock, User, FileText, SearchX, RefreshCw, ArrowLeft, ShieldAlert } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format, subDays, subHours } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -68,6 +69,10 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   "report.resolved": "Report Resolved",
   "credits.adjusted": "Credits Adjusted",
   "support.reply_added": "Support Reply Added",
+  "vendor_staff.invited": "Vendor Staff Invited",
+  "vendor_staff.role_changed": "Vendor Staff Role Changed",
+  "vendor_staff.disabled": "Vendor Staff Disabled",
+  "vendor_staff.enabled": "Vendor Staff Enabled",
 };
 
 const ACTION_TYPE_COLORS: Record<string, string> = {
@@ -83,6 +88,10 @@ const ACTION_TYPE_COLORS: Record<string, string> = {
   "report.resolved": "bg-blue-500/10 text-blue-600 border-blue-500/20",
   "credits.adjusted": "bg-purple-500/10 text-purple-600 border-purple-500/20",
   "support.reply_added": "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+  "vendor_staff.invited": "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  "vendor_staff.role_changed": "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  "vendor_staff.disabled": "bg-red-500/10 text-red-600 border-red-500/20",
+  "vendor_staff.enabled": "bg-green-500/10 text-green-600 border-green-500/20",
 };
 
 export default function AdminAuditLog() {
@@ -275,10 +284,18 @@ export default function AdminAuditLog() {
             <h1 className="text-3xl font-bold text-foreground">Admin Activity Log</h1>
             <p className="text-muted-foreground">Track important admin and staff actions</p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/abuse-flags">
+              <Button variant="outline" size="sm">
+                <ShieldAlert className="h-4 w-4 mr-2" />
+                Abuse Detection
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}

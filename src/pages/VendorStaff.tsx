@@ -29,11 +29,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX } from "lucide-react";
+import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog } from "lucide-react";
 import { format } from "date-fns";
 
 interface VendorStaffMember {
@@ -46,6 +53,25 @@ interface VendorStaffMember {
   invited_at: string;
   accepted_at: string | null;
   disabled_at: string | null;
+}
+
+// Helper to log staff actions to audit log
+async function logStaffAction(
+  vendorId: string,
+  actionType: string,
+  targetStaffId: string,
+  details: Record<string, string> = {}
+) {
+  try {
+    await supabase.rpc("log_vendor_staff_action", {
+      p_vendor_id: vendorId,
+      p_action_type: actionType,
+      p_target_staff_id: targetStaffId,
+      p_details: details,
+    });
+  } catch (err) {
+    console.error("Failed to log staff action:", err);
+  }
 }
 
 interface VendorProfile {
@@ -153,6 +179,14 @@ export default function VendorStaff() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Log the invite action (after successful insert, staff_id is returned)
+      if (data.staff_id && vendorProfile.id) {
+        await logStaffAction(vendorProfile.id, "vendor_staff.invited", data.staff_id, {
+          invited_email: inviteEmail.trim(),
+          invited_role: inviteRole,
+        });
+      }
+
       toast({
         title: "Invitation Sent",
         description: `Invitation sent to ${inviteEmail}. Staff code: ${data.staff_code}`,
@@ -175,6 +209,75 @@ export default function VendorStaff() {
       });
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (member: VendorStaffMember, newRole: "admin" | "staff") => {
+    if (!vendorProfile || member.role === newRole || member.role === "owner") return;
+
+    try {
+      const { error } = await supabase
+        .from("vendor_staff")
+        .update({ role: newRole })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      // Log the action
+      await logStaffAction(vendorProfile.id, "vendor_staff.role_changed", member.id, {
+        from_role: member.role,
+        to_role: newRole,
+      });
+
+      toast({
+        title: "Role Updated",
+        description: `${member.invited_name}'s role changed to ${newRole}.`,
+      });
+      loadData();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update role.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleStatus = async (member: VendorStaffMember) => {
+    if (!vendorProfile || member.role === "owner") return;
+
+    const newStatus = member.status === "disabled" ? "active" : "disabled";
+    const actionType = newStatus === "disabled" ? "vendor_staff.disabled" : "vendor_staff.enabled";
+
+    try {
+      const updateData: Record<string, unknown> = { status: newStatus };
+      if (newStatus === "disabled") {
+        updateData.disabled_at = new Date().toISOString();
+      } else {
+        updateData.disabled_at = null;
+      }
+
+      const { error } = await supabase
+        .from("vendor_staff")
+        .update(updateData)
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      // Log the action
+      await logStaffAction(vendorProfile.id, actionType, member.id);
+
+      toast({
+        title: newStatus === "disabled" ? "Staff Disabled" : "Staff Re-enabled",
+        description: `${member.invited_name} has been ${newStatus === "disabled" ? "disabled" : "re-enabled"}.`,
+      });
+      loadData();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update status.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -333,6 +436,7 @@ export default function VendorStaff() {
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Invited</TableHead>
+                <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -367,6 +471,33 @@ export default function VendorStaff() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {format(new Date(member.invited_at), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell>
+                    {member.role !== "owner" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => handleChangeRole(member, member.role === "admin" ? "staff" : "admin")}
+                          >
+                            <UserCog className="h-4 w-4 mr-2" />
+                            {member.role === "admin" ? "Demote to Staff" : "Promote to Admin"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleToggleStatus(member)}
+                            className={member.status === "disabled" ? "text-green-600" : "text-destructive"}
+                          >
+                            <UserX className="h-4 w-4 mr-2" />
+                            {member.status === "disabled" ? "Re-enable" : "Disable"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
