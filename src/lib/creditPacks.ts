@@ -24,7 +24,7 @@ export const CREDIT_PACKS: CreditPack[] = [
   {
     id: "starter_10",
     label: "Starter Pack",
-    description: "10 credits — good for testing ClearMarket",
+    description: "10 credits — good for minimum needs",
     credits: 10,
     priceUsd: 6.00,
     stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",
