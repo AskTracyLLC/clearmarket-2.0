@@ -24,6 +24,7 @@ import WorkingTermsPendingCard from "@/components/WorkingTermsPendingCard";
 import { fetchPendingWorkingTermsRequests, WorkingTermsRequest } from "@/lib/workingTerms";
 import { ConnectedVendorsTable } from "@/components/ConnectedVendorsTable";
 import { MyVendorContacts } from "@/components/MyVendorContacts";
+import { fetchTrustScoresForUsers } from "@/lib/reviews";
 
 interface ConnectedVendor {
   vendorUserId: string;
@@ -34,6 +35,8 @@ interface ConnectedVendor {
   connectedAt?: string | null;
   conversationId?: string;
   hasActiveWorkingTerms?: boolean;
+  trustScore?: number | null;
+  reviewCount?: number;
 }
 
 interface PendingRequest {
@@ -278,6 +281,9 @@ const RepMyVendors = () => {
         agreementMap.set(a.vendor_id, a);
       });
 
+      // Fetch trust scores for all vendors
+      const trustScores = await fetchTrustScoresForUsers(vendorUserIds);
+
       // Get conversations
       const vendorsArray: ConnectedVendor[] = [];
 
@@ -286,6 +292,7 @@ const RepMyVendors = () => {
         if (!vendorProfile) continue;
 
         const agreement = agreementMap.get(connection.vendor_id);
+        const vendorTrust = trustScores[connection.vendor_id];
 
         // Get conversation
         const [p1, p2] = [user.id, connection.vendor_id].sort();
@@ -305,6 +312,8 @@ const RepMyVendors = () => {
           connectedAt: agreement?.created_at || connection.requested_at,
           conversationId: conv?.id,
           hasActiveWorkingTerms: workingTermsSet.has(connection.vendor_id),
+          trustScore: vendorTrust?.average ?? null,
+          reviewCount: vendorTrust?.count ?? 0,
         });
       }
 
