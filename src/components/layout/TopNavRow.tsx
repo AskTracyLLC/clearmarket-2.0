@@ -40,7 +40,7 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
   const tabs: NavTab[] = [
     { label: "Dashboard", path: "/dashboard", icon: <Home className="h-4 w-4" /> },
     { label: "Community", path: "/community", icon: <Users className="h-4 w-4" /> },
-    { label: "Coverage", path: effectiveRole === "vendor" ? "/vendor/seeking-coverage" : "/work-setup", icon: <Map className="h-4 w-4" /> },
+    { label: "Coverage", path: "/work-setup", icon: <Map className="h-4 w-4" /> },
     { label: "Tools", path: "/tools", icon: <Wrench className="h-4 w-4" /> },
   ];
 
