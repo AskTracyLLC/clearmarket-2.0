@@ -47,7 +47,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, parseISO, isToday } from "date-fns";
 
-import { RepVendorContactsCard } from "@/components/RepVendorContactsCard";
+import { MyVendorContacts } from "@/components/MyVendorContacts";
 import { PlannedRouteConfirmBanner } from "@/components/PlannedRouteConfirmBanner";
 
 interface AvailabilityEntry {
@@ -1124,7 +1124,7 @@ export default function RepAvailability() {
         )}
 
         {/* Section 4: Manual Vendor Contacts */}
-        {user && <RepVendorContactsCard repUserId={user.id} />}
+        {user && <MyVendorContacts repUserId={user.id} />}
       </div>
 
       {/* Add/Edit Time Off Dialog */}
