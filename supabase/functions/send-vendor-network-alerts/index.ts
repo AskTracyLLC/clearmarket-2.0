@@ -289,9 +289,9 @@ serve(async (req: Request): Promise<Response> => {
           alertStateCode = alert.target_state_codes[0] || null;
         }
 
-        console.log(`Alert ${alert.id}: sending to ${repIds.length} reps`);
+        console.log(`Alert ${alert.id}: sending to ${repIds.length} connected reps`);
 
-        // Create in-app notifications for each rep
+        // Create in-app notifications for each connected rep
         for (const repId of repIds) {
           await supabase.from("notifications").insert({
             user_id: repId,
@@ -300,6 +300,79 @@ serve(async (req: Request): Promise<Response> => {
             body: `${alert.title}: ${alert.body.substring(0, 150)}${alert.body.length > 150 ? '...' : ''}`,
             ref_id: alert.id,
           });
+        }
+
+        // Get emails from connected reps for deduplication
+        const connectedEmails = new Set<string>();
+        if (repIds.length > 0) {
+          const { data: repProfiles } = await supabase
+            .from("profiles")
+            .select("id, email")
+            .in("id", repIds);
+          
+          repProfiles?.forEach(p => {
+            if (p.email) connectedEmails.add(p.email.toLowerCase().trim());
+          });
+        }
+
+        // Get active offline rep contacts for this vendor
+        const { data: offlineContacts } = await supabase
+          .from("vendor_offline_rep_contacts")
+          .select("id, rep_name, email, phone")
+          .eq("vendor_id", alert.vendor_id)
+          .eq("status", "active");
+
+        // Filter offline contacts: must have email, not duplicate
+        const offlineEmails: string[] = [];
+        offlineContacts?.forEach(c => {
+          if (c.email && c.email.trim() !== "") {
+            const emailNorm = c.email.toLowerCase().trim();
+            if (!connectedEmails.has(emailNorm)) {
+              offlineEmails.push(c.email);
+              connectedEmails.add(emailNorm); // prevent duplicates within offline list too
+            }
+          }
+        });
+
+        console.log(`Alert ${alert.id}: ${offlineEmails.length} offline contacts to email`);
+
+        // Send email to offline contacts
+        let offlineEmailsSent = 0;
+        if (offlineEmails.length > 0 && ENABLE_EMAIL_NOTIFICATIONS && resendApiKey) {
+          const htmlBody = buildStaffNotificationEmail(
+            vendorName,
+            vendorName, // From vendor
+            alert.title,
+            alert.body,
+            appBaseUrl
+          );
+
+          try {
+            const emailResponse = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "ClearMarket <notifications@useclearmarket.io>",
+                to: ["notifications@useclearmarket.io"],
+                bcc: offlineEmails,
+                subject: `${alert.title} - Network Alert from ${vendorName}`,
+                html: htmlBody,
+              }),
+            });
+
+            if (emailResponse.ok) {
+              offlineEmailsSent = offlineEmails.length;
+              console.log(`Offline emails sent successfully for alert ${alert.id}`);
+            } else {
+              const errText = await emailResponse.text();
+              console.error(`Resend API error for offline emails:`, errText);
+            }
+          } catch (emailErr: any) {
+            console.error(`Error sending offline emails:`, emailErr);
+          }
         }
 
         // Get staff email recipients for this vendor
@@ -353,22 +426,25 @@ serve(async (req: Request): Promise<Response> => {
         }
 
         // Mark as sent
+        const totalRecipients = repIds.length + offlineEmailsSent;
         await supabase
           .from("rep_network_alerts")
           .update({
             status: "sent",
             sent_at: new Date().toISOString(),
-            recipient_count: repIds.length,
+            recipient_count: totalRecipients,
           })
           .eq("id", alert.id);
 
         results.push({ 
           alertId: alert.id, 
           status: "sent", 
-          recipientCount: repIds.length,
+          recipientCount: totalRecipients,
+          connectedReps: repIds.length,
+          offlineEmailsSent,
           staffEmailsSent 
         });
-        console.log(`Alert ${alert.id} sent successfully to ${repIds.length} reps and ${staffEmailsSent} staff emails`);
+        console.log(`Alert ${alert.id} sent to ${repIds.length} connected reps, ${offlineEmailsSent} offline, ${staffEmailsSent} staff emails`);
 
       } catch (alertError: any) {
         console.error(`Error processing alert ${alert.id}:`, alertError);

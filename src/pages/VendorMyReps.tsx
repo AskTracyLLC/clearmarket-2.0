@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,7 @@ import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { MyRepsTable } from "@/components/MyRepsTable";
 import { ConnectionNotesModal } from "@/components/ConnectionNotesModal";
+import { VendorOfflineRepContacts } from "@/components/VendorOfflineRepContacts";
 
 interface ConnectedRep {
   repUserId: string;
@@ -71,6 +73,7 @@ const VendorMyReps = () => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<{ is_vendor_admin: boolean; is_admin: boolean } | null>(null);
   const [connectedReps, setConnectedReps] = useState<ConnectedRep[]>([]);
+  const [offlineRepCount, setOfflineRepCount] = useState(0);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -131,6 +134,14 @@ const VendorMyReps = () => {
       navigate("/dashboard");
       return;
     }
+
+    // Load offline rep count for tab badge
+    const { count } = await supabase
+      .from("vendor_offline_rep_contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("vendor_id", user.id);
+
+    setOfflineRepCount(count || 0);
 
     loadConnectedReps();
   };
@@ -567,42 +578,57 @@ const VendorMyReps = () => {
           </p>
         </div>
 
-        {/* Empty State */}
-        {connectedReps.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="py-12 text-center">
-              <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
-              <p className="text-muted-foreground mb-4 text-sm md:text-base">
-                When you mark interested reps as Connected, they'll appear here.
-              </p>
-              <Button onClick={() => navigate("/vendor/seeking-coverage")}>
-                View Seeking Coverage
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4">
-              Active Agreements ({connectedReps.length})
-            </h2>
+        {/* Tabs */}
+        <Tabs defaultValue="connected" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="connected">
+              Connected Reps ({connectedReps.length})
+            </TabsTrigger>
+            <TabsTrigger value="offline">
+              Offline Rep Contacts ({offlineRepCount})
+            </TabsTrigger>
+          </TabsList>
 
-            <MyRepsTable
-              reps={connectedReps}
-              vendorId={user!.id}
-              onViewProfile={handleViewProfile}
-              onViewMessages={handleMessage}
-              onReviewRep={handleReviewRep}
-              onDisconnect={handleDisconnectClick}
-              onViewTrustScore={(repUserId) => {
-                setReviewsDialogUserId(repUserId);
-                setShowReviewsDialog(true);
-              }}
-              onOpenNotes={handleOpenNotes}
-              onWorkingTermsSaved={loadConnectedReps}
-            />
-          </>
-        )}
+          <TabsContent value="connected">
+            {connectedReps.length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No connections yet</h3>
+                  <p className="text-muted-foreground mb-4 text-sm md:text-base">
+                    When you mark interested reps as Connected, they'll appear here.
+                  </p>
+                  <Button onClick={() => navigate("/vendor/seeking-coverage")}>
+                    View Seeking Coverage
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-4 md:p-6">
+                  <MyRepsTable
+                    reps={connectedReps}
+                    vendorId={user!.id}
+                    onViewProfile={handleViewProfile}
+                    onViewMessages={handleMessage}
+                    onReviewRep={handleReviewRep}
+                    onDisconnect={handleDisconnectClick}
+                    onViewTrustScore={(repUserId) => {
+                      setReviewsDialogUserId(repUserId);
+                      setShowReviewsDialog(true);
+                    }}
+                    onOpenNotes={handleOpenNotes}
+                    onWorkingTermsSaved={loadConnectedReps}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="offline">
+            {user && <VendorOfflineRepContacts vendorId={user.id} embedded />}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Notes Modal */}
