@@ -93,6 +93,7 @@ import VendorProposals from "./pages/VendorProposals";
 import VendorProposalBuilder from "./pages/VendorProposalBuilder";
 import PublicProposalView from "./pages/PublicProposalView";
 import AdminStripeHealth from "./pages/AdminStripeHealth";
+import AdminLaunchReadiness from "./pages/AdminLaunchReadiness";
 
 
 const queryClient = new QueryClient();
@@ -193,6 +194,7 @@ const App = () => (
                   <Route path="/admin/broadcasts/:id/edit" element={<AdminBroadcastEdit />} />
                   <Route path="/admin/requests/dual-role" element={<AdminDualRoleRequests />} />
                   <Route path="/admin/stripe-health" element={<AdminStripeHealth />} />
+                  <Route path="/admin/launch-readiness" element={<AdminLaunchReadiness />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
                   <Route path="/help" element={<HelpCenter />} />
                   <Route path="/help/:slug" element={<HelpCenter />} />

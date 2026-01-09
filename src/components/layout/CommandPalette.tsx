@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Home, Users, MessageSquare, FileSearch, Briefcase, Map, ShieldAlert, Wrench, FileText, CreditCard, Settings, Star, Building2, Bell, HelpCircle } from "lucide-react";
+import { Search, Home, Users, MessageSquare, FileSearch, Briefcase, Map, ShieldAlert, Wrench, FileText, CreditCard, Settings, Star, Building2, Bell, HelpCircle, Rocket } from "lucide-react";
 import {
   CommandDialog,
   CommandInput,
@@ -53,6 +53,7 @@ const allDestinations: NavDestination[] = [
   { label: "Broadcasts", path: "/admin/broadcasts", icon: <Bell className="h-4 w-4" />, keywords: ["announcements"], roles: ["admin"] },
   { label: "Reports", path: "/admin/reports", icon: <ShieldAlert className="h-4 w-4" />, keywords: ["flags"], roles: ["admin"] },
   { label: "Support Tickets", path: "/admin/support", icon: <MessageSquare className="h-4 w-4" />, keywords: ["tickets", "help"], roles: ["admin"] },
+  { label: "Launch Readiness", path: "/admin/launch-readiness", icon: <Rocket className="h-4 w-4" />, keywords: ["launch", "checks", "deploy"], roles: ["admin"] },
 ];
 
 interface CommandPaletteProps {
