@@ -1,10 +1,34 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Tightened CORS: only allow actual app origins
+const ALLOWED_ORIGINS = [
+  "https://useclearmarket.io",
+  "https://www.useclearmarket.io",
+];
+
+// Allow Lovable preview domains during development
+const LOVABLE_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/;
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin =
+    origin && (ALLOWED_ORIGINS.includes(origin) || LOVABLE_PREVIEW_PATTERN.test(origin))
+      ? origin
+      : ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
+
+// UUID v4 regex for validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Valid access types
+const VALID_ACCESS_TYPES = ["view_contact", "unlock_contact", "export_contact"] as const;
+type AccessType = typeof VALID_ACCESS_TYPES[number];
 
 /**
  * guard_contact_access
@@ -13,9 +37,9 @@ const corsHeaders = {
  * Prevents network-level scraping by only returning email via this function.
  * 
  * Request body:
- *   repUserId: string
+ *   repUserId: string (UUID)
  *   accessType: "view_contact" | "unlock_contact" | "export_contact"
- *   includeContact?: boolean  // if true and allowed, return { email } in response
+ *   includeContact?: boolean  // only valid for view_contact/export_contact
  * 
  * Response:
  *   { allowed: true, contact?: { email?: string } }
@@ -24,13 +48,43 @@ const corsHeaders = {
 
 interface RequestBody {
   repUserId: string;
-  accessType: "view_contact" | "unlock_contact" | "export_contact";
+  accessType: string;
   includeContact?: boolean;
 }
 
+// Hash IP with server-side salt for privacy-preserving audit trail
+async function hashIP(ip: string): Promise<string> {
+  const salt = Deno.env.get("IP_HASH_SALT") || "clearmarket-default-salt-change-me";
+  const data = new TextEncoder().encode(salt + ip);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Extract client IP from various headers (Cloudflare, proxies, etc.)
+function getClientIP(req: Request): string | null {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    null
+  );
+}
+
 Deno.serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Only allow POST
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ allowed: false, reason: "METHOD_NOT_ALLOWED" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
@@ -67,6 +121,9 @@ Deno.serve(async (req) => {
     const body: RequestBody = await req.json();
     const { repUserId, accessType, includeContact } = body;
 
+    // === INPUT VALIDATION ===
+
+    // 1) Required params
     if (!repUserId || !accessType) {
       return new Response(
         JSON.stringify({ allowed: false, reason: "MISSING_PARAMS" }),
@@ -74,9 +131,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    const vendorUserId = user.id;
+    // 2) Validate repUserId is a UUID
+    if (!UUID_REGEX.test(repUserId)) {
+      return new Response(
+        JSON.stringify({ allowed: false, reason: "INVALID_REP_USER_ID" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // 1) Check if caller is a vendor
+    // 3) Validate accessType is one of allowed values
+    if (!VALID_ACCESS_TYPES.includes(accessType as AccessType)) {
+      return new Response(
+        JSON.stringify({ allowed: false, reason: "INVALID_ACCESS_TYPE" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 4) Prevent self-access logging spam
+    const vendorUserId = user.id;
+    if (repUserId === vendorUserId) {
+      return new Response(
+        JSON.stringify({ allowed: false, reason: "SELF_ACCESS_NOT_ALLOWED" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 5) includeContact only valid for view_contact/export_contact
+    const validatedIncludeContact =
+      includeContact === true && (accessType === "view_contact" || accessType === "export_contact");
+
+    // === AUTHORIZATION ===
+
+    // Check if caller is a vendor or admin
     const { data: viewerProfile } = await supabaseAdmin
       .from("profiles")
       .select("is_vendor_admin, is_vendor_staff, is_admin")
@@ -93,35 +179,50 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2) Check if connected OR unlocked
-    const [connectionResult, unlockResult] = await Promise.all([
-      supabaseAdmin
-        .from("vendor_connections")
-        .select("id")
-        .eq("vendor_id", vendorUserId)
-        .eq("field_rep_id", repUserId)
-        .eq("status", "connected")
-        .maybeSingle(),
-      supabaseAdmin
-        .from("rep_contact_unlocks")
-        .select("id")
-        .eq("vendor_user_id", vendorUserId)
-        .eq("rep_user_id", repUserId)
-        .maybeSingle(),
-    ]);
+    // For unlock_contact: vendor/admin can always attempt (unlock RPC handles credits + row insert)
+    // For view_contact/export_contact: require connected OR unlocked OR admin
+    let isConnected = false;
+    let isUnlocked = false;
 
-    const isConnected = Boolean(connectionResult.data?.id);
-    const isUnlocked = Boolean(unlockResult.data?.id);
+    if (accessType === "view_contact" || accessType === "export_contact") {
+      // Check connection + unlock status
+      const [connectionResult, unlockResult] = await Promise.all([
+        supabaseAdmin
+          .from("vendor_connections")
+          .select("id")
+          .eq("vendor_id", vendorUserId)
+          .eq("field_rep_id", repUserId)
+          .eq("status", "connected")
+          .maybeSingle(),
+        supabaseAdmin
+          .from("rep_contact_unlocks")
+          .select("id")
+          .eq("vendor_user_id", vendorUserId)
+          .eq("rep_user_id", repUserId)
+          .maybeSingle(),
+      ]);
 
-    // Admins can always view, but for normal vendors require connection or unlock
-    if (!isAdmin && !isConnected && !isUnlocked) {
-      return new Response(
-        JSON.stringify({ allowed: false, reason: "NO_ACCESS" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      isConnected = Boolean(connectionResult.data?.id);
+      isUnlocked = Boolean(unlockResult.data?.id);
+
+      // For view/export: must be connected, unlocked, or admin
+      if (!isAdmin && !isConnected && !isUnlocked) {
+        return new Response(
+          JSON.stringify({ allowed: false, reason: "NO_ACCESS" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
+    // For unlock_contact: no access check here - the unlock RPC will handle it
 
-    // 3) Call log_rep_contact_access RPC (handles rate limiting + logging)
+    // === LOGGING + RATE LIMITING ===
+
+    // Capture IP hash and user agent for audit trail
+    const clientIP = getClientIP(req);
+    const ipHash = clientIP ? await hashIP(clientIP) : null;
+    const userAgent = req.headers.get("User-Agent") || null;
+
+    // Call log_rep_contact_access RPC (handles rate limiting + logging)
     const { data: logResult, error: logError } = await supabaseAdmin.rpc(
       "log_rep_contact_access",
       {
@@ -129,7 +230,9 @@ Deno.serve(async (req) => {
         p_rep_user_id: repUserId,
         p_access_type: accessType,
         p_source: "public_profile_dialog",
-        p_metadata: { includeContact },
+        p_metadata: { includeContact: validatedIncludeContact },
+        p_ip_hash: ipHash,
+        p_user_agent: userAgent,
       }
     );
 
@@ -149,9 +252,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4) If includeContact, fetch email from profiles (service role)
+    // === RETURN CONTACT IF AUTHORIZED ===
+
     let contact: { email?: string | null } | null = null;
-    if (includeContact) {
+
+    // Only return email for view_contact/export_contact when authorized
+    if (validatedIncludeContact && (accessType === "view_contact" || accessType === "export_contact")) {
       const { data: repProfile } = await supabaseAdmin
         .from("profiles")
         .select("email")
@@ -167,9 +273,10 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("guard_contact_access error:", error);
+    const origin = req.headers.get("Origin");
     return new Response(
       JSON.stringify({ allowed: false, reason: "INTERNAL_ERROR" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" } }
     );
   }
 });
