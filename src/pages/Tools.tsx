@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign } from "lucide-react";
+import { Calendar, DollarSign, ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 
-type ToolModule = "clearbooking" | "cleartrack" | null;
+type ToolModule = "clearbooking" | "cleartrack" | "clearqueue" | null;
 
 const Tools = () => {
   const [openModal, setOpenModal] = useState<ToolModule>(null);
@@ -29,6 +29,14 @@ const Tools = () => {
       helpSlug: "/help/cleartrack",
       description: "ClearTrack helps you keep track of completed work and whether or not it's been paid. More details coming soon.",
     },
+    {
+      id: "clearqueue" as const,
+      title: "ClearQueue",
+      subtitle: "Update queue + Pulse analytics + Watchlist",
+      icon: ClipboardList,
+      helpSlug: "/help/clearqueue",
+      description: "ClearQueue helps you manage your update queue, monitor order activity with Pulse analytics, and keep tabs on important orders with Watchlist. More details coming soon.",
+    },
   ];
 
   return (
@@ -41,7 +49,7 @@ const Tools = () => {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {modules.map((module) => (
             <Card
               key={module.id}
@@ -127,6 +135,34 @@ const Tools = () => {
               <div className="pt-2">
                 <Button variant="outline" size="sm" asChild>
                   <Link to="/help/cleartrack">Learn more</Link>
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ClearQueue Modal */}
+        <Dialog open={openModal === "clearqueue"} onOpenChange={(open) => !open && setOpenModal(null)}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <ClipboardList className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle>ClearQueue</DialogTitle>
+                  <DialogDescription>Update queue + Pulse analytics + Watchlist</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Badge variant="secondary">Coming soon</Badge>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {modules[2].description}
+              </p>
+              <div className="pt-2">
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/help/clearqueue">Learn more</Link>
                 </Button>
               </div>
             </div>
