@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Home, Users, Map, Briefcase, MessageSquare, Bell, FileSearch, CreditCard, Star, Wrench } from "lucide-react";
+import { Home, Users, Map, Briefcase, MessageSquare, Bell, CreditCard, Star, Wrench } from "lucide-react";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { cn } from "@/lib/utils";
@@ -66,11 +66,6 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
           icon: <Bell className="h-3.5 w-3.5" />, 
           count: sectionCounts.vendorPostsWithInterest,
           showCount: true,
-        },
-        { 
-          label: "Active Posts", 
-          path: "/vendor/seeking-coverage?status=open", 
-          icon: <FileSearch className="h-3.5 w-3.5" />, 
         },
         { 
           label: "Credits", 
