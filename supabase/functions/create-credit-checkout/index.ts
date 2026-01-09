@@ -10,12 +10,6 @@ const corsHeaders = {
 // Credit pack definitions - must match frontend config
 // LIVE Stripe Price IDs (prod_*)
 const CREDIT_PACKS: Record<string, { credits: number; stripePriceId: string; amountCents: number; currency: string }> = {
-  just_1: {
-    credits: 1,
-    stripePriceId: "price_1SnVomIZ7isA0IxEFevjJUDl",
-    amountCents: 200,
-    currency: "usd",
-  },
   starter_10: {
     credits: 10,
     stripePriceId: "price_1Sa43XIZ7isA0IxEOZgM2BRx",

@@ -22,14 +22,6 @@ export interface CreditPack {
 
 export const CREDIT_PACKS: CreditPack[] = [
   {
-    id: "just_1",
-    label: "Just 1 Credit",
-    description: "1 credit — try it out",
-    credits: 1,
-    priceUsd: 2.00,
-    stripePriceId: "price_1SnVomIZ7isA0IxEFevjJUDl",
-  },
-  {
     id: "starter_10",
     label: "Starter Pack",
     description: "10 credits — good for testing ClearMarket",
