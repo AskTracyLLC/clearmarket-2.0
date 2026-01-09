@@ -19,6 +19,8 @@ export type Database = {
           action_details: Json | null
           action_summary: string
           action_type: string
+          actor_code: string | null
+          actor_role: string | null
           actor_user_id: string
           created_at: string
           id: string
@@ -31,6 +33,8 @@ export type Database = {
           action_details?: Json | null
           action_summary: string
           action_type: string
+          actor_code?: string | null
+          actor_role?: string | null
           actor_user_id: string
           created_at?: string
           id?: string
@@ -43,6 +47,8 @@ export type Database = {
           action_details?: Json | null
           action_summary?: string
           action_type?: string
+          actor_code?: string | null
+          actor_role?: string | null
           actor_user_id?: string
           created_at?: string
           id?: string
@@ -2591,6 +2597,7 @@ export type Database = {
       rep_contact_access_log: {
         Row: {
           access_type: string
+          actor_user_id: string | null
           created_at: string
           id: string
           ip_hash: string | null
@@ -2602,6 +2609,7 @@ export type Database = {
         }
         Insert: {
           access_type: string
+          actor_user_id?: string | null
           created_at?: string
           id?: string
           ip_hash?: string | null
@@ -2613,6 +2621,7 @@ export type Database = {
         }
         Update: {
           access_type?: string
+          actor_user_id?: string | null
           created_at?: string
           id?: string
           ip_hash?: string | null
@@ -6628,6 +6637,10 @@ export type Database = {
       generate_vendor_staff_code: {
         Args: { p_name: string; p_vendor_id: string }
         Returns: string
+      }
+      get_actor_context_for_vendor: {
+        Args: { p_vendor_id: string }
+        Returns: Json
       }
       get_rep_contact_access_metrics: {
         Args: never
