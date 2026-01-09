@@ -22,6 +22,7 @@ import VendorSeekingCoverage from "./pages/VendorSeekingCoverage";
 import VendorInterestedReps from "./pages/VendorInterestedReps";
 import VendorMyReps from "./pages/VendorMyReps";
 import RepMyVendors from "./pages/RepMyVendors";
+import RepVendorDetails from "./pages/RepVendorDetails";
 import MessagesList from "./pages/MessagesList";
 import MessageThread from "./pages/MessageThread";
 import VendorMessageTemplates from "./pages/VendorMessageTemplates";
@@ -145,6 +146,7 @@ const App = () => (
                   <Route path="/vendor/my-reps" element={<VendorMyReps />} />
                   <Route path="/vendor/availability" element={<VendorAvailability />} />
                   <Route path="/rep/my-vendors" element={<RepMyVendors />} />
+                  <Route path="/rep/my-vendors/:vendorId" element={<RepVendorDetails />} />
                   <Route path="/rep/availability" element={<RepAvailability />} />
                   <Route path="/rep/calendar" element={<RepCalendar />} />
                   <Route path="/rep/match-assistant" element={<RepMatchAssistant />} />
