@@ -56,13 +56,12 @@ const MY_REPS_COLUMNS: ColumnDefinition[] = [
   { id: "rep", label: "Rep", description: "Field rep name and identifier", required: true },
   { id: "location", label: "Location", description: "City and state" },
   { id: "connectedSince", label: "Connected since", description: "Date you connected with this rep" },
-  { id: "workingTerms", label: "Working terms", description: "Current agreement status" },
-  { id: "communityScore", label: "Community", description: "Rating based on community activity and helpfulness" },
+  { id: "agreement", label: "Agreement", description: "Current agreement status" },
   { id: "notes", label: "Notes", description: "Your private notes about this rep" },
   { id: "actions", label: "Actions", description: "Available actions", required: true },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS = ["rep", "location", "connectedSince", "workingTerms", "communityScore", "notes", "actions"];
+const DEFAULT_VISIBLE_COLUMNS = ["rep", "location", "connectedSince", "agreement", "notes", "actions"];
 
 interface RepNote {
   id: string;
@@ -75,6 +74,7 @@ interface ConnectedRep {
   anonymousId: string;
   firstName: string;
   lastInitial: string;
+  displayName?: string | null;
   city: string | null;
   state: string | null;
   connectedAt?: string | null;
@@ -108,7 +108,7 @@ interface MyRepsTableProps {
   onWorkingTermsSaved?: () => void;
 }
 
-type SortKey = "name" | "connectedAt" | "communityScore" | "workingTermsStatus";
+type SortKey = "name" | "connectedAt" | "agreementStatus";
 type SortDirection = "asc" | "desc";
 
 export const MyRepsTable: React.FC<MyRepsTableProps> = ({
@@ -125,7 +125,6 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [communityScoreFilter, setCommunityScoreFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("connectedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   
@@ -285,12 +284,6 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
       });
     }
     
-    // Community score filter
-    if (communityScoreFilter !== "all") {
-      const minScore = parseInt(communityScoreFilter);
-      result = result.filter(rep => (rep.communityScore ?? 0) >= minScore);
-    }
-    
     // Sort
     result.sort((a, b) => {
       let comparison = 0;
@@ -304,10 +297,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
           const bDate = b.connectedAt ? new Date(b.connectedAt).getTime() : 0;
           comparison = aDate - bDate;
           break;
-        case "communityScore":
-          comparison = (a.communityScore ?? 0) - (b.communityScore ?? 0);
-          break;
-        case "workingTermsStatus":
+        case "agreementStatus":
           const aStatus = workingTermsCache[a.repUserId]?.status || "";
           const bStatus = workingTermsCache[b.repUserId]?.status || "";
           comparison = aStatus.localeCompare(bStatus);
@@ -318,7 +308,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
     });
     
     return result;
-  }, [reps, searchQuery, statusFilter, communityScoreFilter, sortKey, sortDirection, workingTermsCache, pendingChangesCache]);
+  }, [reps, searchQuery, statusFilter, sortKey, sortDirection, workingTermsCache, pendingChangesCache]);
 
   const handleRequestTerms = (rep: ConnectedRep) => {
     setRequestDialogRep(rep);
@@ -398,17 +388,6 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
             <SelectItem value="no_terms">No terms</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={communityScoreFilter} onValueChange={setCommunityScoreFilter}>
-          <SelectTrigger className="w-full md:w-40">
-            <SelectValue placeholder="Community score" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All scores</SelectItem>
-            <SelectItem value="0">0+</SelectItem>
-            <SelectItem value="3">3+</SelectItem>
-            <SelectItem value="5">5+</SelectItem>
-          </SelectContent>
-        </Select>
         <ColumnChooser
           columns={MY_REPS_COLUMNS}
           visibleColumns={visibleColumns}
@@ -436,14 +415,9 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                   <SortableHeader label="Connected since" sortKeyName="connectedAt" />
                 </TableHead>
               )}
-              {isColumnVisible("workingTerms") && (
+              {isColumnVisible("agreement") && (
                 <TableHead>
-                  <SortableHeader label="Working terms" sortKeyName="workingTermsStatus" />
-                </TableHead>
-              )}
-              {isColumnVisible("communityScore") && (
-                <TableHead className="hidden lg:table-cell">
-                  <SortableHeader label="Community" sortKeyName="communityScore" />
+                  <SortableHeader label="Agreement" sortKeyName="agreementStatus" />
                 </TableHead>
               )}
               {isColumnVisible("notes") && (
@@ -458,7 +432,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
             {filteredAndSortedReps.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={visibleColumns.length} className="text-center py-8 text-muted-foreground">
-                  {searchQuery || statusFilter !== "all" || communityScoreFilter !== "all"
+                  {searchQuery || statusFilter !== "all"
                     ? "No field reps match your filters."
                     : "No connected field reps yet."}
                 </TableCell>
@@ -479,16 +453,25 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                             <User className="w-4 h-4 text-primary" />
                           </div>
                           <div className="min-w-0">
-                            <button
-                              onClick={() => onViewProfile(rep.repUserId)}
-                              className="text-primary hover:underline font-medium text-sm flex items-center gap-1"
-                            >
-                              {rep.anonymousId}
-                            </button>
-                            {(rep.firstName || rep.lastInitial) && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {rep.firstName} {rep.lastInitial}.
-                              </p>
+                            {rep.displayName ? (
+                              <>
+                                <button
+                                  onClick={() => onViewProfile(rep.repUserId)}
+                                  className="text-foreground hover:text-primary font-medium text-sm hover:underline"
+                                >
+                                  {rep.displayName}
+                                </button>
+                                <p className="text-xs text-muted-foreground">
+                                  {rep.anonymousId}
+                                </p>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => onViewProfile(rep.repUserId)}
+                                className="text-primary hover:underline font-medium text-sm"
+                              >
+                                {rep.anonymousId}
+                              </button>
                             )}
                           </div>
                         </div>
@@ -511,8 +494,8 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                       </TableCell>
                     )}
                     
-                    {/* Working Terms Status */}
-                    {isColumnVisible("workingTerms") && (
+                    {/* Agreement Status */}
+                    {isColumnVisible("agreement") && (
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <button
@@ -543,15 +526,6 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                             </Button>
                           )}
                         </div>
-                      </TableCell>
-                    )}
-                    
-                    {/* Community Score */}
-                    {isColumnVisible("communityScore") && (
-                      <TableCell className="hidden lg:table-cell">
-                        <Badge variant="outline" className="text-xs">
-                          {(rep.communityScore ?? 0) >= 0 ? `+${rep.communityScore ?? 0}` : rep.communityScore}
-                        </Badge>
                       </TableCell>
                     )}
                     
