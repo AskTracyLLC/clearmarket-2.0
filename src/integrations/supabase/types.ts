@@ -2426,6 +2426,13 @@ export type Database = {
             referencedRelation: "rep_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "rep_interest_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       rep_match_settings: {
@@ -5433,6 +5440,81 @@ export type Database = {
           user_id: string | null
         }
         Relationships: []
+      }
+      rep_profile_public: {
+        Row: {
+          anonymous_id: string | null
+          background_check_is_active: boolean | null
+          certifications: string[] | null
+          coverage_areas: string[] | null
+          created_at: string | null
+          has_hud_keys: boolean | null
+          id: string | null
+          inspection_types: string[] | null
+          is_accepting_new_vendors: boolean | null
+          open_to_new_systems: boolean | null
+          state: string | null
+          systems_used: string[] | null
+          unavailable_from: string | null
+          unavailable_to: string | null
+          updated_at: string | null
+          user_id: string | null
+          willing_to_travel_out_of_state: boolean | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          background_check_is_active?: boolean | null
+          certifications?: string[] | null
+          coverage_areas?: string[] | null
+          created_at?: string | null
+          has_hud_keys?: boolean | null
+          id?: string | null
+          inspection_types?: string[] | null
+          is_accepting_new_vendors?: boolean | null
+          open_to_new_systems?: boolean | null
+          state?: string | null
+          systems_used?: string[] | null
+          unavailable_from?: string | null
+          unavailable_to?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          willing_to_travel_out_of_state?: boolean | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          background_check_is_active?: boolean | null
+          certifications?: string[] | null
+          coverage_areas?: string[] | null
+          created_at?: string | null
+          has_hud_keys?: boolean | null
+          id?: string | null
+          inspection_types?: string[] | null
+          is_accepting_new_vendors?: boolean | null
+          open_to_new_systems?: boolean | null
+          state?: string | null
+          systems_used?: string[] | null
+          unavailable_from?: string | null
+          unavailable_to?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          willing_to_travel_out_of_state?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
     }
     Functions: {
