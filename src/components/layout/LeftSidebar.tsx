@@ -1,5 +1,5 @@
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Home,
   MessageSquare,
@@ -27,6 +27,20 @@ import {
   User,
   Rocket,
   Share2,
+  LayoutDashboard,
+  Inbox,
+  Flag,
+  FileCheck,
+  TicketCheck,
+  UserCog,
+  Ticket,
+  Coins,
+  ToggleLeft,
+  Mail,
+  ClipboardList,
+  Scale,
+  Activity,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +89,15 @@ interface NavItem {
   roles?: ("rep" | "vendor" | "admin")[];
 }
 
+interface AdminFolder {
+  label: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+  storageKey: string;
+}
+
+const ADMIN_FOLDER_STORAGE_KEY = "admin_sidebar_folders";
+
 export function LeftSidebar({
   collapsed,
   onToggleCollapse,
@@ -92,6 +115,28 @@ export function LeftSidebar({
   const { effectiveRole, isDualRole, switchRole } = useActiveRole();
   const sectionCounts = useSectionCounts();
   const [moreOpen, setMoreOpen] = useState(false);
+  
+  // Admin folder open states - load from localStorage
+  const [adminFolderStates, setAdminFolderStates] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem(ADMIN_FOLDER_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Persist folder states to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(ADMIN_FOLDER_STORAGE_KEY, JSON.stringify(adminFolderStates));
+    }
+  }, [adminFolderStates]);
+
+  const toggleAdminFolder = (key: string) => {
+    setAdminFolderStates((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const handleSignOut = async () => {
     onNavigate?.();
@@ -126,7 +171,7 @@ export function LeftSidebar({
     { label: "Community", path: "/community", icon: <Users className="h-5 w-5" /> },
   ];
 
-  // Vendor-specific items - Interested Reps deep-links to Seeking Coverage with filters
+  // Vendor-specific items
   const vendorItems: NavItem[] = [
     { label: "My Profile", path: "/vendor/profile", icon: <User className="h-5 w-5" /> },
     { label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: sectionCounts.vendorPostsWithInterest },
@@ -146,19 +191,78 @@ export function LeftSidebar({
     { label: "Reviews", path: "/rep/reviews", icon: <Star className="h-5 w-5" /> },
   ];
 
-  // Admin-specific items - now uses unified Support Queue
-  const adminItems: NavItem[] = [
-    { label: "Support Queue", path: "/admin/support-queue", icon: <MessageSquare className="h-5 w-5" />, badge: (sectionCounts.adminOpenReports || 0) + (sectionCounts.adminOpenTickets || 0) },
-    { label: "Users", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
-    { label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
-    { label: "Launch Readiness", path: "/admin/launch-readiness", icon: <Rocket className="h-5 w-5" /> },
+  // Admin folders with collapsible groups
+  const adminFolders: AdminFolder[] = [
+    {
+      label: "Overview",
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      storageKey: "overview",
+      items: [
+        { label: "Admin Dashboard", path: "/dashboard", icon: <Home className="h-5 w-5" /> },
+      ],
+    },
+    {
+      label: "Queue & Moderation",
+      icon: <Inbox className="h-4 w-4" />,
+      storageKey: "queue",
+      items: [
+        { label: "Support Queue", path: "/admin/support-queue", icon: <Inbox className="h-5 w-5" />, badge: (sectionCounts.adminOpenReports || 0) + (sectionCounts.adminOpenTickets || 0) },
+        { label: "Moderation", path: "/admin/moderation", icon: <ShieldAlert className="h-5 w-5" /> },
+        { label: "User Reports", path: "/admin/reports", icon: <Flag className="h-5 w-5" /> },
+        { label: "Reviews", path: "/admin/support-queue?category=reviews", icon: <Star className="h-5 w-5" /> },
+        { label: "Background Checks", path: "/admin/background-checks", icon: <FileCheck className="h-5 w-5" /> },
+      ],
+    },
+    {
+      label: "People & Access",
+      icon: <Users className="h-4 w-4" />,
+      storageKey: "people",
+      items: [
+        { label: "User Management", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
+        { label: "Staff & Roles", path: "/admin/staff", icon: <UserCog className="h-5 w-5" /> },
+        { label: "Invite Codes", path: "/admin/invite-codes", icon: <Ticket className="h-5 w-5" /> },
+        { label: "Dual Role Requests", path: "/admin/dual-role-requests", icon: <Users className="h-5 w-5" /> },
+      ],
+    },
+    {
+      label: "Platform Settings",
+      icon: <Settings className="h-4 w-4" />,
+      storageKey: "platform",
+      items: [
+        { label: "Credit Management", path: "/admin/credits", icon: <Coins className="h-5 w-5" /> },
+        { label: "Feature Flags", path: "/admin/feature-flags", icon: <ToggleLeft className="h-5 w-5" /> },
+        { label: "Email Templates", path: "/admin/email-templates", icon: <Mail className="h-5 w-5" /> },
+        { label: "Review Settings", path: "/admin/review-settings", icon: <Star className="h-5 w-5" /> },
+        { label: "Inspection Types", path: "/admin/inspection-types", icon: <ClipboardList className="h-5 w-5" /> },
+        { label: "Checklists", path: "/admin/checklists", icon: <ClipboardList className="h-5 w-5" /> },
+        { label: "Legal & Help Center", path: "/admin/legal-help", icon: <Scale className="h-5 w-5" /> },
+      ],
+    },
+    {
+      label: "System",
+      icon: <Activity className="h-4 w-4" />,
+      storageKey: "system",
+      items: [
+        { label: "Activity Log", path: "/admin/audit", icon: <Activity className="h-5 w-5" /> },
+        { label: "System Metrics", path: "/admin/metrics", icon: <BarChart3 className="h-5 w-5" /> },
+        { label: "Stripe Health", path: "/admin/stripe-health", icon: <CreditCard className="h-5 w-5" /> },
+        { label: "Launch Readiness", path: "/admin/launch-readiness", icon: <Rocket className="h-5 w-5" /> },
+      ],
+    },
+    {
+      label: "Broadcasts",
+      icon: <Megaphone className="h-4 w-4" />,
+      storageKey: "broadcasts",
+      items: [
+        { label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
+      ],
+    },
   ];
 
   // Tools is a primary nav item (not under More)
   const toolsItem: NavItem = { label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" /> };
 
-  // More menu items (Tools NOT here - it's primary)
-  // Vendor-specific more items include Share Profile
+  // More menu items
   const baseMoreItems: NavItem[] = [
     { label: "Coverage Map", path: "/coverage-map", icon: <Map className="h-5 w-5" /> },
     { label: "Safety Center", path: "/safety", icon: <ShieldAlert className="h-5 w-5" /> },
@@ -173,11 +277,12 @@ export function LeftSidebar({
       ]
     : baseMoreItems;
 
-  // Get role-specific items
-  const roleItems = isAdmin ? adminItems : effectiveRole === "vendor" || isVendor ? vendorItems : repItems;
+  // Get role-specific items (non-admin)
+  const roleItems = effectiveRole === "vendor" || isVendor ? vendorItems : repItems;
 
   const renderNavItem = (item: NavItem, showLabel: boolean = true) => {
-    const active = isActive(item.path.split("?")[0]); // Check path without query params
+    const pathWithoutQuery = item.path.split("?")[0];
+    const active = isActive(pathWithoutQuery);
     
     const handleClick = () => {
       navigate(item.path);
@@ -228,6 +333,77 @@ export function LeftSidebar({
     return <div key={item.path}>{content}</div>;
   };
 
+  const renderAdminFolder = (folder: AdminFolder) => {
+    const isOpen = adminFolderStates[folder.storageKey] ?? false;
+    const hasActiveItem = folder.items.some((item) => isActive(item.path.split("?")[0]));
+    const totalBadge = folder.items.reduce((sum, item) => sum + (item.badge || 0), 0);
+
+    if (collapsed) {
+      // In collapsed mode, show first item with badge as icon
+      const firstItem = folder.items[0];
+      return (
+        <Tooltip key={folder.storageKey}>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-center h-10 px-0 relative",
+                hasActiveItem && "bg-accent"
+              )}
+              onClick={() => {
+                navigate(firstItem.path);
+                onNavigate?.();
+              }}
+            >
+              {folder.icon}
+              {totalBadge > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center p-0 text-[10px] bg-primary">
+                  {totalBadge > 9 ? "9+" : totalBadge}
+                </Badge>
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{folder.label}</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Collapsible
+        key={folder.storageKey}
+        open={isOpen || hasActiveItem}
+        onOpenChange={() => toggleAdminFolder(folder.storageKey)}
+      >
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-9 px-3 text-sm",
+              hasActiveItem && "text-primary"
+            )}
+          >
+            {folder.icon}
+            <span className="flex-1 text-left font-medium">{folder.label}</span>
+            {totalBadge > 0 && <CountBadge count={totalBadge} />}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform text-muted-foreground",
+                (isOpen || hasActiveItem) && "rotate-180"
+              )}
+            />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-4 mt-1 flex flex-col gap-0.5">
+          {folder.items.map((item) => (
+            <div key={item.path}>
+              {renderNavItem(item)}
+            </div>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   const userInitials = userProfile?.full_name
     ?.split(" ")
     .map((n) => n[0])
@@ -235,16 +411,13 @@ export function LeftSidebar({
     .slice(0, 2)
     .toUpperCase() || "U";
 
-  // Generate role-specific user ID label (e.g., FieldRep#1, Vendor#1)
   const getRoleIdLabel = () => {
     if (isAdmin) {
       return "Admin";
     }
     if (effectiveRole === "vendor" || isVendor) {
-      // Use the vendor anonymous_id if available
       return userProfile?.vendor_anonymous_id || "Vendor";
     }
-    // Use the rep anonymous_id if available
     return userProfile?.rep_anonymous_id || "FieldRep";
   };
 
@@ -349,79 +522,100 @@ export function LeftSidebar({
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3">
           <nav className="flex flex-col gap-1 py-2">
-            {/* Primary items */}
-            {primaryItems.map((item) => renderNavItem(item))}
+            {/* Admin Navigation - Collapsible Folders */}
+            {isAdmin && (
+              <>
+                {!collapsed && (
+                  <div className="px-3 py-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Admin
+                    </span>
+                  </div>
+                )}
+                {adminFolders.map((folder) => renderAdminFolder(folder))}
+                
+                <div className="my-2 h-px bg-border" />
+              </>
+            )}
 
-            {/* Divider */}
-            <div className="my-2 h-px bg-border" />
+            {/* Non-admin navigation */}
+            {!isAdmin && (
+              <>
+                {/* Primary items */}
+                {primaryItems.map((item) => renderNavItem(item))}
 
-            {/* Role-specific items */}
-            {roleItems.map((item) => renderNavItem(item))}
+                {/* Divider */}
+                <div className="my-2 h-px bg-border" />
 
-            {/* Tools - primary nav for all roles */}
-            {renderNavItem(toolsItem)}
+                {/* Role-specific items */}
+                {roleItems.map((item) => renderNavItem(item))}
 
-            {/* Credits for Vendors */}
-            {(effectiveRole === "vendor" || isVendor) && vendorCredits !== undefined && vendorCredits !== null && (
-              <div className="mt-2">
-                {collapsed ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                {/* Tools - primary nav for all roles */}
+                {renderNavItem(toolsItem)}
+
+                {/* Credits for Vendors */}
+                {(effectiveRole === "vendor" || isVendor) && vendorCredits !== undefined && vendorCredits !== null && (
+                  <div className="mt-2">
+                    {collapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-center h-10 px-0"
+                            onClick={() => { navigate("/vendor/credits"); onNavigate?.(); }}
+                          >
+                            <CreditCard className="h-5 w-5 text-secondary" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          Credits: {vendorCredits}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
                       <Button
                         variant="ghost"
-                        className="w-full justify-center h-10 px-0"
+                        className="w-full justify-start gap-3 h-10 px-3"
                         onClick={() => { navigate("/vendor/credits"); onNavigate?.(); }}
                       >
                         <CreditCard className="h-5 w-5 text-secondary" />
+                        <span className="flex-1 text-left">Credits</span>
+                        <Badge variant="secondary">{vendorCredits}</Badge>
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      Credits: {vendorCredits}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-3 h-10 px-3"
-                    onClick={() => { navigate("/vendor/credits"); onNavigate?.(); }}
-                  >
-                    <CreditCard className="h-5 w-5 text-secondary" />
-                    <span className="flex-1 text-left">Credits</span>
-                    <Badge variant="secondary">{vendorCredits}</Badge>
-                  </Button>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
 
-            {/* Divider */}
-            <div className="my-2 h-px bg-border" />
+                {/* Divider */}
+                <div className="my-2 h-px bg-border" />
 
-            {/* More menu */}
-            <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
-              <CollapsibleTrigger asChild>
-                {collapsed ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" className="w-full justify-center h-10 px-0">
+                {/* More menu */}
+                <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+                  <CollapsibleTrigger asChild>
+                    {collapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" className="w-full justify-center h-10 px-0">
+                            <MoreHorizontal className="h-5 w-5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">More</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-10 px-3">
                         <MoreHorizontal className="h-5 w-5" />
+                        <span className="flex-1 text-left">More</span>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")} />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">More</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button variant="ghost" className="w-full justify-start gap-3 h-10 px-3">
-                    <MoreHorizontal className="h-5 w-5" />
-                    <span className="flex-1 text-left">More</span>
-                    <ChevronDown className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")} />
-                  </Button>
-                )}
-              </CollapsibleTrigger>
-              {!collapsed && (
-                <CollapsibleContent className="pl-4 mt-1 flex flex-col gap-1">
-                  {moreItems.map((item) => renderNavItem(item))}
-                </CollapsibleContent>
-              )}
-            </Collapsible>
+                    )}
+                  </CollapsibleTrigger>
+                  {!collapsed && (
+                    <CollapsibleContent className="pl-4 mt-1 flex flex-col gap-1">
+                      {moreItems.map((item) => renderNavItem(item))}
+                    </CollapsibleContent>
+                  )}
+                </Collapsible>
+              </>
+            )}
 
             {/* Settings (always visible) */}
             {renderNavItem({ label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> })}
@@ -466,7 +660,7 @@ export function LeftSidebar({
                     <Building2 className="h-4 w-4 mr-2" />
                     <div className="flex flex-col">
                       <span>Vendor</span>
-                      <span className="text-xs text-muted-foreground">Assign work to reps</span>
+                      <span className="text-xs text-muted-foreground">Manage coverage</span>
                     </div>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -476,8 +670,12 @@ export function LeftSidebar({
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { navigate("/help"); onNavigate?.(); }}>
+                <HelpCircle className="h-4 w-4 mr-2" />
+                Help Center
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign out
               </DropdownMenuItem>
