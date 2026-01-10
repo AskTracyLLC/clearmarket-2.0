@@ -4083,6 +4083,165 @@ export type Database = {
         }
         Relationships: []
       }
+      support_queue_item_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          new_value: string | null
+          note: string | null
+          previous_value: string | null
+          queue_item_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          new_value?: string | null
+          note?: string | null
+          previous_value?: string | null
+          queue_item_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_value?: string | null
+          note?: string | null
+          previous_value?: string | null
+          queue_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_queue_item_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_item_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_item_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_item_events_queue_item_id_fkey"
+            columns: ["queue_item_id"]
+            isOneToOne: false
+            referencedRelation: "support_queue_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_queue_items: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          created_at: string
+          id: string
+          metadata: Json
+          preview: string | null
+          priority: string
+          resolved_at: string | null
+          resolved_by: string | null
+          source_id: string
+          source_type: string
+          status: string
+          target_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          preview?: string | null
+          priority?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id: string
+          source_type: string
+          status?: string
+          target_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          preview?: string | null
+          priority?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id?: string
+          source_type?: string
+          status?: string
+          target_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_queue_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       support_ticket_messages: {
         Row: {
           body: string
@@ -6589,6 +6748,21 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      support_queue_counts_by_category_status: {
+        Row: {
+          category: string | null
+          item_count: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      support_queue_open_counts_by_category: {
+        Row: {
+          category: string | null
+          open_count: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
