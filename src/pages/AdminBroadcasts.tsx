@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,26 +45,22 @@ export default function AdminBroadcasts() {
 
   if (authLoading || permLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="container mx-auto py-8 px-4">
-          <Skeleton className="h-8 w-64 mb-6" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      </AuthenticatedLayout>
+      <div className="container mx-auto py-8 px-4">
+        <Skeleton className="h-8 w-64 mb-6" />
+        <Skeleton className="h-96 w-full" />
+      </div>
     );
   }
 
   if (!permissions.canManageBroadcasts) {
     return (
-      <AuthenticatedLayout>
-        <div className="container mx-auto py-8 px-4">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">Admin access required.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </AuthenticatedLayout>
+      <div className="container mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Admin access required.</p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -95,18 +90,17 @@ export default function AdminBroadcasts() {
   };
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto py-8 px-4">
-        <PageHeader
-          title="Feedback Broadcasts"
-          subtitle="Send feedback requests to users"
-          backTo="/admin/moderation"
-        >
-          <Button onClick={() => navigate("/admin/broadcasts/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Broadcast
-          </Button>
-        </PageHeader>
+    <div className="container mx-auto py-8 px-4">
+      <PageHeader
+        title="Feedback Broadcasts"
+        subtitle="Send feedback requests to users"
+        backTo="/admin/moderation"
+      >
+        <Button onClick={() => navigate("/admin/broadcasts/new")}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Broadcast
+        </Button>
+      </PageHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -201,7 +195,6 @@ export default function AdminBroadcasts() {
           )}
         </TabsContent>
       </Tabs>
-      </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
