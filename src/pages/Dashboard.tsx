@@ -515,120 +515,47 @@ const Dashboard = () => {
               <AdminAttentionCenter counts={adminCounts} loading={adminCountsLoading} />
             </div>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl">
-              <AdminDashboardTile
-                title="User Management"
-                description="Search users, manage accounts"
-                icon={<Users className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/users")}
-              />
-              <AdminDashboardTile
-                title="Moderation"
-                description="Review flagged content"
-                icon={<ShieldAlert className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/moderation")}
-                badgeCount={adminCounts.moderation_pending}
-                badgeVariant="urgent"
-              />
-              <AdminDashboardTile
-                title="Reports"
-                description="View user reports"
-                icon={<FileText className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/reports")}
-                badgeCount={adminCounts.reports_new}
-                badgeVariant="urgent"
-              />
-              <AdminDashboardTile
-                title="Invite Codes"
-                description="Manage beta invites"
-                icon={<PlusCircle className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/invites")}
-              />
+            {/* Simplified Admin Dashboard - 5 operational tiles linking to Support Queue */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 max-w-7xl">
               <AdminDashboardTile
                 title="Support Queue"
-                description="Manage support tickets"
+                description="All admin tasks"
                 icon={<Headphones className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/support")}
-                badgeCount={adminCounts.support_open}
-                badgeVariant="pending"
+                onClick={() => navigate("/admin/support-queue")}
+                badgeCount={adminCounts.total}
+                badgeVariant={adminCounts.urgent > 0 ? "urgent" : "pending"}
               />
               <AdminDashboardTile
-                title="Staff & Roles"
-                description="Manage staff access"
-                icon={<Users className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/staff")}
-              />
-              <AdminDashboardTile
-                title="Activity Log"
-                description="Admin audit history"
-                icon={<FileText className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/audit")}
-              />
-              <AdminDashboardTile
-                title="System Metrics"
-                description="System overview"
-                icon={<Search className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/metrics")}
-              />
-              <AdminDashboardTile
-                title="Credit Management"
-                description="Adjust user credits"
-                icon={<Coins className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/credits")}
-              />
-              <AdminDashboardTile
-                title="Inspection Types"
-                description="Manage type options"
-                icon={<FileText className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/inspection-types")}
-              />
-              <AdminDashboardTile
-                title="Background Checks"
-                description="Review submissions"
-                icon={<FileCheck className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/background-checks")}
-                badgeCount={adminCounts.background_checks_pending}
-                badgeVariant="pending"
-              />
-              <AdminDashboardTile
-                title="Legal & Help Center"
-                description="Manage ToS, Privacy, Help"
-                icon={<FileText className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/legal")}
-              />
-              <AdminDashboardTile
-                title="Feature Flags"
-                description="Manage paid/beta features"
-                icon={<Settings className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/features")}
-              />
-              <AdminDashboardTile
-                title="Email Templates"
-                description="Manage notification emails"
-                icon={<Mail className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/email-templates")}
-              />
-              <AdminDashboardTile
-                title="Review Settings"
-                description="Manage review cadence"
+                title="Pending Reviews"
+                description="Review moderation"
                 icon={<Star className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/review-settings")}
-                badgeCount={adminCounts.reviews_pending}
+                onClick={() => navigate("/admin/support-queue?category=reviews")}
+                badgeCount={adminCounts.reviews}
                 badgeVariant="info"
               />
               <AdminDashboardTile
-                title={adminChecklistsCopy.dashboardCard.title}
-                description={adminChecklistsCopy.dashboardCard.subtitle}
-                icon={<ClipboardList className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/checklists")}
-                badgeCount={adminCounts.checklist_stuck}
-                badgeVariant="pending"
+                title="Moderation"
+                description="Flagged content"
+                icon={<ShieldAlert className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/support-queue?category=moderation")}
+                badgeCount={adminCounts.moderation}
+                badgeVariant="urgent"
               />
               <AdminDashboardTile
-                title="Broadcasts"
-                description="Send feedback requests"
-                icon={<Megaphone className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/broadcasts")}
+                title="User Reports"
+                description="Reported issues"
+                icon={<FileText className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/support-queue?category=user_reports")}
+                badgeCount={adminCounts.user_reports}
+                badgeVariant="urgent"
+              />
+              <AdminDashboardTile
+                title="Background Checks"
+                description="Pending verification"
+                icon={<FileCheck className="w-5 h-5 text-primary" />}
+                onClick={() => navigate("/admin/support-queue?category=background_checks")}
+                badgeCount={adminCounts.background_checks}
+                badgeVariant="pending"
               />
             </div>
             
