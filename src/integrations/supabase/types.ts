@@ -1405,6 +1405,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          category: string | null
           conversation_type: string | null
           created_at: string
           hidden_for_one: boolean
@@ -1423,6 +1424,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string | null
           conversation_type?: string | null
           created_at?: string
           hidden_for_one?: boolean
@@ -1441,6 +1443,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string | null
           conversation_type?: string | null
           created_at?: string
           hidden_for_one?: boolean
@@ -4083,6 +4086,78 @@ export type Database = {
         }
         Relationships: []
       }
+      support_queue_actions: {
+        Row: {
+          action_type: string
+          body: string | null
+          channel: string
+          created_at: string
+          created_by: string | null
+          direction: string | null
+          id: string
+          message_id: string | null
+          queue_item_id: string
+        }
+        Insert: {
+          action_type: string
+          body?: string | null
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          id?: string
+          message_id?: string | null
+          queue_item_id: string
+        }
+        Update: {
+          action_type?: string
+          body?: string | null
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          id?: string
+          message_id?: string | null
+          queue_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_queue_actions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_actions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_actions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_actions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_actions_queue_item_id_fkey"
+            columns: ["queue_item_id"]
+            isOneToOne: false
+            referencedRelation: "support_queue_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_queue_item_events: {
         Row: {
           actor_id: string | null
@@ -4149,6 +4224,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           category: string
+          conversation_id: string | null
           created_at: string
           id: string
           metadata: Json
@@ -4156,6 +4232,9 @@ export type Database = {
           priority: string
           resolved_at: string | null
           resolved_by: string | null
+          second_look_note: string | null
+          second_look_requested_at: string | null
+          second_look_requested_by: string | null
           source_id: string
           source_type: string
           status: string
@@ -4166,6 +4245,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           category: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -4173,6 +4253,9 @@ export type Database = {
           priority?: string
           resolved_at?: string | null
           resolved_by?: string | null
+          second_look_note?: string | null
+          second_look_requested_at?: string | null
+          second_look_requested_by?: string | null
           source_id: string
           source_type: string
           status?: string
@@ -4183,6 +4266,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           category?: string
+          conversation_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json
@@ -4190,6 +4274,9 @@ export type Database = {
           priority?: string
           resolved_at?: string | null
           resolved_by?: string | null
+          second_look_note?: string | null
+          second_look_requested_at?: string | null
+          second_look_requested_by?: string | null
           source_id?: string
           source_type?: string
           status?: string
@@ -4220,6 +4307,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "support_queue_items_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "support_queue_items_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
@@ -4236,6 +4330,27 @@ export type Database = {
           {
             foreignKeyName: "support_queue_items_resolved_by_fkey"
             columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_second_look_requested_by_fkey"
+            columns: ["second_look_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_second_look_requested_by_fkey"
+            columns: ["second_look_requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_second_look_requested_by_fkey"
+            columns: ["second_look_requested_by"]
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
