@@ -4158,6 +4158,59 @@ export type Database = {
           },
         ]
       }
+      support_queue_internal_notes: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string
+          id: string
+          queue_item_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by: string
+          id?: string
+          queue_item_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          queue_item_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_queue_internal_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_internal_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_queue_internal_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_internal_notes_queue_item_id_fkey"
+            columns: ["queue_item_id"]
+            isOneToOne: false
+            referencedRelation: "support_queue_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_queue_item_events: {
         Row: {
           actor_id: string | null
@@ -6898,6 +6951,7 @@ export type Database = {
         Returns: undefined
       }
       backfill_support_queue_items: { Args: never; Returns: undefined }
+      backfill_vendor_verification_conversations: { Args: never; Returns: Json }
       backfill_working_terms_from_territory_assignments: {
         Args: never
         Returns: Json
@@ -6979,6 +7033,10 @@ export type Database = {
       is_vendor_staff_member: {
         Args: { p_user_id: string; p_vendor_id: string }
         Returns: boolean
+      }
+      link_vendor_verification_conversation: {
+        Args: { p_queue_item_id: string }
+        Returns: Json
       }
       log_rep_contact_access:
         | {
