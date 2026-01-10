@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.backfill_support_queue_items() TO postgres, supabase_admin;
