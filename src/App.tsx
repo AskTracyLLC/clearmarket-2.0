@@ -97,6 +97,7 @@ import PublicProposalView from "./pages/PublicProposalView";
 import AdminStripeHealth from "./pages/AdminStripeHealth";
 import AdminLaunchReadiness from "./pages/AdminLaunchReadiness";
 import AdminAbuseFlags from "./pages/AdminAbuseFlags";
+import AdminSupportQueue from "./pages/AdminSupportQueue";
 
 const queryClient = new QueryClient();
 
@@ -200,6 +201,7 @@ const App = () => (
                   <Route path="/admin/stripe-health" element={<AdminStripeHealth />} />
                   <Route path="/admin/launch-readiness" element={<AdminLaunchReadiness />} />
                   <Route path="/admin/abuse-flags" element={<AdminAbuseFlags />} />
+                  <Route path="/admin/support-queue" element={<AdminSupportQueue />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
                   <Route path="/help" element={<HelpCenter />} />
                   <Route path="/help/:slug" element={<HelpCenter />} />

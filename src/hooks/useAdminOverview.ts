@@ -4,6 +4,15 @@ import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AdminOverviewCounts {
+  // Queue-based counts (from support_queue_items)
+  reviews: number;
+  moderation: number;
+  background_checks: number;
+  user_reports: number;
+  support_tickets: number;
+  total: number;
+  urgent: number;
+  // Legacy counts (still used for backward compatibility)
   moderation_pending: number;
   support_open: number;
   background_checks_pending: number;
@@ -23,6 +32,14 @@ export function useAdminOverview(): UseAdminOverviewReturn {
   const { loading: permsLoading, permissions } = useStaffPermissions();
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<AdminOverviewCounts>({
+    reviews: 0,
+    moderation: 0,
+    background_checks: 0,
+    user_reports: 0,
+    support_tickets: 0,
+    total: 0,
+    urgent: 0,
+    // Legacy
     moderation_pending: 0,
     support_open: 0,
     background_checks_pending: 0,
@@ -35,59 +52,50 @@ export function useAdminOverview(): UseAdminOverviewReturn {
     if (!user) return;
 
     try {
-      // Fetch all counts in parallel
-      const [
-        moderationResult,
-        supportResult,
-        backgroundChecksResult,
-        reportsResult,
-        reviewsResult,
-        checklistFeedbackResult,
-      ] = await Promise.all([
-        // Moderation: flagged posts/comments (open or under_review user_reports)
-        supabase
-          .from("user_reports")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["open", "under_review"]),
-        
-        // Support: open or in_progress tickets
-        supabase
-          .from("support_tickets")
-          .select("*", { count: "exact", head: true })
-          .in("status", ["open", "in_progress"]),
-        
-        // Background checks: pending status
-        supabase
-          .from("background_checks")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "pending"),
-        
-        // Reports: new user reports (open status)
-        supabase
-          .from("user_reports")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "open"),
-        
-        // Reviews: pending workflow_status
-        supabase
-          .from("reviews")
-          .select("*", { count: "exact", head: true })
-          .eq("workflow_status", "pending"),
-        
-        // Checklist feedback: unresolved items
-        supabase
-          .from("checklist_item_feedback")
-          .select("*", { count: "exact", head: true })
-          .eq("status", "open"),
-      ]);
+      // Fetch from support_queue_items (non-resolved)
+      const { data: queueData, error: queueError } = await supabase
+        .from("support_queue_items")
+        .select("category, priority")
+        .neq("status", "resolved");
+
+      if (queueError) {
+        console.error("Error fetching queue items:", queueError);
+      }
+
+      // Calculate queue-based counts
+      const queueCounts = (queueData || []).reduce((acc, item) => {
+        const category = item.category as string;
+        acc[category] = (acc[category] || 0) + 1;
+        if (item.priority === "urgent") {
+          acc.urgent = (acc.urgent || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      const total = queueData?.length || 0;
+
+      // Also fetch checklist feedback count (not in queue)
+      const { count: checklistCount } = await supabase
+        .from("checklist_item_feedback")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "open");
 
       setCounts({
-        moderation_pending: moderationResult.count || 0,
-        support_open: supportResult.count || 0,
-        background_checks_pending: backgroundChecksResult.count || 0,
-        checklist_stuck: checklistFeedbackResult.count || 0,
-        reports_new: reportsResult.count || 0,
-        reviews_pending: reviewsResult.count || 0,
+        // Queue-based counts
+        reviews: queueCounts.reviews || 0,
+        moderation: queueCounts.moderation || 0,
+        background_checks: queueCounts.background_checks || 0,
+        user_reports: queueCounts.user_reports || 0,
+        support_tickets: queueCounts.support_tickets || 0,
+        total,
+        urgent: queueCounts.urgent || 0,
+        // Legacy mappings (for backward compatibility)
+        moderation_pending: queueCounts.moderation || 0,
+        support_open: queueCounts.support_tickets || 0,
+        background_checks_pending: queueCounts.background_checks || 0,
+        checklist_stuck: checklistCount || 0,
+        reports_new: queueCounts.user_reports || 0,
+        reviews_pending: queueCounts.reviews || 0,
       });
     } catch (error) {
       console.error("Error loading admin overview counts:", error);

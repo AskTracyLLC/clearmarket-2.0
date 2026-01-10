@@ -146,10 +146,9 @@ export function LeftSidebar({
     { label: "Reviews", path: "/rep/reviews", icon: <Star className="h-5 w-5" /> },
   ];
 
-  // Admin-specific items
+  // Admin-specific items - now uses unified Support Queue
   const adminItems: NavItem[] = [
-    { label: "Moderation", path: "/admin/moderation", icon: <ShieldAlert className="h-5 w-5" />, badge: sectionCounts.adminOpenReports },
-    { label: "Support", path: "/admin/support", icon: <MessageSquare className="h-5 w-5" />, badge: sectionCounts.adminOpenTickets },
+    { label: "Support Queue", path: "/admin/support-queue", icon: <MessageSquare className="h-5 w-5" />, badge: (sectionCounts.adminOpenReports || 0) + (sectionCounts.adminOpenTickets || 0) },
     { label: "Users", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
     { label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
     { label: "Launch Readiness", path: "/admin/launch-readiness", icon: <Rocket className="h-5 w-5" /> },

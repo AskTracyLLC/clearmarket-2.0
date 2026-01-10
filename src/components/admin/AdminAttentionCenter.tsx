@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, ShieldAlert, Headphones, FileCheck, ClipboardList, FileText, Star } from "lucide-react";
+import { AlertCircle, Inbox, Star, ShieldAlert, FileCheck, Flag, Headphones, AlertTriangle } from "lucide-react";
 import { AdminOverviewCounts } from "@/hooks/useAdminOverview";
 
 interface AdminAttentionCenterProps {
@@ -17,48 +17,42 @@ interface AttentionItem {
 }
 
 export function AdminAttentionCenter({ counts, loading }: AdminAttentionCenterProps) {
+  // All items now link to the Support Queue with category filters
   const items: AttentionItem[] = [
     {
-      count: counts.moderation_pending,
-      label: "moderation flags",
-      singularLabel: "moderation flag",
-      href: "/admin/moderation",
-      icon: <ShieldAlert className="w-4 h-4 text-amber-400" />,
-    },
-    {
-      count: counts.support_open,
-      label: "support tickets",
-      singularLabel: "support ticket",
-      href: "/admin/support",
-      icon: <Headphones className="w-4 h-4 text-blue-400" />,
-    },
-    {
-      count: counts.background_checks_pending,
-      label: "background checks",
-      singularLabel: "background check",
-      href: "/admin/background-checks",
-      icon: <FileCheck className="w-4 h-4 text-amber-400" />,
-    },
-    {
-      count: counts.checklist_stuck,
-      label: "checklist issues",
-      singularLabel: "checklist issue",
-      href: "/admin/checklists?tab=feedback",
-      icon: <ClipboardList className="w-4 h-4 text-amber-400" />,
-    },
-    {
-      count: counts.reports_new,
-      label: "new reports",
-      singularLabel: "new report",
-      href: "/admin/reports",
-      icon: <FileText className="w-4 h-4 text-red-400" />,
-    },
-    {
-      count: counts.reviews_pending,
+      count: counts.reviews,
       label: "pending reviews",
       singularLabel: "pending review",
-      href: "/admin/review-settings",
-      icon: <Star className="w-4 h-4 text-blue-400" />,
+      href: "/admin/support-queue?category=reviews",
+      icon: <Star className="w-4 h-4 text-amber-400" />,
+    },
+    {
+      count: counts.moderation,
+      label: "moderation flags",
+      singularLabel: "moderation flag",
+      href: "/admin/support-queue?category=moderation",
+      icon: <ShieldAlert className="w-4 h-4 text-red-400" />,
+    },
+    {
+      count: counts.user_reports,
+      label: "user reports",
+      singularLabel: "user report",
+      href: "/admin/support-queue?category=user_reports",
+      icon: <Flag className="w-4 h-4 text-orange-400" />,
+    },
+    {
+      count: counts.background_checks,
+      label: "background checks",
+      singularLabel: "background check",
+      href: "/admin/support-queue?category=background_checks",
+      icon: <FileCheck className="w-4 h-4 text-blue-400" />,
+    },
+    {
+      count: counts.support_tickets,
+      label: "support tickets",
+      singularLabel: "support ticket",
+      href: "/admin/support-queue?category=support_tickets",
+      icon: <Headphones className="w-4 h-4 text-purple-400" />,
     },
   ];
 
@@ -91,9 +85,24 @@ export function AdminAttentionCenter({ counts, loading }: AdminAttentionCenterPr
         <CardTitle className="flex items-center gap-2 text-base">
           <AlertCircle className="w-5 h-5 text-amber-400" />
           Items Requiring Your Attention
+          {counts.urgent > 0 && (
+            <span className="flex items-center gap-1 text-xs text-red-400 font-normal ml-2">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              {counts.urgent} urgent
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {/* Quick link to full queue */}
+        <Link
+          to="/admin/support-queue"
+          className="flex items-center gap-2 text-sm text-primary hover:underline mb-3"
+        >
+          <Inbox className="w-4 h-4" />
+          Open Support Queue ({counts.total} total)
+        </Link>
+        
         <ul className="space-y-1.5">
           {activeItems.map((item) => (
             <li key={item.href}>
