@@ -27,9 +27,11 @@ import {
   Globe,
   ChevronDown,
   ChevronRight,
+  Inbox,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { QUEUE_CATEGORY_KEYS, getCategoryConfig } from "@/config/supportQueueCategories";
 
 type CheckStatus = "pass" | "warn" | "fail" | "pending" | "running";
 
@@ -158,6 +160,14 @@ const AdminLaunchReadiness: React.FC = () => {
           { id: "email_config", name: "Email delivery config present", status: "pending", message: "Not yet checked" },
         ],
       },
+      {
+        id: "support_queue",
+        title: "Support Queue",
+        icon: <Inbox className="h-5 w-5" />,
+        checks: [
+          { id: "support_queue_categories", name: "Support Queue categories queryable", status: "pending", message: "Not yet checked", fixLink: "/admin/support-queue", fixLabel: "View Queue" },
+        ],
+      },
     ];
   }, []);
 
@@ -213,6 +223,9 @@ const AdminLaunchReadiness: React.FC = () => {
 
       // Section G: Email
       await runEmailChecks();
+
+      // Section H: Support Queue
+      await runSupportQueueChecks();
 
       setLastRunAt(new Date());
     } catch (err) {
@@ -639,6 +652,69 @@ const AdminLaunchReadiness: React.FC = () => {
     }
   };
 
+  // Support Queue checks - iterate all categories from centralized config
+  const runSupportQueueChecks = async () => {
+    const categoryResults: Record<string, number | "error"> = {};
+    let hasError = false;
+    let errorMessage = "";
+
+    // Query each category in parallel
+    const categoryPromises = QUEUE_CATEGORY_KEYS.map(async (categoryKey) => {
+      const config = getCategoryConfig(categoryKey);
+      try {
+        const { count, error } = await supabase
+          .from("support_queue_items")
+          .select("id", { count: "exact", head: true })
+          .eq("category", categoryKey)
+          .neq("status", "resolved")
+          .limit(1);
+
+        if (error) {
+          categoryResults[config.label] = "error";
+          hasError = true;
+          errorMessage = error.message;
+        } else {
+          categoryResults[config.label] = count ?? 0;
+        }
+      } catch (err) {
+        categoryResults[config.label] = "error";
+        hasError = true;
+        errorMessage = err instanceof Error ? err.message : String(err);
+      }
+    });
+
+    await Promise.all(categoryPromises);
+
+    // Build details string: "Reviews: 0 | Moderation: 2 | ..."
+    const detailParts = Object.entries(categoryResults).map(([label, result]) => {
+      if (result === "error") return `${label}: ✗`;
+      return `${label}: ${result}`;
+    });
+    const detailsString = detailParts.join(" | ");
+
+    if (hasError) {
+      updateCheck("support_queue", "support_queue_categories", {
+        status: "fail",
+        message: "One or more categories failed to query",
+        details: `${detailsString}\n\nError: ${errorMessage}`,
+        fixLink: "/admin/support-queue",
+        fixLabel: "View Queue",
+      });
+    } else {
+      const totalOpen = Object.values(categoryResults).reduce<number>(
+        (sum, val) => sum + (typeof val === "number" ? val : 0),
+        0
+      );
+      updateCheck("support_queue", "support_queue_categories", {
+        status: "pass",
+        message: `All ${QUEUE_CATEGORY_KEYS.length} categories queryable (${totalOpen} open items total)`,
+        details: detailsString,
+        fixLink: "/admin/support-queue",
+        fixLabel: "View Queue",
+      });
+    }
+  };
+
   // Toggle section expansion
   const toggleSection = (sectionId: string) => {
     setExpandedSections((prev) => {
@@ -704,6 +780,7 @@ const AdminLaunchReadiness: React.FC = () => {
     "privacy_page",
     "vendor_dashboard", // Core dashboards must render
     "rep_dashboard",
+    "support_queue_categories", // Support queue must be queryable
   ];
 
   // Acceptable WARNs (these don't block launch)
