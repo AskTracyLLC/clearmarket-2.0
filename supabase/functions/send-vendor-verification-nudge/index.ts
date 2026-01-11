@@ -71,6 +71,7 @@ const handler = async (req: Request): Promise<Response> => {
     const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://useclearmarket.io";
 
     // Send the email using Resend REST API
+    const vendorName = recipientName || "there";
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -91,29 +92,23 @@ const handler = async (req: Request): Promise<Response> => {
                 <tr>
                   <td style="padding: 32px 24px;">
                     <p style="margin: 0 0 16px; color: #e5e5e5; font-size: 15px; line-height: 1.6;">
-                      ${recipientName ? `Hi ${recipientName},` : "Hello,"}
+                      Hi ${vendorName},
                     </p>
                     <p style="margin: 0 0 24px; color: #e5e5e5; font-size: 15px; line-height: 1.6;">
-                      A ClearMarket message regarding your Vendor Verification is waiting for your response.
+                      You have a message waiting in ClearMarket regarding your Vendor Verification request.
                     </p>
-                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                      <tr>
-                        <td style="background-color: #3b82f6; border-radius: 6px;">
-                          <a href="${appBaseUrl}/messages" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 500;">
-                            View Message in ClearMarket
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                    <p style="margin: 24px 0 0; color: #9ca3af; font-size: 13px; line-height: 1.5;">
-                      Please log in to ClearMarket to view and respond to the message.
+                    <p style="margin: 0 0 24px; color: #e5e5e5; font-size: 15px; line-height: 1.6;">
+                      Please log in to review and respond: <a href="${appBaseUrl}/signin" style="color: #3b82f6; text-decoration: underline;">${appBaseUrl}/signin</a>
+                    </p>
+                    <p style="margin: 24px 0 0; color: #e5e5e5; font-size: 15px; line-height: 1.6;">
+                      Thanks,<br>ClearMarket (noreply)
                     </p>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 20px 24px; background-color: #262627; text-align: center;">
                     <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                      This is an automated message. Please do not reply to this email.
+                      This is an automated notification. Please do not reply to this email.
                     </p>
                   </td>
                 </tr>
@@ -134,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "ClearMarket <noreply@useclearmarket.io>",
         to: [recipientEmail],
-        subject: "Action Required: Vendor Verification Pending",
+        subject: "Action needed: Vendor Verification message waiting in ClearMarket",
         html: emailHtml,
       }),
     });
