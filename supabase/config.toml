@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.guard_contact_access]
 verify_jwt = false
+
+[functions.send-vendor-verification-nudge]
+verify_jwt = true
