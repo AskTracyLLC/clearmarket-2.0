@@ -6946,6 +6946,15 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_send_vendor_verification_message: {
+        Args: {
+          p_body: string
+          p_queue_item_id: string
+          p_subject: string
+          p_vendor_reply_required?: boolean
+        }
+        Returns: string
+      }
       assign_default_checklists: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
