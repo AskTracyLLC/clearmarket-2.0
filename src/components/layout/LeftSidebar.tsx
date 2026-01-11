@@ -617,8 +617,6 @@ export function LeftSidebar({
               </>
             )}
 
-            {/* Settings (always visible) */}
-            {renderNavItem({ label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> })}
           </nav>
         </ScrollArea>
 
