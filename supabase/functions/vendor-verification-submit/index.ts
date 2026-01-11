@@ -109,10 +109,13 @@ serve(async (req) => {
         .maybeSingle();
       
       if (legacyConvo) {
-        // Migrate legacy conversation to use category
+        // Migrate legacy conversation to use category and conversation_type
         await serviceClient
           .from("conversations")
-          .update({ category: supportCategory })
+          .update({ 
+            category: supportCategory,
+            conversation_type: "support"
+          })
           .eq("id", legacyConvo.id);
         existingConvo = legacyConvo;
       }
@@ -131,7 +134,7 @@ serve(async (req) => {
         .insert({
           participant_one: p1,
           participant_two: p2,
-          conversation_type: "direct", // Schema constraint requires direct/seeking_coverage
+          conversation_type: "support",
           category: supportCategory,
           hidden_for_one: false,
           hidden_for_two: false,
