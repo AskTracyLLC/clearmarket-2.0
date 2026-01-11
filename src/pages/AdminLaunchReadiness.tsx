@@ -536,9 +536,9 @@ const AdminLaunchReadiness: React.FC = () => {
           }
         } else {
           updateCheck("rls", "connected_display_data", {
-            status: "warn",
-            message: "No connected pairs found for current user",
-            details: "View returns empty (expected if admin has no connections)",
+            status: "pass",
+            message: "View is queryable. No connected pairs for current user (expected).",
+            details: "Empty results are normal for admins with no vendor/rep connections",
           });
         }
       }
