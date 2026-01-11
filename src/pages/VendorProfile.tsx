@@ -477,7 +477,7 @@ const VendorProfile = () => {
                 {/* Vendor Code */}
                 <div>
                   <Label htmlFor="vendor_public_code_requested">
-                    Requested Vendor Code <span className="text-destructive">*</span>
+                    Requested Public Code (optional)
                   </Label>
                   <div className="flex gap-2 items-center">
                     <Input
@@ -503,7 +503,7 @@ const VendorProfile = () => {
                     <p className="text-sm text-destructive mt-1">{errors.vendor_public_code_requested.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    1-6 characters, letters and numbers only. This will be your unique identifier (e.g., MBFS_TM for staff).
+                    Leave blank if you want ClearMarket to assign one. Suggested codes are not guaranteed and may be revised during verification.
                   </p>
                 </div>
 

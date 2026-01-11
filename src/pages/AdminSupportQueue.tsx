@@ -39,10 +39,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { useQueueItems, QueueCategory, QueueStatus, QueueItem, QueueFilters } from "@/hooks/useQueueItems";
+import { useQueueItems, QueueCategory, QueueStatus, QueueFilters } from "@/hooks/useQueueItems";
 import { useQueueCounts } from "@/hooks/useQueueCounts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { VendorVerificationDetailPanel } from "@/components/admin/VendorVerificationDetailPanel";
 
 const CATEGORY_CONFIG: Record<QueueCategory, { label: string; icon: React.ReactNode; color: string }> = {
   reviews: { label: "Reviews", icon: <Star className="h-4 w-4" />, color: "text-amber-400" },
@@ -375,141 +376,157 @@ export default function AdminSupportQueue() {
 
         {/* Right - Detail Panel */}
         <div className="col-span-12 md:col-span-4 lg:col-span-5">
-          <Card className="h-full flex flex-col">
+          <Card className="h-full flex flex-col overflow-hidden">
             {selectedItem ? (
-              <>
-                <CardHeader className="pb-2 pt-4 px-4 flex-shrink-0 border-b">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.color}>
-                          {CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.icon}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.label}
-                        </Badge>
-                        {selectedItem.priority === "urgent" && (
-                          <Badge variant="destructive" className="text-xs">Urgent</Badge>
-                        )}
+              selectedItem.category === "vendor_verification" ? (
+                <VendorVerificationDetailPanel
+                  item={selectedItem}
+                  onStatusChange={async (itemId, status) => {
+                    const success = await updateStatus(itemId, status);
+                    if (success) refreshCounts();
+                    return success;
+                  }}
+                  onAssign={assignTo}
+                  onRefresh={() => {
+                    refresh();
+                    refreshCounts();
+                  }}
+                />
+              ) : (
+                <>
+                  <CardHeader className="pb-2 pt-4 px-4 flex-shrink-0 border-b">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.color}>
+                            {CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.icon}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {CATEGORY_CONFIG[selectedItem.category as QueueCategory]?.label}
+                          </Badge>
+                          {selectedItem.priority === "urgent" && (
+                            <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                          )}
+                        </div>
+                        <h2 className="font-semibold text-lg">{selectedItem.title}</h2>
                       </div>
-                      <h2 className="font-semibold text-lg">{selectedItem.title}</h2>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="shrink-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {selectedItem.target_url && (
-                          <DropdownMenuItem onClick={() => navigate(selectedItem.target_url!)}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View Source
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator />
-                        {selectedItem.assigned_to === user?.id ? (
-                          <DropdownMenuItem onClick={() => handleUnassign(selectedItem.id)}>
-                            Unassign from me
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => handleAssignToMe(selectedItem.id)}>
-                            Assign to me
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto p-4">
-                  <div className="space-y-6">
-                    {/* Preview/Description */}
-                    {selectedItem.preview && (
-                      <div>
-                        <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Details</h3>
-                        <p className="text-sm">{selectedItem.preview}</p>
-                      </div>
-                    )}
-
-                    {/* Status Controls */}
-                    <div>
-                      <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Status</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {(Object.keys(STATUS_CONFIG) as QueueStatus[]).map((status) => (
-                          <Button
-                            key={status}
-                            variant={selectedItem.status === status ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handleStatusChange(selectedItem.id, status)}
-                            disabled={selectedItem.status === status}
-                          >
-                            {STATUS_CONFIG[status].label}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        ))}
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {selectedItem.target_url && (
+                            <DropdownMenuItem onClick={() => navigate(selectedItem.target_url!)}>
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              View Source
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {selectedItem.assigned_to === user?.id ? (
+                            <DropdownMenuItem onClick={() => handleUnassign(selectedItem.id)}>
+                              Unassign from me
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleAssignToMe(selectedItem.id)}>
+                              Assign to me
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-auto p-4">
+                    <div className="space-y-6">
+                      {/* Preview/Description */}
+                      {selectedItem.preview && (
+                        <div>
+                          <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Details</h3>
+                          <p className="text-sm">{selectedItem.preview}</p>
+                        </div>
+                      )}
 
-                    {/* Assignment */}
-                    <div>
-                      <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Assignment</h3>
-                      {selectedItem.assignee ? (
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{selectedItem.assignee.full_name}</span>
+                      {/* Status Controls */}
+                      <div>
+                        <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Status</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {(Object.keys(STATUS_CONFIG) as QueueStatus[]).map((status) => (
+                            <Button
+                              key={status}
+                              variant={selectedItem.status === status ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleStatusChange(selectedItem.id, status)}
+                              disabled={selectedItem.status === status}
+                            >
+                              {STATUS_CONFIG[status].label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Assignment */}
+                      <div>
+                        <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Assignment</h3>
+                        {selectedItem.assignee ? (
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{selectedItem.assignee.full_name}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() => handleUnassign(selectedItem.id)}
+                            >
+                              Unassign
+                            </Button>
+                          </div>
+                        ) : (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="text-xs h-7"
-                            onClick={() => handleUnassign(selectedItem.id)}
+                            onClick={() => handleAssignToMe(selectedItem.id)}
                           >
-                            Unassign
+                            <User className="h-4 w-4 mr-2" />
+                            Assign to me
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Metadata */}
+                      <div>
+                        <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Timeline</h3>
+                        <div className="text-sm space-y-1">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Clock className="h-3.5 w-3.5" />
+                            Created: {format(new Date(selectedItem.created_at), "MMM d, yyyy 'at' h:mm a")}
+                          </div>
+                          {selectedItem.resolved_at && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Resolved: {format(new Date(selectedItem.resolved_at), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Deep Link */}
+                      {selectedItem.target_url && (
+                        <div>
+                          <Button
+                            variant="default"
+                            className="w-full"
+                            onClick={() => navigate(selectedItem.target_url!)}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View Full Details
                           </Button>
                         </div>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAssignToMe(selectedItem.id)}
-                        >
-                          <User className="h-4 w-4 mr-2" />
-                          Assign to me
-                        </Button>
                       )}
                     </div>
-
-                    {/* Metadata */}
-                    <div>
-                      <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Timeline</h3>
-                      <div className="text-sm space-y-1">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-3.5 w-3.5" />
-                          Created: {format(new Date(selectedItem.created_at), "MMM d, yyyy 'at' h:mm a")}
-                        </div>
-                        {selectedItem.resolved_at && (
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Resolved: {format(new Date(selectedItem.resolved_at), "MMM d, yyyy 'at' h:mm a")}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Deep Link */}
-                    {selectedItem.target_url && (
-                      <div>
-                        <Button
-                          variant="default"
-                          className="w-full"
-                          onClick={() => navigate(selectedItem.target_url!)}
-                        >
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View Full Details
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </>
+                  </CardContent>
+                </>
+              )
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <Inbox className="h-12 w-12 mb-3 opacity-30" />
