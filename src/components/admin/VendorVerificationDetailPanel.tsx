@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { format, addHours } from "date-fns";
+import { Json } from "@/integrations/supabase/types";
 import {
   CheckCircle2,
   Clock,
@@ -252,7 +253,7 @@ export function VendorVerificationDetailPanel({
           .from("support_queue_items")
           .update({
             status: "waiting",
-            metadata: newMetadata as unknown as Record<string, unknown>,
+            metadata: newMetadata as Json,
             updated_at: new Date().toISOString(),
           })
           .eq("id", item.id);
@@ -480,10 +481,13 @@ export function VendorVerificationDetailPanel({
     }
   };
 
-  // Format timestamp for CST display
+  // Format timestamp for CST display (approximate CST: UTC-6)
   const formatCST = (dateStr: string) => {
     try {
-      return formatInTimeZone(new Date(dateStr), "America/Chicago", "MM/dd/yy - h:mm a") + " CST";
+      const utcDate = new Date(dateStr);
+      // CST is UTC-6 hours
+      const cstDate = addHours(utcDate, -6 + utcDate.getTimezoneOffset() / 60);
+      return format(cstDate, "MM/dd/yy - h:mm a") + " CST";
     } catch {
       return format(new Date(dateStr), "MM/dd/yy - h:mm a");
     }
@@ -500,11 +504,12 @@ export function VendorVerificationDetailPanel({
 
       if (error) throw error;
 
-      if (data?.success) {
+      const result = data as { success?: boolean; error?: string } | null;
+      if (result?.success) {
         onRefresh();
         toast({ title: "Thread linked successfully" });
       } else {
-        toast({ title: data?.error || "Failed to link thread", variant: "destructive" });
+        toast({ title: result?.error || "Failed to link thread", variant: "destructive" });
       }
     } catch (err) {
       console.error("Error linking thread:", err);
