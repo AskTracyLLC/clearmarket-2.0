@@ -11,6 +11,7 @@ export interface QueueCounts {
   user_reports: number;
   billing: number;
   support_tickets: number;
+  vendor_verification: number;
   other: number;
   total: number;
   urgent: number;
@@ -29,6 +30,7 @@ const emptyCounts: QueueCounts = {
   user_reports: 0,
   billing: 0,
   support_tickets: 0,
+  vendor_verification: 0,
   other: 0,
   total: 0,
   urgent: 0,
@@ -71,6 +73,7 @@ export function useQueueCounts(): UseQueueCountsReturn {
         user_reports: categoryCounts.user_reports || 0,
         billing: categoryCounts.billing || 0,
         support_tickets: categoryCounts.support_tickets || 0,
+        vendor_verification: categoryCounts.vendor_verification || 0,
         other: categoryCounts.other || 0,
         total,
         urgent: categoryCounts.urgent || 0,

@@ -51,6 +51,7 @@ const CATEGORY_CONFIG: Record<QueueCategory, { label: string; icon: React.ReactN
   user_reports: { label: "User Reports", icon: <Flag className="h-4 w-4" />, color: "text-orange-400" },
   billing: { label: "Billing", icon: <CreditCard className="h-4 w-4" />, color: "text-green-400" },
   support_tickets: { label: "Support Tickets", icon: <Headphones className="h-4 w-4" />, color: "text-purple-400" },
+  vendor_verification: { label: "Vendor Verification", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-emerald-400" },
   other: { label: "Other", icon: <MoreHorizontal className="h-4 w-4" />, color: "text-muted-foreground" },
 };
 

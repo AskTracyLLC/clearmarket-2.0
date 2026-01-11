@@ -10,6 +10,7 @@ export type QueueCategory =
   | "user_reports" 
   | "billing" 
   | "support_tickets" 
+  | "vendor_verification"
   | "other";
 
 export type QueuePriority = "normal" | "urgent";
@@ -31,6 +32,7 @@ export interface QueueItem {
   updated_at: string;
   resolved_at: string | null;
   resolved_by: string | null;
+  conversation_id: string | null;
   // Joined profile data
   assignee?: {
     id: string;

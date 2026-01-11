@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { getReviewSettings, updateReviewSettings } from "@/lib/reviewSettings";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 
 export default function AdminReviewSettings() {
   const navigate = useNavigate();
@@ -97,21 +97,12 @@ export default function AdminReviewSettings() {
   }
 
   return (
-    <div className="container max-w-2xl py-8 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/dashboard")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Review Settings</h1>
-          <p className="text-muted-foreground">
-            Configure global review and feedback settings
-          </p>
-        </div>
+    <div className="container mx-auto max-w-2xl px-4 py-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Review Settings</h1>
+        <p className="text-muted-foreground text-sm">
+          Configure global review and feedback settings
+        </p>
       </div>
 
       <Card>
