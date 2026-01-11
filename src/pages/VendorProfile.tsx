@@ -477,13 +477,13 @@ const VendorProfile = () => {
                 {/* Vendor Code */}
                 <div>
                   <Label htmlFor="vendor_public_code_requested">
-                    Requested Public Code (optional)
+                    Requested Code (optional)
                   </Label>
                   <div className="flex gap-2 items-center">
                     <Input
                       id="vendor_public_code_requested"
                       {...register("vendor_public_code_requested")}
-                      placeholder="e.g., MBFS"
+                      placeholder="e.g., ACME"
                       className={`max-w-[150px] font-mono uppercase ${errors.vendor_public_code_requested ? "border-destructive" : ""}`}
                       maxLength={6}
                       disabled={isVerified}
@@ -503,7 +503,8 @@ const VendorProfile = () => {
                     <p className="text-sm text-destructive mt-1">{errors.vendor_public_code_requested.message}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Leave blank if you want ClearMarket to assign one. Suggested codes are not guaranteed and may be revised during verification.
+                    Suggested code is not guaranteed.<br />
+                    Leave blank for admin assignment. Admin may revise before approval.
                   </p>
                 </div>
 
