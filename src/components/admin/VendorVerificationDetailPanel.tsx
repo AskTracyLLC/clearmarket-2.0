@@ -10,12 +10,12 @@ import {
   Users,
   Mail,
   MessageSquare,
-  ChevronDown,
-  ChevronUp,
   AlertCircle,
   Check,
   X,
   Loader2,
+  Plus,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,10 +26,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,18 +85,33 @@ interface Message {
   sender?: { full_name: string | null };
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  open: "Open",
-  in_progress: "Under Review",
-  waiting: "Waiting",
-  resolved: "Approved",
-};
+interface StaffMember {
+  id: string;
+  full_name: string | null;
+}
+
+const STATUS_OPTIONS: { value: QueueStatus; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "Under Review" },
+  { value: "waiting", label: "Waiting" },
+  { value: "resolved", label: "Approved" },
+];
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
   open: "destructive",
   in_progress: "default",
   waiting: "secondary",
   resolved: "outline",
+};
+
+const getStatusLabel = (status: string) => {
+  return STATUS_OPTIONS.find(s => s.value === status)?.label || status;
+};
+
+// Get short admin ID (first 4 chars uppercase)
+const getShortAdminId = (userId: string | null | undefined): string => {
+  if (!userId) return "SYS";
+  return userId.slice(0, 4).toUpperCase();
 };
 
 export function VendorVerificationDetailPanel({
@@ -97,6 +127,7 @@ export function VendorVerificationDetailPanel({
   const [messages, setMessages] = useState<Message[]>([]);
   const [actions, setActions] = useState<ActionLog[]>([]);
   const [internalNotes, setInternalNotes] = useState<InternalNote[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingActions, setLoadingActions] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
@@ -113,7 +144,11 @@ export function VendorVerificationDetailPanel({
   const [savingCode, setSavingCode] = useState(false);
 
   const [sendingNudge, setSendingNudge] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(true);
+  
+  // Second Look modal state
+  const [showSecondLookDialog, setShowSecondLookDialog] = useState(false);
+  const [secondLookMessage, setSecondLookMessage] = useState("");
+  const [requestingSecondLook, setRequestingSecondLook] = useState(false);
 
   // Extract metadata
   const metadata = (item.metadata || {}) as Record<string, unknown>;
@@ -124,23 +159,59 @@ export function VendorVerificationDetailPanel({
   const requestedCodeFinalMeta = metadata.requested_code_final as string | undefined;
   const submittedAt = metadata.verification_submitted_at as string | undefined || metadata.submitted_at as string | undefined;
   const awaitingVendorReply = metadata.awaiting_vendor_reply as boolean | undefined;
+  const awaitingSince = metadata.awaiting_since as string | undefined;
+  const lastVendorMessageAt = metadata.last_vendor_message_at as string | undefined;
+  const lastAdminMessageAt = metadata.last_admin_message_at as string | undefined;
   const externalNudgeSentAt = metadata.external_nudge_sent_at as string | undefined;
   const externalNudgeCount = (metadata.external_nudge_count as number | undefined) || 0;
+  const lastWaitingEmailSentTo = metadata.external_nudge_recipient_email as string | undefined;
 
-  // Calculate if nudge is disabled (within 24 hours)
+  // Calculate if nudge is disabled (within 10 minutes)
   const nudgeDisabled = externalNudgeSentAt
-    ? new Date().getTime() - new Date(externalNudgeSentAt).getTime() < 24 * 60 * 60 * 1000
+    ? new Date().getTime() - new Date(externalNudgeSentAt).getTime() < 10 * 60 * 1000
     : false;
 
   // Current code to display
   const displayCode = requestedCodeFinalMeta || requestedCodeSuggested || "Not specified";
 
+  // Format timestamp for CST display
+  const formatCST = useCallback((dateStr: string) => {
+    try {
+      const utcDate = new Date(dateStr);
+      // CST is UTC-6 hours
+      const cstDate = addHours(utcDate, -6 + utcDate.getTimezoneOffset() / 60);
+      return format(cstDate, "MM/dd/yy - h:mm a") + " CST";
+    } catch {
+      return format(new Date(dateStr), "MM/dd/yy - h:mm a");
+    }
+  }, []);
+
   // Auto-assign on first open
   useEffect(() => {
     if (item.assigned_to === null && user) {
       onAssign(item.id, user.id);
+      // Also set status to Under Review if currently Open
+      if (item.status === "open") {
+        onStatusChange(item.id, "in_progress");
+      }
     }
-  }, [item.id, item.assigned_to, user, onAssign]);
+  }, [item.id, item.assigned_to, item.status, user, onAssign, onStatusChange]);
+
+  // Load staff members for assignment dropdown
+  const loadStaffMembers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .or("is_admin.eq.true,is_super_admin.eq.true,is_support.eq.true,is_moderator.eq.true");
+
+      if (!error && data) {
+        setStaffMembers(data as StaffMember[]);
+      }
+    } catch (err) {
+      console.error("Error loading staff members:", err);
+    }
+  }, []);
 
   // Load data
   const loadMessages = useCallback(async () => {
@@ -202,77 +273,36 @@ export function VendorVerificationDetailPanel({
     loadMessages();
     loadActions();
     loadInternalNotes();
+    loadStaffMembers();
     setRequestedCodeFinal(requestedCodeFinalMeta || requestedCodeSuggested || "");
-  }, [item.id, loadMessages, loadActions, loadInternalNotes, requestedCodeFinalMeta, requestedCodeSuggested]);
+  }, [item.id, loadMessages, loadActions, loadInternalNotes, loadStaffMembers, requestedCodeFinalMeta, requestedCodeSuggested]);
 
-  // Handle send message
+  // Handle send message via RPC
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !user || !item.conversation_id) return;
+    if (!messageText.trim() || !user) return;
+    
+    // Check if conversation exists
+    if (!item.conversation_id) {
+      toast({ title: "No thread linked. Please link a thread first.", variant: "destructive" });
+      return;
+    }
     
     setSendingMessage(true);
     try {
-      // Get conversation to find recipient
-      const { data: conv } = await supabase
-        .from("conversations")
-        .select("participant_one, participant_two")
-        .eq("id", item.conversation_id)
-        .single();
-
-      if (!conv) throw new Error("Conversation not found");
-
-      const recipientId = conv.participant_one === user.id ? conv.participant_two : conv.participant_one;
-
-      // Insert message
-      const { error: msgError } = await supabase.from("messages").insert({
-        conversation_id: item.conversation_id,
-        sender_id: user.id,
-        recipient_id: recipientId,
-        body: messageText.trim(),
+      // Use the RPC function
+      const { data, error } = await supabase.rpc("admin_send_vendor_verification_message", {
+        p_queue_item_id: item.id,
+        p_subject: "",
+        p_body: messageText.trim(),
+        p_vendor_reply_required: vendorResponseRequired,
       });
 
-      if (msgError) throw msgError;
-
-      // Update conversation last message
-      await supabase
-        .from("conversations")
-        .update({
-          last_message_at: new Date().toISOString(),
-          last_message_preview: messageText.trim().slice(0, 100),
-        })
-        .eq("id", item.conversation_id);
-
-      // Update queue item status/metadata based on checkbox
-      if (vendorResponseRequired) {
-        const newMetadata = {
-          ...metadata,
-          awaiting_vendor_reply: true,
-          awaiting_since: new Date().toISOString(),
-        };
-        
-        await supabase
-          .from("support_queue_items")
-          .update({
-            status: "waiting",
-            metadata: newMetadata as Json,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", item.id);
-      } else {
-        // Just ensure we're in Under Review if not already resolved
-        if (item.status !== "resolved") {
-          await supabase
-            .from("support_queue_items")
-            .update({
-              status: "in_progress",
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", item.id);
-        }
-      }
+      if (error) throw error;
 
       setMessageText("");
       setVendorResponseRequired(false);
       loadMessages();
+      loadActions();
       onRefresh();
       toast({ title: "Message sent" });
     } catch (err) {
@@ -376,6 +406,9 @@ export function VendorVerificationDetailPanel({
         external_nudge_last_channel: "email",
         external_nudge_recipient_email: pocEmail,
         external_nudge_last_admin_id: user?.id,
+        last_waiting_email_sent_at: new Date().toISOString(),
+        last_waiting_email_sent_to: pocEmail,
+        last_waiting_email_sent_by_admin_id: getShortAdminId(user?.id),
       };
 
       await supabase
@@ -404,11 +437,13 @@ export function VendorVerificationDetailPanel({
     }
   };
 
-  // Handle Request 2nd Opinion
-  const handleRequest2ndOpinion = async () => {
-    if (!user) return;
+  // Handle Request Second Look
+  const handleRequestSecondLook = async () => {
+    if (!user || !secondLookMessage.trim()) return;
 
+    setRequestingSecondLook(true);
     try {
+      // Update queue item
       await supabase
         .from("support_queue_items")
         .update({
@@ -418,21 +453,33 @@ export function VendorVerificationDetailPanel({
         })
         .eq("id", item.id);
 
+      // Add internal note with the request
+      await supabase.from("support_queue_internal_notes").insert({
+        queue_item_id: item.id,
+        body: `🔍 Second Look Requested:\n${secondLookMessage.trim()}`,
+        created_by: user.id,
+      });
+
       // Log action
       await supabase.from("support_queue_actions").insert({
         queue_item_id: item.id,
         action_type: "second_look_requested",
         channel: "in_app",
-        body: "2nd opinion requested",
+        body: "Second look requested",
         created_by: user.id,
       });
 
+      setShowSecondLookDialog(false);
+      setSecondLookMessage("");
       loadActions();
+      loadInternalNotes();
       onRefresh();
-      toast({ title: "2nd opinion requested" });
+      toast({ title: "Second look requested" });
     } catch (err) {
-      console.error("Error requesting 2nd opinion:", err);
-      toast({ title: "Failed to request 2nd opinion", variant: "destructive" });
+      console.error("Error requesting second look:", err);
+      toast({ title: "Failed to request second look", variant: "destructive" });
+    } finally {
+      setRequestingSecondLook(false);
     }
   };
 
@@ -481,16 +528,20 @@ export function VendorVerificationDetailPanel({
     }
   };
 
-  // Format timestamp for CST display (approximate CST: UTC-6)
-  const formatCST = (dateStr: string) => {
-    try {
-      const utcDate = new Date(dateStr);
-      // CST is UTC-6 hours
-      const cstDate = addHours(utcDate, -6 + utcDate.getTimezoneOffset() / 60);
-      return format(cstDate, "MM/dd/yy - h:mm a") + " CST";
-    } catch {
-      return format(new Date(dateStr), "MM/dd/yy - h:mm a");
+  // Handle status change with display label
+  const handleStatusSelect = async (status: QueueStatus) => {
+    if (status === "resolved") {
+      handleApprove();
+    } else {
+      await onStatusChange(item.id, status);
+      onRefresh();
     }
+  };
+
+  // Handle assignment change
+  const handleAssignmentChange = async (userId: string | null) => {
+    await onAssign(item.id, userId);
+    onRefresh();
   };
 
   // Determine if we need to show Link Thread button
@@ -517,313 +568,401 @@ export function VendorVerificationDetailPanel({
     }
   };
 
+  // Determine if user is staff for message styling
+  const isStaffUser = (senderId: string) => {
+    return staffMembers.some(s => s.id === senderId) || senderId === user?.id;
+  };
+
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b flex-shrink-0">
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div>
+      {/* A) PINNED HEADER ROW */}
+      <div className="p-4 border-b flex-shrink-0 space-y-3">
+        {/* Row 1: Title + Category Badge + Metadata */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              <Badge variant="outline" className="text-xs">Vendor Verification</Badge>
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <Badge variant="outline" className="text-xs shrink-0">Vendor Verification</Badge>
             </div>
-            <h2 className="font-semibold text-lg">{item.title}</h2>
+            <h2 className="font-semibold text-lg truncate">{item.title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Code: <span className="font-mono">{displayCode}</span>
+              {pocName && <> · {pocName}</>}
+            </p>
           </div>
-          <Badge variant={STATUS_VARIANTS[item.status] || "secondary"}>
-            {STATUS_LABELS[item.status] || item.status}
-          </Badge>
+
+          {/* Status Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0 gap-1">
+                <Badge variant={STATUS_VARIANTS[item.status] || "secondary"} className="mr-1">
+                  {getStatusLabel(item.status)}
+                </Badge>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {STATUS_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => handleStatusSelect(opt.value)}
+                  disabled={item.status === opt.value}
+                  className={cn(item.status === opt.value && "bg-accent")}
+                >
+                  {opt.label}
+                  {opt.value === "resolved" && " ✓"}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Status Controls */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {(["open", "in_progress", "waiting"] as const).map((status) => (
-            <Button
-              key={status}
-              variant={item.status === status ? "default" : "outline"}
-              size="sm"
-              onClick={() => onStatusChange(item.id, status)}
-              disabled={item.status === status || item.status === "resolved"}
-            >
-              {STATUS_LABELS[status]}
-            </Button>
-          ))}
-          <Button
-            variant={item.status === "resolved" ? "default" : "outline"}
-            size="sm"
-            onClick={handleApprove}
-            disabled={item.status === "resolved"}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <Check className="h-3 w-3 mr-1" />
-            Approve
-          </Button>
+        {/* Row 2: Assignment + Second Look */}
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Assigned:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 px-2 gap-1">
+                  {item.assignee?.full_name || "Unassigned"}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => handleAssignmentChange(null)}>
+                  Unassign
+                </DropdownMenuItem>
+                {staffMembers.map((staff) => (
+                  <DropdownMenuItem
+                    key={staff.id}
+                    onClick={() => handleAssignmentChange(staff.id)}
+                    className={cn(item.assigned_to === staff.id && "bg-accent")}
+                  >
+                    {staff.full_name || `ADM: ${getShortAdminId(staff.id)}`}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => setShowSecondLookDialog(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Request Second Look</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
-        {/* Assignment */}
-        <div className="flex items-center gap-2 text-sm">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Assigned:</span>
-          {item.assignee ? (
-            <span>{item.assignee.full_name || "Staff"}</span>
+        {/* Awaiting indicator */}
+        {awaitingVendorReply && awaitingSince && (
+          <div className="flex items-center gap-2 text-xs text-amber-400">
+            <Clock className="h-3 w-3" />
+            Awaiting vendor reply since {formatCST(awaitingSince)}
+          </div>
+        )}
+        {lastVendorMessageAt && !awaitingVendorReply && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MessageSquare className="h-3 w-3" />
+            Last vendor message: {formatCST(lastVendorMessageAt)}
+          </div>
+        )}
+      </div>
+
+      {/* B) PINNED TIMELINE */}
+      <div className="px-4 py-2 border-b flex-shrink-0 bg-muted/30">
+        <h3 className="text-[10px] font-medium text-muted-foreground uppercase mb-1">Activity Timeline</h3>
+        <div className="space-y-1 max-h-24 overflow-y-auto text-[11px]">
+          {loadingActions ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : actions.length === 0 ? (
+            <p className="text-muted-foreground">Created: {formatCST(item.created_at)}</p>
           ) : (
-            <span className="text-muted-foreground italic">Unassigned</span>
+            <>
+              {actions.slice(0, 6).map((action) => (
+                <div key={action.id} className="flex items-center gap-2 text-muted-foreground">
+                  <span className="text-foreground">
+                    {formatCST(action.created_at)}
+                  </span>
+                  <span className="text-muted-foreground">|</span>
+                  <span className="font-medium">ADM: {getShortAdminId(action.created_by)}</span>
+                  <span className="text-muted-foreground">|</span>
+                  <span className="capitalize">{action.action_type.replace(/_/g, " ")}</span>
+                  {action.body && action.action_type === "email_nudge_sent" && (
+                    <span className="text-muted-foreground truncate">to {lastWaitingEmailSentTo || pocEmail}</span>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>{formatCST(item.created_at)}</span>
+                <span>|</span>
+                <span>SYS</span>
+                <span>|</span>
+                <span>Ticket created</span>
+              </div>
+            </>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 ml-2"
-            onClick={handleRequest2ndOpinion}
-          >
-            <Users className="h-3 w-3 mr-1" />
-            Request 2nd Opinion
-          </Button>
         </div>
       </div>
 
-      {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {/* Timeline/Activity Section */}
-          <Collapsible open={timelineOpen} onOpenChange={setTimelineOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto mb-2">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase">Timeline / Activity</h3>
-                {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
-                {loadingActions ? (
-                  <p className="text-muted-foreground text-xs">Loading...</p>
-                ) : actions.length === 0 ? (
-                  <p className="text-muted-foreground text-xs">No activity yet</p>
-                ) : (
-                  actions.slice(0, 10).map((action) => (
-                    <div key={action.id} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3 mt-0.5 shrink-0" />
-                      <div>
-                        <span className="font-medium text-foreground">{action.action_type.replace(/_/g, " ")}</span>
-                        {action.body && <span className="ml-1">— {action.body.slice(0, 80)}</span>}
-                        <span className="ml-2">{formatCST(action.created_at)}</span>
-                      </div>
+      {/* C) MAIN BODY - Tabs */}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <Tabs defaultValue="thread" className="flex-1 flex flex-col">
+          <TabsList className="w-full grid grid-cols-2 shrink-0 mx-4 mt-2" style={{ width: "calc(100% - 2rem)" }}>
+            <TabsTrigger value="thread" className="text-xs">
+              <MessageSquare className="h-3 w-3 mr-1" />
+              Vendor Thread
+            </TabsTrigger>
+            <TabsTrigger value="internal" className="text-xs">
+              <Users className="h-3 w-3 mr-1" />
+              Internal Notes
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Vendor Thread Tab */}
+          <TabsContent value="thread" className="flex-1 overflow-hidden flex flex-col mt-0 px-4 pb-4">
+            {needsThreadLink ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-4">
+                <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-3">No conversation thread linked</p>
+                <Button size="sm" onClick={handleLinkThread}>
+                  Link Thread
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Vendor Details */}
+                <div className="py-2 border-b shrink-0">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">POC:</span>
+                      <span className="ml-1">{pocName || "—"}</span>
                     </div>
-                  ))
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  Created: {formatCST(item.created_at)}
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          <Separator />
-
-          {/* Details Panel */}
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase mb-2">Vendor Details</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>
-                <span className="text-muted-foreground">POC Name:</span>
-                <span className="ml-2">{pocName || "—"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">POC Email:</span>
-                <span className="ml-2">{pocEmail || "—"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Submitted:</span>
-                <span className="ml-2">{submittedAt ? formatCST(submittedAt) : "—"}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Requested Code:</span>
-                {editingCode ? (
-                  <div className="flex items-center gap-1 ml-2">
-                    <Input
-                      value={requestedCodeFinal}
-                      onChange={(e) => setRequestedCodeFinal(e.target.value.toUpperCase())}
-                      className="h-6 w-24 text-xs"
-                      maxLength={10}
-                    />
-                    <Button size="sm" className="h-6 px-2" onClick={handleSaveCode} disabled={savingCode}>
-                      {savingCode ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => setEditingCode(false)}>
-                      <X className="h-3 w-3" />
-                    </Button>
+                    <div>
+                      <span className="text-muted-foreground">Email:</span>
+                      <span className="ml-1">{pocEmail || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Submitted:</span>
+                      <span className="ml-1">{submittedAt ? formatCST(submittedAt) : "—"}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Code:</span>
+                      {editingCode ? (
+                        <div className="flex items-center gap-1 ml-1">
+                          <Input
+                            value={requestedCodeFinal}
+                            onChange={(e) => setRequestedCodeFinal(e.target.value.toUpperCase())}
+                            className="h-5 w-20 text-xs px-1"
+                            maxLength={10}
+                          />
+                          <Button size="sm" className="h-5 w-5 p-0" onClick={handleSaveCode} disabled={savingCode}>
+                            {savingCode ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setEditingCode(false)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="ml-1 font-mono">{displayCode}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 ml-1"
+                            onClick={() => {
+                              setRequestedCodeFinal(requestedCodeFinalMeta || requestedCodeSuggested || "");
+                              setEditingCode(true);
+                            }}
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <span className="ml-2 font-mono">{displayCode}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-5 w-5 p-0 ml-1"
-                      onClick={() => {
-                        setRequestedCodeFinal(requestedCodeFinalMeta || requestedCodeSuggested || "");
-                        setEditingCode(true);
-                      }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Tabs for Thread and 2nd Look */}
-          <Tabs defaultValue="thread" className="w-full">
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="thread" className="text-xs">
-                <MessageSquare className="h-3 w-3 mr-1" />
-                Message Thread
-              </TabsTrigger>
-              <TabsTrigger value="internal" className="text-xs">
-                <Users className="h-3 w-3 mr-1" />
-                2nd Look
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="thread" className="mt-3">
-              {needsThreadLink ? (
-                <div className="text-center py-4">
-                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">No conversation thread linked</p>
-                  <Button size="sm" onClick={handleLinkThread}>
-                    Link Thread
-                  </Button>
                 </div>
-              ) : (
-                <>
-                  {/* Messages */}
-                  <div className="space-y-3 max-h-60 overflow-y-auto mb-3">
+
+                {/* Messages ScrollArea */}
+                <ScrollArea className="flex-1 my-2">
+                  <div className="space-y-3 pr-2">
                     {loadingMessages ? (
                       <p className="text-xs text-muted-foreground">Loading messages...</p>
                     ) : messages.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No messages yet</p>
+                      <p className="text-xs text-muted-foreground text-center py-4">No messages yet</p>
                     ) : (
                       messages.map((msg) => {
-                        const isStaff = msg.sender_id === user?.id;
+                        const isStaff = isStaffUser(msg.sender_id);
                         return (
                           <div
                             key={msg.id}
                             className={cn(
                               "p-2 rounded-lg text-sm",
-                              isStaff ? "bg-primary/10 ml-4" : "bg-muted mr-4"
+                              isStaff ? "bg-primary/10 ml-6" : "bg-muted mr-6"
                             )}
                           >
-                            <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 mb-1 text-[10px] text-muted-foreground">
                               <span className="font-medium">
-                                {isStaff ? "You" : (msg.sender as { full_name: string | null })?.full_name || "Vendor"}
+                                {isStaff 
+                                  ? `ADM: ${getShortAdminId(msg.sender_id)}`
+                                  : (msg.sender as { full_name: string | null })?.full_name || "Vendor"
+                                }
                               </span>
-                              <span>{format(new Date(msg.created_at), "MMM d, h:mm a")}</span>
+                              <span>{formatCST(msg.created_at)}</span>
                             </div>
-                            <p className="whitespace-pre-wrap">{msg.body}</p>
+                            <p className="whitespace-pre-wrap text-xs">{msg.body}</p>
                           </div>
                         );
                       })
                     )}
                   </div>
+                </ScrollArea>
 
-                  {/* Compose */}
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Type a message..."
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      rows={2}
-                      className="text-sm"
-                    />
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-xs">
-                        <Checkbox
-                          checked={vendorResponseRequired}
-                          onCheckedChange={(checked) => setVendorResponseRequired(!!checked)}
-                        />
-                        Vendor response required
-                      </label>
-                      <Button size="sm" onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()}>
-                        {sendingMessage ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
-                        Send
-                      </Button>
-                    </div>
+                {/* Compose */}
+                <div className="space-y-2 shrink-0 pt-2 border-t">
+                  <Textarea
+                    placeholder="Type a message..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    rows={2}
+                    className="text-sm resize-none"
+                  />
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={vendorResponseRequired}
+                        onCheckedChange={(checked) => setVendorResponseRequired(!!checked)}
+                      />
+                      Vendor response required
+                    </label>
+                    <Button size="sm" onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()}>
+                      {sendingMessage ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                      Send
+                    </Button>
                   </div>
+                </div>
 
-                  {/* Email Nudge - only show in Waiting status */}
-                  {item.status === "waiting" && pocEmail && (
-                    <div className="mt-3 pt-3 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSendNudge}
-                        disabled={nudgeDisabled || sendingNudge}
-                        className="w-full"
-                      >
-                        {sendingNudge ? (
-                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                        ) : (
-                          <Mail className="h-3 w-3 mr-1" />
-                        )}
-                        Send Waiting on Reply (email)
-                      </Button>
-                      {externalNudgeSentAt && (
-                        <p className="text-xs text-muted-foreground mt-1 text-center">
-                          Sent: {formatCST(externalNudgeSentAt)}
-                        </p>
+                {/* Email Nudge - only show in Waiting status */}
+                {item.status === "waiting" && pocEmail && (
+                  <div className="mt-2 pt-2 border-t shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendNudge}
+                      disabled={nudgeDisabled || sendingNudge}
+                      className="w-full"
+                    >
+                      {sendingNudge ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Mail className="h-3 w-3 mr-1" />
                       )}
-                    </div>
-                  )}
-                </>
-              )}
-            </TabsContent>
+                      Send Waiting on Reply (email)
+                    </Button>
+                    {externalNudgeSentAt && (
+                      <p className="text-[10px] text-muted-foreground mt-1 text-center">
+                        Last sent: {formatCST(externalNudgeSentAt)} to {lastWaitingEmailSentTo || pocEmail}
+                        {nudgeDisabled && " (cooldown active)"}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
 
-            <TabsContent value="internal" className="mt-3">
-              {/* Internal Notes */}
-              <div className="space-y-2 max-h-40 overflow-y-auto mb-3">
+          {/* Internal Notes Tab (2nd Look) */}
+          <TabsContent value="internal" className="flex-1 overflow-hidden flex flex-col mt-0 px-4 pb-4">
+            <ScrollArea className="flex-1 my-2">
+              <div className="space-y-2 pr-2">
                 {loadingNotes ? (
                   <p className="text-xs text-muted-foreground">Loading...</p>
                 ) : internalNotes.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No internal notes yet</p>
+                  <p className="text-xs text-muted-foreground text-center py-4">No internal notes yet</p>
                 ) : (
                   internalNotes.map((note) => (
                     <div key={note.id} className="p-2 bg-amber-900/20 rounded text-sm border border-amber-800/30">
-                      <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
-                        <span className="font-medium">{(note.author as { full_name: string | null })?.full_name || "Admin"}</span>
-                        <span>{format(new Date(note.created_at), "MMM d, h:mm a")}</span>
+                      <div className="flex items-center gap-2 mb-1 text-[10px] text-muted-foreground">
+                        <span className="font-medium">
+                          {(note.author as { full_name: string | null })?.full_name || `ADM: ${getShortAdminId(note.created_by)}`}
+                        </span>
+                        <span>{formatCST(note.created_at)}</span>
                       </div>
-                      <p className="whitespace-pre-wrap">{note.body}</p>
+                      <p className="whitespace-pre-wrap text-xs">{note.body}</p>
                     </div>
                   ))
                 )}
               </div>
+            </ScrollArea>
 
-              {/* Add note */}
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Add internal note (admin-only)..."
-                  value={internalNoteText}
-                  onChange={(e) => setInternalNoteText(e.target.value)}
-                  rows={2}
-                  className="text-sm"
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleSendInternalNote}
-                  disabled={sendingNote || !internalNoteText.trim()}
-                  className="w-full"
-                >
-                  {sendingNote ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                  Add Internal Note
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </ScrollArea>
+            {/* Add note */}
+            <div className="space-y-2 shrink-0 pt-2 border-t">
+              <Textarea
+                placeholder="Add internal note (admin-only, not visible to vendor)..."
+                value={internalNoteText}
+                onChange={(e) => setInternalNoteText(e.target.value)}
+                rows={2}
+                className="text-sm resize-none"
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleSendInternalNote}
+                disabled={sendingNote || !internalNoteText.trim()}
+                className="w-full"
+              >
+                {sendingNote ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                Add Internal Note
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Second Look Dialog */}
+      <Dialog open={showSecondLookDialog} onOpenChange={setShowSecondLookDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Second Look</DialogTitle>
+            <DialogDescription>
+              Ask another admin to review this verification request. Your message will be added as an internal note.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">What do you need help with? *</label>
+              <Textarea
+                placeholder="Describe what you need reviewed..."
+                value={secondLookMessage}
+                onChange={(e) => setSecondLookMessage(e.target.value)}
+                rows={3}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSecondLookDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRequestSecondLook}
+              disabled={requestingSecondLook || !secondLookMessage.trim()}
+            >
+              {requestingSecondLook ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Request Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
