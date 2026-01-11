@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, addHours } from "date-fns";
 import { Json } from "@/integrations/supabase/types";
 import {
   CheckCircle2,
@@ -50,6 +49,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { QueueItem, QueueStatus } from "@/hooks/useQueueItems";
 import { cn } from "@/lib/utils";
+import { formatCT } from "@/lib/formatTimezone";
 
 interface VendorVerificationDetailPanelProps {
   item: QueueItem;
@@ -174,16 +174,9 @@ export function VendorVerificationDetailPanel({
   // Current code to display
   const displayCode = requestedCodeFinalMeta || requestedCodeSuggested || "Not specified";
 
-  // Format timestamp for CST display
-  const formatCST = useCallback((dateStr: string) => {
-    try {
-      const utcDate = new Date(dateStr);
-      // CST is UTC-6 hours
-      const cstDate = addHours(utcDate, -6 + utcDate.getTimezoneOffset() / 60);
-      return format(cstDate, "MM/dd/yy - h:mm a") + " CST";
-    } catch {
-      return format(new Date(dateStr), "MM/dd/yy - h:mm a");
-    }
+  // Use formatCT from lib for proper timezone handling
+  const formatTimestamp = useCallback((dateStr: string) => {
+    return formatCT(dateStr);
   }, []);
 
   // Auto-assign on first open
@@ -667,13 +660,13 @@ export function VendorVerificationDetailPanel({
         {awaitingVendorReply && awaitingSince && (
           <div className="flex items-center gap-2 text-xs text-amber-400">
             <Clock className="h-3 w-3" />
-            Awaiting vendor reply since {formatCST(awaitingSince)}
+            Awaiting vendor reply since {formatTimestamp(awaitingSince)}
           </div>
         )}
         {lastVendorMessageAt && !awaitingVendorReply && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <MessageSquare className="h-3 w-3" />
-            Last vendor message: {formatCST(lastVendorMessageAt)}
+            Last vendor message: {formatTimestamp(lastVendorMessageAt)}
           </div>
         )}
       </div>
@@ -685,13 +678,13 @@ export function VendorVerificationDetailPanel({
           {loadingActions ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : actions.length === 0 ? (
-            <p className="text-muted-foreground">Created: {formatCST(item.created_at)}</p>
+            <p className="text-muted-foreground">Created: {formatTimestamp(item.created_at)}</p>
           ) : (
             <>
               {actions.slice(0, 6).map((action) => (
                 <div key={action.id} className="flex items-center gap-2 text-muted-foreground">
                   <span className="text-foreground">
-                    {formatCST(action.created_at)}
+                    {formatTimestamp(action.created_at)}
                   </span>
                   <span className="text-muted-foreground">|</span>
                   <span className="font-medium">ADM: {getShortAdminId(action.created_by)}</span>
@@ -703,7 +696,7 @@ export function VendorVerificationDetailPanel({
                 </div>
               ))}
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{formatCST(item.created_at)}</span>
+                <span>{formatTimestamp(item.created_at)}</span>
                 <span>|</span>
                 <span>SYS</span>
                 <span>|</span>
@@ -753,7 +746,7 @@ export function VendorVerificationDetailPanel({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Submitted:</span>
-                      <span className="ml-1">{submittedAt ? formatCST(submittedAt) : "—"}</span>
+                      <span className="ml-1">{submittedAt ? formatTimestamp(submittedAt) : "—"}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-muted-foreground">Code:</span>
@@ -817,7 +810,7 @@ export function VendorVerificationDetailPanel({
                                   : (msg.sender as { full_name: string | null })?.full_name || "Vendor"
                                 }
                               </span>
-                              <span>{formatCST(msg.created_at)}</span>
+                              <span>{formatTimestamp(msg.created_at)}</span>
                             </div>
                             <p className="whitespace-pre-wrap text-xs">{msg.body}</p>
                           </div>
@@ -870,7 +863,7 @@ export function VendorVerificationDetailPanel({
                     </Button>
                     {externalNudgeSentAt && (
                       <p className="text-[10px] text-muted-foreground mt-1 text-center">
-                        Last sent: {formatCST(externalNudgeSentAt)} to {lastWaitingEmailSentTo || pocEmail}
+                        Last sent: {formatTimestamp(externalNudgeSentAt)} to {lastWaitingEmailSentTo || pocEmail}
                         {nudgeDisabled && " (cooldown active)"}
                       </p>
                     )}
@@ -895,7 +888,7 @@ export function VendorVerificationDetailPanel({
                         <span className="font-medium">
                           {(note.author as { full_name: string | null })?.full_name || `ADM: ${getShortAdminId(note.created_by)}`}
                         </span>
-                        <span>{formatCST(note.created_at)}</span>
+                        <span>{formatTimestamp(note.created_at)}</span>
                       </div>
                       <p className="whitespace-pre-wrap text-xs">{note.body}</p>
                     </div>

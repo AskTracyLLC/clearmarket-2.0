@@ -10,6 +10,10 @@ export type QueueCategory =
   | "vendor_verification"
   | "other";
 
+// Safety: max fields per config
+const MAX_SUMMARY_FIELDS = 2;
+const MAX_PRIMARY_ACTIONS = 5;
+
 export type QueueStatus = "open" | "in_progress" | "waiting" | "resolved";
 export type QueuePriority = "normal" | "urgent";
 
@@ -300,3 +304,36 @@ export function getShortAdminId(userId: string | null | undefined): string {
   if (!userId) return "SYS";
   return userId.slice(0, 4).toUpperCase();
 }
+
+// ========== SAFETY CHECKS (dev-time) ==========
+
+// Validate category config keys are unique
+function validateCategoryKeys(): void {
+  const keys = SUPPORT_QUEUE_CATEGORIES.map(c => c.key);
+  const uniqueKeys = new Set(keys);
+  if (keys.length !== uniqueKeys.size) {
+    console.error("[supportQueueCategories] Duplicate category keys detected:", 
+      keys.filter((k, i) => keys.indexOf(k) !== i));
+  }
+}
+
+// Validate field limits
+function validateFieldLimits(): void {
+  for (const cat of SUPPORT_QUEUE_CATEGORIES) {
+    if (cat.summaryFields.length > MAX_SUMMARY_FIELDS) {
+      console.warn(`[supportQueueCategories] Category "${cat.key}" has ${cat.summaryFields.length} summaryFields (max ${MAX_SUMMARY_FIELDS})`);
+    }
+    if (cat.primaryActions.length > MAX_PRIMARY_ACTIONS) {
+      console.warn(`[supportQueueCategories] Category "${cat.key}" has ${cat.primaryActions.length} primaryActions (max ${MAX_PRIMARY_ACTIONS})`);
+    }
+  }
+}
+
+// Run safety checks on module load (dev only)
+if (typeof window !== "undefined" && import.meta.env?.DEV) {
+  validateCategoryKeys();
+  validateFieldLimits();
+}
+
+// Export list of category keys for iteration (excludes "all" filter)
+export const QUEUE_CATEGORY_KEYS: QueueCategory[] = SUPPORT_QUEUE_CATEGORIES.map(c => c.key);

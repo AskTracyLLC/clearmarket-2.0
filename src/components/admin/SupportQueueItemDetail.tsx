@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { format, addHours } from "date-fns";
 import {
   User,
   Clock,
@@ -36,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { formatCT } from "@/lib/formatTimezone";
 import {
   getCategoryConfig,
   getMetadataValue,
@@ -129,15 +129,9 @@ export function SupportQueueItemDetail({
   const [secondLookMessage, setSecondLookMessage] = useState("");
   const [requestingSecondLook, setRequestingSecondLook] = useState(false);
 
-  // Format timestamp for CST display
-  const formatCST = useCallback((dateStr: string) => {
-    try {
-      const utcDate = new Date(dateStr);
-      const cstDate = addHours(utcDate, -6 + utcDate.getTimezoneOffset() / 60);
-      return format(cstDate, "MM/dd/yy - h:mm a") + " CST";
-    } catch {
-      return format(new Date(dateStr), "MM/dd/yy - h:mm a");
-    }
+  // Use formatCT from lib for proper timezone handling
+  const formatTimestamp = useCallback((dateStr: string) => {
+    return formatCT(dateStr);
   }, []);
 
   // Auto-assign on first open if unassigned
@@ -433,13 +427,13 @@ export function SupportQueueItemDetail({
           {loadingActions ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : actions.length === 0 ? (
-            <p className="text-muted-foreground">Created: {formatCST(item.created_at)}</p>
+            <p className="text-muted-foreground">Created: {formatTimestamp(item.created_at)}</p>
           ) : (
             <>
               {actions.slice(0, 6).map((action) => (
                 <div key={action.id} className="flex items-center gap-2 text-muted-foreground">
                   <span className="text-foreground">
-                    {formatCST(action.created_at)}
+                    {formatTimestamp(action.created_at)}
                   </span>
                   <span className="text-muted-foreground">|</span>
                   <span className="font-medium">ADM: {getShortAdminId(action.created_by)}</span>
@@ -448,7 +442,7 @@ export function SupportQueueItemDetail({
                 </div>
               ))}
               <div className="flex items-center gap-2 text-muted-foreground">
-                <span>{formatCST(item.created_at)}</span>
+                <span>{formatTimestamp(item.created_at)}</span>
                 <span>|</span>
                 <span>SYS</span>
                 <span>|</span>
@@ -482,12 +476,12 @@ export function SupportQueueItemDetail({
               {/* Always show timeline info */}
               <div className="flex gap-2 text-sm">
                 <span className="text-muted-foreground shrink-0 min-w-[120px]">Created:</span>
-                <span className="text-foreground">{formatCST(item.created_at)}</span>
+                <span className="text-foreground">{formatTimestamp(item.created_at)}</span>
               </div>
               {item.resolved_at && (
                 <div className="flex gap-2 text-sm">
                   <span className="text-muted-foreground shrink-0 min-w-[120px]">Resolved:</span>
-                  <span className="text-foreground">{formatCST(item.resolved_at)}</span>
+                  <span className="text-foreground">{formatTimestamp(item.resolved_at)}</span>
                 </div>
               )}
             </div>
@@ -508,7 +502,7 @@ export function SupportQueueItemDetail({
                       <span className="font-medium">
                         {(note.author as { full_name: string | null })?.full_name || `ADM: ${getShortAdminId(note.created_by)}`}
                       </span>
-                      <span>{formatCST(note.created_at)}</span>
+                      <span>{formatTimestamp(note.created_at)}</span>
                     </div>
                     <p className="whitespace-pre-wrap text-xs">{note.body}</p>
                   </div>
