@@ -627,23 +627,28 @@ export default function MessagesList() {
 
           return (
             <div className="space-y-3">
-            {filteredConversations.map((conv) => {
+              {filteredConversations.map((conv) => {
               const isSeekingCoverage = conv.origin_type === "seeking_coverage";
               const isSupport = isSupportConversation(conv);
               
               // Determine main title and subtitle based on conversation type
               let mainTitle: string;
               let subtitle: string | undefined;
+              let previewText: string | undefined;
               
               if (isSupport) {
                 mainTitle = "ClearMarket Support";
                 subtitle = getSupportTopicLabel(conv.category);
+                // For support threads, show last message preview or fallback
+                previewText = conv.last_message_preview || undefined;
               } else if (isSeekingCoverage) {
                 mainTitle = conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation";
                 subtitle = `with ${conv.otherParticipantName}`;
+                previewText = conv.last_message_preview || undefined;
               } else {
                 mainTitle = conv.otherParticipantName;
                 subtitle = undefined;
+                previewText = conv.last_message_preview || undefined;
               }
 
               return (
@@ -661,6 +666,11 @@ export default function MessagesList() {
                         <span className="font-semibold text-foreground">
                           {mainTitle}
                         </span>
+                        {isSupport && subtitle && (
+                          <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/30">
+                            {subtitle}
+                          </Badge>
+                        )}
                         {!isSupport && (
                           <button
                             onClick={(e) => {
@@ -685,12 +695,12 @@ export default function MessagesList() {
                           </Badge>
                         )}
                       </div>
-                      {subtitle && (
+                      {!isSupport && subtitle && (
                         <p className="text-xs text-muted-foreground mb-1">{subtitle}</p>
                       )}
-                      {conv.last_message_preview && (
+                      {previewText && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {conv.last_message_preview}
+                          {previewText}
                         </p>
                       )}
                     </div>
