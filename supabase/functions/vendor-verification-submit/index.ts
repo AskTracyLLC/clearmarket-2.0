@@ -85,30 +85,57 @@ serve(async (req) => {
       });
     }
 
-    // Find or create conversation
+    // Find or create conversation - use category for support thread identification
     const [p1, p2] = [user.id, adminProfile.id].sort();
+    const supportCategory = "support:vendor_verification";
     
+    // Look for existing conversation by category (preferred) or conversation_type (legacy)
     let { data: existingConvo } = await serviceClient
       .from("conversations")
       .select("id")
       .eq("participant_one", p1)
       .eq("participant_two", p2)
-      .eq("conversation_type", "vendor_verification")
+      .eq("category", supportCategory)
       .maybeSingle();
+    
+    // Fallback: check for legacy conversation_type if no category match
+    if (!existingConvo) {
+      const { data: legacyConvo } = await serviceClient
+        .from("conversations")
+        .select("id")
+        .eq("participant_one", p1)
+        .eq("participant_two", p2)
+        .eq("conversation_type", "vendor_verification")
+        .maybeSingle();
+      
+      if (legacyConvo) {
+        // Migrate legacy conversation to use category
+        await serviceClient
+          .from("conversations")
+          .update({ category: supportCategory })
+          .eq("id", legacyConvo.id);
+        existingConvo = legacyConvo;
+      }
+    }
 
     let conversationId: string;
 
     if (existingConvo) {
       conversationId = existingConvo.id;
     } else {
+      // Default support code is CLRMRKT
+      const supportCode = vp.vendor_public_code_requested || "CLRMRKT";
+      
       const { data: newConvo, error: convoError } = await serviceClient
         .from("conversations")
         .insert({
           participant_one: p1,
           participant_two: p2,
-          conversation_type: "vendor_verification",
+          conversation_type: "direct", // Schema constraint requires direct/seeking_coverage
+          category: supportCategory,
           hidden_for_one: false,
           hidden_for_two: false,
+          post_title_snapshot: `Vendor Verification: ${supportCode}`,
         })
         .select("id")
         .single();

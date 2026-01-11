@@ -5,7 +5,7 @@ import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MessageSquare, Eye } from "lucide-react";
+import { MessageSquare, Eye, Headphones } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getUserDisplayName } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
@@ -28,6 +28,8 @@ interface ConversationWithParticipant {
   post_title_snapshot: string | null;
   hidden_for_one: boolean;
   hidden_for_two: boolean;
+  category: string | null;
+  conversation_type: string | null;
   seeking_post?: {
     id: string;
     title: string;
@@ -38,6 +40,19 @@ interface ConversationWithParticipant {
   otherParticipantUserId: string;
   unreadCount: number;
   hasPendingConnection?: boolean;
+}
+
+// Helper to determine if a conversation is a support thread
+function isSupportConversation(conv: ConversationWithParticipant): boolean {
+  return conv.category?.startsWith("support:") ?? false;
+}
+
+// Helper to get support topic label from category
+function getSupportTopicLabel(category: string | null): string {
+  if (!category) return "Support";
+  if (category === "support:vendor_verification") return "Vendor Verification";
+  if (category.startsWith("support:")) return category.replace("support:", "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  return "Support";
 }
 
 interface PendingConnectionRequest {
@@ -61,7 +76,7 @@ export default function MessagesList() {
   const [pendingRequests, setPendingRequests] = useState<PendingConnectionRequest[]>([]);
   const [isRep, setIsRep] = useState(false);
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
-  const [filterMode, setFilterMode] = useState<"all" | "seeking" | "direct">("all");
+  const [filterMode, setFilterMode] = useState<"all" | "seeking" | "direct" | "support">("all");
   const [openPostsOnly, setOpenPostsOnly] = useState(false);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
 
@@ -318,6 +333,8 @@ export default function MessagesList() {
           post_title_snapshot,
           hidden_for_one,
           hidden_for_two,
+          category,
+          conversation_type,
           seeking_post:origin_post_id (
             id,
             title,
@@ -357,7 +374,11 @@ export default function MessagesList() {
             ? conv.participant_two 
             : conv.participant_one;
           
-          const otherParticipantName = await getUserDisplayName(otherUserId);
+          // For support conversations, show "ClearMarket Support" instead of participant name
+          const isSupport = conv.category?.startsWith("support:") ?? false;
+          const otherParticipantName = isSupport 
+            ? "ClearMarket Support" 
+            : await getUserDisplayName(otherUserId);
           
           return {
             ...conv,
@@ -445,7 +466,7 @@ export default function MessagesList() {
           
           {/* Primary Filter */}
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
               <Button
                 variant={filterMode === "all" ? "default" : "outline"}
                 size="sm"
@@ -466,6 +487,13 @@ export default function MessagesList() {
                 onClick={() => setFilterMode("direct")}
               >
                 Direct
+              </Button>
+              <Button
+                variant={filterMode === "support" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilterMode("support")}
+              >
+                Support
               </Button>
             </div>
             
@@ -537,16 +565,21 @@ export default function MessagesList() {
           // Apply filters in order: primary filter, then secondary filter
           let filteredConversations = conversations;
 
-          // 1. Apply primary filter (All / Seeking Coverage / Direct)
+          // 1. Apply primary filter (All / Seeking Coverage / Direct / Support)
           if (filterMode === "seeking") {
-            // Only Seeking Coverage conversations
+            // Only Seeking Coverage conversations (exclude support)
             filteredConversations = filteredConversations.filter((conv) => 
-              conv.origin_type === "seeking_coverage" && conv.origin_post_id
+              conv.origin_type === "seeking_coverage" && conv.origin_post_id && !isSupportConversation(conv)
             );
           } else if (filterMode === "direct") {
-            // Only Direct conversations (not tied to Seeking Coverage)
+            // Only Direct conversations (not tied to Seeking Coverage, and not support)
             filteredConversations = filteredConversations.filter((conv) => 
-              conv.origin_type !== "seeking_coverage" || !conv.origin_post_id
+              (conv.origin_type !== "seeking_coverage" || !conv.origin_post_id) && !isSupportConversation(conv)
+            );
+          } else if (filterMode === "support") {
+            // Only Support conversations
+            filteredConversations = filteredConversations.filter((conv) => 
+              isSupportConversation(conv)
             );
           }
           // filterMode === "all" → no additional filtering
@@ -574,6 +607,9 @@ export default function MessagesList() {
             } else if (filterMode === "direct") {
               emptyTitle = "No direct conversations";
               emptyMessage = "Direct conversations not tied to Seeking Coverage posts will appear here.";
+            } else if (filterMode === "support") {
+              emptyTitle = "No support conversations";
+              emptyMessage = "Conversations with ClearMarket Support will appear here.";
             }
 
             return (
@@ -591,12 +627,24 @@ export default function MessagesList() {
 
           return (
             <div className="space-y-3">
-              {filteredConversations.map((conv) => {
+            {filteredConversations.map((conv) => {
               const isSeekingCoverage = conv.origin_type === "seeking_coverage";
-              const mainTitle = isSeekingCoverage
-                ? (conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation")
-                : conv.otherParticipantName;
-              const subtitle = isSeekingCoverage ? `with ${conv.otherParticipantName}` : undefined;
+              const isSupport = isSupportConversation(conv);
+              
+              // Determine main title and subtitle based on conversation type
+              let mainTitle: string;
+              let subtitle: string | undefined;
+              
+              if (isSupport) {
+                mainTitle = "ClearMarket Support";
+                subtitle = getSupportTopicLabel(conv.category);
+              } else if (isSeekingCoverage) {
+                mainTitle = conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation";
+                subtitle = `with ${conv.otherParticipantName}`;
+              } else {
+                mainTitle = conv.otherParticipantName;
+                subtitle = undefined;
+              }
 
               return (
                 <Card
@@ -607,20 +655,25 @@ export default function MessagesList() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
+                        {isSupport && (
+                          <Headphones className="h-4 w-4 text-primary shrink-0" />
+                        )}
                         <span className="font-semibold text-foreground">
                           {mainTitle}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedProfileUserId(conv.otherParticipantUserId);
-                            setProfileDialogOpen(true);
-                          }}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                          title="View profile"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
+                        {!isSupport && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProfileUserId(conv.otherParticipantUserId);
+                              setProfileDialogOpen(true);
+                            }}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                            title="View profile"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         {conv.unreadCount > 0 && (
                           <Badge variant="secondary" className="ml-2 bg-orange-500/20 text-orange-500 hover:bg-orange-500/30">
                             {conv.unreadCount}

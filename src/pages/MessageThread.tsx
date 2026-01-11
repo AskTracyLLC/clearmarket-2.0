@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban } from "lucide-react";
+import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban, Headphones } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
@@ -203,6 +203,8 @@ export default function MessageThread() {
           origin_post_id,
           rep_interest_id,
           post_title_snapshot,
+          category,
+          conversation_type,
           seeking_post:origin_post_id (
             id,
             title,
@@ -254,9 +256,15 @@ export default function MessageThread() {
       
       setOtherParticipantId(otherId);
       
-      // Get other participant's display name
-      const name = await getUserDisplayName(otherId);
-      setOtherParticipantName(name);
+      // For support conversations, show "ClearMarket Support" instead of participant name
+      const isSupportThread = conversation.category?.startsWith("support:");
+      if (isSupportThread) {
+        setOtherParticipantName("ClearMarket Support");
+      } else {
+        // Get other participant's display name
+        const name = await getUserDisplayName(otherId);
+        setOtherParticipantName(name);
+      }
 
       // If this is a Seeking Coverage conversation, load other party's public profile and rep_interest
       if (conversation.origin_type === "seeking_coverage") {
@@ -691,6 +699,17 @@ export default function MessageThread() {
     );
   }
 
+  // Helper to check if this is a support conversation
+  const isSupportThread = conversationData?.category?.startsWith("support:");
+  
+  // Get support topic label
+  const getSupportTopicLabel = (category: string | null): string => {
+    if (!category) return "Support";
+    if (category === "support:vendor_verification") return "Vendor Verification";
+    if (category.startsWith("support:")) return category.replace("support:", "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    return "Support";
+  };
+
   return (
     <>
       <div className="container mx-auto px-4 py-6 max-w-4xl">
@@ -702,46 +721,61 @@ export default function MessageThread() {
               Back to Messages
             </Button>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setProfileDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                <span className="font-medium">{otherParticipantName}</span>
-              </Button>
+              {isSupportThread ? (
+                // Support thread header - no profile button
+                <div className="flex items-center gap-2 px-3 py-1.5">
+                  <Headphones className="h-4 w-4 text-primary" />
+                  <div className="flex flex-col">
+                    <span className="font-medium text-foreground">ClearMarket Support</span>
+                    <span className="text-xs text-muted-foreground">{getSupportTopicLabel(conversationData?.category)}</span>
+                  </div>
+                </div>
+              ) : (
+                // Regular thread header with profile button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setProfileDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  <span className="font-medium">{otherParticipantName}</span>
+                </Button>
+              )}
             </div>
           </div>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isBlocked ? (
-                <DropdownMenuItem onClick={handleUnblockUser} disabled={blocking}>
-                  Unblock User
+          {/* Only show dropdown menu for non-support threads */}
+          {!isSupportThread && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isBlocked ? (
+                  <DropdownMenuItem onClick={handleUnblockUser} disabled={blocking}>
+                    Unblock User
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => setShowBlockDialog(true)}>
+                    Block User
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem 
+                  onClick={() => setShowReportDialog(true)}
+                  disabled={alreadyReported}
+                >
+                  {alreadyReported ? "Already Reported" : "Report User"}
                 </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => setShowBlockDialog(true)}>
-                  Block User
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem 
-                onClick={() => setShowReportDialog(true)}
-                disabled={alreadyReported}
-              >
-                {alreadyReported ? "Already Reported" : "Report User"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
-        {/* Block warning */}
-        {isBlocked && (
+        {/* Block warning - only for non-support threads */}
+        {!isSupportThread && isBlocked && (
           <Alert className="mb-4 border-orange-500/50 bg-orange-500/10">
             <AlertDescription>
               You have blocked this user. You can still view the conversation history, but cannot send new messages until you unblock them.
