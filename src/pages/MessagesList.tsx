@@ -15,6 +15,13 @@ import { toast } from "@/hooks/use-toast";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { PageHeader } from "@/components/PageHeader";
+import { 
+  isSupportCategory, 
+  parseSupportCategory, 
+  formatSupportTopicLabel,
+  formatShortCaseId,
+  isArchivedCategory 
+} from "@/lib/supportCategory";
 
 
 interface ConversationWithParticipant {
@@ -40,19 +47,6 @@ interface ConversationWithParticipant {
   otherParticipantUserId: string;
   unreadCount: number;
   hasPendingConnection?: boolean;
-}
-
-// Helper to determine if a conversation is a support thread
-function isSupportConversation(conv: ConversationWithParticipant): boolean {
-  return conv.category?.startsWith("support:") ?? false;
-}
-
-// Helper to get support topic label from category
-function getSupportTopicLabel(category: string | null): string {
-  if (!category) return "Support";
-  if (category === "support:vendor_verification") return "Vendor Verification";
-  if (category.startsWith("support:")) return category.replace("support:", "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-  return "Support";
 }
 
 interface PendingConnectionRequest {
@@ -390,14 +384,15 @@ export default function MessagesList() {
         })
       );
 
-      // Filter out archived conversations (unless they have unread messages) and blocked users
+      // Filter out archived conversations (unless they have unread messages), blocked users, and archived categories
       const filteredConversations = conversationsWithNames.filter((conv) => {
         const isParticipantOne = conv.participant_one === effectiveUserId;
         const isArchived = isParticipantOne ? conv.hidden_for_one : conv.hidden_for_two;
         const isBlocked = blockedUserIds.includes(conv.otherParticipantUserId);
+        const hasArchivedCategory = isArchivedCategory(conv.category);
         // Show archived conversations if they have unread messages
         const hasUnread = conv.unreadCount > 0;
-        return (!isArchived || hasUnread) && !isBlocked;
+        return (!isArchived || hasUnread) && !isBlocked && !hasArchivedCategory;
       });
 
       // Load pending connection states for field reps
@@ -569,17 +564,17 @@ export default function MessagesList() {
           if (filterMode === "seeking") {
             // Only Seeking Coverage conversations (exclude support)
             filteredConversations = filteredConversations.filter((conv) => 
-              conv.origin_type === "seeking_coverage" && conv.origin_post_id && !isSupportConversation(conv)
+              conv.origin_type === "seeking_coverage" && conv.origin_post_id && !isSupportCategory(conv.category)
             );
           } else if (filterMode === "direct") {
             // Only Direct conversations (not tied to Seeking Coverage, and not support)
             filteredConversations = filteredConversations.filter((conv) => 
-              (conv.origin_type !== "seeking_coverage" || !conv.origin_post_id) && !isSupportConversation(conv)
+              (conv.origin_type !== "seeking_coverage" || !conv.origin_post_id) && !isSupportCategory(conv.category)
             );
           } else if (filterMode === "support") {
             // Only Support conversations
             filteredConversations = filteredConversations.filter((conv) => 
-              isSupportConversation(conv)
+              isSupportCategory(conv.category)
             );
           }
           // filterMode === "all" → no additional filtering
@@ -629,25 +624,28 @@ export default function MessagesList() {
             <div className="space-y-3">
               {filteredConversations.map((conv) => {
               const isSeekingCoverage = conv.origin_type === "seeking_coverage";
-              const isSupport = isSupportConversation(conv);
+              const parsed = parseSupportCategory(conv.category);
+              const isSupport = parsed.isSupport;
               
               // Determine main title and subtitle based on conversation type
               let mainTitle: string;
-              let subtitle: string | undefined;
+              let topicLabel: string | undefined;
               let previewText: string | undefined;
+              let shortCaseId: string | null = null;
               
               if (isSupport) {
                 mainTitle = "ClearMarket Support";
-                subtitle = getSupportTopicLabel(conv.category);
-                // For support threads, show last message preview or fallback
-                previewText = conv.last_message_preview || undefined;
+                topicLabel = formatSupportTopicLabel(parsed.topic);
+                shortCaseId = formatShortCaseId(parsed.caseId);
+                // For support threads, prefer post_title_snapshot (case subject), then last_message_preview
+                previewText = conv.post_title_snapshot || conv.last_message_preview || undefined;
               } else if (isSeekingCoverage) {
                 mainTitle = conv.post_title_snapshot || conv.seeking_post?.title || "Seeking Coverage Conversation";
-                subtitle = `with ${conv.otherParticipantName}`;
+                topicLabel = `with ${conv.otherParticipantName}`;
                 previewText = conv.last_message_preview || undefined;
               } else {
                 mainTitle = conv.otherParticipantName;
-                subtitle = undefined;
+                topicLabel = undefined;
                 previewText = conv.last_message_preview || undefined;
               }
 
@@ -666,10 +664,15 @@ export default function MessagesList() {
                         <span className="font-semibold text-foreground">
                           {mainTitle}
                         </span>
-                        {isSupport && subtitle && (
+                        {isSupport && topicLabel && (
                           <Badge variant="outline" className="text-xs text-muted-foreground border-muted-foreground/30">
-                            {subtitle}
+                            {topicLabel}
                           </Badge>
+                        )}
+                        {isSupport && shortCaseId && (
+                          <span className="text-xs text-muted-foreground">
+                            Case #{shortCaseId}
+                          </span>
                         )}
                         {!isSupport && (
                           <button
@@ -695,8 +698,8 @@ export default function MessagesList() {
                           </Badge>
                         )}
                       </div>
-                      {!isSupport && subtitle && (
-                        <p className="text-xs text-muted-foreground mb-1">{subtitle}</p>
+                      {!isSupport && topicLabel && (
+                        <p className="text-xs text-muted-foreground mb-1">{topicLabel}</p>
                       )}
                       {previewText && (
                         <p className="text-sm text-muted-foreground line-clamp-2">
