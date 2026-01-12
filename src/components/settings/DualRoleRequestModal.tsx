@@ -35,12 +35,13 @@ interface DualRoleRequestModalProps {
   onSuccess: () => void;
 }
 
+// Entity type values must match DB constraint exactly: 'LLC', 'Corporation', 'Sole Proprietor', 'Partnership', 'Other'
 const ENTITY_TYPES = [
-  { value: "llc", label: "LLC" },
-  { value: "corporation", label: "Corporation" },
-  { value: "sole_proprietor", label: "Sole Proprietor" },
-  { value: "partnership", label: "Partnership" },
-  { value: "other", label: "Other" },
+  { value: "LLC", label: "LLC" },
+  { value: "Corporation", label: "Corporation" },
+  { value: "Sole Proprietor", label: "Sole Proprietor" },
+  { value: "Partnership", label: "Partnership" },
+  { value: "Other", label: "Other" },
 ];
 
 export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRoleRequestModalProps) {
@@ -62,6 +63,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
   const [einLast4, setEinLast4] = useState("");
   const [bbbUrl, setBbbUrl] = useState("");
   const [message, setMessage] = useState("");
+  const [requestedCode, setRequestedCode] = useState("");
 
   // GL Insurance
   const [submitGl, setSubmitGl] = useState(false);
@@ -80,6 +82,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
     setEinLast4("");
     setBbbUrl("");
     setMessage("");
+    setRequestedCode("");
     setSubmitGl(false);
     setGlExpiresOn(undefined);
   }
@@ -144,6 +147,13 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
       return;
     }
 
+    // Validate requested code (optional, 3-5 uppercase letters only)
+    const trimmedCode = requestedCode.trim().toUpperCase();
+    if (trimmedCode && !/^[A-Z]{3,5}$/.test(trimmedCode)) {
+      toast.error("Requested code must be 3-5 letters only");
+      return;
+    }
+
     // Compose finalMessage with BBB URL appended
     let finalMessage = message.trim();
     if (bbbUrl.trim()) {
@@ -170,6 +180,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         year_established?: number;
         ein_last4?: string;
         message?: string;
+        requested_code?: string;
         gl_expires_on?: string;
         gl_status?: "none" | "submitted" | "verified" | "rejected";
       } = {
@@ -194,6 +205,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
       }
       if (einLast4.trim()) insertData.ein_last4 = einLast4.trim();
       if (finalMessage) insertData.message = finalMessage;
+      if (trimmedCode) insertData.requested_code = trimmedCode;
 
       // GL Insurance
       if (submitGl && glExpiresOn) {
@@ -252,6 +264,20 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Your company name"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="requestedCode">Requested Vendor Code (Optional)</Label>
+                <Input
+                  id="requestedCode"
+                  value={requestedCode}
+                  onChange={(e) => setRequestedCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5))}
+                  placeholder="ABC"
+                  maxLength={5}
+                />
+                <p className="text-xs text-muted-foreground">
+                  If you already use a vendor code with other reps, enter it here. Support will confirm or assign one.
+                </p>
               </div>
 
               <div className="space-y-2">

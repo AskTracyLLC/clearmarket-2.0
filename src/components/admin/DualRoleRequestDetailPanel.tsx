@@ -115,6 +115,7 @@ interface DualRoleRequest {
   ein_last4: string | null;
   entity_type: string | null;
   message: string | null;
+  requested_code: string | null;
   status: string;
   gl_status: string | null;
   gl_expires_on: string | null;
@@ -143,12 +144,18 @@ function parseBbbUrl(message: string | null): string | null {
 
 function getEntityTypeLabel(entityType: string | null): string {
   if (!entityType) return "—";
+  // Handle both old lowercase values and new exact-case values
   const labels: Record<string, string> = {
     llc: "LLC",
+    LLC: "LLC",
     corporation: "Corporation",
+    Corporation: "Corporation",
     sole_proprietor: "Sole Proprietor",
+    "Sole Proprietor": "Sole Proprietor",
     partnership: "Partnership",
+    Partnership: "Partnership",
     other: "Other",
+    Other: "Other",
   };
   return labels[entityType] || entityType;
 }
@@ -558,6 +565,18 @@ export function DualRoleRequestDetailPanel({
                       )}
                     </div>
                   </div>
+
+                  {dualRoleRequest.requested_code && (
+                    <div className="flex items-center gap-3">
+                      <Hash className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Requested Code:</span>
+                        <Badge variant="outline" className="font-mono">
+                          {dualRoleRequest.requested_code}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
