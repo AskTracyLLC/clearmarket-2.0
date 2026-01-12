@@ -369,7 +369,7 @@ export default function MessagesList() {
             : conv.participant_one;
           
           // For support conversations, show "ClearMarket Support" instead of participant name
-          const isSupport = conv.category?.startsWith("support:") ?? false;
+          const isSupport = (conv.category?.startsWith("support:") ?? false) || conv.conversation_type === "support";
           const otherParticipantName = isSupport 
             ? "ClearMarket Support" 
             : await getUserDisplayName(otherUserId);
@@ -564,17 +564,19 @@ export default function MessagesList() {
           if (filterMode === "seeking") {
             // Only Seeking Coverage conversations (exclude support)
             filteredConversations = filteredConversations.filter((conv) => 
-              conv.origin_type === "seeking_coverage" && conv.origin_post_id && !isSupportCategory(conv.category)
+              conv.origin_type === "seeking_coverage" && conv.origin_post_id && 
+              !isSupportCategory(conv.category) && conv.conversation_type !== "support"
             );
           } else if (filterMode === "direct") {
             // Only Direct conversations (not tied to Seeking Coverage, and not support)
             filteredConversations = filteredConversations.filter((conv) => 
-              (conv.origin_type !== "seeking_coverage" || !conv.origin_post_id) && !isSupportCategory(conv.category)
+              (conv.origin_type !== "seeking_coverage" || !conv.origin_post_id) && 
+              !isSupportCategory(conv.category) && conv.conversation_type !== "support"
             );
           } else if (filterMode === "support") {
-            // Only Support conversations
+            // Only Support conversations (check both category and conversation_type for safety)
             filteredConversations = filteredConversations.filter((conv) => 
-              isSupportCategory(conv.category)
+              isSupportCategory(conv.category) || conv.conversation_type === "support"
             );
           }
           // filterMode === "all" → no additional filtering
@@ -625,7 +627,7 @@ export default function MessagesList() {
               {filteredConversations.map((conv) => {
               const isSeekingCoverage = conv.origin_type === "seeking_coverage";
               const parsed = parseSupportCategory(conv.category);
-              const isSupport = parsed.isSupport;
+              const isSupport = parsed.isSupport || conv.conversation_type === "support";
               
               // Determine main title and subtitle based on conversation type
               let mainTitle: string;
