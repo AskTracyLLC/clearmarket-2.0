@@ -275,16 +275,31 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
           },
         });
 
-        if (response.data?.conversationId) {
+        console.log("create-support-case response:", response);
+
+        if (response.error) {
+          console.error("Edge function error:", response.error);
+          toast.warning("Request submitted, but support thread could not be created.", {
+            description: "Admin will still see your request.",
+          });
+        } else if (response.data?.conversationId) {
           // 3. Update the request with the conversation_id so trigger syncs it to queue
-          await supabase
+          const { error: updateErr } = await supabase
             .from("dual_role_access_requests")
             .update({ conversation_id: response.data.conversationId })
             .eq("id", requestId);
+          
+          if (updateErr) {
+            console.error("Failed to link conversation_id:", updateErr);
+          } else {
+            console.log("Linked conversation_id:", response.data.conversationId);
+          }
+        } else {
+          console.warn("No conversationId in response:", response.data);
         }
       } catch (threadErr) {
         console.error("Failed to create support thread (non-blocking):", threadErr);
-        // Don't fail the whole request if thread creation fails
+        toast.warning("Request submitted, but support thread could not be created.");
       }
 
       toast.success("Request submitted", {

@@ -78,6 +78,7 @@ export function formatSupportTopicLabel(topic: string | null): string {
   // Handle known topics explicitly
   const topicLabels: Record<string, string> = {
     vendor_verification: "Vendor Verification",
+    dual_role_access: "Dual Role Access",
     billing: "Billing",
     support_ticket: "Support Ticket",
     user_report: "User Report",
