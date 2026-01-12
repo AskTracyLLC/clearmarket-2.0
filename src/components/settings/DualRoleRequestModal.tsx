@@ -213,9 +213,12 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         insertData.gl_status = "submitted";
       }
 
-      const { error } = await supabase
+      // 1. Insert the dual role request first
+      const { data: requestData, error } = await supabase
         .from("dual_role_access_requests")
-        .insert([insertData]);
+        .insert([insertData])
+        .select("id")
+        .single();
 
       if (error) {
         // Handle unique constraint error for pending requests
@@ -227,8 +230,65 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         return;
       }
 
+      // 2. Create a support conversation thread for admin follow-up
+      const requestId = requestData.id;
+      
+      // Build a detailed support message with all request info
+      const supportMessageParts = [
+        `**Dual Role Access Request**`,
+        ``,
+        `**Business Information:**`,
+        `• Business Name: ${businessName.trim()}`,
+        `• Office Phone: ${officePhone.trim()}`,
+        `• Office Email: ${officeEmail.trim()}`,
+      ];
+      
+      if (businessCity.trim() || businessState.trim()) {
+        supportMessageParts.push(`• Location: ${[businessCity.trim(), businessState.trim()].filter(Boolean).join(", ")}`);
+      }
+      if (entityType) {
+        supportMessageParts.push(`• Entity Type: ${entityType}`);
+      }
+      if (yearEstablished) {
+        supportMessageParts.push(`• Year Established: ${yearEstablished}`);
+      }
+      if (trimmedCode) {
+        supportMessageParts.push(`• Requested Vendor Code: ${trimmedCode}`);
+      }
+      if (submitGl && glExpiresOn) {
+        supportMessageParts.push(`• GL Insurance: Submitted (expires ${format(glExpiresOn, "yyyy-MM-dd")})`);
+      }
+      if (message.trim()) {
+        supportMessageParts.push(``, `**Additional Notes:**`, message.trim());
+      }
+      
+      const supportMessage = supportMessageParts.join("\n");
+
+      try {
+        const response = await supabase.functions.invoke("create-support-case", {
+          body: {
+            topic: "dual_role_access",
+            subject: `Dual Role Request: ${businessName.trim()}`,
+            message: supportMessage,
+            priority: "normal",
+            metadata: { request_id: requestId },
+          },
+        });
+
+        if (response.data?.conversationId) {
+          // 3. Update the request with the conversation_id so trigger syncs it to queue
+          await supabase
+            .from("dual_role_access_requests")
+            .update({ conversation_id: response.data.conversationId })
+            .eq("id", requestId);
+        }
+      } catch (threadErr) {
+        console.error("Failed to create support thread (non-blocking):", threadErr);
+        // Don't fail the whole request if thread creation fails
+      }
+
       toast.success("Request submitted", {
-        description: "We'll review your request and notify you of the decision.",
+        description: "We'll review your request and notify you of the decision. Check Messages for updates.",
       });
       resetForm();
       onSuccess();

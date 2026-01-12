@@ -1583,6 +1583,7 @@ export type Database = {
           business_city: string | null
           business_name: string
           business_state: string | null
+          conversation_id: string | null
           created_at: string
           decision_note: string | null
           ein_last4: string | null
@@ -1611,6 +1612,7 @@ export type Database = {
           business_city?: string | null
           business_name: string
           business_state?: string | null
+          conversation_id?: string | null
           created_at?: string
           decision_note?: string | null
           ein_last4?: string | null
@@ -1639,6 +1641,7 @@ export type Database = {
           business_city?: string | null
           business_name?: string
           business_state?: string | null
+          conversation_id?: string | null
           created_at?: string
           decision_note?: string | null
           ein_last4?: string | null

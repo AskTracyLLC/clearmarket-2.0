@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   User,
   Clock,
@@ -166,6 +167,7 @@ export function DualRoleRequestDetailPanel({
   onAssign,
   onRefresh,
 }: DualRoleRequestDetailPanelProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -388,8 +390,16 @@ export function DualRoleRequestDetailPanel({
   const isPending = dualRoleRequest?.status === "pending";
   const hasGlExpiration = !!dualRoleRequest?.gl_expires_on;
   const bbbUrl = parseBbbUrl(dualRoleRequest?.message ?? null);
+  const conversationId = item.conversation_id || (item.metadata?.conversation_id as string | null);
+  const requestedCode = dualRoleRequest?.requested_code || (item.metadata?.requested_code as string | null);
 
   const resolveLabel = categoryConfig.resolveLabel || "Resolve";
+
+  const handleOpenThread = () => {
+    if (conversationId) {
+      navigate(`/messages/${conversationId}`);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -416,6 +426,15 @@ export function DualRoleRequestDetailPanel({
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                 {item.preview}
               </p>
+            )}
+            {requestedCode && (
+              <div className="flex items-center gap-2 mt-1">
+                <Hash className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Requested Code:</span>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {requestedCode}
+                </Badge>
+              </div>
             )}
           </div>
 
@@ -488,6 +507,18 @@ export function DualRoleRequestDetailPanel({
               <TooltipContent>Request Second Look</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {conversationId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 gap-1 text-xs"
+              onClick={handleOpenThread}
+            >
+              <MessageSquare className="h-3 w-3" />
+              Open Thread
+            </Button>
+          )}
         </div>
       </div>
 
