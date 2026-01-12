@@ -138,6 +138,33 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
     }
   }
 
+  /**
+   * Helper to create/reuse support thread for an existing request that has no conversation_id
+   */
+  async function createThreadForExistingRequest(request: ExistingRequest): Promise<string | null> {
+    try {
+      const response = await supabase.functions.invoke("create-support-case", {
+        body: {
+          topic: "dual_role_access",
+          subject: `Dual Role Request: ${request.business_name}`,
+          message: "Following up on my Dual Role Access request.",
+          priority: "normal",
+          dualRoleRequestId: request.id,
+        },
+      });
+
+      if (response.error) {
+        console.error("Edge function error:", response.error);
+        return null;
+      }
+      
+      return response.data?.conversationId ?? null;
+    } catch (err) {
+      console.error("Failed to create support thread:", err);
+      return null;
+    }
+  }
+
   async function handleSubmit() {
     if (!user) return;
 
@@ -207,6 +234,36 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
 
     setSubmitting(true);
     try {
+      // C1) First check for existing pending request (double-check before insert)
+      const { data: pendingCheck } = await supabase
+        .from("dual_role_access_requests")
+        .select("id, conversation_id, status, business_name")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (pendingCheck) {
+        // Existing pending request found - don't create new one
+        toast.info("You already have a pending Dual Role request. Opening your support thread.");
+        
+        if (pendingCheck.conversation_id) {
+          // Has conversation - navigate to it
+          onOpenChange(false);
+          navigate(`/messages?tab=support&open=${pendingCheck.conversation_id}`);
+        } else {
+          // No conversation - create thread using existing request.id as caseId
+          const convId = await createThreadForExistingRequest(pendingCheck);
+          if (convId) {
+            onOpenChange(false);
+            navigate(`/messages?tab=support&open=${convId}`);
+          } else {
+            toast.error("Could not create support thread. Please try again.");
+          }
+        }
+        return;
+      }
+
+      // C2) No pending exists - create request row first
       const insertData: {
         user_id: string;
         business_name: string;
@@ -254,7 +311,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         insertData.gl_status = "submitted";
       }
 
-      // 1. Insert the dual role request first
+      // Insert the request first (to get the ID)
       const { data: requestData, error } = await supabase
         .from("dual_role_access_requests")
         .insert([insertData])
@@ -271,7 +328,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
         return;
       }
 
-      // 2. Create a support conversation thread for admin follow-up
+      // C3) Create conversation using the request.id as caseId
       const requestId = requestData.id;
       
       // Build a detailed support message with all request info
@@ -305,6 +362,10 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
       
       const supportMessage = supportMessageParts.join("\n");
 
+      // The edge function will:
+      // 1. Create conversation with category = support:dual_role_access:<requestId>
+      // 2. Link conversation_id back to the request (using service role to bypass trigger)
+      // 3. NOT create a queue item (DB trigger on dual_role_access_requests handles that)
       try {
         const response = await supabase.functions.invoke("create-support-case", {
           body: {
@@ -312,7 +373,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
             subject: `Dual Role Request: ${businessName.trim()}`,
             message: supportMessage,
             priority: "normal",
-            dualRoleRequestId: requestId, // Edge function will link conversation_id using service role
+            dualRoleRequestId: requestId,
           },
         });
 
@@ -343,10 +404,26 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
     }
   }
 
-  function handleOpenThread() {
-    if (existingRequest?.conversation_id) {
+  async function handleOpenThread() {
+    if (!existingRequest) return;
+    
+    if (existingRequest.conversation_id) {
       onOpenChange(false);
       navigate(`/messages?tab=support&open=${existingRequest.conversation_id}`);
+    } else {
+      // Create thread for existing request that has no conversation_id
+      setSubmitting(true);
+      try {
+        const convId = await createThreadForExistingRequest(existingRequest);
+        if (convId) {
+          onOpenChange(false);
+          navigate(`/messages?tab=support&open=${convId}`);
+        } else {
+          toast.error("Could not create support thread. Please try again.");
+        }
+      } finally {
+        setSubmitting(false);
+      }
     }
   }
 
@@ -373,22 +450,21 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
               <MessageCircle className="h-4 w-4" />
               <AlertDescription>
                 You already have a pending Dual Role request for <strong>{existingRequest.business_name}</strong>.
-                {existingRequest.conversation_id 
-                  ? " You can view and continue the conversation in your Support messages."
-                  : " Our team is reviewing your request."
-                }
+                {" "}You can view and continue the conversation in your Support messages.
               </AlertDescription>
             </Alert>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 Close
               </Button>
-              {existingRequest.conversation_id && (
-                <Button onClick={handleOpenThread}>
+              <Button onClick={handleOpenThread} disabled={submitting}>
+                {submitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  Open Thread
-                </Button>
-              )}
+                )}
+                {existingRequest.conversation_id ? "Open Thread" : "Start Thread"}
+              </Button>
             </DialogFooter>
           </div>
         ) : (
