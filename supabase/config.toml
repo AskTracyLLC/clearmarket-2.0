@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.send-vendor-verification-nudge]
 verify_jwt = true
+
+[functions.create-support-case]
+verify_jwt = false
