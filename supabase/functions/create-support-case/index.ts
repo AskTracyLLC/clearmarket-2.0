@@ -17,6 +17,7 @@ type CreateSupportCaseBody = {
   subject: string;          // shown as post_title_snapshot (list preview)
   message: string;          // first message content
   priority?: "normal" | "urgent";
+  attachments?: string[];   // array of image URLs
   metadata?: Record<string, unknown>; // optional for future (keep small)
 };
 
@@ -147,9 +148,16 @@ Deno.serve(async (req) => {
     const subject = assertNonEmptyString(body.subject, "subject", 120);
     const message = assertNonEmptyString(body.message, "message", 4000);
     const priority = body.priority === "urgent" ? "urgent" : "normal";
+    const attachments = Array.isArray(body.attachments) ? body.attachments.filter(u => typeof u === "string") : [];
 
     const caseId = crypto.randomUUID();
     const category = buildSupportCategory(body.topic, caseId);
+    
+    // Build message body with attachments appended
+    let messageBody = message;
+    if (attachments.length > 0) {
+      messageBody += `\n\n---\nAttachments:\n${attachments.map(u => `• ${u}`).join("\n")}`;
+    }
 
     // Create conversation
     const nowIso = new Date().toISOString();
@@ -165,6 +173,11 @@ Deno.serve(async (req) => {
       last_message_preview: previewFromMessage(message),
       updated_at: nowIso,
     };
+    
+    // Store attachments in conversation metadata if any
+    if (attachments.length > 0) {
+      (conversationInsert as Record<string, unknown>).metadata = { attachments };
+    }
 
     const { data: conv, error: convErr } = await admin
       .from("conversations")
@@ -185,7 +198,7 @@ Deno.serve(async (req) => {
       conversation_id: conversationId,
       sender_id: userId,
       recipient_id: SUPPORT_SYSTEM_USER_ID,
-      body: message,
+      body: messageBody,
       subject: subject,
       read: false,
     };
@@ -232,6 +245,7 @@ Deno.serve(async (req) => {
             support_category: category,
             topic: body.topic,
             created_by: userId,
+            ...(attachments.length > 0 ? { attachments } : {}),
           },
         };
 

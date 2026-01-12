@@ -38,7 +38,8 @@ export async function createSupportCase(
   subject: string,
   message: string,
   category: SupportTicketCategory,
-  priority: SupportTicketPriority = 'normal'
+  priority: SupportTicketPriority = 'normal',
+  attachments: string[] = []
 ): Promise<{ data: CreateSupportCaseResult | null; error: CreateSupportCaseError | null }> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
@@ -63,6 +64,7 @@ export async function createSupportCase(
           subject,
           message,
           priority,
+          attachments,
         }),
       }
     );
@@ -81,6 +83,121 @@ export async function createSupportCase(
       error: { error: 'network_error', message: 'Failed to connect to server' } 
     };
   }
+}
+
+// ================================
+// Types for case-based support requests (from conversations table)
+// ================================
+export interface UserSupportCase {
+  id: string;           // conversation id
+  caseId: string;       // extracted from category
+  subject: string;      // post_title_snapshot
+  topic: string;        // extracted topic
+  topicLabel: string;   // display label
+  preview: string;      // last_message_preview
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'normal' | 'high';
+  createdAt: string;
+  updatedAt: string;
+  hasAttachments: boolean;
+}
+
+const TOPIC_LABELS: Record<string, string> = {
+  billing: 'Billing & Credits',
+  refund: 'Billing & Credits',
+  support_ticket: 'Support Tickets',
+  user_report: 'User Reports',
+  other: 'Other',
+};
+
+const CATEGORY_TO_TOPIC_LABEL: Record<SupportTicketCategory, string> = {
+  billing: 'Billing & Credits',
+  account: 'Account & Login',
+  bug: 'Bug Report',
+  feature: 'Feature Request',
+  other: 'Other',
+};
+
+/**
+ * Fetch user's support cases from conversations table.
+ * This is the primary source for "Your Requests" on /support.
+ */
+export async function fetchUserSupportCases(userId: string): Promise<UserSupportCase[]> {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('id, category, post_title_snapshot, last_message_preview, created_at, updated_at')
+    .eq('participant_one', userId)
+    .eq('conversation_type', 'support')
+    .like('category', 'support:%')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching support cases:', error);
+    return [];
+  }
+
+  // Also fetch queue item statuses for these cases
+  const caseIds = (data || [])
+    .map(c => {
+      const parts = (c.category as string).split(':');
+      return parts.length >= 3 ? parts[2] : null;
+    })
+    .filter(Boolean) as string[];
+
+  let statusMap: Record<string, { status: string; priority: string; hasAttachments: boolean }> = {};
+  if (caseIds.length > 0) {
+    const { data: queueItems } = await supabase
+      .from('support_queue_items')
+      .select('source_id, status, priority, metadata')
+      .eq('source_type', 'support_case')
+      .in('source_id', caseIds);
+    
+    if (queueItems) {
+      statusMap = Object.fromEntries(
+        queueItems.map(q => {
+          const meta = q.metadata as Record<string, unknown> | null;
+          const attachments = meta?.attachments;
+          return [q.source_id, { 
+            status: q.status, 
+            priority: q.priority,
+            hasAttachments: Array.isArray(attachments) && attachments.length > 0,
+          }];
+        })
+      );
+    }
+  }
+
+  return (data || []).map((conv) => {
+    const categoryStr = conv.category as string;
+    const parts = categoryStr.split(':');
+    const topic = parts[1] || 'other';
+    const caseId = parts[2] || '';
+    const queueInfo = statusMap[caseId];
+
+    return {
+      id: conv.id,
+      caseId,
+      subject: conv.post_title_snapshot || 'Support Request',
+      topic,
+      topicLabel: TOPIC_LABELS[topic] || CATEGORY_TO_TOPIC_LABEL[topic as SupportTicketCategory] || 'Other',
+      preview: conv.last_message_preview || '',
+      status: (queueInfo?.status as UserSupportCase['status']) || 'open',
+      priority: (queueInfo?.priority as 'normal' | 'high') || 'normal',
+      createdAt: conv.created_at,
+      updatedAt: conv.updated_at,
+      hasAttachments: queueInfo?.hasAttachments || false,
+    };
+  });
+}
+
+export function getSupportCaseStatusInfo(status: UserSupportCase['status']) {
+  const statusMap: Record<string, { label: string; color: string }> = {
+    open: { label: 'Open', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    in_progress: { label: 'In Progress', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+    resolved: { label: 'Resolved', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+    closed: { label: 'Closed', color: 'bg-muted text-muted-foreground border-border' },
+  };
+  return statusMap[status] || statusMap.open;
 }
 
 export type SupportTicketCategory = 'bug' | 'account' | 'billing' | 'feature' | 'other';
