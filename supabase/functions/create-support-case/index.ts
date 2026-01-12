@@ -101,6 +101,22 @@ Deno.serve(async (req) => {
     }
     const userId = authData.user.id;
 
+    // Rate limiting: max 5 support cases per user per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCases, error: countErr } = await admin
+      .from("conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("participant_one", userId)
+      .eq("conversation_type", "support")
+      .gte("created_at", oneHourAgo);
+
+    if (countErr) {
+      console.error("Rate limit check failed:", countErr);
+      // Allow through if check fails (fail open)
+    } else if ((recentCases ?? 0) >= 5) {
+      return json(429, { error: "Too many support cases. Please wait before creating another." });
+    }
+
     const body = (await req.json()) as Partial<CreateSupportCaseBody>;
 
     if (!isAllowedTopic(body.topic)) {
