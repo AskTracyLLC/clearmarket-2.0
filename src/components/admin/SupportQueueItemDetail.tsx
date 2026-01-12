@@ -6,7 +6,6 @@ import {
   Loader2,
   Plus,
   ExternalLink,
-  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -127,7 +126,11 @@ export function SupportQueueItemDetail({
   const metadata = (item.metadata || {}) as Record<string, unknown>;
 
   // Check if this is a support case item that can be re-categorized
-  const isSupportCase = item.source_type === "support_case";
+  // Only allow for support_case source_type AND when current category is one of the allowed buckets
+  const allowedCategories: QueueCategory[] = ["billing", "support_tickets", "user_reports", "other"];
+  const canRecategorize = 
+    item.source_type === "support_case" && 
+    allowedCategories.includes(item.category as QueueCategory);
 
   // State
   const [actions, setActions] = useState<ActionLog[]>([]);
@@ -375,16 +378,48 @@ export function SupportQueueItemDetail({
     <div className="h-full flex flex-col">
       {/* A) PINNED HEADER ROW */}
       <div className="p-4 border-b flex-shrink-0 space-y-3">
-        {/* Row 1: Title + Category Badge + Priority */}
+        {/* Row 1: Title + Category Badge/Dropdown + Priority + Status */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className={categoryConfig.color}>
                 <IconComponent className="h-4 w-4" />
               </span>
-              <Badge variant="outline" className="text-xs shrink-0">
-                {categoryConfig.label}
-              </Badge>
+              {/* Category: Dropdown for support cases, read-only badge otherwise */}
+              {canRecategorize ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 px-2 gap-1 text-xs"
+                      disabled={changingCategory}
+                    >
+                      {changingCategory ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : null}
+                      {categoryConfig.label}
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {SUPPORT_CASE_CATEGORIES.map((cat) => (
+                      <DropdownMenuItem
+                        key={cat.value}
+                        onClick={() => handleCategoryChange(cat.value)}
+                        className={cn(item.category === cat.value && "bg-accent")}
+                        disabled={item.category === cat.value}
+                      >
+                        {cat.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Badge variant="outline" className="text-xs shrink-0">
+                  {categoryConfig.label}
+                </Badge>
+              )}
               {item.priority === "urgent" && (
                 <Badge variant="destructive" className="text-xs shrink-0">
                   Urgent
@@ -452,42 +487,6 @@ export function SupportQueueItemDetail({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          {/* Category dropdown for support cases */}
-          {isSupportCase && (
-            <div className="flex items-center gap-2">
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Category:</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 px-2 gap-1"
-                    disabled={changingCategory}
-                  >
-                    {changingCategory ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : null}
-                    {categoryConfig.label}
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {SUPPORT_CASE_CATEGORIES.map((cat) => (
-                    <DropdownMenuItem
-                      key={cat.value}
-                      onClick={() => handleCategoryChange(cat.value)}
-                      className={cn(item.category === cat.value && "bg-accent")}
-                      disabled={item.category === cat.value}
-                    >
-                      {cat.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
 
           <TooltipProvider>
             <Tooltip>
