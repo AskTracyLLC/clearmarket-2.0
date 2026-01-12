@@ -147,6 +147,28 @@ const SignUp = () => {
           <p className="text-muted-foreground">Join ClearMarket as a {roleLabel}</p>
         </div>
 
+        {role === "vendor" && (
+          <div className="mb-6 p-3 rounded-md border border-border bg-muted/30">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground/80">Also a Field Rep?</span>{" "}
+              If you're a Field Rep who covers areas and coordinates work for other reps, please sign up as a Field Rep first. After signup, request Dual Role Access in{" "}
+              <a href="/settings" className="text-primary hover:underline">Settings</a>{" "}
+              to enable Vendor tools.
+            </p>
+          </div>
+        )}
+
+        {role === "rep" && (
+          <div className="mb-6 p-3 rounded-md border border-border bg-muted/30">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground/80">Need Vendor tools too?</span>{" "}
+              If you're a Field Rep who covers areas and coordinates work for other reps, you can request Dual Role Access in{" "}
+              <a href="/settings" className="text-primary hover:underline">Settings</a>{" "}
+              after signup.
+            </p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="fullName">Full Name</Label>
