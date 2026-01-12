@@ -271,6 +271,7 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
       { key: "note", label: "Add Note", variant: "outline" },
     ],
     resolveLabel: "Approve",
+    emptyStateCopy: "No dual role requests yet. When a Field Rep submits a Dual Role Access Request, it will appear here automatically.",
   },
   {
     key: "other",

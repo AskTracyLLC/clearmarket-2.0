@@ -99,6 +99,11 @@ import AdminLaunchReadiness from "./pages/AdminLaunchReadiness";
 import AdminAbuseFlags from "./pages/AdminAbuseFlags";
 import AdminSupportQueue from "./pages/AdminSupportQueue";
 
+import { Navigate } from "react-router-dom";
+
+// Redirect component for dual role requests (moved to Support Queue)
+const DualRoleRedirect = () => <Navigate to="/admin/support-queue?category=dual_role_requests" replace />;
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -197,7 +202,8 @@ const App = () => (
                   <Route path="/admin/broadcasts/new" element={<AdminBroadcastNew />} />
                   <Route path="/admin/broadcasts/:id" element={<AdminBroadcastDetail />} />
                   <Route path="/admin/broadcasts/:id/edit" element={<AdminBroadcastEdit />} />
-                  <Route path="/admin/requests/dual-role" element={<AdminDualRoleRequests />} />
+                  <Route path="/admin/requests/dual-role" element={<DualRoleRedirect />} />
+                  <Route path="/admin/dual-role-requests" element={<DualRoleRedirect />} />
                   <Route path="/admin/stripe-health" element={<AdminStripeHealth />} />
                   <Route path="/admin/launch-readiness" element={<AdminLaunchReadiness />} />
                   <Route path="/admin/abuse-flags" element={<AdminAbuseFlags />} />
