@@ -1,5 +1,88 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// Map legacy categories to new case-based topics
+type CaseTopic = 'billing' | 'refund' | 'support_ticket' | 'user_report' | 'other';
+
+function mapCategoryToTopic(category: SupportTicketCategory): CaseTopic {
+  switch (category) {
+    case 'billing':
+      return 'billing';
+    case 'bug':
+    case 'account':
+    case 'feature':
+      return 'support_ticket';
+    default:
+      return 'other';
+  }
+}
+
+export interface CreateSupportCaseResult {
+  conversationId: string;
+  caseId: string;
+  category: string;
+  topic: string;
+  priority: string;
+}
+
+export interface CreateSupportCaseError {
+  error: string;
+  message?: string;
+  retryAfterMinutes?: number;
+}
+
+/**
+ * Creates a new support case via the edge function.
+ * Returns the conversation details for deep-linking.
+ */
+export async function createSupportCase(
+  subject: string,
+  message: string,
+  category: SupportTicketCategory,
+  priority: SupportTicketPriority = 'normal'
+): Promise<{ data: CreateSupportCaseResult | null; error: CreateSupportCaseError | null }> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  
+  if (!accessToken) {
+    return { data: null, error: { error: 'auth_error', message: 'Not authenticated' } };
+  }
+
+  const topic = mapCategoryToTopic(category);
+
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-support-case`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          topic,
+          subject,
+          message,
+          priority,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { data: null, error: result as CreateSupportCaseError };
+    }
+
+    return { data: result as CreateSupportCaseResult, error: null };
+  } catch (err) {
+    console.error('createSupportCase fetch error:', err);
+    return { 
+      data: null, 
+      error: { error: 'network_error', message: 'Failed to connect to server' } 
+    };
+  }
+}
+
 export type SupportTicketCategory = 'bug' | 'account' | 'billing' | 'feature' | 'other';
 export type SupportTicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type SupportTicketPriority = 'normal' | 'high';

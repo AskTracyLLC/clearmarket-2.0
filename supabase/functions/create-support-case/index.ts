@@ -114,7 +114,11 @@ Deno.serve(async (req) => {
       console.error("Rate limit check failed:", countErr);
       // Allow through if check fails (fail open)
     } else if ((recentCases ?? 0) >= 5) {
-      return json(429, { error: "Too many support cases. Please wait before creating another." });
+      return json(429, { 
+        error: "rate_limited",
+        message: "Too many support cases created. Please wait and try again.",
+        retryAfterMinutes: 60,
+      });
     }
 
     const body = (await req.json()) as Partial<CreateSupportCaseBody>;
