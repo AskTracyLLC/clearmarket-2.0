@@ -1598,6 +1598,7 @@ export type Database = {
           office_email: string
           office_phone: string
           request_vendor: boolean
+          requested_code: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["dual_role_request_status"]
@@ -1625,6 +1626,7 @@ export type Database = {
           office_email: string
           office_phone: string
           request_vendor?: boolean
+          requested_code?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["dual_role_request_status"]
@@ -1652,6 +1654,7 @@ export type Database = {
           office_email?: string
           office_phone?: string
           request_vendor?: boolean
+          requested_code?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["dual_role_request_status"]
