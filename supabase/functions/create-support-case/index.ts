@@ -303,61 +303,68 @@ Deno.serve(async (req) => {
     console.log(`Support case ${conversationReused ? "updated" : "created"}: ${category} for requester ${requesterUserId} (actor ${actorUserId})`);
 
     // --- Create support_queue_items record for admin queue ---
+    // SKIP for dual_role_access - the DB trigger on dual_role_access_requests handles queue items
     let queueItemCreated = false;
     
-    try {
-      // Idempotency check: skip if already exists
-      const { data: existingItem } = await admin
-        .from("support_queue_items")
-        .select("id")
-        .eq("source_type", "support_case")
-        .eq("source_id", caseId)
-        .maybeSingle();
-
-      if (!existingItem) {
-        const queueCategory = mapTopicToQueueCategory(body.topic);
-        const queuePriority = priority === "urgent" ? "high" : "normal";
-        
-        const queueItemInsert = {
-          source_type: "support_case",
-          source_id: caseId,
-          title: subject,
-          preview: previewFromMessage(message),
-          priority: queuePriority,
-          status: "open",
-          category: queueCategory,
-          target_url: `/messages/${conversationId}`,
-          conversation_id: conversationId,
-          metadata: {
-            conversation_id: conversationId,
-            case_id: caseId,
-            support_category: category,
-            topic: body.topic,
-            created_by: actorUserId,
-            requester_user_id: requesterUserId,
-            ...(attachments.length > 0 ? { attachments } : {}),
-          },
-        };
-
-        const { error: queueErr } = await admin
+    if (body.topic !== "dual_role_access") {
+      try {
+        // Idempotency check: skip if already exists
+        const { data: existingItem } = await admin
           .from("support_queue_items")
-          .insert(queueItemInsert);
+          .select("id")
+          .eq("source_type", "support_case")
+          .eq("source_id", caseId)
+          .maybeSingle();
 
-        if (queueErr) {
-          console.error("Failed to create support queue item:", queueErr);
-          // Don't fail the whole request - conversation + message are already created
+        if (!existingItem) {
+          const queueCategory = mapTopicToQueueCategory(body.topic);
+          const queuePriority = priority === "urgent" ? "high" : "normal";
+          
+          const queueItemInsert = {
+            source_type: "support_case",
+            source_id: caseId,
+            title: subject,
+            preview: previewFromMessage(message),
+            priority: queuePriority,
+            status: "open",
+            category: queueCategory,
+            target_url: `/messages/${conversationId}`,
+            conversation_id: conversationId,
+            metadata: {
+              conversation_id: conversationId,
+              case_id: caseId,
+              support_category: category,
+              topic: body.topic,
+              created_by: actorUserId,
+              requester_user_id: requesterUserId,
+              ...(attachments.length > 0 ? { attachments } : {}),
+            },
+          };
+
+          const { error: queueErr } = await admin
+            .from("support_queue_items")
+            .insert(queueItemInsert);
+
+          if (queueErr) {
+            console.error("Failed to create support queue item:", queueErr);
+            // Don't fail the whole request - conversation + message are already created
+          } else {
+            queueItemCreated = true;
+            console.log(`Support queue item created for case ${caseId}`);
+          }
         } else {
+          // Already exists (idempotent)
           queueItemCreated = true;
-          console.log(`Support queue item created for case ${caseId}`);
+          console.log(`Support queue item already exists for case ${caseId}`);
         }
-      } else {
-        // Already exists (idempotent)
-        queueItemCreated = true;
-        console.log(`Support queue item already exists for case ${caseId}`);
+      } catch (queueError) {
+        console.error("Error creating support queue item:", queueError);
+        // Don't fail the whole request
       }
-    } catch (queueError) {
-      console.error("Error creating support queue item:", queueError);
-      // Don't fail the whole request
+    } else {
+      // For dual_role_access, the trigger handles queue items
+      queueItemCreated = true;
+      console.log(`Skipping queue item creation for dual_role_access (handled by DB trigger)`);
     }
 
     // --- If dual role request ID provided, link conversation_id (using admin client to bypass trigger) ---
