@@ -56,6 +56,23 @@ function previewFromMessage(msg: string): string {
   return s.length > 180 ? s.slice(0, 177) + "…" : s;
 }
 
+/**
+ * Maps topic to support_queue_items category
+ */
+function mapTopicToQueueCategory(topic: Topic): string {
+  switch (topic) {
+    case "billing":
+    case "refund":
+      return "billing";
+    case "support_ticket":
+      return "support_tickets";
+    case "user_report":
+      return "user_reports";
+    default:
+      return "other";
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -183,12 +200,69 @@ Deno.serve(async (req) => {
 
     console.log(`Support case created: ${category} for user ${userId}`);
 
+    // --- Create support_queue_items record for admin queue ---
+    let queueItemCreated = false;
+    
+    try {
+      // Idempotency check: skip if already exists
+      const { data: existingItem } = await admin
+        .from("support_queue_items")
+        .select("id")
+        .eq("source_type", "support_case")
+        .eq("source_id", caseId)
+        .maybeSingle();
+
+      if (!existingItem) {
+        const queueCategory = mapTopicToQueueCategory(body.topic);
+        const queuePriority = priority === "urgent" ? "high" : "normal";
+        
+        const queueItemInsert = {
+          source_type: "support_case",
+          source_id: caseId,
+          title: subject,
+          preview: previewFromMessage(message),
+          priority: queuePriority,
+          status: "open",
+          category: queueCategory,
+          target_url: `/messages/${conversationId}`,
+          conversation_id: conversationId,
+          metadata: {
+            conversation_id: conversationId,
+            case_id: caseId,
+            support_category: category,
+            topic: body.topic,
+            created_by: userId,
+          },
+        };
+
+        const { error: queueErr } = await admin
+          .from("support_queue_items")
+          .insert(queueItemInsert);
+
+        if (queueErr) {
+          console.error("Failed to create support queue item:", queueErr);
+          // Don't fail the whole request - conversation + message are already created
+        } else {
+          queueItemCreated = true;
+          console.log(`Support queue item created for case ${caseId}`);
+        }
+      } else {
+        // Already exists (idempotent)
+        queueItemCreated = true;
+        console.log(`Support queue item already exists for case ${caseId}`);
+      }
+    } catch (queueError) {
+      console.error("Error creating support queue item:", queueError);
+      // Don't fail the whole request
+    }
+
     return json(200, {
       conversationId,
       caseId,
       category,
       topic: body.topic,
       priority,
+      queueItemCreated,
     });
   } catch (e) {
     console.error("create-support-case error:", e);
