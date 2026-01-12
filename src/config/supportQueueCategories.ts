@@ -252,11 +252,13 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
     summaryFields: [
       { key: "requester", label: "Requester", metadataPath: "requester_name" },
       { key: "business", label: "Business", metadataPath: "business_name" },
+      { key: "requested_code", label: "Code", metadataPath: "requested_code" },
     ],
     detailFields: [
       { key: "requester_name", label: "Requester", metadataPath: "requester_name" },
       { key: "requester_email", label: "Email", metadataPath: "requester_email" },
       { key: "business_name", label: "Business Name", metadataPath: "business_name" },
+      { key: "requested_code", label: "Requested Code", metadataPath: "requested_code" },
       { key: "office_email", label: "Office Email", metadataPath: "office_email" },
       { key: "office_phone", label: "Office Phone", metadataPath: "office_phone" },
       { key: "location", label: "Location", metadataPath: "location" },

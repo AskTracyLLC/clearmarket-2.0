@@ -137,15 +137,16 @@ export default function AdminSupportQueue() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-1">Support Queue</h1>
-        <p className="text-muted-foreground text-sm">
-          Unified inbox for all admin tasks
-        </p>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto px-4 py-6 flex-1 flex flex-col min-h-0">
+        <div className="mb-6 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-foreground mb-1">Support Queue</h1>
+          <p className="text-muted-foreground text-sm">
+            Unified inbox for all admin tasks
+          </p>
+        </div>
 
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-180px)]">
+      <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
         {/* Left Rail - Category Navigation */}
         <div className="col-span-12 md:col-span-3 lg:col-span-2">
           <Card className="h-full">
@@ -314,8 +315,8 @@ export default function AdminSupportQueue() {
         </div>
 
         {/* Right - Detail Panel */}
-        <div className="col-span-12 md:col-span-4 lg:col-span-5">
-          <Card className="h-full flex flex-col overflow-hidden">
+        <div className="col-span-12 md:col-span-4 lg:col-span-5 min-h-0">
+          <Card className="h-full flex flex-col overflow-hidden max-h-full">
             {selectedItem ? (
               // Use specialized panel for vendor_verification, generic panel for all others
               selectedItem.category === "vendor_verification" ? (
@@ -357,6 +358,7 @@ export default function AdminSupportQueue() {
               </div>
             )}
           </Card>
+        </div>
         </div>
       </div>
     </div>

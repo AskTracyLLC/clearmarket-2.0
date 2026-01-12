@@ -10,6 +10,7 @@ type Topic =
   | "refund"
   | "support_ticket"
   | "user_report"
+  | "dual_role_access"
   | "other";
 
 type CreateSupportCaseBody = {
@@ -44,6 +45,7 @@ function isAllowedTopic(t: unknown): t is Topic {
     t === "refund" ||
     t === "support_ticket" ||
     t === "user_report" ||
+    t === "dual_role_access" ||
     t === "other"
   );
 }
@@ -69,6 +71,8 @@ function mapTopicToQueueCategory(topic: Topic): string {
       return "support_tickets";
     case "user_report":
       return "user_reports";
+    case "dual_role_access":
+      return "dual_role_requests";
     default:
       return "other";
   }
@@ -142,7 +146,7 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as Partial<CreateSupportCaseBody>;
 
     if (!isAllowedTopic(body.topic)) {
-      return json(400, { error: "Invalid topic. Allowed: billing, refund, support_ticket, user_report, other" });
+      return json(400, { error: "Invalid topic. Allowed: billing, refund, support_ticket, user_report, dual_role_access, other" });
     }
 
     const subject = assertNonEmptyString(body.subject, "subject", 120);
