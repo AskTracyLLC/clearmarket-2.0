@@ -15,11 +15,12 @@ type Topic =
 
 type CreateSupportCaseBody = {
   topic: Topic;
-  subject: string;          // shown as post_title_snapshot (list preview)
-  message: string;          // first message content
+  subject: string;           // shown as post_title_snapshot (list preview)
+  message: string;           // first message content
   priority?: "normal" | "urgent";
-  attachments?: string[];   // array of image URLs
+  attachments?: string[];    // array of image URLs
   metadata?: Record<string, unknown>; // optional for future (keep small)
+  requesterUserId?: string;  // optional: create the case for a specific requester (staff/admin use)
 };
 
 function json(status: number, body: unknown) {
@@ -121,14 +122,14 @@ Deno.serve(async (req) => {
     if (authErr || !authData?.user) {
       return json(401, { error: "Invalid auth token" });
     }
-    const userId = authData.user.id;
+    const actorUserId = authData.user.id;
 
-    // Rate limiting: max 5 support cases per user per hour
+    // Rate limiting: max 5 support cases per requester per hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count: recentCases, error: countErr } = await admin
       .from("conversations")
       .select("id", { count: "exact", head: true })
-      .eq("participant_one", userId)
+      .eq("participant_one", actorUserId)
       .eq("conversation_type", "support")
       .gte("created_at", oneHourAgo);
 
@@ -152,8 +153,32 @@ Deno.serve(async (req) => {
     const subject = assertNonEmptyString(body.subject, "subject", 120);
     const message = assertNonEmptyString(body.message, "message", 4000);
     const priority = body.priority === "urgent" ? "urgent" : "normal";
-    const attachments = Array.isArray(body.attachments) ? body.attachments.filter(u => typeof u === "string") : [];
+    const attachments = Array.isArray(body.attachments) ? body.attachments.filter((u) => typeof u === "string") : [];
 
+    // Determine who the requester is (defaults to actor)
+    let requesterUserId = actorUserId;
+    if (typeof body.requesterUserId === "string" && body.requesterUserId.trim()) {
+      const candidate = body.requesterUserId.trim();
+      // Only allow overriding requester when actor is staff/admin
+      if (candidate !== actorUserId) {
+        const { data: actorProfile, error: actorProfileErr } = await admin
+          .from("profiles")
+          .select("is_admin, staff_role")
+          .eq("id", actorUserId)
+          .maybeSingle();
+
+        if (actorProfileErr) {
+          console.error("Failed to verify actor permissions:", actorProfileErr);
+          return json(403, { error: "Not allowed to create case for another user" });
+        }
+
+        const isStaff = Boolean(actorProfile?.is_admin) || Boolean(actorProfile?.staff_role);
+        if (!isStaff) {
+          return json(403, { error: "Not allowed to create case for another user" });
+        }
+      }
+      requesterUserId = candidate;
+    }
     const caseId = crypto.randomUUID();
     const category = buildSupportCategory(body.topic, caseId);
     
@@ -166,12 +191,10 @@ Deno.serve(async (req) => {
     // Create conversation
     const nowIso = new Date().toISOString();
     const conversationInsert = {
-      participant_one: userId,
+      participant_one: requesterUserId,
       participant_two: SUPPORT_SYSTEM_USER_ID,
       conversation_type: "support",
       category,
-      origin_type: body.topic,
-      origin_post_id: caseId,
       post_title_snapshot: subject,
       last_message_at: nowIso,
       last_message_preview: previewFromMessage(message),
@@ -200,8 +223,8 @@ Deno.serve(async (req) => {
     // sender_id, recipient_id, body, subject, conversation_id
     const messageInsert = {
       conversation_id: conversationId,
-      sender_id: userId,
-      recipient_id: SUPPORT_SYSTEM_USER_ID,
+      sender_id: SUPPORT_SYSTEM_USER_ID,
+      recipient_id: requesterUserId,
       body: messageBody,
       subject: subject,
       read: false,
@@ -215,7 +238,7 @@ Deno.serve(async (req) => {
       return json(500, { error: "Failed to create message", details: msgErr.message });
     }
 
-    console.log(`Support case created: ${category} for user ${userId}`);
+    console.log(`Support case created: ${category} for requester ${requesterUserId} (actor ${actorUserId})`);
 
     // --- Create support_queue_items record for admin queue ---
     let queueItemCreated = false;
@@ -248,7 +271,8 @@ Deno.serve(async (req) => {
             case_id: caseId,
             support_category: category,
             topic: body.topic,
-            created_by: userId,
+            created_by: actorUserId,
+            requester_user_id: requesterUserId,
             ...(attachments.length > 0 ? { attachments } : {}),
           },
         };
