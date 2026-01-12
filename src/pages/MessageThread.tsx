@@ -26,6 +26,12 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban, Headphones } from "lucide-react";
 import { getUserDisplayName } from "@/lib/conversations";
+import { 
+  isSupportCategory, 
+  parseSupportCategory, 
+  formatSupportTopicLabel,
+  formatShortCaseId 
+} from "@/lib/supportCategory";
 import { toast } from "@/hooks/use-toast";
 import { formatDistanceToNow, format, parseISO } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -699,16 +705,11 @@ export default function MessageThread() {
     );
   }
 
-  // Helper to check if this is a support conversation
-  const isSupportThread = conversationData?.category?.startsWith("support:");
-  
-  // Get support topic label
-  const getSupportTopicLabel = (category: string | null): string => {
-    if (!category) return "Support";
-    if (category === "support:vendor_verification") return "Vendor Verification";
-    if (category.startsWith("support:")) return category.replace("support:", "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-    return "Support";
-  };
+  // Parse support category using shared utility
+  const parsed = parseSupportCategory(conversationData?.category);
+  const isSupportThread = parsed.isSupport;
+  const supportTopicLabel = formatSupportTopicLabel(parsed.topic);
+  const shortCaseId = formatShortCaseId(parsed.caseId);
 
   return (
     <>
@@ -727,7 +728,12 @@ export default function MessageThread() {
                   <Headphones className="h-4 w-4 text-primary" />
                   <div className="flex flex-col">
                     <span className="font-medium text-foreground">ClearMarket Support</span>
-                    <span className="text-xs text-muted-foreground">{getSupportTopicLabel(conversationData?.category)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">{supportTopicLabel}</span>
+                      {shortCaseId && (
+                        <span className="text-xs text-muted-foreground">• Case #{shortCaseId}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
