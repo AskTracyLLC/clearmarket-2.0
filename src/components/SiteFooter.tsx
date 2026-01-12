@@ -36,7 +36,7 @@ export function SiteFooter() {
           {/* Right side - Copyright */}
           <div className="flex flex-col items-center md:items-end gap-1 text-center md:text-right">
             <p className="text-xs text-muted-foreground">
-              © 2025 ClearMarket. All rights reserved.
+              © 2026 ClearMarket. All rights reserved.
             </p>
             <p className="text-xs text-muted-foreground/70">
               Questions? hello@useclearmarket.io
