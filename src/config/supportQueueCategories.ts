@@ -1,4 +1,4 @@
-import { LucideIcon, Star, ShieldAlert, FileCheck, Flag, CreditCard, Headphones, CheckCircle2, MoreHorizontal } from "lucide-react";
+import { LucideIcon, Star, ShieldAlert, FileCheck, Flag, CreditCard, Headphones, CheckCircle2, MoreHorizontal, UserRoundCog } from "lucide-react";
 
 export type QueueCategory = 
   | "reviews" 
@@ -8,6 +8,7 @@ export type QueueCategory =
   | "billing" 
   | "support_tickets" 
   | "vendor_verification"
+  | "dual_role_requests"
   | "other";
 
 // Safety: max fields per config
@@ -242,6 +243,34 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
       { key: "note", label: "Add Note", variant: "outline" },
     ],
     resolveLabel: "Approved",
+  },
+  {
+    key: "dual_role_requests",
+    label: "Dual Role Requests",
+    icon: UserRoundCog,
+    color: "text-violet-400",
+    summaryFields: [
+      { key: "requester", label: "Requester", metadataPath: "requester_name" },
+      { key: "business", label: "Business", metadataPath: "business_name" },
+    ],
+    detailFields: [
+      { key: "requester_name", label: "Requester", metadataPath: "requester_name" },
+      { key: "requester_email", label: "Email", metadataPath: "requester_email" },
+      { key: "business_name", label: "Business Name", metadataPath: "business_name" },
+      { key: "office_email", label: "Office Email", metadataPath: "office_email" },
+      { key: "office_phone", label: "Office Phone", metadataPath: "office_phone" },
+      { key: "location", label: "Location", metadataPath: "location" },
+      { key: "gl_status", label: "GL Status", metadataPath: "gl_status" },
+      { key: "gl_expires_on", label: "GL Expires", metadataPath: "gl_expires_on" },
+      { key: "submitted_at", label: "Submitted", metadataPath: "submitted_at" },
+    ],
+    primaryActions: [
+      { key: "in_progress", label: "Under Review", targetStatus: "in_progress" },
+      { key: "approve", label: "Approve", targetStatus: "resolved" },
+      { key: "deny", label: "Deny", variant: "destructive", requiresConfirmation: true },
+      { key: "note", label: "Add Note", variant: "outline" },
+    ],
+    resolveLabel: "Approve",
   },
   {
     key: "other",

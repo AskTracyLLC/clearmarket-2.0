@@ -11,6 +11,7 @@ export type QueueCategory =
   | "billing" 
   | "support_tickets" 
   | "vendor_verification"
+  | "dual_role_requests"
   | "other";
 
 export type QueuePriority = "normal" | "urgent";
