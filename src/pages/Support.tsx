@@ -15,6 +15,7 @@ import { ArrowLeft, Send, HelpCircle, TicketPlus, RefreshCw, Clock, MessageSquar
 import { format } from "date-fns";
 import {
   createSupportTicket,
+  createSupportCase,
   fetchUserTickets,
   fetchTicketMessages,
   addTicketMessage,
@@ -94,28 +95,49 @@ export default function Support() {
     }
 
     setSubmitting(true);
-    const { ticket, error } = await createSupportTicket(
-      user.id,
+    
+    // Use the new case-based edge function
+    const { data, error } = await createSupportCase(
       subject,
-      category,
       message,
-      priority,
-      attachedImages
+      category,
+      priority
     );
+    
     setSubmitting(false);
 
     if (error) {
-      toast({ title: "Failed to submit ticket", description: error, variant: "destructive" });
+      // Handle rate limiting with a friendly message
+      if (error.error === 'rate_limited') {
+        toast({ 
+          title: "Please slow down", 
+          description: error.message || "Too many support cases created. Please wait and try again.",
+        });
+        return;
+      }
+      
+      toast({ title: "Failed to submit request", description: error.message || error.error, variant: "destructive" });
       return;
     }
 
-    toast({ title: "Support request submitted", description: "We'll get back to you soon." });
-    setSubject("");
-    setCategory("other");
-    setMessage("");
-    setPriority("normal");
-    setAttachedImages([]);
-    loadTickets();
+    if (data) {
+      // Show success toast with case ID
+      const shortCaseId = data.caseId.slice(0, 8).toUpperCase();
+      toast({ 
+        title: "Support case created", 
+        description: `Case #${shortCaseId}`,
+      });
+      
+      // Reset form
+      setSubject("");
+      setCategory("other");
+      setMessage("");
+      setPriority("normal");
+      setAttachedImages([]);
+      
+      // Deep-link: navigate to Messages with Support tab and open the conversation
+      navigate(`/messages?tab=support&open=${data.conversationId}`);
+    }
   }
 
   async function handleSelectTicket(ticket: SupportTicket) {
