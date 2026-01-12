@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { useQueueItems, QueueStatus, QueueFilters } from "@/hooks/useQueueItems";
+import { useQueueItems, QueueFilters } from "@/hooks/useQueueItems";
 import { useQueueCounts } from "@/hooks/useQueueCounts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ import {
   SUPPORT_QUEUE_CATEGORIES,
   STATUS_OPTIONS,
   QueueCategory,
+  QueueStatus,
 } from "@/config/supportQueueCategories";
 
 export default function AdminSupportQueue() {
@@ -104,6 +105,18 @@ export default function AdminSupportQueue() {
   const handleRefresh = async () => {
     await Promise.all([refresh(), refreshCounts()]);
     toast({ title: "Refreshed" });
+  };
+
+  // Handle category change from detail panel - switch filter to new category so item doesn't disappear
+  const handleCategoryChange = (itemId: string, newCategory: QueueCategory) => {
+    // If we're currently filtering by a specific category and the item moved out,
+    // switch to the new category so admin can continue working on it
+    if (selectedCategory && selectedCategory !== newCategory) {
+      setSelectedCategory(newCategory);
+    }
+    // Refresh to get updated data
+    refresh();
+    refreshCounts();
   };
 
   if (authLoading || permsLoading) {
@@ -319,6 +332,7 @@ export default function AdminSupportQueue() {
                     refresh();
                     refreshCounts();
                   }}
+                  onCategoryChange={handleCategoryChange}
                 />
               )
             ) : (

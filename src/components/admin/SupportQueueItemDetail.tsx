@@ -6,6 +6,7 @@ import {
   Loader2,
   Plus,
   ExternalLink,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +46,16 @@ import {
   getShortAdminId,
   QueueCategory,
   QueueStatus,
+  SUPPORT_QUEUE_CATEGORIES,
 } from "@/config/supportQueueCategories";
+
+// Categories that support_case items can be moved to
+const SUPPORT_CASE_CATEGORIES: { value: QueueCategory; label: string }[] = [
+  { value: "billing", label: "Billing" },
+  { value: "support_tickets", label: "Support Tickets" },
+  { value: "user_reports", label: "User Reports" },
+  { value: "other", label: "Other" },
+];
 
 interface QueueItem {
   id: string;
@@ -99,6 +109,7 @@ interface SupportQueueItemDetailProps {
   onStatusChange: (itemId: string, status: QueueStatus) => Promise<boolean>;
   onAssign: (itemId: string, userId: string | null) => Promise<boolean>;
   onRefresh: () => void;
+  onCategoryChange?: (itemId: string, newCategory: QueueCategory) => void;
 }
 
 export function SupportQueueItemDetail({
@@ -106,6 +117,7 @@ export function SupportQueueItemDetail({
   onStatusChange,
   onAssign,
   onRefresh,
+  onCategoryChange,
 }: SupportQueueItemDetailProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -113,6 +125,9 @@ export function SupportQueueItemDetail({
   const categoryConfig = getCategoryConfig(item.category as QueueCategory);
   const IconComponent = categoryConfig.icon;
   const metadata = (item.metadata || {}) as Record<string, unknown>;
+
+  // Check if this is a support case item that can be re-categorized
+  const isSupportCase = item.source_type === "support_case";
 
   // State
   const [actions, setActions] = useState<ActionLog[]>([]);
@@ -128,6 +143,9 @@ export function SupportQueueItemDetail({
   const [showSecondLookDialog, setShowSecondLookDialog] = useState(false);
   const [secondLookMessage, setSecondLookMessage] = useState("");
   const [requestingSecondLook, setRequestingSecondLook] = useState(false);
+
+  // Category change state
+  const [changingCategory, setChangingCategory] = useState(false);
 
   // Use formatCT from lib for proper timezone handling
   const formatTimestamp = useCallback((dateStr: string) => {
@@ -256,6 +274,51 @@ export function SupportQueueItemDetail({
     }
   };
 
+  // Handle category change (for support cases only)
+  const handleCategoryChange = async (newCategory: QueueCategory) => {
+    if (!user || newCategory === item.category) return;
+    
+    const oldCategoryLabel = getCategoryConfig(item.category as QueueCategory).label;
+    const newCategoryLabel = getCategoryConfig(newCategory).label;
+    
+    setChangingCategory(true);
+    try {
+      // Update the category
+      const { error } = await supabase
+        .from("support_queue_items")
+        .update({
+          category: newCategory,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.id);
+      
+      if (error) throw error;
+      
+      // Log the action
+      await supabase.from("support_queue_actions").insert({
+        queue_item_id: item.id,
+        action_type: "category_changed",
+        channel: "in_app",
+        body: `Category changed: ${oldCategoryLabel} → ${newCategoryLabel}`,
+        created_by: user.id,
+      });
+      
+      toast({ title: `Moved to ${newCategoryLabel}` });
+      loadActions();
+      onRefresh();
+      
+      // Notify parent to switch filter if needed
+      if (onCategoryChange) {
+        onCategoryChange(item.id, newCategory);
+      }
+    } catch (err) {
+      console.error("Error changing category:", err);
+      toast({ title: "Failed to change category", variant: "destructive" });
+    } finally {
+      setChangingCategory(false);
+    }
+  };
+
   // Handle assignment change
   const handleAssignmentChange = async (userId: string | null) => {
     await onAssign(item.id, userId);
@@ -361,7 +424,7 @@ export function SupportQueueItemDetail({
           </DropdownMenu>
         </div>
 
-        {/* Row 2: Assignment + Second Look */}
+        {/* Row 2: Assignment + Category (for support cases) + Second Look */}
         <div className="flex items-center gap-3 text-sm flex-wrap">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -389,6 +452,42 @@ export function SupportQueueItemDetail({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Category dropdown for support cases */}
+          {isSupportCase && (
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Category:</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 gap-1"
+                    disabled={changingCategory}
+                  >
+                    {changingCategory ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : null}
+                    {categoryConfig.label}
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {SUPPORT_CASE_CATEGORIES.map((cat) => (
+                    <DropdownMenuItem
+                      key={cat.value}
+                      onClick={() => handleCategoryChange(cat.value)}
+                      className={cn(item.category === cat.value && "bg-accent")}
+                      disabled={item.category === cat.value}
+                    >
+                      {cat.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           <TooltipProvider>
             <Tooltip>
