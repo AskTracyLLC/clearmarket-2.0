@@ -272,6 +272,14 @@ const RoleSelection = () => {
               >
                 Continue as Field Rep
               </Button>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-medium text-foreground/80">Need Vendor tools too?</span>{" "}
+                  If you're a Field Rep who covers areas and coordinates work for other reps, you can request Dual Role Access in{" "}
+                  <a href="/settings" className="text-primary hover:underline">Settings</a>{" "}
+                  after signup.
+                </p>
+              </div>
             </div>
           </Card>
 
@@ -295,6 +303,14 @@ const RoleSelection = () => {
               >
                 Continue as Vendor
               </Button>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-medium text-foreground/80">Also a Field Rep?</span>{" "}
+                  If you're a Field Rep who covers areas and coordinates work for other reps, please sign up as a Field Rep first. After signup, request Dual Role Access in{" "}
+                  <a href="/settings" className="text-primary hover:underline">Settings</a>{" "}
+                  to enable Vendor tools.
+                </p>
+              </div>
             </div>
           </Card>
 
