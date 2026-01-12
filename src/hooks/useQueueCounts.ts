@@ -12,6 +12,7 @@ export interface QueueCounts {
   billing: number;
   support_tickets: number;
   vendor_verification: number;
+  dual_role_requests: number;
   other: number;
   total: number;
   urgent: number;
@@ -31,6 +32,7 @@ const emptyCounts: QueueCounts = {
   billing: 0,
   support_tickets: 0,
   vendor_verification: 0,
+  dual_role_requests: 0,
   other: 0,
   total: 0,
   urgent: 0,
@@ -74,6 +76,7 @@ export function useQueueCounts(): UseQueueCountsReturn {
         billing: categoryCounts.billing || 0,
         support_tickets: categoryCounts.support_tickets || 0,
         vendor_verification: categoryCounts.vendor_verification || 0,
+        dual_role_requests: categoryCounts.dual_role_requests || 0,
         other: categoryCounts.other || 0,
         total,
         urgent: categoryCounts.urgent || 0,

@@ -26,6 +26,7 @@ import { useQueueCounts } from "@/hooks/useQueueCounts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { VendorVerificationDetailPanel } from "@/components/admin/VendorVerificationDetailPanel";
+import { DualRoleRequestDetailPanel } from "@/components/admin/DualRoleRequestDetailPanel";
 import { SupportQueueItemCard } from "@/components/admin/SupportQueueItemCard";
 import { SupportQueueItemDetail } from "@/components/admin/SupportQueueItemDetail";
 import {
@@ -315,6 +316,16 @@ export default function AdminSupportQueue() {
               // Use specialized panel for vendor_verification, generic panel for all others
               selectedItem.category === "vendor_verification" ? (
                 <VendorVerificationDetailPanel
+                  item={selectedItem}
+                  onStatusChange={handleStatusChange}
+                  onAssign={assignTo}
+                  onRefresh={() => {
+                    refresh();
+                    refreshCounts();
+                  }}
+                />
+              ) : selectedItem.category === "dual_role_requests" ? (
+                <DualRoleRequestDetailPanel
                   item={selectedItem}
                   onStatusChange={handleStatusChange}
                   onAssign={assignTo}

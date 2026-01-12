@@ -221,7 +221,6 @@ export function LeftSidebar({
         { label: "User Management", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
         { label: "Staff & Roles", path: "/admin/staff", icon: <UserCog className="h-5 w-5" /> },
         { label: "Invite Codes", path: "/admin/invite-codes", icon: <Ticket className="h-5 w-5" /> },
-        { label: "Dual Role Requests", path: "/admin/dual-role-requests", icon: <Users className="h-5 w-5" /> },
       ],
     },
     {
