@@ -180,7 +180,13 @@ Deno.serve(async (req) => {
       }
       requesterUserId = candidate;
     }
-    const caseId = crypto.randomUUID();
+    // For dual_role_access, use the request ID as the caseId to enable thread reuse
+    let caseId: string;
+    if (body.topic === "dual_role_access" && typeof body.dualRoleRequestId === "string" && body.dualRoleRequestId.trim()) {
+      caseId = body.dualRoleRequestId.trim();
+    } else {
+      caseId = crypto.randomUUID();
+    }
     const category = buildSupportCategory(body.topic, caseId);
     
     // Build message body with attachments appended
@@ -189,43 +195,96 @@ Deno.serve(async (req) => {
       messageBody += `\n\n---\nAttachments:\n${attachments.map(u => `• ${u}`).join("\n")}`;
     }
 
-    // Create conversation
     const nowIso = new Date().toISOString();
-    const conversationInsert = {
-      participant_one: requesterUserId,
-      participant_two: SUPPORT_SYSTEM_USER_ID,
-      conversation_type: "support",
-      category,
-      post_title_snapshot: subject,
-      last_message_at: nowIso,
-      last_message_preview: previewFromMessage(message),
-      updated_at: nowIso,
-    };
-    
-    // Store attachments in conversation metadata if any
-    if (attachments.length > 0) {
-      (conversationInsert as Record<string, unknown>).metadata = { attachments };
+
+    // --- For dual_role_access, try to reuse existing conversation (like Vendor Verification) ---
+    let conversationId: string;
+    let conversationReused = false;
+
+    if (body.topic === "dual_role_access") {
+      // Check if conversation already exists for this dual role request
+      const { data: existingConv } = await admin
+        .from("conversations")
+        .select("id")
+        .eq("category", category)
+        .maybeSingle();
+
+      if (existingConv?.id) {
+        // Reuse existing conversation - just insert a new message
+        conversationId = existingConv.id;
+        conversationReused = true;
+        console.log(`Reusing existing dual_role_access conversation ${conversationId}`);
+
+        // Update conversation metadata
+        await admin
+          .from("conversations")
+          .update({
+            last_message_at: nowIso,
+            last_message_preview: previewFromMessage(message),
+            updated_at: nowIso,
+          })
+          .eq("id", conversationId);
+      } else {
+        // Create new conversation
+        const conversationInsert = {
+          participant_one: requesterUserId,
+          participant_two: SUPPORT_SYSTEM_USER_ID,
+          conversation_type: "support",
+          category,
+          post_title_snapshot: subject,
+          last_message_at: nowIso,
+          last_message_preview: previewFromMessage(message),
+          updated_at: nowIso,
+        };
+
+        const { data: conv, error: convErr } = await admin
+          .from("conversations")
+          .insert(conversationInsert)
+          .select("id")
+          .single();
+
+        if (convErr || !conv?.id) {
+          console.error("Failed to create conversation:", convErr);
+          return json(500, { error: "Failed to create conversation", details: convErr?.message });
+        }
+        conversationId = conv.id as string;
+      }
+    } else {
+      // Non-dual-role: always create new conversation
+      const conversationInsert = {
+        participant_one: requesterUserId,
+        participant_two: SUPPORT_SYSTEM_USER_ID,
+        conversation_type: "support",
+        category,
+        post_title_snapshot: subject,
+        last_message_at: nowIso,
+        last_message_preview: previewFromMessage(message),
+        updated_at: nowIso,
+      };
+
+      // Store attachments in conversation metadata if any
+      if (attachments.length > 0) {
+        (conversationInsert as Record<string, unknown>).metadata = { attachments };
+      }
+
+      const { data: conv, error: convErr } = await admin
+        .from("conversations")
+        .insert(conversationInsert)
+        .select("id")
+        .single();
+
+      if (convErr || !conv?.id) {
+        console.error("Failed to create conversation:", convErr);
+        return json(500, { error: "Failed to create conversation", details: convErr?.message });
+      }
+      conversationId = conv.id as string;
     }
 
-    const { data: conv, error: convErr } = await admin
-      .from("conversations")
-      .insert(conversationInsert)
-      .select("id")
-      .single();
-
-    if (convErr || !conv?.id) {
-      console.error("Failed to create conversation:", convErr);
-      return json(500, { error: "Failed to create conversation", details: convErr?.message });
-    }
-
-    const conversationId = conv.id as string;
-
-    // Insert first message using correct messages table schema:
-    // sender_id, recipient_id, body, subject, conversation_id
+    // Insert message (for both new and reused conversations)
     const messageInsert = {
       conversation_id: conversationId,
-      sender_id: SUPPORT_SYSTEM_USER_ID,
-      recipient_id: requesterUserId,
+      sender_id: requesterUserId, // User sends the message
+      recipient_id: SUPPORT_SYSTEM_USER_ID,
       body: messageBody,
       subject: subject,
       read: false,
@@ -234,12 +293,14 @@ Deno.serve(async (req) => {
     const { error: msgErr } = await admin.from("messages").insert(messageInsert);
     if (msgErr) {
       console.error("Failed to create message:", msgErr);
-      // Optionally clean up the conversation if message insert fails
-      await admin.from("conversations").delete().eq("id", conversationId);
+      // Only clean up conversation if we just created it (not reused)
+      if (!conversationReused) {
+        await admin.from("conversations").delete().eq("id", conversationId);
+      }
       return json(500, { error: "Failed to create message", details: msgErr.message });
     }
 
-    console.log(`Support case created: ${category} for requester ${requesterUserId} (actor ${actorUserId})`);
+    console.log(`Support case ${conversationReused ? "updated" : "created"}: ${category} for requester ${requesterUserId} (actor ${actorUserId})`);
 
     // --- Create support_queue_items record for admin queue ---
     let queueItemCreated = false;

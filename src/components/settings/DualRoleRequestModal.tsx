@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,11 +24,12 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Shield, Building2 } from "lucide-react";
+import { CalendarIcon, Shield, Building2, MessageCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DualRoleRequestModalProps {
   open: boolean;
@@ -44,9 +46,19 @@ const ENTITY_TYPES = [
   { value: "Other", label: "Other" },
 ];
 
+interface ExistingRequest {
+  id: string;
+  conversation_id: string | null;
+  status: string;
+  business_name: string;
+}
+
 export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRoleRequestModalProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [existingRequest, setExistingRequest] = useState<ExistingRequest | null>(null);
 
   // Required fields
   const [businessName, setBusinessName] = useState("");
@@ -69,6 +81,34 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
   const [submitGl, setSubmitGl] = useState(false);
   const [glExpiresOn, setGlExpiresOn] = useState<Date | undefined>(undefined);
 
+  // Check for existing pending request when modal opens
+  useEffect(() => {
+    if (open && user) {
+      checkExistingRequest();
+    }
+  }, [open, user]);
+
+  async function checkExistingRequest() {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("dual_role_access_requests")
+        .select("id, conversation_id, status, business_name")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error checking existing request:", error);
+      } else {
+        setExistingRequest(data);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function resetForm() {
     setBusinessName("");
     setOfficePhone("");
@@ -85,6 +125,7 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
     setRequestedCode("");
     setSubmitGl(false);
     setGlExpiresOn(undefined);
+    setExistingRequest(null);
   }
 
   function validateUrl(url: string): boolean {
@@ -302,6 +343,13 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
     }
   }
 
+  function handleOpenThread() {
+    if (existingRequest?.conversation_id) {
+      onOpenChange(false);
+      navigate(`/messages?tab=support&open=${existingRequest.conversation_id}`);
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh]">
@@ -315,6 +363,36 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
           </DialogDescription>
         </DialogHeader>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : existingRequest ? (
+          <div className="space-y-4 py-4">
+            <Alert>
+              <MessageCircle className="h-4 w-4" />
+              <AlertDescription>
+                You already have a pending Dual Role request for <strong>{existingRequest.business_name}</strong>.
+                {existingRequest.conversation_id 
+                  ? " You can view and continue the conversation in your Support messages."
+                  : " Our team is reviewing your request."
+                }
+              </AlertDescription>
+            </Alert>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              {existingRequest.conversation_id && (
+                <Button onClick={handleOpenThread}>
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Open Thread
+                </Button>
+              )}
+            </DialogFooter>
+          </div>
+        ) : (
+          <>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6 py-2">
             {/* Required Fields */}
@@ -549,6 +627,8 @@ export function DualRoleRequestModal({ open, onOpenChange, onSuccess }: DualRole
             {submitting ? "Submitting..." : "Submit Request"}
           </Button>
         </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
