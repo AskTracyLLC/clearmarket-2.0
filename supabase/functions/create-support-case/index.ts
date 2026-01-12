@@ -21,6 +21,7 @@ type CreateSupportCaseBody = {
   attachments?: string[];    // array of image URLs
   metadata?: Record<string, unknown>; // optional for future (keep small)
   requesterUserId?: string;  // optional: create the case for a specific requester (staff/admin use)
+  dualRoleRequestId?: string; // optional: if provided, links conversation_id back to this dual role request
 };
 
 function json(status: number, body: unknown) {
@@ -296,6 +297,22 @@ Deno.serve(async (req) => {
     } catch (queueError) {
       console.error("Error creating support queue item:", queueError);
       // Don't fail the whole request
+    }
+
+    // --- If dual role request ID provided, link conversation_id (using admin client to bypass trigger) ---
+    if (body.topic === "dual_role_access" && typeof body.dualRoleRequestId === "string" && body.dualRoleRequestId.trim()) {
+      const requestId = body.dualRoleRequestId.trim();
+      const { error: linkErr } = await admin
+        .from("dual_role_access_requests")
+        .update({ conversation_id: conversationId })
+        .eq("id", requestId);
+
+      if (linkErr) {
+        console.error(`Failed to link conversation_id to dual_role_access_request ${requestId}:`, linkErr);
+        // Non-blocking - the support thread is still created
+      } else {
+        console.log(`Linked conversation_id ${conversationId} to dual_role_request ${requestId}`);
+      }
     }
 
     return json(200, {
