@@ -280,7 +280,11 @@ export default function AdminSupportQueue() {
                 ) : items.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                     <CheckCircle2 className="h-10 w-10 mb-2 text-green-500/50" />
-                    <p className="text-sm">No items in this queue</p>
+                    <p className="text-sm text-center px-4">
+                      {selectedCategory 
+                        ? (SUPPORT_QUEUE_CATEGORIES.find(c => c.key === selectedCategory)?.emptyStateCopy || "No items in this queue")
+                        : "No items in this queue"}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-1 p-2">
