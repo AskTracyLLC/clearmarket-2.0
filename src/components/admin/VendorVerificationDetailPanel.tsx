@@ -50,6 +50,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QueueItem, QueueStatus } from "@/hooks/useQueueItems";
 import { cn } from "@/lib/utils";
 import { formatCT } from "@/lib/formatTimezone";
+import { parseSupportCategory, formatShortCaseId } from "@/lib/supportCategory";
 
 interface VendorVerificationDetailPanelProps {
   item: QueueItem;
@@ -173,6 +174,18 @@ export function VendorVerificationDetailPanel({
 
   // Current code to display
   const displayCode = requestedCodeFinalMeta || requestedCodeSuggested || "Not specified";
+
+  // Extract Case # from metadata or conversation_id
+  let caseId: string | null = null;
+  if (typeof metadata.case_id === "string") {
+    caseId = metadata.case_id;
+  } else if (typeof metadata.support_category === "string") {
+    const parsed = parseSupportCategory(metadata.support_category as string);
+    if (parsed.caseId) caseId = parsed.caseId;
+  } else if (item.conversation_id) {
+    caseId = item.conversation_id;
+  }
+  const shortCaseId = formatShortCaseId(caseId);
 
   // Use formatCT from lib for proper timezone handling
   const formatTimestamp = useCallback((dateStr: string) => {
@@ -581,6 +594,7 @@ export function VendorVerificationDetailPanel({
             <p className="text-xs text-muted-foreground mt-0.5">
               Code: <span className="font-mono">{displayCode}</span>
               {pocName && <> · {pocName}</>}
+              {shortCaseId && <> · Case #{shortCaseId}</>}
             </p>
           </div>
 
