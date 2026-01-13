@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,22 +14,27 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 type DialogState = "none" | "success" | "clipboard-failed";
 
 export function GlobalScreenshotButton() {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const [userId, setUserId] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>("none");
   const [screenshotBlob, setScreenshotBlob] = useState<Blob | null>(null);
 
+  // Get user ID directly from supabase to avoid circular auth context issues
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+  }, []);
+
   const captureScreenshot = useCallback(async () => {
     setCapturing(true);
-    toast({ title: "Capturing screenshot…", duration: 2000 });
+    toast.info("Capturing screenshot…");
 
     try {
       // Lazy load html2canvas
@@ -54,10 +59,7 @@ export function GlobalScreenshotButton() {
       });
 
       if (!blob) {
-        toast({
-          title: "Failed to capture screenshot",
-          variant: "destructive",
-        });
+        toast.error("Failed to capture screenshot");
         setCapturing(false);
         return;
       }
@@ -78,15 +80,11 @@ export function GlobalScreenshotButton() {
       }
     } catch (error) {
       console.error("Screenshot capture failed:", error);
-      toast({
-        title: "Failed to capture screenshot",
-        description: "Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to capture screenshot. Please try again.");
     } finally {
       setCapturing(false);
     }
-  }, [toast]);
+  }, []);
 
   const uploadScreenshotAndOpenSupport = useCallback(async () => {
     if (!screenshotBlob) {
@@ -95,14 +93,13 @@ export function GlobalScreenshotButton() {
       return;
     }
 
-    const userId = user?.id;
     if (!userId) {
       // Not logged in - just open support page
       window.location.href = "/support";
       return;
     }
 
-    toast({ title: "Uploading screenshot…", duration: 2000 });
+    toast.info("Uploading screenshot…");
 
     try {
       const fileName = `${userId}/${Date.now()}-screenshot.png`;
@@ -117,11 +114,7 @@ export function GlobalScreenshotButton() {
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        toast({
-          title: "Upload failed",
-          description: "Opening support — paste or upload manually.",
-          variant: "destructive",
-        });
+        toast.error("Upload failed — paste or upload manually.");
         // Open support page without attachment
         window.location.href = "/support";
         return;
@@ -149,14 +142,10 @@ export function GlobalScreenshotButton() {
       window.location.href = "/support";
     } catch (error) {
       console.error("Upload failed:", error);
-      toast({
-        title: "Upload failed",
-        description: "Opening support — paste or upload manually.",
-        variant: "destructive",
-      });
+      toast.error("Upload failed — paste or upload manually.");
       window.location.href = "/support";
     }
-  }, [screenshotBlob, user, toast]);
+  }, [screenshotBlob, userId]);
 
   const downloadScreenshot = useCallback(() => {
     if (!screenshotBlob) return;
@@ -170,8 +159,8 @@ export function GlobalScreenshotButton() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast({ title: "Screenshot downloaded" });
-  }, [screenshotBlob, toast]);
+    toast.success("Screenshot downloaded");
+  }, [screenshotBlob]);
 
   const handleClose = useCallback(() => {
     setDialogState("none");
