@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,12 @@ export default function DemoRepDashboard() {
   const navigate = useNavigate();
   const { demoReps, demoVendors } = useDemoContext();
 
-  // Use first rep as "current user" for demo
   const currentRep = demoReps[0];
-  const profileCompletion = 85; // Demo value
+  const profileCompletion = 85;
 
   return (
-    <DemoLayout role="rep">
+    <DemoAppShell role="rep">
       <div className="container mx-auto py-6 space-y-6">
-        {/* Welcome Section */}
         <div>
           <h1 className="text-2xl font-bold">Field Rep Dashboard</h1>
           <p className="text-muted-foreground">
@@ -34,7 +32,6 @@ export default function DemoRepDashboard() {
           </p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -77,7 +74,6 @@ export default function DemoRepDashboard() {
           </Card>
         </div>
 
-        {/* Primary CTA */}
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
@@ -95,9 +91,7 @@ export default function DemoRepDashboard() {
           </CardContent>
         </Card>
 
-        {/* Your Stats & Vendor Directory */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Your Reputation */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -133,7 +127,6 @@ export default function DemoRepDashboard() {
             </CardContent>
           </Card>
 
-          {/* Vendor Directory Preview */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -171,46 +164,7 @@ export default function DemoRepDashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Profile Checklist */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Checklist</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 border rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="font-medium text-sm">Bio added</p>
-                  <p className="text-xs text-muted-foreground">Tell vendors about yourself</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 border rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="font-medium text-sm">Coverage areas set</p>
-                  <p className="text-xs text-muted-foreground">3 counties selected</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 border rounded-lg">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <div>
-                  <p className="font-medium text-sm">Systems added</p>
-                  <p className="text-xs text-muted-foreground">2 systems configured</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 border rounded-lg border-dashed">
-                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
-                <div>
-                  <p className="font-medium text-sm text-muted-foreground">Add fee info</p>
-                  <p className="text-xs text-muted-foreground">Optional: Set your rates</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }

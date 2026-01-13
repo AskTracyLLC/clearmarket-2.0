@@ -6,6 +6,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { USChoroplethMap } from "@/components/USChoroplethMap";
+import { useActiveRole } from "@/hooks/useActiveRole";
+import { useAuth } from "@/hooks/useAuth";
+import { Construction } from "lucide-react";
 
 type ViewMode = "reps" | "vendors" | "total";
 
@@ -26,6 +29,25 @@ export default function CoverageMap() {
   const [data, setData] = useState<StateNetworkCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  
+  const { effectiveRole } = useActiveRole();
+  const { user } = useAuth();
+  
+  // Check if user is a vendor
+  const [isVendor, setIsVendor] = useState(false);
+  
+  useEffect(() => {
+    async function checkVendorStatus() {
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_vendor_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      setIsVendor(profile?.is_vendor_admin ?? false);
+    }
+    checkVendorStatus();
+  }, [user]);
 
   useEffect(() => {
     async function fetchData() {
@@ -76,6 +98,9 @@ export default function CoverageMap() {
     return stateData?.state_name || stateCode;
   };
 
+  // Show Coming Soon card only for vendors
+  const showVendorComingSoon = isVendor || effectiveRole === "vendor";
+
   return (
     <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -87,6 +112,28 @@ export default function CoverageMap() {
         <p className="text-xs text-muted-foreground -mt-4 mb-2">
           Aggregated state-level counts only. No member locations are shown.
         </p>
+
+        {/* Vendor-only Coming Soon Card */}
+        {showVendorComingSoon && (
+          <Card className="mt-4 mb-6 border-dashed border-2 border-muted-foreground/30 bg-muted/20">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full bg-yellow-500/10">
+                  <Construction className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">My Coverage Map — Coming Soon</h3>
+                  <p className="text-muted-foreground text-sm mt-1">
+                    Vendor-specific coverage visualization is coming soon. You'll be able to see your network's geographic distribution and identify coverage gaps.
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-2">
+                    For now, view the live ClearMarket network growth map below.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="mt-6">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
