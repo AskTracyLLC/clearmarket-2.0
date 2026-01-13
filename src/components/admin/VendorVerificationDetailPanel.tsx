@@ -185,7 +185,8 @@ export function VendorVerificationDetailPanel({
   } else if (item.conversation_id) {
     caseId = item.conversation_id;
   }
-  const shortCaseId = formatShortCaseId(caseId);
+  // Vendor verification requests always come from vendors
+  const shortCaseId = formatShortCaseId(caseId, "vendor");
 
   // Use formatCT from lib for proper timezone handling
   const formatTimestamp = useCallback((dateStr: string) => {

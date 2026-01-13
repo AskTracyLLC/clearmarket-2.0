@@ -186,7 +186,10 @@ export function DualRoleRequestDetailPanel({
   } else if (item.conversation_id) {
     caseId = item.conversation_id;
   }
-  const shortCaseId = formatShortCaseId(caseId);
+  // Dual role requests come from existing reps wanting vendor access, so prefix with F
+  const requesterRole = (metadata.requester_role as string | undefined) || 
+                        (metadata.user_role as string | undefined) || "rep";
+  const shortCaseId = formatShortCaseId(caseId, requesterRole);
 
   // State
   const [actions, setActions] = useState<ActionLog[]>([]);

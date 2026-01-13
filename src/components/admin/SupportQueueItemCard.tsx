@@ -39,7 +39,7 @@ export function SupportQueueItemCard({ item, isSelected, onClick }: SupportQueue
   const statusLabel = getStatusLabel(item.status as QueueStatus);
   const IconComponent = categoryConfig.icon;
   
-  // Extract Case # from metadata
+  // Extract Case # and role from metadata
   const metadata = item.metadata || {};
   let caseId: string | null = null;
   if (typeof metadata.case_id === "string") {
@@ -48,7 +48,11 @@ export function SupportQueueItemCard({ item, isSelected, onClick }: SupportQueue
     const parsed = parseSupportCategory(metadata.support_category as string);
     if (parsed.caseId) caseId = parsed.caseId;
   }
-  const shortCaseId = formatShortCaseId(caseId);
+  // Get requester role for Case # prefix (F = Field Rep, V = Vendor)
+  const requesterRole = (metadata.requester_role as string | undefined) || 
+                        (metadata.user_role as string | undefined) ||
+                        (item.category === "vendor_verification" ? "vendor" : null);
+  const shortCaseId = formatShortCaseId(caseId, requesterRole);
   
   // Get summary field values from metadata
   const summaryValues = categoryConfig.summaryFields.map(field => {

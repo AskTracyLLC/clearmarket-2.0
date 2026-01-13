@@ -138,7 +138,11 @@ export function SupportQueueItemDetail({
     // Fallback: use conversation_id if it looks like a case ID
     caseId = item.conversation_id;
   }
-  const shortCaseId = formatShortCaseId(caseId);
+  // Get requester role for Case # prefix (F = Field Rep, V = Vendor)
+  const requesterRole = (metadata.requester_role as string | undefined) || 
+                        (metadata.user_role as string | undefined) ||
+                        (item.category === "vendor_verification" ? "vendor" : null);
+  const shortCaseId = formatShortCaseId(caseId, requesterRole);
 
   // Check if this is a support case item that can be re-categorized
   // Only allow for support_case source_type AND when current category is one of the allowed buckets
