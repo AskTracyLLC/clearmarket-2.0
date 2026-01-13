@@ -1804,6 +1804,70 @@ export type Database = {
         }
         Relationships: []
       }
+      field_rep_offline_vendor_contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          field_rep_id: string
+          id: string
+          notes: string | null
+          phone: string | null
+          status: string
+          systems: string[] | null
+          updated_at: string
+          vendor_name: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          field_rep_id: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          systems?: string[] | null
+          updated_at?: string
+          vendor_name: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          field_rep_id?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          systems?: string[] | null
+          updated_at?: string
+          vendor_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_rep_offline_vendor_contacts_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_rep_offline_vendor_contacts_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_rep_offline_vendor_contacts_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       help_center_articles: {
         Row: {
           category: string
@@ -5883,6 +5947,7 @@ export type Database = {
           phone: string | null
           rep_name: string
           status: string
+          systems: string[] | null
           updated_at: string
           vendor_id: string
         }
@@ -5895,6 +5960,7 @@ export type Database = {
           phone?: string | null
           rep_name: string
           status?: string
+          systems?: string[] | null
           updated_at?: string
           vendor_id: string
         }
@@ -5907,6 +5973,7 @@ export type Database = {
           phone?: string | null
           rep_name?: string
           status?: string
+          systems?: string[] | null
           updated_at?: string
           vendor_id?: string
         }
