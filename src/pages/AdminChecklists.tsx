@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -949,17 +949,14 @@ export default function AdminChecklists() {
 
   if (authLoading || permsLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="container mx-auto px-4 py-8">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div>
@@ -2140,9 +2137,8 @@ export default function AdminChecklists() {
                 {adminChecklistAssignmentsCopy.actions.confirm.confirmButton}
               </AlertDialogAction>
             </AlertDialogFooter>
-          </AlertDialogContent>
+        </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
