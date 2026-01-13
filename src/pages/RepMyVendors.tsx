@@ -447,6 +447,9 @@ const RepMyVendors = () => {
                         <p className="text-xs text-amber-600 mt-2 font-medium">
                           Wants to connect via: {request.postTitle} ({request.postStateCode})
                         </p>
+                        <p className="text-xs text-muted-foreground italic mt-1">
+                          By accepting, you're sharing your business contact details with this vendor.
+                        </p>
                       </div>
                       <div className="flex gap-2 self-end md:self-start">
                         <Button

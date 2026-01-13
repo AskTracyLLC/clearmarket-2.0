@@ -549,6 +549,9 @@ export default function MessagesList() {
                         hour12: true
                       })}
                     </div>
+                    <div className="text-xs text-muted-foreground italic">
+                      By accepting, you're sharing your business contact details with this vendor.
+                    </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <Button 
