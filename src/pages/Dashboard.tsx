@@ -164,12 +164,19 @@ const Dashboard = () => {
       // Redirect to onboarding if needed (admins bypass role selection)
       const isAdmin = currentUserData.is_admin === true;
       
+      // If no terms signed, redirect to terms page
       if (!currentUserData.has_signed_terms && !isAdmin) {
         navigate("/onboarding/terms");
         return;
       }
+      
+      // If no role set after signing terms, redirect back to terms with a message
+      // The user likely lost the role param somehow
       if (!isAdmin && !currentUserData.is_fieldrep && !currentUserData.is_vendor_admin) {
-        navigate("/onboarding/role");
+        console.error("[Dashboard] User has no role set after signing terms. Redirecting to role selection.");
+        // Redirect to a page where they can pick role - for now, send to terms with vendor param
+        // In production, we might want a dedicated "pick your role" page
+        navigate("/onboarding/terms");
         return;
       }
       
