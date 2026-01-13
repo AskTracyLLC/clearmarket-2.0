@@ -26,12 +26,9 @@ const SignIn = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // If already logged in but NOT switching accounts, redirect to dashboard
-  useEffect(() => {
-    if (!authLoading && user && !switchingAccount) {
-      navigate("/dashboard");
-    }
-  }, [user, authLoading, navigate, switchingAccount]);
+  // NOTE: We intentionally do NOT auto-redirect logged-in users.
+  // Instead, we show the "Already Signed In" interstitial below so they can
+  // choose to continue to dashboard OR switch accounts.
 
   const handleSwitchAccount = async () => {
     setLoading(true);
