@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Inbox,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { useQueueItems, QueueFilters } from "@/hooks/useQueueItems";
+import { useQueueItems, QueueFilters, QueueItem } from "@/hooks/useQueueItems";
 import { useQueueCounts } from "@/hooks/useQueueCounts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,71 @@ import {
   QueueCategory,
   QueueStatus,
 } from "@/config/supportQueueCategories";
+import { parseSupportCategory, formatShortCaseId, formatSupportTopicLabel } from "@/lib/supportCategory";
+
+/**
+ * Extract a searchable string from queue item for client-side filtering.
+ * Includes title, preview, case ID, short case ID, and topic label.
+ */
+function buildSearchableText(item: QueueItem): string {
+  const parts: string[] = [];
+
+  // Title and preview
+  if (item.title) parts.push(item.title);
+  if (item.preview) parts.push(item.preview);
+
+  // Extract case ID from metadata if present
+  const metadata = item.metadata || {};
+  if (typeof metadata.case_id === "string") {
+    parts.push(metadata.case_id);
+    const short = formatShortCaseId(metadata.case_id);
+    if (short) parts.push(short);
+  }
+
+  // Extract case ID from support_category in metadata
+  if (typeof metadata.support_category === "string") {
+    const parsed = parseSupportCategory(metadata.support_category);
+    if (parsed.caseId) {
+      parts.push(parsed.caseId);
+      const short = formatShortCaseId(parsed.caseId);
+      if (short) parts.push(short);
+    }
+    if (parsed.topic) {
+      parts.push(formatSupportTopicLabel(parsed.topic));
+    }
+  }
+
+  // Extract from conversation_id (often the case ID for support threads)
+  if (item.conversation_id) {
+    parts.push(item.conversation_id);
+    const short = formatShortCaseId(item.conversation_id);
+    if (short) parts.push(short);
+  }
+
+  // Also add source_id if it looks like a UUID (could be case ID)
+  if (item.source_id) {
+    parts.push(item.source_id);
+    const short = formatShortCaseId(item.source_id);
+    if (short) parts.push(short);
+  }
+
+  // Requester name from metadata
+  if (typeof metadata.requester_name === "string") {
+    parts.push(metadata.requester_name);
+  }
+
+  // Requested code from metadata (for dual role)
+  if (typeof metadata.requested_code === "string") {
+    parts.push(metadata.requested_code);
+  }
+
+  // Business name from metadata
+  if (typeof metadata.business_name === "string") {
+    parts.push(metadata.business_name);
+  }
+
+  return parts.join(" ").toLowerCase();
+}
 
 export default function AdminSupportQueue() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,16 +118,28 @@ export default function AdminSupportQueue() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  // Build filters
+  // Build filters - don't pass search to DB, we'll filter client-side for Case # support
   const filters: QueueFilters = {
     category: selectedCategory,
     status: selectedStatus,
-    search: searchQuery || undefined,
     source_type: sourceType || undefined,
     source_id: sourceId || undefined,
   };
 
-  const { items, loading: itemsLoading, refresh, updateStatus, assignTo } = useQueueItems(filters);
+  const { items: rawItems, loading: itemsLoading, refresh, updateStatus, assignTo } = useQueueItems(filters);
+
+  // Client-side filtering for search (includes Case # matching)
+  const items = useMemo(() => {
+    if (!searchQuery.trim()) return rawItems;
+
+    // Normalize query: lowercase, strip leading #
+    const normalizedQuery = searchQuery.trim().toLowerCase().replace(/^#/, "");
+
+    return rawItems.filter(item => {
+      const searchable = buildSearchableText(item);
+      return searchable.includes(normalizedQuery);
+    });
+  }, [rawItems, searchQuery]);
   const { counts, loading: countsLoading, refresh: refreshCounts } = useQueueCounts();
 
   const selectedItem = selectedItemId ? items.find(item => item.id === selectedItemId) : null;
