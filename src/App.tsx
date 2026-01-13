@@ -100,6 +100,19 @@ import AdminAbuseFlags from "./pages/AdminAbuseFlags";
 import AdminSupportQueue from "./pages/AdminSupportQueue";
 import AdminSafetyAnalytics from "./pages/AdminSafetyAnalytics";
 
+// Demo Mode imports
+import { DemoProvider } from "@/demo/DemoContext";
+import DemoSelector from "./pages/demo/DemoSelector";
+import DemoVendorDashboard from "./pages/demo/DemoVendorDashboard";
+import DemoVendorRepSearch from "./pages/demo/DemoVendorRepSearch";
+import DemoVendorRepProfile from "./pages/demo/DemoVendorRepProfile";
+import DemoVendorPolicies from "./pages/demo/DemoVendorPolicies";
+import DemoRepDashboard from "./pages/demo/DemoRepDashboard";
+import DemoRepProfile from "./pages/demo/DemoRepProfile";
+import DemoRepVendorDirectory from "./pages/demo/DemoRepVendorDirectory";
+import DemoCommunityBoard from "./pages/demo/DemoCommunityBoard";
+import DemoCoverageMapPlaceholder from "./pages/demo/DemoCoverageMapPlaceholder";
+
 import { Navigate } from "react-router-dom";
 
 // Redirect component for dual role requests (moved to Support Queue)
@@ -141,6 +154,20 @@ const App = () => (
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/legal/:pageType" element={<LegalPage />} />
+
+                {/* Demo Mode routes - wrapped in DemoProvider */}
+                <Route path="/demo" element={<DemoProvider><DemoSelector /></DemoProvider>} />
+                <Route path="/demo/vendor" element={<DemoProvider><DemoVendorDashboard /></DemoProvider>} />
+                <Route path="/demo/vendor/search" element={<DemoProvider><DemoVendorRepSearch /></DemoProvider>} />
+                <Route path="/demo/vendor/rep/:repId" element={<DemoProvider><DemoVendorRepProfile /></DemoProvider>} />
+                <Route path="/demo/vendor/community" element={<DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider>} />
+                <Route path="/demo/vendor/coverage-map" element={<DemoProvider><DemoCoverageMapPlaceholder role="vendor" isPersonal /></DemoProvider>} />
+                <Route path="/demo/vendor/policies" element={<DemoProvider><DemoVendorPolicies /></DemoProvider>} />
+                <Route path="/demo/rep" element={<DemoProvider><DemoRepDashboard /></DemoProvider>} />
+                <Route path="/demo/rep/profile" element={<DemoProvider><DemoRepProfile /></DemoProvider>} />
+                <Route path="/demo/rep/vendors" element={<DemoProvider><DemoRepVendorDirectory /></DemoProvider>} />
+                <Route path="/demo/rep/community" element={<DemoProvider><DemoCommunityBoard role="rep" /></DemoProvider>} />
+                <Route path="/demo/rep/coverage-map" element={<DemoProvider><DemoCoverageMapPlaceholder role="rep" /></DemoProvider>} />
 
                 {/* Authenticated routes wrapped in AppShell layout */}
                 <Route element={<AuthenticatedLayout><Outlet /></AuthenticatedLayout>}>
