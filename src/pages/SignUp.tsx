@@ -8,8 +8,9 @@ import { signUp } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
-// Get beta mode from env - default to false for production
-const BETA_MODE = import.meta.env.VITE_BETA_MODE === "true";
+// Get beta mode from env - default to TRUE during beta (matches server BETA_MODE)
+// Set VITE_BETA_MODE=false to disable invite code requirement
+const BETA_MODE = import.meta.env.VITE_BETA_MODE !== "false";
 
 const isBetaMode = () => BETA_MODE;
 
