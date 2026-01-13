@@ -212,7 +212,7 @@ const Terms = () => {
     ? format(new Date(termsPage.effective_at), "MMMM yyyy")
     : termsPage?.last_updated_at
       ? format(new Date(termsPage.last_updated_at), "MMMM yyyy")
-      : "January 2025";
+      : "December 2025";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
