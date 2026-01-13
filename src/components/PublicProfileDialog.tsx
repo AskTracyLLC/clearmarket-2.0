@@ -11,13 +11,13 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, Unlock, Ban, Info, Clock, Calendar, DollarSign } from "lucide-react";
+import { ExternalLink, MapPin, Briefcase, CheckCircle, XCircle, ShieldCheck, AlertCircle, MessageSquare, Lock, UserPlus, Ban, Info, Clock, Calendar, DollarSign, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isBackgroundCheckActive, maskBackgroundCheckId } from "@/lib/backgroundCheckUtils";
 import { getBackgroundCheckSignedUrl } from "@/lib/storage";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
-import { unlockRepContact, checkContactUnlocked } from "@/lib/credits";
+// Contact unlock feature has been removed - vendors must connect with reps to access contact details
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
@@ -256,8 +256,7 @@ export function PublicProfileDialog({
   const [trustScore, setTrustScore] = useState<{ average: number; count: number } | null>(null);
   const [communityScore, setCommunityScore] = useState<number>(0);
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
-  const [isContactUnlocked, setIsContactUnlocked] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
+  // Contact unlock feature has been removed - access is now based on connection status only
   const [viewerIsVendor, setViewerIsVendor] = useState(false);
   const [viewerIsAdmin, setViewerIsAdmin] = useState(false);
   const [repEmail, setRepEmail] = useState<string | null>(null);
@@ -300,7 +299,7 @@ export function PublicProfileDialog({
   useEffect(() => {
     if (!open || !targetUserId || !user) return;
 
-    async function checkViewerAndUnlock() {
+    async function checkViewerStatus() {
       // Check if current user is a vendor or admin
       const { data: viewerProfile } = await supabase
         .from("profiles")
@@ -312,26 +311,19 @@ export function PublicProfileDialog({
       setViewerIsVendor(isVendor);
       setViewerIsAdmin(viewerProfile?.is_admin || false);
 
-      // If vendor viewing a rep:
-      // 1) check if connected (vendor_connections)
-      // 2) check if unlocked (rep_contact_unlocks)
+      // If vendor viewing a rep: check if connected (contact access is connection-based only)
       if (isVendor) {
-        const [{ data: conn }, unlocked] = await Promise.all([
-          supabase
-            .from("vendor_connections")
-            .select("id")
-            .eq("vendor_id", user.id)
-            .eq("field_rep_id", targetUserId)
-            .eq("status", "connected")
-            .maybeSingle(),
-          checkContactUnlocked(user.id, targetUserId),
-        ]);
+        const { data: conn } = await supabase
+          .from("vendor_connections")
+          .select("id")
+          .eq("vendor_id", user.id)
+          .eq("field_rep_id", targetUserId)
+          .eq("status", "connected")
+          .maybeSingle();
 
         setIsConnectedRep(Boolean(conn?.id));
-        setIsContactUnlocked(Boolean(unlocked));
       } else {
         setIsConnectedRep(false);
-        setIsContactUnlocked(false);
       }
 
       // Check if user has already reported this person
@@ -339,7 +331,7 @@ export function PublicProfileDialog({
       setAlreadyReported(reported);
     }
 
-    checkViewerAndUnlock();
+    checkViewerStatus();
   }, [open, targetUserId, user]);
 
   // Reset contact gating per open/target change
@@ -378,12 +370,12 @@ export function PublicProfileDialog({
     }
   };
 
-  // When dialog opens and contact is eligible (connected/unlocked), log + allow view once and fetch email
+  // When dialog opens and contact is eligible (connected only), log + allow view once and fetch email
   useEffect(() => {
     if (!open || !viewerIsVendor || !targetUserId) return;
 
-    const canViewContact = isConnectedRep || isContactUnlocked;
-    if (!canViewContact) {
+    // Contact access is now based on connection status only (unlock feature removed)
+    if (!isConnectedRep) {
       setContactAllowed(false);
       setRepEmail(null);
       setHasLoggedContactView(false);
@@ -412,7 +404,7 @@ export function PublicProfileDialog({
       setRepEmail(email);
       setContactLoading(false);
     })();
-  }, [open, viewerIsVendor, targetUserId, isConnectedRep, isContactUnlocked, hasLoggedContactView]);
+  }, [open, viewerIsVendor, targetUserId, isConnectedRep, hasLoggedContactView]);
 
   // Fetch active Seeking Coverage posts count for vendor profiles
   useEffect(() => {
@@ -634,60 +626,8 @@ export function PublicProfileDialog({
 
     loadScores();
   }, [open, targetUserId]);
-
-  const handleUnlockContact = async () => {
-    if (!user || !targetUserId) return;
-
-    // Show credit confirmation dialog
-    const confirmed = await confirmCreditSpend({
-      cost: 1,
-      actionLabel: "unlock this Field Rep's contact details",
-    });
-    if (!confirmed) return;
-
-    setUnlocking(true);
-    try {
-      // Guard + log unlock attempt before calling unlock RPC
-      const guard = await guardContactAccess("unlock_contact");
-      if (!guard.allowed) {
-        toast.error("Unlock blocked", {
-          description: "Too many unlock attempts. Please try again later.",
-        });
-        return;
-      }
-
-      const result = await unlockRepContact(user.id, targetUserId);
-
-      if (result.success) {
-        setIsContactUnlocked(true);
-        if (result.alreadyUnlocked) {
-          toast.success("Contact already unlocked");
-        } else {
-          toast.success("Contact unlocked! 1 credit deducted.");
-          // Trigger wallet refresh if you have a global refresh mechanism
-          window.dispatchEvent(new Event("walletUpdated"));
-        }
-
-        // After unlock, ensure view is allowed + fetch email (same path as dialog-open)
-        setHasLoggedContactView(false);
-      } else {
-        if (result.error === "Insufficient credits") {
-          toast.error("Not enough credits", {
-            description: "You don't have enough credits to unlock this rep's contact info. Please add credits in your Credits tab.",
-          });
-        } else {
-          toast.error("Failed to unlock contact", {
-            description: result.error || "An error occurred",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error unlocking contact:", error);
-      toast.error("Failed to unlock contact");
-    } finally {
-      setUnlocking(false);
-    }
-  };
+  // Navigate to Find Vendors to initiate connection
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -1091,19 +1031,19 @@ export function PublicProfileDialog({
               {viewerIsVendor && (
                 <Card className="p-4 bg-card-elevated border-2 border-primary/20">
                   <div className="flex items-start gap-3">
-                    {(isConnectedRep || isContactUnlocked) ? (
-                      <Unlock className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    {isConnectedRep ? (
+                      <Users className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     ) : (
                       <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground mb-2">Contact Information</h3>
 
-                      {contactLoading && (isConnectedRep || isContactUnlocked) && (
+                      {contactLoading && isConnectedRep && (
                         <p className="text-sm text-muted-foreground">Loading contact…</p>
                       )}
 
-                      {(isConnectedRep || isContactUnlocked) && !contactAllowed && !contactLoading ? (
+                      {isConnectedRep && !contactAllowed && !contactLoading ? (
                         <div className="space-y-2">
                           <Badge variant="secondary" className="mb-2">
                             <AlertCircle className="h-3 w-3 mr-1" />
@@ -1113,11 +1053,11 @@ export function PublicProfileDialog({
                             Too many contact views. Please try again later.
                           </p>
                         </div>
-                      ) : (isConnectedRep || isContactUnlocked) && contactAllowed ? (
+                      ) : isConnectedRep && contactAllowed ? (
                         <div className="space-y-2">
                           <Badge variant="default" className="mb-2">
                             <CheckCircle className="h-3 w-3 mr-1" />
-                            {isConnectedRep ? "Connected rep" : "Contact unlocked"}
+                            Connected
                           </Badge>
                           {repEmail && (
                             <div className="text-sm">
@@ -1139,22 +1079,16 @@ export function PublicProfileDialog({
                       ) : (
                         <div className="space-y-3">
                           <p className="text-sm text-muted-foreground">
-                            Contact info is locked. Unlock this rep's email and phone for 1 credit.
+                            Contact details are available once you're connected with this Field Rep.
                           </p>
                           <Button
-                            onClick={handleUnlockContact}
-                            disabled={unlocking}
+                            onClick={() => navigate("/vendor/find-reps")}
                             size="sm"
+                            variant="outline"
                             className="w-full sm:w-auto"
                           >
-                            {unlocking ? (
-                              "Unlocking..."
-                            ) : (
-                              <>
-                                <Unlock className="h-4 w-4 mr-2" />
-                                Unlock Contact (1 credit)
-                              </>
-                            )}
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Request Connection
                           </Button>
                         </div>
                       )}

@@ -248,7 +248,7 @@ const Terms = () => {
           <ul className="list-disc pl-6 mb-3 space-y-1">
             <li>Create profiles and list service areas, inspection types, systems used, and preferences</li>
             <li>Search for and discover each other based on coverage, work types, and other criteria</li>
-            <li>Exchange contact details (when unlocked)</li>
+            <li>Connect and exchange contact details once connected</li>
             <li>Share verified reviews after confirmed work is completed</li>
             <li>Participate in a community board and access analytics or insights (including paid features)</li>
           </ul>

@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Unlock, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Users, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
-import { checkContactUnlockedBatch } from "@/lib/credits";
+// Contact unlock feature has been removed - access is now based on connection status only
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -83,7 +83,7 @@ interface RepResult {
   trustScoreCount?: number;
   communityScore?: number;
   connectedSince?: string | null;
-  isContactUnlocked?: boolean;
+  // isContactUnlocked removed - contact access is now based on connection status only
   hasValidBackgroundCheck?: boolean;
   isWillingToObtain?: boolean;
   last_seen_at?: string | null;
@@ -429,13 +429,12 @@ export default function VendorFindReps() {
         });
       }
 
-      // Fetch unlock status for all reps
-      const unlockMap = user ? await checkContactUnlockedBatch(user.id, repUserIds) : {};
+      // Contact unlock feature has been removed - access is now based on connection status only
 
       // Fetch blocked user IDs
       const blockedUserIds = await fetchBlockedUserIds();
 
-      // Enhance results with trust scores, community scores, connection data, unlock status, and filter blocked users
+      // Enhance results with trust scores, community scores, connection data, and filter blocked users
       let enhancedResults = filtered
         .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
         .map(rep => {
@@ -463,7 +462,6 @@ export default function VendorFindReps() {
             trustScoreCount: trustScores[rep.user_id]?.count ?? 0,
             communityScore: communityScoreMap.get(rep.user_id) ?? 0,
             connectedSince: connectionMap.get(rep.user_id) ?? null,
-            isContactUnlocked: unlockMap[rep.user_id] ?? false,
             inspectionTypesInArea: Array.from(repTypesInArea),
           };
         });
@@ -1056,11 +1054,11 @@ export default function VendorFindReps() {
 
                       {/* Credentials Badges */}
                       <div className="flex flex-wrap gap-2">
-                        {/* Contact Unlocked Badge */}
-                        {rep.isContactUnlocked && (
+                        {/* Connected Badge */}
+                        {rep.connectedSince && (
                           <Badge variant="default" className="text-xs gap-1">
-                            <Unlock className="h-3 w-3" />
-                            Contact unlocked
+                            <Users className="h-3 w-3" />
+                            Connected
                           </Badge>
                         )}
 

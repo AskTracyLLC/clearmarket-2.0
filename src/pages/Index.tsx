@@ -130,7 +130,7 @@ const Index = () => {
               <Link to="/signup?role=vendor" className="text-secondary hover:underline">Need reliable coverage?</Link>
             </p>
             <p className="text-muted-foreground">
-              Post Seeking Coverage, filter reps by region and systems, and unlock contact details to build your trusted network.
+              Post Seeking Coverage, filter reps by region and systems, and connect directly to build your trusted network.
             </p>
           </div>
           
@@ -147,7 +147,7 @@ const Index = () => {
             />
             <FeatureCard
               icon={<Users size={24} />}
-              title="Unlock & connect"
+              title="Connect directly"
               description="Build your network"
             />
             <FeatureCard

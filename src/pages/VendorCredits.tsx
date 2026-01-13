@@ -209,7 +209,7 @@ const VendorCredits = () => {
       case "purchase":
         return "Credits Added";
       case "unlock_contact":
-        return "Unlock Contact";
+        return "Contact Access (Legacy)"; // Historical transaction label
       case "boost_post":
         return "Boost Post";
       case "hide_feedback":
@@ -303,7 +303,7 @@ const VendorCredits = () => {
           <CardContent>
             <div className="text-5xl font-bold text-foreground mb-4">{balance}</div>
             <p className="text-sm text-muted-foreground mb-4">
-              Credits are used for premium ClearMarket actions like posting Seeking Coverage, unlocking contacts, and other tools.
+              Credits are used for premium ClearMarket actions like posting Seeking Coverage and other tools.
             </p>
             
             {/* Powered by Credits explainer */}
@@ -314,7 +314,6 @@ const VendorCredits = () => {
               </p>
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• <strong>Seeking Coverage post</strong> – 1 credit per post</li>
-                <li>• <strong>Unlock rep contact</strong> – 1 credit per rep</li>
                 <li>• <strong>Boost post visibility</strong> – Coming soon</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">

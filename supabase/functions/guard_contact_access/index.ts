@@ -234,43 +234,38 @@ Deno.serve(async (req) => {
       );
     }
 
-    // For unlock_contact: vendor/admin can always attempt (unlock RPC handles credits + row insert)
-    // For view_contact/export_contact: require connected OR unlocked OR admin
+    // For unlock_contact: feature has been removed - return error
+    if (accessType === "unlock_contact") {
+      return new Response(
+        JSON.stringify({ allowed: false, reason: "UNLOCK_REMOVED", message: "Contact unlock feature has been removed. Vendors must connect with reps to access contact details." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // For view_contact/export_contact: require connected OR admin (unlock removed)
     let isConnected = false;
-    let isUnlocked = false;
 
     if (accessType === "view_contact" || accessType === "export_contact") {
-      // Check connection + unlock status
-      const [connectionResult, unlockResult] = await Promise.all([
-        supabaseAdmin
-          .from("vendor_connections")
-          .select("id")
-          .eq("vendor_id", vendorUserId)
-          .eq("field_rep_id", repUserId)
-          .eq("status", "connected")
-          .maybeSingle(),
-        supabaseAdmin
-          .from("rep_contact_unlocks")
-          .select("id")
-          .eq("vendor_user_id", vendorUserId)
-          .eq("rep_user_id", repUserId)
-          .maybeSingle(),
-      ]);
+      // Check connection status only (unlock feature removed)
+      const connectionResult = await supabaseAdmin
+        .from("vendor_connections")
+        .select("id")
+        .eq("vendor_id", vendorUserId)
+        .eq("field_rep_id", repUserId)
+        .eq("status", "connected")
+        .maybeSingle();
 
       const connData = connectionResult.data as { id?: string } | null;
-      const unlockData = unlockResult.data as { id?: string } | null;
       isConnected = Boolean(connData?.id);
-      isUnlocked = Boolean(unlockData?.id);
 
-      // For view/export: must be connected, unlocked, or admin
-      if (!isAdmin && !isConnected && !isUnlocked) {
+      // For view/export: must be connected or admin
+      if (!isAdmin && !isConnected) {
         return new Response(
           JSON.stringify({ allowed: false, reason: "NO_ACCESS" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
-    // For unlock_contact: no access check here - the unlock RPC will handle it
 
     // === ACTOR ATTRIBUTION ===
     

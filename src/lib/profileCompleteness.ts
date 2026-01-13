@@ -374,7 +374,7 @@ export async function computeVendorProfileCompleteness(
   extras.push({
     id: "credits",
     label: "Fund Credits",
-    description: "Add credits to unlock features like posting and unlocking contacts",
+    description: "Add credits to access premium features like posting Seeking Coverage",
     done: hasCredits,
     link: "/vendor/credits",
   });
