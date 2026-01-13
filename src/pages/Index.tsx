@@ -198,7 +198,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="container mx-auto px-4 py-12 text-center text-muted-foreground">
-        <p>&copy; 2025 ClearMarket. Professional connections for field reps and vendors.</p>
+        <p>&copy; 2026 ClearMarket. Professional connections for field reps and vendors.</p>
       </footer>
     </div>
   );
