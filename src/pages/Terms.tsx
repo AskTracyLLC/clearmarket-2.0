@@ -223,13 +223,15 @@ const Terms = () => {
         }
 
         if (pendingInvite) {
-          // Activate the staff membership
+          // Activate the staff membership and invalidate the invite token (single-use)
           const { error: updateError } = await supabase
             .from("vendor_staff")
             .update({
               staff_user_id: user.id,
               status: "active",
               accepted_at: new Date().toISOString(),
+              invite_token_hash: null,
+              invite_token_expires_at: null,
             })
             .eq("id", pendingInvite.id);
 
