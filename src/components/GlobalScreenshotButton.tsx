@@ -41,7 +41,7 @@ export function GlobalScreenshotButton() {
       const html2canvas = (await import("html2canvas")).default;
 
       // Capture the entire document body to include modals/dialogs
-      const canvas = await html2canvas(document.body, {
+      const canvas = await html2canvas(document.body as unknown as HTMLElement, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: null,
