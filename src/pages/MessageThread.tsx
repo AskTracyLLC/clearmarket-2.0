@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban, Headphones } from "lucide-react";
-import { getUserDisplayName } from "@/lib/conversations";
+import { getUserDisplayName, batchGetUserDisplayNames } from "@/lib/conversations";
 import { 
   isSupportCategory, 
   parseSupportCategory, 
@@ -64,49 +64,16 @@ interface Message {
   created_at: string;
 }
 
-/** Batch-fetch display names for a list of sender IDs */
-async function fetchSenderDisplayNames(senderIds: string[]): Promise<Record<string, string>> {
+/** Batch-fetch display names for a list of sender IDs, respecting connection status */
+async function fetchSenderDisplayNames(
+  senderIds: string[],
+  viewerId: string,
+  viewerIsVendor: boolean
+): Promise<Record<string, string>> {
   if (senderIds.length === 0) return {};
-
-  const uniqueIds = [...new Set(senderIds)];
-  const names: Record<string, string> = {};
-
-  // Fetch profiles for all unique sender IDs
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name")
-    .in("id", uniqueIds);
-
-  // Fetch rep anonymous IDs
-  const { data: repProfiles } = await supabase
-    .from("rep_profile")
-    .select("user_id, anonymous_id")
-    .in("user_id", uniqueIds);
-
-  // Fetch vendor anonymous IDs
-  const { data: vendorProfiles } = await supabase
-    .from("vendor_profile")
-    .select("user_id, anonymous_id")
-    .in("user_id", uniqueIds);
-
-  // Build name map: prefer anonymous_id, fall back to full_name
-  for (const id of uniqueIds) {
-    const rep = repProfiles?.find(r => r.user_id === id);
-    const vendor = vendorProfiles?.find(v => v.user_id === id);
-    const profile = profiles?.find(p => p.id === id);
-
-    if (rep?.anonymous_id) {
-      names[id] = rep.anonymous_id;
-    } else if (vendor?.anonymous_id) {
-      names[id] = vendor.anonymous_id;
-    } else if (profile?.full_name) {
-      names[id] = profile.full_name;
-    } else {
-      names[id] = "Unknown";
-    }
-  }
-
-  return names;
+  
+  // Use the centralized batch function that respects connection status
+  return batchGetUserDisplayNames(senderIds, viewerId, viewerIsVendor);
 }
 
 /** Format timestamp for message bubble: MM/DD/YY • h:mm AM/PM CT */
@@ -333,8 +300,8 @@ export default function MessageThread() {
       if (isSupportThread) {
         setOtherParticipantName("ClearMarket Support");
       } else {
-        // Get other participant's display name
-        const name = await getUserDisplayName(otherId);
+        // Get other participant's display name respecting connection status
+        const name = await getUserDisplayName(otherId, effectiveUserId, profile?.is_vendor_admin ?? false);
         setOtherParticipantName(name);
       }
 
@@ -475,10 +442,10 @@ export default function MessageThread() {
 
     setMessages(data || []);
 
-    // Batch-fetch display names for all senders
+    // Batch-fetch display names for all senders (use isVendor state which is set before loadMessages is called)
     if (data && data.length > 0) {
       const senderIds = data.map(m => m.sender_id);
-      const names = await fetchSenderDisplayNames(senderIds);
+      const names = await fetchSenderDisplayNames(senderIds, effectiveUserId, isVendor);
       setSenderNames(names);
     }
 
