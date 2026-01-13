@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,8 @@ export default function DemoVendorDashboard() {
   const lookingForWorkCount = demoReps.filter((r) => r.looking_for_work).length;
 
   return (
-    <DemoLayout role="vendor">
+    <DemoAppShell role="vendor">
       <div className="container mx-auto py-6 space-y-6">
-        {/* Welcome Section */}
         <div>
           <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
           <p className="text-muted-foreground">
@@ -24,7 +23,6 @@ export default function DemoVendorDashboard() {
           </p>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -66,7 +64,6 @@ export default function DemoVendorDashboard() {
           </Card>
         </div>
 
-        {/* Primary CTA */}
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
@@ -84,9 +81,7 @@ export default function DemoVendorDashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Connections / Available Reps */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Connected Reps */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -124,7 +119,6 @@ export default function DemoVendorDashboard() {
             </CardContent>
           </Card>
 
-          {/* Available Reps Preview */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -167,6 +161,6 @@ export default function DemoVendorDashboard() {
           </Card>
         </div>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }

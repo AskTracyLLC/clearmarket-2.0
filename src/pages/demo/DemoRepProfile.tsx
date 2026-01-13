@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Save, MapPin, Wrench, FileText, Sparkles } from "lucide-react";
+import { Save, MapPin, Wrench, FileText } from "lucide-react";
 
 const STATES = [
   { code: "IL", name: "Illinois" },
@@ -54,7 +47,6 @@ export default function DemoRepProfile() {
   const { toast } = useToast();
   const { demoReps } = useDemoContext();
   
-  // Use first rep as "current user" for demo
   const currentRep = demoReps[0];
 
   const [formData, setFormData] = useState({
@@ -65,7 +57,6 @@ export default function DemoRepProfile() {
     selectedCategories: currentRep.inspection_categories,
     otherCategory: "",
     lookingForWork: currentRep.looking_for_work,
-    clearvueBeta: false,
   });
 
   const handleSave = () => {
@@ -94,7 +85,7 @@ export default function DemoRepProfile() {
   };
 
   return (
-    <DemoLayout role="rep">
+    <DemoAppShell role="rep">
       <div className="container mx-auto py-6 space-y-6 max-w-3xl">
         <div>
           <h1 className="text-2xl font-bold">My Profile</h1>
@@ -103,7 +94,6 @@ export default function DemoRepProfile() {
           </p>
         </div>
 
-        {/* Bio */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -140,7 +130,6 @@ export default function DemoRepProfile() {
           </CardContent>
         </Card>
 
-        {/* Coverage Areas */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -209,7 +198,6 @@ export default function DemoRepProfile() {
           </CardContent>
         </Card>
 
-        {/* Systems */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -237,7 +225,6 @@ export default function DemoRepProfile() {
           </CardContent>
         </Card>
 
-        {/* Categories */}
         <Card>
           <CardHeader>
             <CardTitle>Inspection Categories</CardTitle>
@@ -278,36 +265,6 @@ export default function DemoRepProfile() {
           </CardContent>
         </Card>
 
-        {/* ClearVue Beta */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              ClearVue Beta
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="clearvue"
-                checked={formData.clearvueBeta}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    clearvueBeta: checked === true,
-                  }))
-                }
-              />
-              <Label htmlFor="clearvue">
-                I'm interested in joining the ClearVue beta program
-              </Label>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              ClearVue is our upcoming AI-powered inspection assistant. Beta users get early access.
-            </p>
-          </CardContent>
-        </Card>
-
         <div className="flex justify-end">
           <Button onClick={handleSave}>
             <Save className="h-4 w-4 mr-2" />
@@ -315,6 +272,6 @@ export default function DemoRepProfile() {
           </Button>
         </div>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }
