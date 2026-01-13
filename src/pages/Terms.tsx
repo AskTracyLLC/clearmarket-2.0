@@ -96,30 +96,46 @@ const Terms = () => {
     setLoading(true);
 
     // If we have a role param, set the role first via RPC
+    console.log("[Terms] Role param:", roleParam, "Valid:", validRoleParam);
+    
     if (validRoleParam) {
       // Check if role is already set
-      const { data: profile } = await supabase
+      const { data: profile, error: profileCheckError } = await supabase
         .from("profiles")
         .select("is_fieldrep, is_vendor_admin, active_role")
         .eq("id", user.id)
         .maybeSingle();
 
+      console.log("[Terms] Profile check:", profile, "Error:", profileCheckError);
+
       const roleAlreadySet = 
         (validRoleParam === "rep" && profile?.is_fieldrep && profile?.active_role === "rep") ||
         (validRoleParam === "vendor" && profile?.is_vendor_admin && profile?.active_role === "vendor");
 
+      console.log("[Terms] Role already set:", roleAlreadySet);
+
       if (!roleAlreadySet) {
+        console.log("[Terms] Calling set_onboarding_role RPC with role:", validRoleParam);
         const { data: rpcResult, error: rpcError } = await supabase.rpc(
           "set_onboarding_role",
           { p_role: validRoleParam }
         );
 
+        console.log("[Terms] RPC result:", rpcResult, "Error:", rpcError);
+
         const result = rpcResult as { success: boolean; error?: string } | null;
 
         if (rpcError || (result && !result.success)) {
           const errorMsg = rpcError?.message || result?.error || "Failed to set role";
-          console.error("RPC error setting role:", errorMsg);
-          // Continue anyway - don't block terms signing
+          console.error("[Terms] RPC error setting role:", errorMsg);
+          toast({
+            title: "Role Setup Issue",
+            description: "There was an issue setting your role. Please contact support if this persists.",
+            variant: "destructive",
+          });
+          // Don't continue - this is critical
+          setLoading(false);
+          return;
         }
       }
     }

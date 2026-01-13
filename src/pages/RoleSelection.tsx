@@ -37,9 +37,11 @@ const RoleSelection = () => {
   useEffect(() => {
     if (authLoading || !user || hasProcessed.current) return;
 
-    // If no valid role param, redirect to homepage
+    // If no valid role param, redirect to terms page (not homepage)
+    // User can still sign terms, but will need role selected afterward
     if (!validRoleParam) {
-      navigate("/");
+      console.log("[RoleSelection] No valid role param, redirecting to terms");
+      navigate("/onboarding/terms");
       return;
     }
 
