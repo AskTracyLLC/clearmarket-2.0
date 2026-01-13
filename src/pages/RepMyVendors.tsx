@@ -23,7 +23,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import WorkingTermsPendingCard from "@/components/WorkingTermsPendingCard";
 import { fetchPendingWorkingTermsRequests, WorkingTermsRequest } from "@/lib/workingTerms";
 import { ConnectedVendorsTable } from "@/components/ConnectedVendorsTable";
-import { MyVendorContacts } from "@/components/MyVendorContacts";
+import { FieldRepOfflineVendorContacts } from "@/components/FieldRepOfflineVendorContacts";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 
 interface ConnectedVendor {
@@ -522,7 +522,7 @@ const RepMyVendors = () => {
           </TabsContent>
 
           <TabsContent value="offline">
-            {user && <MyVendorContacts repUserId={user.id} embedded />}
+            {user && <FieldRepOfflineVendorContacts fieldRepId={user.id} embedded />}
           </TabsContent>
         </Tabs>
       </div>
