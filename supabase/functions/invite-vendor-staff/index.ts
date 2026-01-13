@@ -78,11 +78,12 @@ async function sendInviteEmail(
   inviteToken: string
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://clearmarket.app";
+  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "ClearMarket <noreply@useclearmarket.io>";
   const signupUrl = `${appBaseUrl}/signup?staffInvite=1&inviteId=${inviteId}&token=${inviteToken}`;
   
   try {
     const { data, error } = await resend.emails.send({
-      from: "ClearMarket <notifications@clearmarket.app>",
+      from: fromEmail,
       to: [toEmail],
       subject: `You've been invited to join ${vendorCode} on ClearMarket`,
       html: `
@@ -158,7 +159,12 @@ async function sendInviteEmail(
 
     if (error) {
       console.error("Resend error:", error);
-      return { success: false, error: error.message };
+      // Provide clearer error messages for common issues
+      let errorMsg = error.message;
+      if (error.message?.includes("Not authorized") || error.message?.includes("not verified")) {
+        errorMsg = "Email sending not configured: sender domain not verified in Resend. Please verify your domain at resend.com/domains.";
+      }
+      return { success: false, error: errorMsg };
     }
 
     return { success: true, messageId: data?.id };
