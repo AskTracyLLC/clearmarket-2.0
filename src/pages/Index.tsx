@@ -13,6 +13,11 @@ const Index = () => {
           <span className="text-xl font-bold text-primary">ClearMarket</span>
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            <Link to="/demo">
+              <Button variant="outline" size="sm">
+                View Demo
+              </Button>
+            </Link>
             <Link to="/signin">
               <Button variant="ghost" size="sm">
                 Sign In
