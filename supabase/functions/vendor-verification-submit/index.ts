@@ -198,6 +198,12 @@ serve(async (req) => {
       })
       .eq("id", conversationId);
 
+    // Auto-complete the "Submit Vendor Verification" checklist item
+    await serviceClient.rpc("complete_checklist_item_by_key", {
+      p_user_id: user.id,
+      p_auto_track_key: "vendor_verification_submitted",
+    });
+
     return new Response(JSON.stringify({ success: true, conversationId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

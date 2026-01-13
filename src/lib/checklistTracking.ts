@@ -171,6 +171,18 @@ export async function evaluateAutoTrackKeyForUser(
         return (count ?? 0) > 0;
       }
 
+      case "vendor_verification_submitted": {
+        // Vendor has submitted a verification request (status is not draft)
+        const { data } = await client
+          .from("vendor_profile")
+          .select("vendor_verification_status")
+          .eq("user_id", userId)
+          .maybeSingle();
+        
+        // Any status other than 'draft' or null means they've submitted
+        return Boolean(data?.vendor_verification_status && data.vendor_verification_status !== "draft");
+      }
+
       // These require specific user actions that can't be retroactively determined easily
       case "password_reset":
       case "first_rep_message_sent":
@@ -213,6 +225,7 @@ export const checklist = {
   firstRepReviewSubmitted: (userId: string) => trackChecklistEvent(userId, "first_rep_review_submitted"),
   firstRouteAlertAcknowledged: (userId: string) => trackChecklistEvent(userId, "first_route_alert_acknowledged"),
   vendorCalendarUpdated: (userId: string) => trackChecklistEvent(userId, "vendor_calendar_updated"),
+  vendorVerificationSubmitted: (userId: string) => trackChecklistEvent(userId, "vendor_verification_submitted"),
 };
 
 /**
@@ -240,4 +253,5 @@ export const checklist = {
  * - first_rep_review_submitted
  * - first_route_alert_acknowledged
  * - vendor_calendar_updated
+ * - vendor_verification_submitted
  */
