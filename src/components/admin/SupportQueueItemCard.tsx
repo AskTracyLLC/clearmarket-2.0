@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { User } from "lucide-react";
+import { User, Hash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { 
@@ -10,6 +10,7 @@ import {
   QueueCategory,
   QueueStatus 
 } from "@/config/supportQueueCategories";
+import { parseSupportCategory, formatShortCaseId } from "@/lib/supportCategory";
 
 export interface QueueItemData {
   id: string;
@@ -38,11 +39,22 @@ export function SupportQueueItemCard({ item, isSelected, onClick }: SupportQueue
   const statusLabel = getStatusLabel(item.status as QueueStatus);
   const IconComponent = categoryConfig.icon;
   
+  // Extract Case # from metadata
+  const metadata = item.metadata || {};
+  let caseId: string | null = null;
+  if (typeof metadata.case_id === "string") {
+    caseId = metadata.case_id;
+  } else if (typeof metadata.support_category === "string") {
+    const parsed = parseSupportCategory(metadata.support_category as string);
+    if (parsed.caseId) caseId = parsed.caseId;
+  }
+  const shortCaseId = formatShortCaseId(caseId);
+  
   // Get summary field values from metadata
   const summaryValues = categoryConfig.summaryFields.map(field => {
     let value = "—";
     if (field.metadataPath) {
-      value = getMetadataValue(item.metadata || {}, field.metadataPath);
+      value = getMetadataValue(metadata, field.metadataPath);
     }
     // Fall back to item properties
     if (value === "—" && field.key === "preview" && item.preview) {
@@ -88,11 +100,17 @@ export function SupportQueueItemCard({ item, isSelected, onClick }: SupportQueue
         </p>
       )}
       
-      {/* Row 3: Status pill + timestamp + assignee */}
+      {/* Row 3: Status pill + Case # + timestamp + assignee */}
       <div className="flex items-center gap-2 ml-6 flex-wrap">
         <Badge variant={statusVariant} className="text-[10px]">
           {statusLabel}
         </Badge>
+        {shortCaseId && (
+          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 font-mono">
+            <Hash className="h-2.5 w-2.5" />
+            {shortCaseId}
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground">
           {format(new Date(item.created_at), "MMM d, h:mm a")}
         </span>

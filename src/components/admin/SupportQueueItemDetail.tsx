@@ -47,6 +47,8 @@ import {
   QueueStatus,
   SUPPORT_QUEUE_CATEGORIES,
 } from "@/config/supportQueueCategories";
+import { parseSupportCategory, formatShortCaseId } from "@/lib/supportCategory";
+import { Hash } from "lucide-react";
 
 // Categories that support_case items can be moved to
 const SUPPORT_CASE_CATEGORIES: { value: QueueCategory; label: string }[] = [
@@ -124,6 +126,19 @@ export function SupportQueueItemDetail({
   const categoryConfig = getCategoryConfig(item.category as QueueCategory);
   const IconComponent = categoryConfig.icon;
   const metadata = (item.metadata || {}) as Record<string, unknown>;
+
+  // Extract Case # from metadata
+  let caseId: string | null = null;
+  if (typeof metadata.case_id === "string") {
+    caseId = metadata.case_id;
+  } else if (typeof metadata.support_category === "string") {
+    const parsed = parseSupportCategory(metadata.support_category as string);
+    if (parsed.caseId) caseId = parsed.caseId;
+  } else if (item.conversation_id) {
+    // Fallback: use conversation_id if it looks like a case ID
+    caseId = item.conversation_id;
+  }
+  const shortCaseId = formatShortCaseId(caseId);
 
   // Check if this is a support case item that can be re-categorized
   // Only allow for support_case source_type AND when current category is one of the allowed buckets
@@ -431,6 +446,15 @@ export function SupportQueueItemDetail({
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                 {item.preview}
               </p>
+            )}
+            {shortCaseId && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Hash className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Case #</span>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {shortCaseId}
+                </Badge>
+              </div>
             )}
           </div>
 

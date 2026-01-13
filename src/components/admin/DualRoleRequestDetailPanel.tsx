@@ -62,6 +62,7 @@ import {
   QueueCategory,
   QueueStatus,
 } from "@/config/supportQueueCategories";
+import { parseSupportCategory, formatShortCaseId } from "@/lib/supportCategory";
 
 interface QueueItem {
   id: string;
@@ -173,6 +174,19 @@ export function DualRoleRequestDetailPanel({
 
   const categoryConfig = getCategoryConfig(item.category as QueueCategory);
   const IconComponent = categoryConfig.icon;
+  const metadata = (item.metadata || {}) as Record<string, unknown>;
+
+  // Extract Case # from metadata or conversation_id
+  let caseId: string | null = null;
+  if (typeof metadata.case_id === "string") {
+    caseId = metadata.case_id;
+  } else if (typeof metadata.support_category === "string") {
+    const parsed = parseSupportCategory(metadata.support_category as string);
+    if (parsed.caseId) caseId = parsed.caseId;
+  } else if (item.conversation_id) {
+    caseId = item.conversation_id;
+  }
+  const shortCaseId = formatShortCaseId(caseId);
 
   // State
   const [actions, setActions] = useState<ActionLog[]>([]);
@@ -426,6 +440,15 @@ export function DualRoleRequestDetailPanel({
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                 {item.preview}
               </p>
+            )}
+            {shortCaseId && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <Hash className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Case #</span>
+                <Badge variant="outline" className="text-xs font-mono">
+                  {shortCaseId}
+                </Badge>
+              </div>
             )}
             {requestedCode && (
               <div className="flex items-center gap-2 mt-1">
