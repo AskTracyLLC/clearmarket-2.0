@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+
+type OnboardingRole = "rep" | "vendor";
 
 // Document type identifier for documents.document_type
 const DOCUMENT_TYPE = "tos";
@@ -23,6 +25,7 @@ interface SitePage {
 
 const Terms = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -34,6 +37,10 @@ const Terms = () => {
   // Database-driven terms content
   const [termsPage, setTermsPage] = useState<SitePage | null>(null);
   const [termsLoading, setTermsLoading] = useState(true);
+  
+  // Get role from URL param (passed from signup)
+  const roleParam = searchParams.get("role") as OnboardingRole | null;
+  const validRoleParam = roleParam === "rep" || roleParam === "vendor" ? roleParam : null;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -87,6 +94,35 @@ const Terms = () => {
     if (!user || !signature.trim() || !confirmed) return;
 
     setLoading(true);
+
+    // If we have a role param, set the role first via RPC
+    if (validRoleParam) {
+      // Check if role is already set
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_fieldrep, is_vendor_admin, active_role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      const roleAlreadySet = 
+        (validRoleParam === "rep" && profile?.is_fieldrep && profile?.active_role === "rep") ||
+        (validRoleParam === "vendor" && profile?.is_vendor_admin && profile?.active_role === "vendor");
+
+      if (!roleAlreadySet) {
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          "set_onboarding_role",
+          { p_role: validRoleParam }
+        );
+
+        const result = rpcResult as { success: boolean; error?: string } | null;
+
+        if (rpcError || (result && !result.success)) {
+          const errorMsg = rpcError?.message || result?.error || "Failed to set role";
+          console.error("RPC error setting role:", errorMsg);
+          // Continue anyway - don't block terms signing
+        }
+      }
+    }
 
     // Update profile with terms acceptance
     const { error: profileError } = await supabase
