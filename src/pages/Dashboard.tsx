@@ -534,19 +534,11 @@ const Dashboard = () => {
                 badgeVariant="info"
               />
               <AdminDashboardTile
-                title="Moderation"
-                description="Flagged content"
+                title="Violation Review"
+                description="Flagged content & reports"
                 icon={<ShieldAlert className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/support-queue?category=moderation")}
-                badgeCount={adminCounts.moderation}
-                badgeVariant="urgent"
-              />
-              <AdminDashboardTile
-                title="User Reports"
-                description="Reported issues"
-                icon={<FileText className="w-5 h-5 text-primary" />}
-                onClick={() => navigate("/admin/support-queue?category=user_reports")}
-                badgeCount={adminCounts.user_reports}
+                onClick={() => navigate("/admin/support-queue?category=violation_review")}
+                badgeCount={adminCounts.violation_review}
                 badgeVariant="urgent"
               />
               <AdminDashboardTile

@@ -46,8 +46,7 @@ import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
 import Settings from "./pages/Settings";
 import VendorCredits from "./pages/VendorCredits";
-import AdminReports from "./pages/AdminReports";
-import AdminModeration from "./pages/AdminModeration";
+// Removed: AdminReports and AdminModeration - consolidated into Support Queue Violation Review
 import AdminInviteCodes from "./pages/AdminInviteCodes";
 import AdminUsers from "./pages/AdminUsers";
 import AdminStaff from "./pages/AdminStaff";
@@ -178,8 +177,8 @@ const App = () => (
                   <Route path="/support" element={<Support />} />
                   <Route path="/tools" element={<Tools />} />
                   <Route path="/coverage-map" element={<CoverageMap />} />
-                  <Route path="/admin/reports" element={<AdminReports />} />
-                  <Route path="/admin/moderation" element={<AdminModeration />} />
+                  <Route path="/admin/reports" element={<Navigate to="/admin/support-queue?category=violation_review" replace />} />
+                  <Route path="/admin/moderation" element={<Navigate to="/admin/support-queue?category=violation_review" replace />} />
                   <Route path="/admin/invites" element={<AdminInviteCodes />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                   <Route path="/admin/staff" element={<AdminStaff />} />

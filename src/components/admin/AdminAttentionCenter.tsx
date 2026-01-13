@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Inbox, Star, ShieldAlert, FileCheck, Flag, Headphones, AlertTriangle } from "lucide-react";
+import { AlertCircle, Inbox, Star, ShieldAlert, FileCheck, Headphones, AlertTriangle } from "lucide-react";
 import { AdminOverviewCounts } from "@/hooks/useAdminOverview";
 
 interface AdminAttentionCenterProps {
@@ -27,18 +27,11 @@ export function AdminAttentionCenter({ counts, loading }: AdminAttentionCenterPr
       icon: <Star className="w-4 h-4 text-amber-400" />,
     },
     {
-      count: counts.moderation,
-      label: "moderation flags",
-      singularLabel: "moderation flag",
-      href: "/admin/support-queue?category=moderation",
+      count: counts.violation_review,
+      label: "violation reviews",
+      singularLabel: "violation review",
+      href: "/admin/support-queue?category=violation_review",
       icon: <ShieldAlert className="w-4 h-4 text-red-400" />,
-    },
-    {
-      count: counts.user_reports,
-      label: "user reports",
-      singularLabel: "user report",
-      href: "/admin/support-queue?category=user_reports",
-      icon: <Flag className="w-4 h-4 text-orange-400" />,
     },
     {
       count: counts.background_checks,

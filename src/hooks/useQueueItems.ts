@@ -5,9 +5,8 @@ import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 
 export type QueueCategory = 
   | "reviews" 
-  | "moderation" 
+  | "violation_review"
   | "background_checks" 
-  | "user_reports" 
   | "billing" 
   | "support_tickets" 
   | "vendor_verification"

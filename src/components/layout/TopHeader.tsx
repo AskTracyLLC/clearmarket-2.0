@@ -36,11 +36,10 @@ const pathLabels: Record<string, string> = {
   "/rep/reviews": "Reviews",
   "/rep/profile": "Profile",
   "/work-setup": "My Coverage",
-  "/admin/moderation": "Moderation",
   "/admin/users": "Users",
   "/admin/broadcasts": "Broadcasts",
   "/admin/support": "Support",
-  "/admin/reports": "Reports",
+  "/admin/support-queue": "Support Queue",
 };
 
 function generateBreadcrumbs(pathname: string): Breadcrumb[] {

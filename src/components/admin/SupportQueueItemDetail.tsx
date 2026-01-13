@@ -54,7 +54,7 @@ import { Hash } from "lucide-react";
 const SUPPORT_CASE_CATEGORIES: { value: QueueCategory; label: string }[] = [
   { value: "billing", label: "Billing" },
   { value: "support_tickets", label: "Support Tickets" },
-  { value: "user_reports", label: "User Reports" },
+  { value: "violation_review", label: "Violation Review" },
   { value: "other", label: "Other" },
 ];
 
@@ -146,7 +146,7 @@ export function SupportQueueItemDetail({
 
   // Check if this is a support case item that can be re-categorized
   // Only allow for support_case source_type AND when current category is one of the allowed buckets
-  const allowedCategories: QueueCategory[] = ["billing", "support_tickets", "user_reports", "other"];
+  const allowedCategories: QueueCategory[] = ["billing", "support_tickets", "violation_review", "other"];
   const canRecategorize = 
     item.source_type === "support_case" && 
     allowedCategories.includes(item.category as QueueCategory);

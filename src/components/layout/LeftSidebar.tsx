@@ -29,7 +29,6 @@ import {
   Share2,
   LayoutDashboard,
   Inbox,
-  Flag,
   FileCheck,
   TicketCheck,
   UserCog,
@@ -207,8 +206,7 @@ export function LeftSidebar({
       storageKey: "queue",
       items: [
         { label: "Support Queue", path: "/admin/support-queue", icon: <Inbox className="h-5 w-5" />, badge: (sectionCounts.adminOpenReports || 0) + (sectionCounts.adminOpenTickets || 0) },
-        { label: "Moderation", path: "/admin/moderation", icon: <ShieldAlert className="h-5 w-5" /> },
-        { label: "User Reports", path: "/admin/reports", icon: <Flag className="h-5 w-5" /> },
+        { label: "Violation Review", path: "/admin/support-queue?category=violation_review", icon: <ShieldAlert className="h-5 w-5" /> },
         { label: "Reviews", path: "/admin/support-queue?category=reviews", icon: <Star className="h-5 w-5" /> },
         { label: "Background Checks", path: "/admin/background-checks", icon: <FileCheck className="h-5 w-5" /> },
       ],
