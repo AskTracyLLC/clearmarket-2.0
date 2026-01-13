@@ -1,51 +1,51 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FeatureCard } from "@/components/FeatureCard";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Search, Shield, TrendingUp, Users, MapPin, MessageSquare, Star, Award } from "lucide-react";
+import { Award, MapPin, MessageSquare, Search, Shield, ShieldCheck, Star, TrendingUp, Users } from "lucide-react";
+import { FeatureCard } from "@/components/FeatureCard";
 
 const Index = () => {
   return (
-    <TooltipProvider>
-    <div className="min-h-screen">
-      {/* Theme Toggle - centered above hero */}
-      <div className="flex justify-center pt-4">
-        <ThemeToggle />
-      </div>
-      
+    <div className="min-h-screen flex flex-col">
+      {/* Navigation/Header - simplified for landing */}
+      <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <span className="text-xl font-bold text-primary">ClearMarket</span>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link to="/signin">
+              <Button variant="ghost" size="sm">
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <header className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 text-foreground">
-          Welcome to ClearMarket
+      <section className="container py-16 md:py-24 flex flex-col items-center text-center">
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
+          Connect. Inspect. Grow.
         </h1>
-        <p className="text-xl md:text-2xl mb-12 text-muted-foreground max-w-3xl mx-auto">
-          The professional network connecting field representatives with vendors in the property inspection industry.
+        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8">
+          ClearMarket is the networking platform for the property inspection
+          industry. Find work, build your reputation, and grow your business.
         </p>
-        
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+
+        {/* Role Selection Buttons - pass role param to signup/onboarding */}
+        <div className="flex flex-col sm:flex-row gap-4">
           <Link to="/signup?role=rep">
-            <Button size="lg" variant="default" className="w-full sm:w-auto min-w-[200px] shadow-primary-glow">
+            <Button size="lg" className="min-w-[180px]">
               I'm a Field Rep
             </Button>
           </Link>
           <Link to="/signup?role=vendor">
-            <Button size="lg" variant="secondary" className="w-full sm:w-auto min-w-[200px] shadow-secondary-glow">
+            <Button size="lg" variant="secondary" className="min-w-[180px]">
               I'm a Vendor
             </Button>
           </Link>
         </div>
-        
-        <p className="text-sm text-muted-foreground">
-          Free to join. No dispatching. You stay independent.
-        </p>
-        
-        <div className="mt-6">
-          <Link to="/signin" className="text-muted-foreground hover:text-primary transition-colors">
-            Already have an account? <span className="text-primary underline">Sign In</span>
-          </Link>
-        </div>
-      </header>
+      </section>
 
       {/* Three Feature Cards */}
       <section className="container mx-auto px-4 py-16">
@@ -195,7 +195,6 @@ const Index = () => {
         <p>&copy; 2025 ClearMarket. Professional connections for field reps and vendors.</p>
       </footer>
     </div>
-    </TooltipProvider>
   );
 };
 

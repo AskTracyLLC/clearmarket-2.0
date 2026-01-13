@@ -7115,6 +7115,7 @@ export type Database = {
       }
       revoke_proposal_share: { Args: { p_share_id: string }; Returns: Json }
       send_admin_broadcast: { Args: { p_broadcast_id: string }; Returns: Json }
+      set_onboarding_role: { Args: { p_role: string }; Returns: Json }
       unlock_rep_contact: {
         Args: { p_rep_user_id: string; p_vendor_user_id: string }
         Returns: Json
