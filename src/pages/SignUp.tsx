@@ -282,7 +282,11 @@ const SignUp = () => {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading || (betaMode && !formData.inviteCode.trim())}
+          >
             {loading ? "Creating account..." : "Create Account"}
           </Button>
         </form>

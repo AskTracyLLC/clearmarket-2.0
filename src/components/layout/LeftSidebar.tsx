@@ -218,7 +218,7 @@ export function LeftSidebar({
         { label: "User Management", path: "/admin/users", icon: <Users className="h-5 w-5" /> },
         { label: "Staff & Roles", path: "/admin/staff", icon: <UserCog className="h-5 w-5" /> },
         { label: "Safety Analytics", path: "/admin/safety-analytics", icon: <PieChart className="h-5 w-5" /> },
-        { label: "Invite Codes", path: "/admin/invite-codes", icon: <Ticket className="h-5 w-5" /> },
+        { label: "Invite Codes", path: "/admin/invites", icon: <Ticket className="h-5 w-5" /> },
       ],
     },
     {
