@@ -7024,6 +7024,22 @@ export type Database = {
           vendor_user_id: string
         }[]
       }
+      get_rep_discovery: {
+        Args: never
+        Returns: {
+          anonymous_id: string
+          city: string
+          community_score: number
+          has_hud_keys: boolean
+          inspection_types: string[]
+          is_accepting_new_vendors: boolean
+          open_to_new_systems: boolean
+          rep_user_id: string
+          state: string
+          systems_used: string[]
+          willing_to_travel_out_of_state: boolean
+        }[]
+      }
       get_shared_proposal: {
         Args: { p_passcode?: string; p_share_token: string }
         Returns: Json
