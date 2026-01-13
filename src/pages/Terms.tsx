@@ -42,8 +42,9 @@ const Terms = () => {
   const roleParam = searchParams.get("role") as OnboardingRole | null;
   const validRoleParam = roleParam === "rep" || roleParam === "vendor" ? roleParam : null;
   
-  // Staff invite flag - indicates user came from vendor staff invite flow
+  // Staff invite flag and ID - indicates user came from vendor staff invite flow
   const isStaffInvite = searchParams.get("staffInvite") === "1";
+  const inviteId = searchParams.get("inviteId");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -195,15 +196,33 @@ const Terms = () => {
     // Resolve pending staff invite if this is a staff signup
     if (isStaffInvite && user.email) {
       try {
-        // Find pending invite for this email and activate it
-        const { data: pendingInvite, error: inviteError } = await supabase
-          .from("vendor_staff")
-          .select("id, vendor_id, role")
-          .eq("invited_email", user.email.toLowerCase())
-          .eq("status", "invited")
-          .maybeSingle();
+        // Use inviteId if available (secure flow), fall back to email matching
+        let pendingInvite = null;
+        
+        if (inviteId) {
+          const { data, error } = await supabase
+            .from("vendor_staff")
+            .select("id, vendor_id, role")
+            .eq("id", inviteId)
+            .eq("status", "invited")
+            .maybeSingle();
+          
+          if (!error) pendingInvite = data;
+        }
+        
+        // Fall back to email matching if no inviteId
+        if (!pendingInvite) {
+          const { data, error } = await supabase
+            .from("vendor_staff")
+            .select("id, vendor_id, role")
+            .eq("invited_email", user.email.toLowerCase())
+            .eq("status", "invited")
+            .maybeSingle();
+          
+          if (!error) pendingInvite = data;
+        }
 
-        if (pendingInvite && !inviteError) {
+        if (pendingInvite) {
           // Activate the staff membership
           const { error: updateError } = await supabase
             .from("vendor_staff")
