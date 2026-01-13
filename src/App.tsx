@@ -97,6 +97,7 @@ import AdminStripeHealth from "./pages/AdminStripeHealth";
 import AdminLaunchReadiness from "./pages/AdminLaunchReadiness";
 import AdminAbuseFlags from "./pages/AdminAbuseFlags";
 import AdminSupportQueue from "./pages/AdminSupportQueue";
+import AdminSafetyAnalytics from "./pages/AdminSafetyAnalytics";
 
 import { Navigate } from "react-router-dom";
 
@@ -207,6 +208,7 @@ const App = () => (
                   <Route path="/admin/launch-readiness" element={<AdminLaunchReadiness />} />
                   <Route path="/admin/abuse-flags" element={<AdminAbuseFlags />} />
                   <Route path="/admin/support-queue" element={<AdminSupportQueue />} />
+                  <Route path="/admin/safety-analytics" element={<AdminSafetyAnalytics />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
                   <Route path="/help" element={<HelpCenter />} />
                   <Route path="/help/:slug" element={<HelpCenter />} />

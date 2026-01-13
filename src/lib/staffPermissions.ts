@@ -19,6 +19,7 @@ export interface StaffPermissions {
   canViewModeration: boolean;        // /admin/moderation
   canEditModeration: boolean;        // resolve reports, hide reviews, etc.
   canModerateCommunity: boolean;     // lock posts, change post status
+  canViewSafetyAnalytics: boolean;   // /admin/safety-analytics - insights-only view
 
   // Support & help
   canViewSupportQueue: boolean;      // /admin/support
@@ -52,6 +53,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewModeration: true,
     canEditModeration: true,
     canModerateCommunity: true,
+    canViewSafetyAnalytics: true,
     canViewSupportQueue: true,
     canReplySupportTickets: true,
     canEditHelpCenter: true,
@@ -73,6 +75,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewModeration: true,
     canEditModeration: true,
     canModerateCommunity: true,
+    canViewSafetyAnalytics: true,
     canViewSupportQueue: false,
     canReplySupportTickets: false,
     canEditHelpCenter: false,
@@ -94,6 +97,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewModeration: false,
     canEditModeration: false,
     canModerateCommunity: false,
+    canViewSafetyAnalytics: false,
     canViewSupportQueue: true,
     canReplySupportTickets: true,
     canEditHelpCenter: true,
@@ -115,6 +119,7 @@ export const STAFF_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
     canViewModeration: false,
     canEditModeration: false,
     canModerateCommunity: false,
+    canViewSafetyAnalytics: false,
     canViewSupportQueue: false,
     canReplySupportTickets: false,
     canEditHelpCenter: false,
