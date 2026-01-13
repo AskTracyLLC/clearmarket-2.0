@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MessageSquare, Eye, Headphones } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getUserDisplayName } from "@/lib/conversations";
+import { getUserDisplayName, batchGetUserDisplayNames } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -313,6 +313,15 @@ export default function MessagesList() {
 
     setLoading(true);
     try {
+      // First, get viewer's profile to determine if they're a vendor
+      const { data: viewerProfile } = await supabase
+        .from("profiles")
+        .select("is_vendor_admin, is_fieldrep")
+        .eq("id", effectiveUserId)
+        .maybeSingle();
+
+      const viewerIsVendor = viewerProfile?.is_vendor_admin ?? false;
+
       // Fetch all conversations where user is a participant
       const { data, error } = await supabase
         .from("conversations")
@@ -361,28 +370,38 @@ export default function MessagesList() {
         unreadCounts[m.conversation_id] = (unreadCounts[m.conversation_id] || 0) + 1;
       });
 
-      // Get display names for other participants and attach unread counts
-      const conversationsWithNames: ConversationWithParticipant[] = await Promise.all(
-        (data || []).map(async (conv) => {
-          const otherUserId = conv.participant_one === effectiveUserId 
-            ? conv.participant_two 
-            : conv.participant_one;
-          
-          // For support conversations, show "ClearMarket Support" instead of participant name
-          const isSupport = (conv.category?.startsWith("support:") ?? false) || conv.conversation_type === "support";
-          const otherParticipantName = isSupport 
-            ? "ClearMarket Support" 
-            : await getUserDisplayName(otherUserId);
-          
-          return {
-            ...conv,
-            otherParticipantName,
-            otherParticipantUserId: otherUserId,
-            unreadCount: unreadCounts[conv.id] || 0,
-            hasPendingConnection: false, // Will be updated below if applicable
-          };
-        })
+      // Collect all other participant IDs for batch name fetching
+      const otherParticipantIds = (data || []).map(conv => 
+        conv.participant_one === effectiveUserId ? conv.participant_two : conv.participant_one
       );
+
+      // Batch fetch display names respecting connection status
+      const displayNames = await batchGetUserDisplayNames(
+        otherParticipantIds,
+        effectiveUserId,
+        viewerIsVendor
+      );
+
+      // Build conversations with names
+      const conversationsWithNames: ConversationWithParticipant[] = (data || []).map((conv) => {
+        const otherUserId = conv.participant_one === effectiveUserId 
+          ? conv.participant_two 
+          : conv.participant_one;
+        
+        // For support conversations, show "ClearMarket Support" instead of participant name
+        const isSupport = (conv.category?.startsWith("support:") ?? false) || conv.conversation_type === "support";
+        const otherParticipantName = isSupport 
+          ? "ClearMarket Support" 
+          : (displayNames[otherUserId] || "User");
+        
+        return {
+          ...conv,
+          otherParticipantName,
+          otherParticipantUserId: otherUserId,
+          unreadCount: unreadCounts[conv.id] || 0,
+          hasPendingConnection: false, // Will be updated below if applicable
+        };
+      });
 
       // Filter out archived conversations (unless they have unread messages), blocked users, and archived categories
       const filteredConversations = conversationsWithNames.filter((conv) => {
