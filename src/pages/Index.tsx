@@ -45,6 +45,12 @@ const Index = () => {
             </Button>
           </Link>
         </div>
+        <p className="text-sm text-muted-foreground mt-4">
+          Already have an account?{" "}
+          <Link to="/signin" className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
       </section>
 
       {/* Three Feature Cards */}
