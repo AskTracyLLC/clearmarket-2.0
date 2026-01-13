@@ -334,9 +334,11 @@ export default function VendorStaff() {
       if (data?.error) throw new Error(data.error);
 
       if (data?.email_sent) {
+        const now = new Date();
+        const timestamp = format(now, "MM/dd/yy h:mm a");
         toast({
           title: "Invite Resent",
-          description: `A new invitation email has been sent to ${member.invited_email}.`,
+          description: `Invite resent to ${member.invited_email} at ${timestamp}.`,
         });
       } else {
         toast({

@@ -321,10 +321,12 @@ const SignUp = () => {
         )}
 
         {isStaffInvite && staffInviteValid && (
-          <div className="mb-6 p-3 rounded-md border border-primary/30 bg-primary/5">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-primary">Staff Invite Verified</span>
-              {" "}— Your name and email are set. Just create a password below.
+          <div className="mb-6 p-4 rounded-md border border-primary/30 bg-primary/5">
+            <p className="text-sm font-medium text-primary mb-1">
+              You've been invited to join as Vendor Staff
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Your name and email are locked to match the invite. Just set your password below.
             </p>
           </div>
         )}
