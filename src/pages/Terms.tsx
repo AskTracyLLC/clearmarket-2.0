@@ -41,6 +41,9 @@ const Terms = () => {
   // Get role from URL param (passed from signup)
   const roleParam = searchParams.get("role") as OnboardingRole | null;
   const validRoleParam = roleParam === "rep" || roleParam === "vendor" ? roleParam : null;
+  
+  // Staff invite flag - indicates user came from vendor staff invite flow
+  const isStaffInvite = searchParams.get("staffInvite") === "1";
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -187,6 +190,48 @@ const Terms = () => {
         description: "Terms accepted but document record failed to save.",
         variant: "destructive",
       });
+    }
+
+    // Resolve pending staff invite if this is a staff signup
+    if (isStaffInvite && user.email) {
+      try {
+        // Find pending invite for this email and activate it
+        const { data: pendingInvite, error: inviteError } = await supabase
+          .from("vendor_staff")
+          .select("id, vendor_id, role")
+          .eq("invited_email", user.email.toLowerCase())
+          .eq("status", "invited")
+          .maybeSingle();
+
+        if (pendingInvite && !inviteError) {
+          // Activate the staff membership
+          const { error: updateError } = await supabase
+            .from("vendor_staff")
+            .update({
+              staff_user_id: user.id,
+              status: "active",
+              accepted_at: new Date().toISOString(),
+            })
+            .eq("id", pendingInvite.id);
+
+          if (updateError) {
+            console.error("Failed to activate staff invite:", updateError);
+          } else {
+            console.log("Staff invite activated for vendor:", pendingInvite.vendor_id);
+            
+            // Set vendor role for the user if not already set
+            const { error: vendorRoleError } = await supabase.rpc("set_onboarding_role", {
+              p_role: "vendor"
+            });
+            
+            if (vendorRoleError) {
+              console.error("Failed to set vendor role for staff:", vendorRoleError);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error resolving staff invite:", err);
+      }
     }
 
     toast({

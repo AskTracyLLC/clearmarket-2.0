@@ -109,7 +109,7 @@ async function sendInviteEmail(
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background-color: #22c55e; border-radius: 8px;">
-                    <a href="${appBaseUrl}/signup" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                    <a href="${appBaseUrl}/signup?staffInvite=1" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
                       Create Your Account
                     </a>
                   </td>

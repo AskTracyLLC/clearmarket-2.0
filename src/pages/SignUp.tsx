@@ -48,13 +48,16 @@ const SignUp = () => {
   const roleLabel =
     role === "rep" ? "Field Rep" : role === "vendor" ? "Vendor" : "User";
   const betaMode = isBetaMode();
+  
+  // Staff invite bypass - staff invites from vendors skip invite code requirement
+  const isStaffInvite = searchParams.get("staffInvite") === "1";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
-    // Check invite code in beta mode
-    if (betaMode && !formData.inviteCode.trim()) {
+    // Check invite code in beta mode (staff invites bypass this requirement)
+    if (betaMode && !isStaffInvite && !formData.inviteCode.trim()) {
       setErrors({ inviteCode: "Invite code is required during beta" });
       toast({
         title: "Invite Code Required",
@@ -97,53 +100,56 @@ const SignUp = () => {
     }
 
     if (data.user) {
-      // Validate and consume invite code
-      try {
-        const response = await supabase.functions.invoke(
-          "validate-invite-code",
-          {
-            body: {
-              code: formData.inviteCode.trim() || null,
-              userId: data.user.id,
-            },
-          }
-        );
-
-        console.log("Invite validation response:", response);
-
-        // Check for function invoke error OR unsuccessful result
-        const hasError =
-          response.error || (response.data && response.data.success === false);
-
-        if (hasError && betaMode) {
-          console.error(
-            "Invite validation failed:",
-            response.error || response.data?.error
+      // Staff invites skip invite code validation entirely
+      if (!isStaffInvite) {
+        // Validate and consume invite code for normal signups
+        try {
+          const response = await supabase.functions.invoke(
+            "validate-invite-code",
+            {
+              body: {
+                code: formData.inviteCode.trim() || null,
+                userId: data.user.id,
+              },
+            }
           );
-          await supabase.auth.signOut({ scope: "local" });
-          setLoading(false);
-          toast({
-            title: "Invalid Invite Code",
-            description:
-              response.data?.error ||
-              response.error?.message ||
-              "We couldn't validate your invite code. Your account wasn't activated. Please check your code or contact support.",
-            variant: "destructive",
-          });
-          return;
-        }
-      } catch (err) {
-        console.error("Invite validation exception:", err);
-        if (betaMode) {
-          await supabase.auth.signOut({ scope: "local" });
-          setLoading(false);
-          toast({
-            title: "Validation Error",
-            description:
-              "We couldn't validate your invite code. Please try again or contact support.",
-            variant: "destructive",
-          });
-          return;
+
+          console.log("Invite validation response:", response);
+
+          // Check for function invoke error OR unsuccessful result
+          const hasError =
+            response.error || (response.data && response.data.success === false);
+
+          if (hasError && betaMode) {
+            console.error(
+              "Invite validation failed:",
+              response.error || response.data?.error
+            );
+            await supabase.auth.signOut({ scope: "local" });
+            setLoading(false);
+            toast({
+              title: "Invalid Invite Code",
+              description:
+                response.data?.error ||
+                response.error?.message ||
+                "We couldn't validate your invite code. Your account wasn't activated. Please check your code or contact support.",
+              variant: "destructive",
+            });
+            return;
+          }
+        } catch (err) {
+          console.error("Invite validation exception:", err);
+          if (betaMode) {
+            await supabase.auth.signOut({ scope: "local" });
+            setLoading(false);
+            toast({
+              title: "Validation Error",
+              description:
+                "We couldn't validate your invite code. Please try again or contact support.",
+              variant: "destructive",
+            });
+            return;
+          }
         }
       }
 
@@ -154,8 +160,12 @@ const SignUp = () => {
       });
 
       // Navigate directly to terms with role param for RPC processing
-      const roleParam = role ? `?role=${role}` : "";
-      navigate(`/onboarding/terms${roleParam}`);
+      // Pass staffInvite flag to terms page for staff invite resolution
+      const params = new URLSearchParams();
+      if (role) params.set("role", role);
+      if (isStaffInvite) params.set("staffInvite", "1");
+      const queryString = params.toString() ? `?${params.toString()}` : "";
+      navigate(`/onboarding/terms${queryString}`);
     } else {
       setLoading(false);
     }
@@ -264,7 +274,7 @@ const SignUp = () => {
             )}
           </div>
 
-          {betaMode && (
+          {betaMode && !isStaffInvite && (
             <div>
               <Input
                 type="text"
@@ -286,10 +296,19 @@ const SignUp = () => {
             </div>
           )}
 
+          {isStaffInvite && (
+            <div className="p-3 rounded-md border border-primary/30 bg-primary/5">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-primary">Staff Invite</span>
+                {" "}— You've been invited to join a vendor team. Complete signup to access your account.
+              </p>
+            </div>
+          )}
+
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || (betaMode && !formData.inviteCode.trim())}
+            disabled={loading || (betaMode && !isStaffInvite && !formData.inviteCode.trim())}
           >
             {loading ? "Creating account..." : "Create Account"}
           </Button>
