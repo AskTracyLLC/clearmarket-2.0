@@ -41,11 +41,27 @@ export default function Support() {
   const validCategories: SupportTicketCategory[] = ["bug", "account", "billing", "feature", "other"];
   const initialCategory = categoryParam && validCategories.includes(categoryParam) ? categoryParam : "other";
 
+  // Check for prefilled screenshot data from GlobalScreenshotButton
+  const prefillData = (() => {
+    try {
+      const data = sessionStorage.getItem("prefill-support-screenshot");
+      if (data) {
+        sessionStorage.removeItem("prefill-support-screenshot");
+        return JSON.parse(data) as { imageUrl: string; prefillMessage: string };
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })();
+
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState<SupportTicketCategory>(initialCategory);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(prefillData?.prefillMessage || "");
   const [priority, setPriority] = useState<SupportTicketPriority>("normal");
-  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [attachedImages, setAttachedImages] = useState<string[]>(
+    prefillData?.imageUrl ? [prefillData.imageUrl] : []
+  );
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {

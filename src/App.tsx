@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MimicProvider } from "@/hooks/useMimic";
 import { GlobalMessageListener } from "@/components/GlobalMessageListener";
+import { GlobalScreenshotButton } from "@/components/GlobalScreenshotButton";
 import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import Index from "./pages/Index";
 import SignUp from "./pages/SignUp";
@@ -119,6 +120,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            <GlobalScreenshotButton />
             <BrowserRouter>
               <GlobalMessageListener />
               <Routes>
