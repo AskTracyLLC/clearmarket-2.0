@@ -62,13 +62,21 @@ serve(async (req) => {
     }
 
     // Update status to pending
-    await serviceClient
+    const { error: updateError } = await serviceClient
       .from("vendor_profile")
       .update({
         vendor_verification_status: "pending",
         verification_submitted_at: new Date().toISOString(),
       })
       .eq("id", vendorProfileId);
+
+    if (updateError) {
+      console.error("Failed to update vendor_profile:", updateError);
+      return new Response(JSON.stringify({ error: "Failed to update verification status" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Find or create admin user for verification thread
     const { data: adminProfile } = await serviceClient
