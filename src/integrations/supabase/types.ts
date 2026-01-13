@@ -1956,6 +1956,7 @@ export type Database = {
           id: string
           read: boolean
           recipient_id: string
+          response_required: boolean
           sender_id: string
           subject: string | null
         }
@@ -1966,6 +1967,7 @@ export type Database = {
           id?: string
           read?: boolean
           recipient_id: string
+          response_required?: boolean
           sender_id: string
           subject?: string | null
         }
@@ -1976,6 +1978,7 @@ export type Database = {
           id?: string
           read?: boolean
           recipient_id?: string
+          response_required?: boolean
           sender_id?: string
           subject?: string | null
         }
@@ -4282,11 +4285,16 @@ export type Database = {
       support_queue_items: {
         Row: {
           assigned_to: string | null
+          cancel_reason: string | null
           category: string
           conversation_id: string | null
           created_at: string
           id: string
+          last_response_required_sent_at: string | null
+          last_user_message_at: string | null
           metadata: Json
+          nudge_48_sent_at: string | null
+          nudge_96_sent_at: string | null
           preview: string | null
           priority: string
           resolved_at: string | null
@@ -4300,14 +4308,20 @@ export type Database = {
           target_url: string | null
           title: string
           updated_at: string
+          waiting_on_user_since: string | null
         }
         Insert: {
           assigned_to?: string | null
+          cancel_reason?: string | null
           category: string
           conversation_id?: string | null
           created_at?: string
           id?: string
+          last_response_required_sent_at?: string | null
+          last_user_message_at?: string | null
           metadata?: Json
+          nudge_48_sent_at?: string | null
+          nudge_96_sent_at?: string | null
           preview?: string | null
           priority?: string
           resolved_at?: string | null
@@ -4321,14 +4335,20 @@ export type Database = {
           target_url?: string | null
           title: string
           updated_at?: string
+          waiting_on_user_since?: string | null
         }
         Update: {
           assigned_to?: string | null
+          cancel_reason?: string | null
           category?: string
           conversation_id?: string | null
           created_at?: string
           id?: string
+          last_response_required_sent_at?: string | null
+          last_user_message_at?: string | null
           metadata?: Json
+          nudge_48_sent_at?: string | null
+          nudge_96_sent_at?: string | null
           preview?: string | null
           priority?: string
           resolved_at?: string | null
@@ -4342,6 +4362,7 @@ export type Database = {
           target_url?: string | null
           title?: string
           updated_at?: string
+          waiting_on_user_since?: string | null
         }
         Relationships: [
           {
@@ -7115,6 +7136,7 @@ export type Database = {
         }
         Returns: Json
       }
+      process_waiting_automation: { Args: never; Returns: Json }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
