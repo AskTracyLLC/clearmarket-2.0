@@ -3,10 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Award, MapPin, MessageSquare, Search, Shield, ShieldCheck, Star, TrendingUp, Users } from "lucide-react";
 import { FeatureCard } from "@/components/FeatureCard";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen flex flex-col">
+  return <div className="min-h-screen flex flex-col">
       {/* Navigation/Header - simplified for landing */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
@@ -19,9 +17,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/signin">
-              <Button variant="ghost" size="sm">
-                Sign In
-              </Button>
+              
             </Link>
           </div>
         </div>
@@ -61,21 +57,9 @@ const Index = () => {
       {/* Three Feature Cards */}
       <section className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          <FeatureCard
-            icon={<Search size={32} />}
-            title="Find Work"
-            description="Connect with vendors seeking field reps in your coverage areas. Search by location, systems used, and inspection type."
-          />
-          <FeatureCard
-            icon={<Shield size={32} />}
-            title="Build Trust"
-            description="Earn a reputation based on verified work, not popularity contests. Reviews and scores come from confirmed vendor–rep connections."
-          />
-          <FeatureCard
-            icon={<TrendingUp size={32} />}
-            title="Grow Network"
-            description="Build a professional network of vendors and reps nationwide while staying in control of who you choose to work with."
-          />
+          <FeatureCard icon={<Search size={32} />} title="Find Work" description="Connect with vendors seeking field reps in your coverage areas. Search by location, systems used, and inspection type." />
+          <FeatureCard icon={<Shield size={32} />} title="Build Trust" description="Earn a reputation based on verified work, not popularity contests. Reviews and scores come from confirmed vendor–rep connections." />
+          <FeatureCard icon={<TrendingUp size={32} />} title="Grow Network" description="Build a professional network of vendors and reps nationwide while staying in control of who you choose to work with." />
         </div>
       </section>
 
@@ -104,26 +88,10 @@ const Index = () => {
           </div>
           
           <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <FeatureCard
-              icon={<Users size={24} />}
-              title="Create a profile"
-              description="Free to join"
-            />
-            <FeatureCard
-              icon={<MapPin size={24} />}
-              title="Be seen"
-              description="By vetted vendors"
-            />
-            <FeatureCard
-              icon={<MessageSquare size={24} />}
-              title="Message"
-              description="Your network"
-            />
-            <FeatureCard
-              icon={<Star size={24} />}
-              title="Build reputation"
-              description="Earn verified reviews"
-            />
+            <FeatureCard icon={<Users size={24} />} title="Create a profile" description="Free to join" />
+            <FeatureCard icon={<MapPin size={24} />} title="Be seen" description="By vetted vendors" />
+            <FeatureCard icon={<MessageSquare size={24} />} title="Message" description="Your network" />
+            <FeatureCard icon={<Star size={24} />} title="Build reputation" description="Earn verified reviews" />
           </div>
         </div>
 
@@ -140,26 +108,10 @@ const Index = () => {
           </div>
           
           <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <FeatureCard
-              icon={<TrendingUp size={24} />}
-              title="Post Coverage"
-              description="Seeking Coverage posts"
-            />
-            <FeatureCard
-              icon={<Search size={24} />}
-              title="Search & filter"
-              description="Find the right reps"
-            />
-            <FeatureCard
-              icon={<Users size={24} />}
-              title="Connect directly"
-              description="Build your network"
-            />
-            <FeatureCard
-              icon={<Award size={24} />}
-              title="Monitor performance"
-              description="Track over time"
-            />
+            <FeatureCard icon={<TrendingUp size={24} />} title="Post Coverage" description="Seeking Coverage posts" />
+            <FeatureCard icon={<Search size={24} />} title="Search & filter" description="Find the right reps" />
+            <FeatureCard icon={<Users size={24} />} title="Connect directly" description="Build your network" />
+            <FeatureCard icon={<Award size={24} />} title="Monitor performance" description="Track over time" />
           </div>
         </div>
       </section>
@@ -205,8 +157,6 @@ const Index = () => {
       <footer className="container mx-auto px-4 py-12 text-center text-muted-foreground">
         <p>&copy; 2026 ClearMarket. Professional connections for field reps and vendors.</p>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
