@@ -1,11 +1,11 @@
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Mail, AlertTriangle, Info, CreditCard, Shield } from "lucide-react";
 
 export default function DemoVendorPolicies() {
   return (
-    <DemoLayout role="vendor">
+    <DemoAppShell role="vendor">
       <div className="container mx-auto py-6 space-y-6 max-w-3xl">
         <div>
           <h1 className="text-2xl font-bold">Policies & Support</h1>
@@ -14,7 +14,6 @@ export default function DemoVendorPolicies() {
           </p>
         </div>
 
-        {/* Contact Support */}
         <Alert>
           <Mail className="h-4 w-4" />
           <AlertTitle>Need Help?</AlertTitle>
@@ -29,7 +28,6 @@ export default function DemoVendorPolicies() {
           </AlertDescription>
         </Alert>
 
-        {/* Refund Policy */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -57,7 +55,6 @@ export default function DemoVendorPolicies() {
           </CardContent>
         </Card>
 
-        {/* Chargeback Warning */}
         <Card className="border-yellow-500/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-yellow-600">
@@ -80,7 +77,6 @@ export default function DemoVendorPolicies() {
           </CardContent>
         </Card>
 
-        {/* Dispute Disclaimer */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -102,7 +98,6 @@ export default function DemoVendorPolicies() {
           </CardContent>
         </Card>
 
-        {/* Demo Note */}
         <Alert variant="default" className="bg-muted">
           <Info className="h-4 w-4" />
           <AlertTitle>Demo Mode</AlertTitle>
@@ -112,6 +107,6 @@ export default function DemoVendorPolicies() {
           </AlertDescription>
         </Alert>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }

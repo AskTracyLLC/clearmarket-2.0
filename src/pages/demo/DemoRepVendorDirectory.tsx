@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default function DemoRepVendorDirectory() {
   );
 
   return (
-    <DemoLayout role="rep">
+    <DemoAppShell role="rep">
       <div className="container mx-auto py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Vendor Directory</h1>
@@ -29,7 +29,6 @@ export default function DemoRepVendorDirectory() {
           </p>
         </div>
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -40,7 +39,6 @@ export default function DemoRepVendorDirectory() {
           />
         </div>
 
-        {/* Vendor List */}
         <div className="grid gap-4">
           {filteredVendors.map((vendor) => (
             <Card key={vendor.id} className="hover:border-primary/50 transition-colors">
@@ -95,6 +93,6 @@ export default function DemoRepVendorDirectory() {
           )}
         </div>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }

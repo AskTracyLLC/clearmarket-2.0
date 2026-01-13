@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,14 +35,14 @@ export default function DemoVendorRepProfile() {
 
   if (!rep) {
     return (
-      <DemoLayout role="vendor">
+      <DemoAppShell role="vendor">
         <div className="container mx-auto py-12 text-center">
           <p className="text-muted-foreground">Rep not found</p>
           <Button variant="link" onClick={() => navigate("/demo/vendor/search")}>
             Back to Search
           </Button>
         </div>
-      </DemoLayout>
+      </DemoAppShell>
     );
   }
 
@@ -57,7 +57,7 @@ export default function DemoVendorRepProfile() {
   const displayName = isUnlocked ? rep.real_name : rep.anonymous_id;
 
   return (
-    <DemoLayout role="vendor">
+    <DemoAppShell role="vendor">
       <div className="container mx-auto py-6 space-y-6">
         <Button
           variant="ghost"
@@ -68,7 +68,6 @@ export default function DemoVendorRepProfile() {
           Back to Search
         </Button>
 
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -108,9 +107,7 @@ export default function DemoVendorRepProfile() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
-          {/* Main Content */}
           <div className="md:col-span-2 space-y-6">
-            {/* About */}
             <Card>
               <CardHeader>
                 <CardTitle>About</CardTitle>
@@ -120,7 +117,6 @@ export default function DemoVendorRepProfile() {
               </CardContent>
             </Card>
 
-            {/* Coverage Areas */}
             <Card>
               <CardHeader>
                 <CardTitle>Coverage Areas</CardTitle>
@@ -139,7 +135,6 @@ export default function DemoVendorRepProfile() {
               </CardContent>
             </Card>
 
-            {/* Systems & Categories */}
             <Card>
               <CardHeader>
                 <CardTitle>Systems & Categories</CardTitle>
@@ -168,7 +163,6 @@ export default function DemoVendorRepProfile() {
               </CardContent>
             </Card>
 
-            {/* Ratings Breakdown */}
             <Card>
               <CardHeader>
                 <CardTitle>Rating Breakdown</CardTitle>
@@ -214,7 +208,6 @@ export default function DemoVendorRepProfile() {
               </CardContent>
             </Card>
 
-            {/* Reviews Info */}
             <Alert>
               <Info className="h-4 w-4" />
               <AlertTitle>Verified Reviews</AlertTitle>
@@ -225,9 +218,7 @@ export default function DemoVendorRepProfile() {
             </Alert>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Contact Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -268,7 +259,6 @@ export default function DemoVendorRepProfile() {
               </CardContent>
             </Card>
 
-            {/* Sample Reviews */}
             <Card>
               <CardHeader>
                 <CardTitle>Recent Reviews</CardTitle>
@@ -293,6 +283,6 @@ export default function DemoVendorRepProfile() {
           </div>
         </div>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }
