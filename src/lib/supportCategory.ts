@@ -100,12 +100,37 @@ export function formatSupportTopicLabel(topic: string | null): string {
 }
 
 /**
- * Format a short case ID for display (first 8 characters)
+ * Format a short case ID for display
+ * Format: <prefix><digits> where prefix is F (Field Rep) or V (Vendor)
+ * Digits are derived from the UUID converted to decimal
+ * 
+ * @param caseId - The UUID case ID
+ * @param role - Optional role: 'rep', 'fieldrep', 'vendor', or derived from context
  */
-export function formatShortCaseId(caseId: string | null): string | null {
+export function formatShortCaseId(caseId: string | null, role?: string | null): string | null {
   if (!caseId) return null;
-  // Take first 8 characters (typical UUID prefix)
-  return caseId.slice(0, 8).toUpperCase();
+  
+  // Determine prefix based on role
+  let prefix = "C"; // Default: Case
+  if (role) {
+    const normalizedRole = role.toLowerCase();
+    if (normalizedRole === "rep" || normalizedRole === "fieldrep" || normalizedRole === "field_rep") {
+      prefix = "F";
+    } else if (normalizedRole === "vendor" || normalizedRole === "vendor_admin") {
+      prefix = "V";
+    }
+  }
+  
+  // Extract hex portion from UUID (remove dashes, take first 8 hex chars)
+  const cleanHex = caseId.replace(/-/g, "").slice(0, 8);
+  
+  // Convert hex to decimal number
+  const decimalValue = parseInt(cleanHex, 16);
+  
+  // Take last 7 digits to keep it reasonable length (with prefix = 8 chars total)
+  const numericPart = (decimalValue % 10000000).toString().padStart(7, "0");
+  
+  return `${prefix}${numericPart}`;
 }
 
 /**

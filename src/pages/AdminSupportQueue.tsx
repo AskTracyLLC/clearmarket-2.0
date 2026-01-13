@@ -48,11 +48,16 @@ function buildSearchableText(item: QueueItem): string {
   if (item.title) parts.push(item.title);
   if (item.preview) parts.push(item.preview);
 
-  // Extract case ID from metadata if present
+  // Extract case ID and role from metadata if present
   const metadata = item.metadata || {};
+  const requesterRole = (metadata.requester_role as string | undefined) || 
+                        (metadata.user_role as string | undefined) ||
+                        (item.category === "vendor_verification" ? "vendor" : 
+                         item.category === "dual_role_requests" ? "rep" : null);
+  
   if (typeof metadata.case_id === "string") {
     parts.push(metadata.case_id);
-    const short = formatShortCaseId(metadata.case_id);
+    const short = formatShortCaseId(metadata.case_id, requesterRole);
     if (short) parts.push(short);
   }
 
@@ -61,7 +66,7 @@ function buildSearchableText(item: QueueItem): string {
     const parsed = parseSupportCategory(metadata.support_category);
     if (parsed.caseId) {
       parts.push(parsed.caseId);
-      const short = formatShortCaseId(parsed.caseId);
+      const short = formatShortCaseId(parsed.caseId, requesterRole);
       if (short) parts.push(short);
     }
     if (parsed.topic) {
@@ -72,14 +77,14 @@ function buildSearchableText(item: QueueItem): string {
   // Extract from conversation_id (often the case ID for support threads)
   if (item.conversation_id) {
     parts.push(item.conversation_id);
-    const short = formatShortCaseId(item.conversation_id);
+    const short = formatShortCaseId(item.conversation_id, requesterRole);
     if (short) parts.push(short);
   }
 
   // Also add source_id if it looks like a UUID (could be case ID)
   if (item.source_id) {
     parts.push(item.source_id);
-    const short = formatShortCaseId(item.source_id);
+    const short = formatShortCaseId(item.source_id, requesterRole);
     if (short) parts.push(short);
   }
 
