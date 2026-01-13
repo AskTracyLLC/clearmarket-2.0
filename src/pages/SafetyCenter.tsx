@@ -244,7 +244,7 @@ export default function SafetyCenter() {
                 Blocked Users
               </TabsTrigger>
               <TabsTrigger value="reports">
-                Your Reports
+                Safety Violations Sent
               </TabsTrigger>
             </TabsList>
 
@@ -308,7 +308,7 @@ export default function SafetyCenter() {
             <TabsContent value="reports" className="space-y-4">
               <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle className="text-foreground">Your Reports</CardTitle>
+                  <CardTitle className="text-foreground">Safety Violations Sent</CardTitle>
                   <CardDescription className="text-muted-foreground">
                     These are reports you have submitted to ClearMarket. Our team may take action based on our community guidelines. You won't always receive a direct follow-up for every report.
                   </CardDescription>
