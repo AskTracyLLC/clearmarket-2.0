@@ -40,7 +40,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog } from "lucide-react";
+import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 interface VendorStaffMember {
@@ -310,6 +310,51 @@ export default function VendorStaff() {
     }
   };
 
+  const handleResendInvite = async (member: VendorStaffMember) => {
+    if (!vendorProfile || !user) return;
+    
+    if (member.status !== "invited") {
+      toast({
+        title: "Cannot Resend",
+        description: "Can only resend invites to pending staff.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-vendor-staff", {
+        body: {
+          resend: true,
+          staffId: member.id,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.email_sent) {
+        toast({
+          title: "Invite Resent",
+          description: `A new invitation email has been sent to ${member.invited_email}.`,
+        });
+      } else {
+        toast({
+          title: "Invite Logged",
+          description: data?.email_error || "Email could not be sent. Please check configuration.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error resending invite:", error);
+      toast({
+        title: "Failed to Resend",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Helper to check if current user can manage a specific staff member
   const canManageMember = (member: VendorStaffMember): boolean => {
     if (!user) return false;
@@ -527,6 +572,15 @@ export default function VendorStaff() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          {member.status === "invited" && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleResendInvite(member)}>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Resend Invite
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
                           <DropdownMenuItem
                             onClick={() => handleChangeRole(member, member.role === "admin" ? "staff" : "admin")}
                           >
