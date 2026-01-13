@@ -6,9 +6,8 @@ import type { QueueCategory, QueueStatus } from "./useQueueItems";
 
 export interface QueueCounts {
   reviews: number;
-  moderation: number;
+  violation_review: number;
   background_checks: number;
-  user_reports: number;
   billing: number;
   support_tickets: number;
   vendor_verification: number;
@@ -26,9 +25,8 @@ interface UseQueueCountsReturn {
 
 const emptyCounts: QueueCounts = {
   reviews: 0,
-  moderation: 0,
+  violation_review: 0,
   background_checks: 0,
-  user_reports: 0,
   billing: 0,
   support_tickets: 0,
   vendor_verification: 0,
@@ -70,9 +68,8 @@ export function useQueueCounts(): UseQueueCountsReturn {
 
       setCounts({
         reviews: categoryCounts.reviews || 0,
-        moderation: categoryCounts.moderation || 0,
+        violation_review: categoryCounts.violation_review || 0,
         background_checks: categoryCounts.background_checks || 0,
-        user_reports: categoryCounts.user_reports || 0,
         billing: categoryCounts.billing || 0,
         support_tickets: categoryCounts.support_tickets || 0,
         vendor_verification: categoryCounts.vendor_verification || 0,

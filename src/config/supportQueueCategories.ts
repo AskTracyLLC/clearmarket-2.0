@@ -1,10 +1,9 @@
-import { LucideIcon, Star, ShieldAlert, FileCheck, Flag, CreditCard, Headphones, CheckCircle2, MoreHorizontal, UserRoundCog } from "lucide-react";
+import { LucideIcon, Star, ShieldAlert, FileCheck, CreditCard, Headphones, CheckCircle2, MoreHorizontal, UserRoundCog } from "lucide-react";
 
 export type QueueCategory = 
   | "reviews" 
-  | "moderation" 
+  | "violation_review"
   | "background_checks" 
-  | "user_reports" 
   | "billing" 
   | "support_tickets" 
   | "vendor_verification"
@@ -88,30 +87,33 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
     resolveLabel: "Approve",
   },
   {
-    key: "moderation",
-    label: "Moderation",
+    key: "violation_review",
+    label: "Violation Review",
     icon: ShieldAlert,
     color: "text-red-400",
     summaryFields: [
-      { key: "content_type", label: "Type", metadataPath: "content_type" },
-      { key: "flags", label: "Flags", metadataPath: "flag_summary" },
+      { key: "report_type", label: "Type", metadataPath: "target_type" },
+      { key: "target", label: "Target", metadataPath: "target_name" },
     ],
     detailFields: [
-      { key: "content_type", label: "Content Type", metadataPath: "content_type" },
+      { key: "report_type", label: "Report Type", metadataPath: "target_type" },
+      { key: "target_name", label: "Target Name", metadataPath: "target_name" },
+      { key: "target_id", label: "Target ID", metadataPath: "target_id" },
+      { key: "description", label: "Report Description", metadataPath: "description" },
       { key: "content_excerpt", label: "Content Excerpt", metadataPath: "content_excerpt" },
       { key: "report_reasons", label: "Report Reasons", metadataPath: "report_reasons" },
-      { key: "reporter_id", label: "Reporter", metadataPath: "reporter_id" },
-      { key: "target_url", label: "Content Link", metadataPath: "content_url" },
-      { key: "moderation_state", label: "Moderation State", metadataPath: "moderation_state" },
-      { key: "flag_count", label: "Total Flags", metadataPath: "flag_count" },
+      { key: "reporter_name", label: "Reporter", metadataPath: "reporter_name" },
+      { key: "evidence", label: "Evidence/Attachments", metadataPath: "evidence_urls" },
+      { key: "target_profile_url", label: "Target Profile", metadataPath: "target_profile_url" },
     ],
     primaryActions: [
       { key: "in_progress", label: "Mark In Progress", targetStatus: "in_progress" },
-      { key: "approve", label: "Keep Visible", targetStatus: "resolved" },
+      { key: "resolve", label: "Resolve", targetStatus: "resolved" },
       { key: "remove", label: "Remove Content", variant: "destructive", requiresConfirmation: true },
+      { key: "escalate", label: "Escalate", variant: "secondary" },
       { key: "note", label: "Add Note", variant: "outline" },
     ],
-    resolveLabel: "Keep Visible",
+    emptyStateCopy: "Review flagged content and user-submitted safety violations.",
   },
   {
     key: "background_checks",
@@ -139,32 +141,6 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
       { key: "note", label: "Add Note", variant: "outline" },
     ],
     resolveLabel: "Approve/Verify",
-  },
-  {
-    key: "user_reports",
-    label: "User Reports",
-    icon: Flag,
-    color: "text-orange-400",
-    summaryFields: [
-      { key: "report_type", label: "Type", metadataPath: "report_type" },
-      { key: "target", label: "Target", metadataPath: "target_name" },
-    ],
-    detailFields: [
-      { key: "report_type", label: "Report Type", metadataPath: "report_type" },
-      { key: "target_name", label: "Target Name", metadataPath: "target_name" },
-      { key: "target_id", label: "Target ID", metadataPath: "target_id" },
-      { key: "description", label: "Report Description", metadataPath: "description" },
-      { key: "evidence", label: "Evidence/Attachments", metadataPath: "evidence_urls" },
-      { key: "reporter_name", label: "Reporter", metadataPath: "reporter_name" },
-      { key: "prior_reports", label: "Prior Reports Count", metadataPath: "prior_reports_count" },
-      { key: "target_profile_url", label: "Target Profile", metadataPath: "target_profile_url" },
-    ],
-    primaryActions: [
-      { key: "in_progress", label: "Mark In Progress", targetStatus: "in_progress" },
-      { key: "resolve", label: "Resolve", targetStatus: "resolved" },
-      { key: "escalate", label: "Escalate", variant: "secondary" },
-      { key: "note", label: "Add Note", variant: "outline" },
-    ],
   },
   {
     key: "billing",

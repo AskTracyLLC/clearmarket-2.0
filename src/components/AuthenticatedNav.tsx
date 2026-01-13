@@ -146,7 +146,7 @@ export function AuthenticatedNav({ isAdmin, isVendor, vendorCredits }: Authentic
                     <CountBadge count={sectionCounts.unreadMessages} className="ml-1" />
                   </NavLink>
                   <NavLink 
-                    to="/admin/moderation" 
+                    to="/admin/support-queue" 
                     className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2" 
                     activeClassName="text-primary"
                   >

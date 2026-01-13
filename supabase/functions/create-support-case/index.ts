@@ -72,7 +72,7 @@ function mapTopicToQueueCategory(topic: Topic): string {
     case "support_ticket":
       return "support_tickets";
     case "user_report":
-      return "user_reports";
+      return "violation_review";
     case "dual_role_access":
       return "dual_role_requests";
     default:

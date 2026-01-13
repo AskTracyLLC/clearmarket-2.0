@@ -6,9 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 export interface AdminOverviewCounts {
   // Queue-based counts (from support_queue_items)
   reviews: number;
-  moderation: number;
+  violation_review: number;
   background_checks: number;
-  user_reports: number;
   support_tickets: number;
   total: number;
   urgent: number;
@@ -33,9 +32,8 @@ export function useAdminOverview(): UseAdminOverviewReturn {
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<AdminOverviewCounts>({
     reviews: 0,
-    moderation: 0,
+    violation_review: 0,
     background_checks: 0,
-    user_reports: 0,
     support_tickets: 0,
     total: 0,
     urgent: 0,
@@ -83,18 +81,17 @@ export function useAdminOverview(): UseAdminOverviewReturn {
       setCounts({
         // Queue-based counts
         reviews: queueCounts.reviews || 0,
-        moderation: queueCounts.moderation || 0,
+        violation_review: queueCounts.violation_review || 0,
         background_checks: queueCounts.background_checks || 0,
-        user_reports: queueCounts.user_reports || 0,
         support_tickets: queueCounts.support_tickets || 0,
         total,
         urgent: queueCounts.urgent || 0,
         // Legacy mappings (for backward compatibility)
-        moderation_pending: queueCounts.moderation || 0,
+        moderation_pending: queueCounts.violation_review || 0,
         support_open: queueCounts.support_tickets || 0,
         background_checks_pending: queueCounts.background_checks || 0,
         checklist_stuck: checklistCount || 0,
-        reports_new: queueCounts.user_reports || 0,
+        reports_new: queueCounts.violation_review || 0,
         reviews_pending: queueCounts.reviews || 0,
       });
     } catch (error) {
