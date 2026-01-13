@@ -43,7 +43,9 @@ export function GlobalScreenshotButton() {
 
   const captureScreenshot = useCallback(async () => {
     setCapturing(true);
-    toast.info("Capturing screenshot…");
+    // Use stable ID to prevent duplicate toasts and allow updating
+    const toastId = "screenshot-capture";
+    toast.loading("Capturing screenshot…", { id: toastId });
 
     try {
       // Lazy load html2canvas
@@ -68,12 +70,14 @@ export function GlobalScreenshotButton() {
       });
 
       if (!blob) {
-        toast.error("Failed to capture screenshot");
+        toast.error("Failed to capture screenshot", { id: toastId });
         setCapturing(false);
         return;
       }
 
       setScreenshotBlob(blob);
+      // Dismiss the loading toast
+      toast.dismiss(toastId);
 
       // Try to copy to clipboard
       try {
@@ -89,7 +93,7 @@ export function GlobalScreenshotButton() {
       }
     } catch (error) {
       console.error("Screenshot capture failed:", error);
-      toast.error("Failed to capture screenshot. Please try again.");
+      toast.error("Failed to capture screenshot. Please try again.", { id: toastId });
     } finally {
       setCapturing(false);
     }
