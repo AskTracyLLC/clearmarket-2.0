@@ -26,10 +26,17 @@ export function GlobalScreenshotButton() {
   const [screenshotBlob, setScreenshotBlob] = useState<Blob | null>(null);
 
   // Get user ID directly from supabase to avoid circular auth context issues
+  // Also listen for auth state changes to update when user logs in/out
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id ?? null);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const captureScreenshot = useCallback(async () => {
@@ -171,6 +178,11 @@ export function GlobalScreenshotButton() {
     setDialogState("none");
     uploadScreenshotAndOpenSupport();
   }, [uploadScreenshotAndOpenSupport]);
+
+  // Only show the button when user is authenticated
+  if (!userId) {
+    return null;
+  }
 
   return (
     <>
