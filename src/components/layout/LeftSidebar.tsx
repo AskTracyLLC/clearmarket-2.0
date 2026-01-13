@@ -80,8 +80,10 @@ interface LeftSidebarProps {
   } | null;
   /** Called after navigation on mobile to close the sheet */
   onNavigate?: () => void;
-  /** Demo mode - disables certain features */
+  /** Demo mode - disables certain features and remaps routes */
   isDemo?: boolean;
+  /** Demo role when in demo mode */
+  demoRole?: "vendor" | "rep";
 }
 
 interface NavItem {
@@ -103,6 +105,51 @@ interface AdminFolder {
 
 const ADMIN_FOLDER_STORAGE_KEY = "admin_sidebar_folders";
 
+// Demo route mapping - only these routes are available in demo mode
+const DEMO_ROUTE_MAP: Record<string, Record<string, string>> = {
+  vendor: {
+    // Primary nav
+    "/dashboard": "/demo/vendor",
+    "/messages": "", // Not available
+    "/community": "/demo/vendor/community",
+    // Feature nav
+    "/vendor/seeking-coverage": "", // Not available
+    "/vendor/find-reps": "/demo/vendor/search",
+    "/vendor/my-reps": "", // Not available
+    "/vendor/staff": "", // Not available
+    "/vendor/proposals": "", // Not available
+    "/vendor/reviews": "", // Not available
+    "/tools": "", // Not available
+    "/vendor/credits": "", // Not available
+    "/vendor/share-profile": "", // Not available
+    "/coverage-map": "/demo/vendor/coverage-map",
+    // Avatar menu
+    "/vendor/profile": "", // Not available in demo
+    "/settings": "", // Not available
+    "/safety": "", // Not available
+    "/help": "", // Not available
+  },
+  rep: {
+    // Primary nav
+    "/dashboard": "/demo/rep",
+    "/messages": "", // Not available
+    "/community": "/demo/rep/community",
+    // Feature nav
+    "/rep/find-work": "", // Not available
+    "/rep/my-vendors": "/demo/rep/vendors",
+    "/work-setup": "", // Not available (My Coverage)
+    "/rep/reviews": "", // Not available
+    "/tools": "", // Not available
+    "/rep/share-profile": "", // Not available
+    "/coverage-map": "/demo/rep/coverage-map",
+    // Avatar menu
+    "/rep/profile": "/demo/rep/profile",
+    "/settings": "", // Not available
+    "/safety": "", // Not available
+    "/help": "", // Not available
+  },
+};
+
 export function LeftSidebar({
   collapsed,
   onToggleCollapse,
@@ -114,6 +161,7 @@ export function LeftSidebar({
   userProfile,
   onNavigate,
   isDemo = false,
+  demoRole,
 }: LeftSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -145,7 +193,33 @@ export function LeftSidebar({
     setAdminFolderStates((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Determine demo role from prop or from isVendor/isRep flags
+  const currentDemoRole = demoRole || (isVendor ? "vendor" : "rep");
+  
+  // Get demo route map for current role
+  const getDemoPath = (prodPath: string): string | null => {
+    if (!isDemo) return null;
+    const roleMap = DEMO_ROUTE_MAP[currentDemoRole];
+    if (!roleMap) return null;
+    // Strip query params for lookup
+    const basePath = prodPath.split("?")[0];
+    const demoPath = roleMap[basePath];
+    return demoPath !== undefined ? demoPath : null;
+  };
+
+  // Check if a path is available in demo
+  const isDemoAvailable = (prodPath: string): boolean => {
+    const demoPath = getDemoPath(prodPath);
+    return demoPath !== null && demoPath !== "";
+  };
+
   const handleSignOut = async () => {
+    if (isDemo) {
+      // In demo, "sign out" just exits demo
+      navigate("/demo");
+      onNavigate?.();
+      return;
+    }
     onNavigate?.();
     await signOut();
     toast({
@@ -168,9 +242,42 @@ export function LeftSidebar({
     }
   };
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
+  // Handle navigation with demo awareness
+  const handleNavigation = (path: string) => {
+    if (isDemo) {
+      const demoPath = getDemoPath(path);
+      if (demoPath === null || demoPath === "") {
+        // Not available in demo - show toast, don't navigate
+        toast({
+          title: "Not available in demo",
+          description: "This feature is not available in demo yet.",
+        });
+        return;
+      }
+      // Navigate to demo path
+      navigate(demoPath);
+    } else {
+      navigate(path);
+    }
+    onNavigate?.();
+  };
 
-  // Quick Action button config
+  const isActive = (path: string) => {
+    const pathWithoutQuery = path.split("?")[0];
+    
+    if (isDemo) {
+      // In demo, check if current location matches the demo version of this path
+      const demoPath = getDemoPath(path);
+      if (demoPath) {
+        return location.pathname === demoPath || location.pathname.startsWith(demoPath + "/");
+      }
+      return false;
+    }
+    
+    return location.pathname === pathWithoutQuery || location.pathname.startsWith(pathWithoutQuery + "/");
+  };
+
+  // Quick Action button config - disabled in demo
   const getQuickAction = () => {
     if (isAdmin) {
       return { label: "Broadcast", path: "/admin/broadcasts/new", icon: <Megaphone className="h-4 w-4" /> };
@@ -187,14 +294,15 @@ export function LeftSidebar({
   // Primary nav items - ALWAYS VISIBLE (NOT PINNABLE)
   const primaryItems: NavItem[] = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard", icon: <Home className="h-5 w-5" /> },
-    { id: "messages", label: "Messages", path: "/messages", icon: <MessageSquare className="h-5 w-5" />, badge: sectionCounts.unreadMessages },
+    { id: "messages", label: "Messages", path: "/messages", icon: <MessageSquare className="h-5 w-5" />, badge: isDemo ? undefined : sectionCounts.unreadMessages },
     { id: "community", label: "Community", path: "/community", icon: <Users className="h-5 w-5" /> },
   ];
 
   // Vendor feature items (PINNABLE - under ...More by default)
   const vendorFeatureItems: NavItem[] = [
-    { id: "vendor-seeking", label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: sectionCounts.vendorPostsWithInterest, pinnable: true },
-    { id: "vendor-interested", label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: sectionCounts.vendorTotalInterestedReps, pinnable: true },
+    { id: "vendor-seeking", label: "Seeking Coverage", path: "/vendor/seeking-coverage", icon: <FileSearch className="h-5 w-5" />, badge: isDemo ? undefined : sectionCounts.vendorPostsWithInterest, pinnable: true },
+    { id: "vendor-findreps", label: "Find Reps", path: "/vendor/find-reps", icon: <Search className="h-5 w-5" />, pinnable: true },
+    { id: "vendor-interested", label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: isDemo ? undefined : sectionCounts.vendorTotalInterestedReps, pinnable: true },
     { id: "vendor-myreps", label: "My Reps", path: "/vendor/my-reps", icon: <Users className="h-5 w-5" />, pinnable: true },
     { id: "vendor-staff", label: "My Staff", path: "/vendor/staff", icon: <Users className="h-5 w-5" />, pinnable: true },
     { id: "vendor-proposals", label: "Proposals", path: "/vendor/proposals", icon: <FileText className="h-5 w-5" />, pinnable: true },
@@ -292,10 +400,10 @@ export function LeftSidebar({
     const pathWithoutQuery = item.path.split("?")[0];
     const active = isActive(pathWithoutQuery);
     const pinned = item.pinnable && isPinned(item.id);
+    const disabled = isDemo && !isDemoAvailable(item.path);
     
     const handleClick = () => {
-      navigate(item.path);
-      onNavigate?.();
+      handleNavigation(item.path);
     };
     
     const content = (
@@ -304,15 +412,17 @@ export function LeftSidebar({
         className={cn(
           "w-full justify-start gap-3 h-10 px-3 group",
           active && "bg-accent text-accent-foreground font-medium",
-          collapsed && "justify-center px-0"
+          collapsed && "justify-center px-0",
+          disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
         )}
         onClick={handleClick}
+        disabled={false} // We handle disabling via the onClick logic
       >
-        <span className={cn(active && "text-primary")}>{item.icon}</span>
+        <span className={cn(active && "text-primary", disabled && "text-muted-foreground")}>{item.icon}</span>
         {showLabel && !collapsed && (
-          <span className="flex-1 text-left">{item.label}</span>
+          <span className={cn("flex-1 text-left", disabled && "text-muted-foreground")}>{item.label}</span>
         )}
-        {showLabel && !collapsed && item.badge !== undefined && item.badge > 0 && (
+        {showLabel && !collapsed && item.badge !== undefined && item.badge > 0 && !disabled && (
           <CountBadge count={item.badge} />
         )}
         {/* Pin icon */}
@@ -328,7 +438,7 @@ export function LeftSidebar({
             <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />
           </button>
         )}
-        {collapsed && item.badge !== undefined && item.badge > 0 && (
+        {collapsed && item.badge !== undefined && item.badge > 0 && !disabled && (
           <Badge className="absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center p-0 text-[10px] bg-primary">
             {item.badge > 9 ? "9+" : item.badge}
           </Badge>
@@ -344,7 +454,8 @@ export function LeftSidebar({
           </TooltipTrigger>
           <TooltipContent side="right" className="flex items-center gap-2">
             {item.label}
-            {item.badge !== undefined && item.badge > 0 && (
+            {disabled && <span className="text-xs text-muted-foreground">(Demo unavailable)</span>}
+            {item.badge !== undefined && item.badge > 0 && !disabled && (
               <CountBadge count={item.badge} />
             )}
           </TooltipContent>
@@ -373,8 +484,7 @@ export function LeftSidebar({
                 hasActiveItem && "bg-accent"
               )}
               onClick={() => {
-                navigate(firstItem.path);
-                onNavigate?.();
+                handleNavigation(firstItem.path);
               }}
             >
               {folder.icon}
@@ -448,6 +558,11 @@ export function LeftSidebar({
   // Get My Profile path based on role
   const myProfilePath = effectiveRole === "vendor" || isVendor ? "/vendor/profile" : "/rep/profile";
 
+  // Avatar menu item click handler (demo-aware)
+  const handleAvatarMenuClick = (path: string) => {
+    handleNavigation(path);
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
@@ -459,7 +574,7 @@ export function LeftSidebar({
         {/* Header with logo and collapse toggle */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           {!collapsed && (
-            <Link to="/dashboard" className="flex items-center gap-2">
+            <Link to={isDemo ? "/demo" : "/dashboard"} className="flex items-center gap-2">
               <span className="text-lg font-bold text-foreground">ClearMarket</span>
               {isDemo && (
                 <span className="text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded">
@@ -490,7 +605,7 @@ export function LeftSidebar({
           </Tooltip>
         </div>
 
-        {/* Quick Action Button */}
+        {/* Quick Action Button - disabled in demo */}
         {!isDemo && (
           <div className="p-3">
             {collapsed ? (
@@ -520,7 +635,7 @@ export function LeftSidebar({
           </div>
         )}
 
-        {/* Search */}
+        {/* Search - disabled in demo */}
         {!isDemo && (
           <div className="px-3 pb-3">
             {collapsed ? (
@@ -556,8 +671,8 @@ export function LeftSidebar({
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3">
           <nav className="flex flex-col gap-1 py-2">
-            {/* Admin Navigation - Collapsible Folders */}
-            {isAdmin && (
+            {/* Admin Navigation - Collapsible Folders (NOT shown in demo) */}
+            {isAdmin && !isDemo && (
               <>
                 {!collapsed && (
                   <div className="px-3 py-2">
@@ -573,7 +688,7 @@ export function LeftSidebar({
             )}
 
             {/* Non-admin navigation */}
-            {!isAdmin && (
+            {(!isAdmin || isDemo) && (
               <>
                 {/* Primary items - ALWAYS VISIBLE */}
                 {primaryItems.map((item) => renderNavItem(item))}
@@ -665,26 +780,44 @@ export function LeftSidebar({
                 </>
               )}
               {/* My Profile - in avatar menu */}
-              <DropdownMenuItem onClick={() => { navigate(myProfilePath); onNavigate?.(); }}>
+              <DropdownMenuItem 
+                onClick={() => handleAvatarMenuClick(myProfilePath)}
+                className={isDemo && !isDemoAvailable(myProfilePath) ? "opacity-50" : ""}
+              >
                 <User className="h-4 w-4 mr-2" />
                 My Profile
+                {isDemo && !isDemoAvailable(myProfilePath) && (
+                  <span className="ml-auto text-xs text-muted-foreground">N/A</span>
+                )}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { navigate("/settings"); onNavigate?.(); }}>
+              <DropdownMenuItem 
+                onClick={() => handleAvatarMenuClick("/settings")}
+                className={isDemo ? "opacity-50" : ""}
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
+                {isDemo && <span className="ml-auto text-xs text-muted-foreground">N/A</span>}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { navigate("/safety"); onNavigate?.(); }}>
+              <DropdownMenuItem 
+                onClick={() => handleAvatarMenuClick("/safety")}
+                className={isDemo ? "opacity-50" : ""}
+              >
                 <ShieldAlert className="h-4 w-4 mr-2" />
                 Safety Center
+                {isDemo && <span className="ml-auto text-xs text-muted-foreground">N/A</span>}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { navigate("/help"); onNavigate?.(); }}>
+              <DropdownMenuItem 
+                onClick={() => handleAvatarMenuClick("/help")}
+                className={isDemo ? "opacity-50" : ""}
+              >
                 <HelpCircle className="h-4 w-4 mr-2" />
                 Help Center
+                {isDemo && <span className="ml-auto text-xs text-muted-foreground">N/A</span>}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+              <DropdownMenuItem onClick={handleSignOut} className={isDemo ? "" : "text-destructive"}>
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign out
+                {isDemo ? "Exit Demo" : "Sign out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

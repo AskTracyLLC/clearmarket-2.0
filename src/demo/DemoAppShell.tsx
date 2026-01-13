@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { LeftSidebar } from "@/components/layout/LeftSidebar";
@@ -9,7 +9,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
 
 interface DemoAppShellProps {
   children: ReactNode;
@@ -19,6 +18,7 @@ interface DemoAppShellProps {
 /**
  * Demo App Shell - uses the same LeftSidebar as production but with demo mode enabled.
  * Includes demo banner and no database/payment operations.
+ * CRITICAL: Demo routes must NEVER redirect to /signin.
  */
 export function DemoAppShell({ children, role }: DemoAppShellProps) {
   const navigate = useNavigate();
@@ -51,6 +51,7 @@ export function DemoAppShell({ children, role }: DemoAppShellProps) {
     userProfile: demoProfile,
     onNavigate: isMobile ? () => setMobileMenuOpen(false) : undefined,
     isDemo: true,
+    demoRole: role,
   };
 
   return (

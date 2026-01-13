@@ -157,13 +157,17 @@ const App = () => (
                 <Route path="/legal/:pageType" element={<LegalPage />} />
 
                 {/* Demo Mode routes - wrapped in DemoAccessGate and DemoProvider */}
+                {/* Demo routes are fully self-contained and NEVER redirect to /signin */}
                 <Route path="/demo" element={<DemoAccessGate><DemoProvider><DemoSelector /></DemoProvider></DemoAccessGate>} />
+                
+                {/* Vendor Demo Routes */}
                 <Route path="/demo/vendor" element={<DemoAccessGate><DemoProvider><DemoVendorDashboard /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/search" element={<DemoAccessGate><DemoProvider><DemoVendorRepSearch /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/rep/:repId" element={<DemoAccessGate><DemoProvider><DemoVendorRepProfile /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider></DemoAccessGate>} />
-                <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="vendor" isPersonal /></DemoProvider></DemoAccessGate>} />
-                <Route path="/demo/vendor/policies" element={<DemoAccessGate><DemoProvider><DemoVendorPolicies /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="vendor" /></DemoProvider></DemoAccessGate>} />
+                
+                {/* Field Rep Demo Routes */}
                 <Route path="/demo/rep" element={<DemoAccessGate><DemoProvider><DemoRepDashboard /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/profile" element={<DemoAccessGate><DemoProvider><DemoRepProfile /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/vendors" element={<DemoAccessGate><DemoProvider><DemoRepVendorDirectory /></DemoProvider></DemoAccessGate>} />
