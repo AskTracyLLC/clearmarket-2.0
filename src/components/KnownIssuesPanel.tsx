@@ -4,11 +4,6 @@ import { AlertTriangle } from "lucide-react";
 // Hard-coded known issues for beta
 const KNOWN_ISSUES = [
   {
-    id: "credits-purchase",
-    title: "Credits Purchase",
-    description: "Credits cannot be purchased yet. Contact support if you need additional credits during beta.",
-  },
-  {
     id: "email-notifications",
     title: "Email Notifications",
     description: "Email notifications are limited during beta. In-app notifications are fully functional.",
