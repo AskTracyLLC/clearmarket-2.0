@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DemoLayout } from "@/demo/DemoLayout";
+import { DemoAppShell } from "@/demo/DemoAppShell";
 import { useDemoContext } from "@/demo/DemoContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ export default function DemoCommunityBoard({ role }: DemoCommunityBoardProps) {
   };
 
   return (
-    <DemoLayout role={role}>
+    <DemoAppShell role={role}>
       <div className="container mx-auto py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Community Board</h1>
@@ -78,7 +78,6 @@ export default function DemoCommunityBoard({ role }: DemoCommunityBoardProps) {
           </p>
         </div>
 
-        {/* New Post */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Share with the Community</CardTitle>
@@ -99,7 +98,6 @@ export default function DemoCommunityBoard({ role }: DemoCommunityBoardProps) {
           </CardContent>
         </Card>
 
-        {/* Posts */}
         <div className="space-y-4">
           {demoPosts.map((post) => (
             <Card
@@ -172,7 +170,6 @@ export default function DemoCommunityBoard({ role }: DemoCommunityBoardProps) {
           ))}
         </div>
 
-        {/* Report Dialog */}
         <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -192,6 +189,6 @@ export default function DemoCommunityBoard({ role }: DemoCommunityBoardProps) {
           </DialogContent>
         </Dialog>
       </div>
-    </DemoLayout>
+    </DemoAppShell>
   );
 }
