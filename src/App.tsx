@@ -120,8 +120,8 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <GlobalScreenshotButton />
             <BrowserRouter>
+              <GlobalScreenshotButton />
               <GlobalMessageListener />
               <Routes>
                 {/* Public routes */}
