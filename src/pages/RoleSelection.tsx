@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,8 +18,10 @@ const RoleSelection = () => {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Guard to ensure we only process once per mount
+  const hasProcessed = useRef(false);
 
   // Get role from URL param
   const roleParam = searchParams.get("role") as OnboardingRole | null;
@@ -31,9 +33,9 @@ const RoleSelection = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Process role on mount
+  // Process role on mount - only once
   useEffect(() => {
-    if (authLoading || !user || processing) return;
+    if (authLoading || !user || hasProcessed.current) return;
 
     // If no valid role param, redirect to homepage
     if (!validRoleParam) {
@@ -41,14 +43,38 @@ const RoleSelection = () => {
       return;
     }
 
+    // Mark as processed immediately to prevent re-runs
+    hasProcessed.current = true;
     processRole(validRoleParam);
-  }, [authLoading, user, validRoleParam, processing]);
+  }, [authLoading, user, validRoleParam]);
 
   const processRole = async (role: OnboardingRole) => {
     if (!user) return;
 
-    setProcessing(true);
-    setError(null);
+    // First check if role is already set - skip RPC if so
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("is_fieldrep, is_vendor_admin, active_role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error("Error checking profile:", profileError);
+      // Continue to terms anyway - the role might get set there
+      navigate("/onboarding/terms");
+      return;
+    }
+
+    // Check if role already matches
+    const roleAlreadySet = 
+      (role === "rep" && profile?.is_fieldrep && profile?.active_role === "rep") ||
+      (role === "vendor" && profile?.is_vendor_admin && profile?.active_role === "vendor");
+
+    if (roleAlreadySet) {
+      console.log("Role already set, skipping RPC");
+      navigate("/onboarding/terms");
+      return;
+    }
 
     // Call the secure RPC to set role
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
@@ -60,13 +86,14 @@ const RoleSelection = () => {
 
     if (rpcError || (result && !result.success)) {
       const errorMsg = rpcError?.message || result?.error || "Failed to set role";
+      console.error("RPC error:", errorMsg);
       setError(errorMsg);
-      setProcessing(false);
       toast({
-        title: "Error",
-        description: errorMsg,
-        variant: "destructive",
+        title: "Setup Notice",
+        description: "Continuing to terms...",
       });
+      // Navigate to terms anyway - don't loop
+      navigate("/onboarding/terms");
       return;
     }
 
@@ -136,7 +163,7 @@ const RoleSelection = () => {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <p className="text-muted-foreground">
-          {error ? "Something went wrong. Redirecting..." : "Setting up your account..."}
+          {error ? "Redirecting..." : "Setting up your account..."}
         </p>
       </div>
     </div>

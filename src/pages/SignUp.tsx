@@ -150,12 +150,12 @@ const SignUp = () => {
       setLoading(false);
       toast({
         title: "Account created!",
-        description: "Redirecting to role selection...",
+        description: "Completing setup...",
       });
 
-      // Carry the role param forward to onboarding
+      // Navigate directly to terms with role param for RPC processing
       const roleParam = role ? `?role=${role}` : "";
-      navigate(`/onboarding/role${roleParam}`);
+      navigate(`/onboarding/terms${roleParam}`);
     } else {
       setLoading(false);
     }
