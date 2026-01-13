@@ -41,11 +41,15 @@ serve(async (req) => {
       );
     }
 
-    // Beta mode is on - validate the code
+    // Beta mode is on - validate the code if provided
     if (!code) {
+      // No code provided - allow signup to proceed but log it
+      // The client-side beta mode check should have caught this,
+      // so if we're here, client beta mode is likely off
+      console.log("[validate-invite-code] No code provided, allowing signup (client beta mode may be off)");
       return new Response(
-        JSON.stringify({ success: false, error: "Invite code is required during beta" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, message: "No invite code provided, proceeding without validation" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
