@@ -125,7 +125,10 @@ const SignIn = () => {
     <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8 shadow-lg">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">
+          <Link to="/" className="text-xl font-bold text-primary hover:underline">
+            ClearMarket
+          </Link>
+          <h1 className="text-3xl font-bold mb-2 mt-4 text-foreground">
             Welcome Back
           </h1>
           <p className="text-muted-foreground">
