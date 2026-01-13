@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Camera, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 type DialogState = "none" | "success" | "clipboard-failed";
 
 export function GlobalScreenshotButton() {
+  const { pathname } = useLocation();
   const [userId, setUserId] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [dialogState, setDialogState] = useState<DialogState>("none");
@@ -179,8 +181,12 @@ export function GlobalScreenshotButton() {
     uploadScreenshotAndOpenSupport();
   }, [uploadScreenshotAndOpenSupport]);
 
-  // Only show the button when user is authenticated
-  if (!userId) {
+  // Only show the button when user is authenticated AND not on auth/public pages
+  const hiddenPrefixes = ["/signin", "/signup", "/forgot-password", "/update-password", "/"]; // hide on landing too
+  const isPublicOrAuthPage =
+    pathname === "/" || hiddenPrefixes.some((p) => p !== "/" && pathname.startsWith(p));
+
+  if (!userId || isPublicOrAuthPage) {
     return null;
   }
 

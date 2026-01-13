@@ -182,6 +182,8 @@ const App = () => (
                   <Route path="/coverage-map" element={<CoverageMap />} />
                   <Route path="/admin/reports" element={<Navigate to="/admin/support-queue?category=violation_review" replace />} />
                   <Route path="/admin/moderation" element={<Navigate to="/admin/support-queue?category=violation_review" replace />} />
+                  {/* Back-compat redirect for older bookmarks */}
+                  <Route path="/admin/invite-codes" element={<Navigate to="/admin/invites" replace />} />
                   <Route path="/admin/invites" element={<AdminInviteCodes />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
                   <Route path="/admin/staff" element={<AdminStaff />} />
