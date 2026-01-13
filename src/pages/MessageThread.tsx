@@ -33,7 +33,7 @@ import {
   formatShortCaseId 
 } from "@/lib/supportCategory";
 import { toast } from "@/hooks/use-toast";
-import { formatDistanceToNow, format, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { TemplateSelector } from "@/components/TemplateSelector";
 import { ExitReviewDialog } from "@/components/ExitReviewDialog";
@@ -64,6 +64,71 @@ interface Message {
   created_at: string;
 }
 
+/** Batch-fetch display names for a list of sender IDs */
+async function fetchSenderDisplayNames(senderIds: string[]): Promise<Record<string, string>> {
+  if (senderIds.length === 0) return {};
+
+  const uniqueIds = [...new Set(senderIds)];
+  const names: Record<string, string> = {};
+
+  // Fetch profiles for all unique sender IDs
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", uniqueIds);
+
+  // Fetch rep anonymous IDs
+  const { data: repProfiles } = await supabase
+    .from("rep_profile")
+    .select("user_id, anonymous_id")
+    .in("user_id", uniqueIds);
+
+  // Fetch vendor anonymous IDs
+  const { data: vendorProfiles } = await supabase
+    .from("vendor_profile")
+    .select("user_id, anonymous_id")
+    .in("user_id", uniqueIds);
+
+  // Build name map: prefer anonymous_id, fall back to full_name
+  for (const id of uniqueIds) {
+    const rep = repProfiles?.find(r => r.user_id === id);
+    const vendor = vendorProfiles?.find(v => v.user_id === id);
+    const profile = profiles?.find(p => p.id === id);
+
+    if (rep?.anonymous_id) {
+      names[id] = rep.anonymous_id;
+    } else if (vendor?.anonymous_id) {
+      names[id] = vendor.anonymous_id;
+    } else if (profile?.full_name) {
+      names[id] = profile.full_name;
+    } else {
+      names[id] = "Unknown";
+    }
+  }
+
+  return names;
+}
+
+/** Format timestamp for message bubble: MM/DD/YY • h:mm AM/PM CT */
+function formatMessageTimestamp(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const ctFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago",
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    // Format and add CT suffix
+    return ctFormatter.format(date).replace(",", " •") + " CT";
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function MessageThread() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -71,6 +136,7 @@ export default function MessageThread() {
   const navigate = useNavigate();
   
   const [messages, setMessages] = useState<Message[]>([]);
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
   const [otherParticipantId, setOtherParticipantId] = useState<string>("");
   const [otherParticipantName, setOtherParticipantName] = useState<string>("");
   const [messageText, setMessageText] = useState("");
@@ -408,6 +474,13 @@ export default function MessageThread() {
     }
 
     setMessages(data || []);
+
+    // Batch-fetch display names for all senders
+    if (data && data.length > 0) {
+      const senderIds = data.map(m => m.sender_id);
+      const names = await fetchSenderDisplayNames(senderIds);
+      setSenderNames(names);
+    }
 
     // Mark all unread messages in this conversation as read
     await supabase
@@ -991,27 +1064,34 @@ export default function MessageThread() {
                   No messages yet. Send the first message to start the conversation.
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender_id === user?.id ? "justify-end" : "justify-start"}`}
-                  >
+                messages.map((msg) => {
+                  const isOutgoing = msg.sender_id === effectiveUserId;
+                  const senderDisplayName = isOutgoing
+                    ? "You"
+                    : (senderNames[msg.sender_id] || otherParticipantName || "Unknown");
+                  const timestamp = formatMessageTimestamp(msg.created_at);
+
+                  return (
                     <div
-                      className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                        msg.sender_id === user?.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary"
-                      }`}
+                      key={msg.id}
+                      className={`flex flex-col ${isOutgoing ? "items-end" : "items-start"}`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.sender_id === user?.id ? "text-primary-foreground/70" : "text-muted-foreground"
-                      }`}>
-                        {formatDistanceToNow(parseISO(msg.created_at), { addSuffix: true })}
+                      {/* Meta line: Sender Name • Timestamp */}
+                      <p className="text-[11px] text-muted-foreground mb-1 px-1">
+                        {senderDisplayName} • {timestamp}
                       </p>
+                      <div
+                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                          isOutgoing
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary"
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               <div ref={messagesEndRef} />
             </div>
