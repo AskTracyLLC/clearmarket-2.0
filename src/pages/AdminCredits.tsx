@@ -373,7 +373,7 @@ const AdminCredits = () => {
       case "purchase":
         return "Credits Added";
       case "unlock_contact":
-        return "Unlock Contact";
+        return "Contact Access (Legacy)"; // Historical transaction label
       case "admin_adjustment":
         return "Admin Adjustment";
       default:
