@@ -25,7 +25,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="container py-16 md:py-24 flex flex-col items-center text-center">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
-          Connect. Inspect. Grow.
+          Welcome to ClearMarket
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8">
           ClearMarket is the networking platform for the property inspection
