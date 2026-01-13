@@ -301,19 +301,6 @@ const SignUp = () => {
           </p>
         </div>
 
-        {betaMode && (
-          <div className="mt-4 text-center border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">
-              Want early access?{" "}
-              <a
-                href="mailto:hello@clearmarket.io?subject=Beta Access Request"
-                className="text-primary hover:underline"
-              >
-                Join the waitlist
-              </a>
-            </p>
-          </div>
-        )}
       </Card>
     </div>
   );
