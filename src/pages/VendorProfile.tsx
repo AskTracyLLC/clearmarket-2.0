@@ -837,13 +837,13 @@ const VendorProfile = () => {
               </div>
             </div>
 
-            {/* Office Availability */}
+            {/* Office & Pay Calendar */}
             <div className="p-4 bg-muted/30 rounded-lg border border-border">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-1">Office Availability</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-1">Office & Pay Calendar</h3>
                   <p className="text-sm text-muted-foreground">
-                    Set your office hours and rep recruitment status.
+                    Set office hours, closure dates, and pay days for connected Field Reps.
                   </p>
                 </div>
                 <Link to="/vendor/availability">
@@ -852,25 +852,6 @@ const VendorProfile = () => {
                     Open
                   </Button>
                 </Link>
-              </div>
-            </div>
-
-            {/* Pay Schedule (Coming Soon placeholder) */}
-            <div className="p-4 bg-muted/30 rounded-lg border border-border opacity-60">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-                    Pay Schedule
-                    <Badge variant="outline" className="text-xs">Coming Soon</Badge>
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Define your payment terms and schedule for field reps.
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" disabled>
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Open
-                </Button>
               </div>
             </div>
           </div>
