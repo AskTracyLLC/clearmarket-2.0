@@ -2,6 +2,22 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
+// Generate a secure random token
+function generateToken(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Hash a token for storage
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -57,9 +73,12 @@ async function sendInviteEmail(
   invitedName: string,
   vendorCode: string,
   staffCode: string,
-  role: string
+  role: string,
+  inviteId: string,
+  inviteToken: string
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://clearmarket.app";
+  const signupUrl = `${appBaseUrl}/signup?staffInvite=1&inviteId=${inviteId}&token=${inviteToken}`;
   
   try {
     const { data, error } = await resend.emails.send({
@@ -109,14 +128,14 @@ async function sendInviteEmail(
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background-color: #22c55e; border-radius: 8px;">
-                    <a href="${appBaseUrl}/signup?staffInvite=1" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                    <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
                       Create Your Account
                     </a>
                   </td>
                 </tr>
               </table>
               <p style="margin: 25px 0 0; color: #737373; font-size: 14px; line-height: 1.6;">
-                When you sign up, use this email address (${toEmail}) to automatically link to your vendor team.
+                This invite link is valid for 7 days. If it expires, ask your vendor to resend the invite.
               </p>
             </td>
           </tr>
@@ -223,7 +242,21 @@ serve(async (req) => {
         .eq("id", existingStaff.vendor_id)
         .single();
 
-      // Send the email
+      // Generate new token for resend
+      const newToken = generateToken();
+      const newTokenHash = await hashToken(newToken);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+      // Update token in database
+      await serviceClient
+        .from("vendor_staff")
+        .update({
+          invite_token_hash: newTokenHash,
+          invite_token_expires_at: expiresAt,
+        })
+        .eq("id", existingStaff.id);
+
+      // Send the email with new token
       let emailResult: { success: boolean; error?: string; messageId?: string } = { success: false, error: "RESEND_API_KEY not configured" };
       if (resendApiKey) {
         const resend = new Resend(resendApiKey);
@@ -233,7 +266,9 @@ serve(async (req) => {
           existingStaff.invited_name,
           vp?.vendor_public_code || "Your Vendor",
           existingStaff.staff_code || "N/A",
-          existingStaff.role
+          existingStaff.role,
+          existingStaff.id,
+          newToken
         );
       }
 
@@ -311,7 +346,12 @@ serve(async (req) => {
       });
     }
 
-    // Insert staff record (trigger will generate staff_code)
+    // Generate secure invite token
+    const inviteToken = generateToken();
+    const inviteTokenHash = await hashToken(inviteToken);
+    const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+    // Insert staff record with token (trigger will generate staff_code)
     const { data: staffRecord, error: insertError } = await serviceClient
       .from("vendor_staff")
       .insert({
@@ -321,6 +361,8 @@ serve(async (req) => {
         role: role || "staff",
         status: "invited",
         invited_by: user.id,
+        invite_token_hash: inviteTokenHash,
+        invite_token_expires_at: tokenExpiresAt,
       })
       .select("id, staff_code")
       .single();
@@ -356,7 +398,7 @@ serve(async (req) => {
       auditError = err instanceof Error ? err.message : "Unknown audit error";
     }
 
-    // Send invite email via Resend
+    // Send invite email via Resend with secure token
     let emailResult: { success: boolean; error?: string; messageId?: string } = { success: false, error: "RESEND_API_KEY not configured" };
     if (resendApiKey) {
       const resend = new Resend(resendApiKey);
@@ -366,7 +408,9 @@ serve(async (req) => {
         name.trim(),
         vp.vendor_public_code,
         staffRecord.staff_code || "N/A",
-        role || "staff"
+        role || "staff",
+        staffRecord.id,
+        inviteToken
       );
     }
 
