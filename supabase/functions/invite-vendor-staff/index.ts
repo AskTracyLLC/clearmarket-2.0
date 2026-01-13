@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,6 +50,105 @@ async function canManageStaff(
   return { allowed: false, isOwner: false, actorCode: null, actorRole: "unknown" };
 }
 
+// Send staff invite email via Resend
+async function sendInviteEmail(
+  resend: Resend,
+  toEmail: string,
+  invitedName: string,
+  vendorCode: string,
+  staffCode: string,
+  role: string
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://clearmarket.app";
+  
+  try {
+    const { data, error } = await resend.emails.send({
+      from: "ClearMarket <notifications@clearmarket.app>",
+      to: [toEmail],
+      subject: `You've been invited to join ${vendorCode} on ClearMarket`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f0f0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f0f0f; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 12px; overflow: hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 40px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">ClearMarket</h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 20px; color: #ffffff; font-size: 24px;">You're Invited!</h2>
+              <p style="margin: 0 0 20px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
+                Hi ${invitedName},
+              </p>
+              <p style="margin: 0 0 20px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
+                You've been invited to join <strong style="color: #ffffff;">${vendorCode}</strong> as a team member on ClearMarket.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #262626; border-radius: 8px; margin: 25px 0;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 8px; color: #a3a3a3; font-size: 14px;">Your Staff Code</p>
+                    <p style="margin: 0; color: #22c55e; font-size: 24px; font-weight: 700; font-family: monospace;">${staffCode}</p>
+                    <p style="margin: 8px 0 0; color: #a3a3a3; font-size: 14px;">Role: <strong style="color: #ffffff;">${role}</strong></p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 0 0 25px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
+                Click the button below to create your account and get started:
+              </p>
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="background-color: #22c55e; border-radius: 8px;">
+                    <a href="${appBaseUrl}/signup" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                      Create Your Account
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 25px 0 0; color: #737373; font-size: 14px; line-height: 1.6;">
+                When you sign up, use this email address (${toEmail}) to automatically link to your vendor team.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 40px; border-top: 1px solid #262626;">
+              <p style="margin: 0; color: #525252; font-size: 12px; text-align: center;">
+                ClearMarket — Connecting Field Reps & Vendors
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error("Resend error:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    console.error("Email send exception:", err);
+    return { success: false, error: err instanceof Error ? err.message : "Unknown email error" };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,6 +157,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const authHeader = req.headers.get("Authorization");
@@ -80,8 +181,92 @@ serve(async (req) => {
       });
     }
 
-    const { vendorProfileId, name, email, role } = await req.json();
+    const body = await req.json();
+    const { vendorProfileId, name, email, role, resend: isResend, staffId } = body;
 
+    // Handle resend invite flow
+    if (isResend && staffId) {
+      // Fetch existing staff record
+      const { data: existingStaff, error: staffError } = await serviceClient
+        .from("vendor_staff")
+        .select("id, vendor_id, invited_name, invited_email, staff_code, role, status")
+        .eq("id", staffId)
+        .single();
+
+      if (staffError || !existingStaff) {
+        return new Response(JSON.stringify({ error: "Staff record not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (existingStaff.status !== "invited") {
+        return new Response(JSON.stringify({ error: "Can only resend to pending invites" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check authorization
+      const authResult = await canManageStaff(serviceClient, existingStaff.vendor_id, user.id);
+      if (!authResult.allowed) {
+        return new Response(JSON.stringify({ error: "Not authorized to manage staff" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get vendor code
+      const { data: vp } = await serviceClient
+        .from("vendor_profile")
+        .select("vendor_public_code")
+        .eq("id", existingStaff.vendor_id)
+        .single();
+
+      // Send the email
+      let emailResult: { success: boolean; error?: string; messageId?: string } = { success: false, error: "RESEND_API_KEY not configured" };
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        emailResult = await sendInviteEmail(
+          resend,
+          existingStaff.invited_email,
+          existingStaff.invited_name,
+          vp?.vendor_public_code || "Your Vendor",
+          existingStaff.staff_code || "N/A",
+          existingStaff.role
+        );
+      }
+
+      // Log the resend action
+      try {
+        await serviceClient.rpc("log_vendor_staff_action", {
+          p_vendor_id: existingStaff.vendor_id,
+          p_action_type: "vendor_staff.invite_resent",
+          p_target_staff_id: existingStaff.id,
+          p_details: {
+            email_sent: emailResult.success,
+            email_error: emailResult.error || null,
+            resent_by_code: authResult.actorCode,
+          },
+        });
+      } catch (err) {
+        console.error("Failed to log resend action:", err);
+      }
+
+      console.log(`Invite resent for ${existingStaff.staff_code}, email_sent: ${emailResult.success}`);
+
+      return new Response(JSON.stringify({
+        success: true,
+        staff_code: existingStaff.staff_code,
+        staff_id: existingStaff.id,
+        email_sent: emailResult.success,
+        email_error: emailResult.error,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Original invite flow
     if (!vendorProfileId || !name || !email) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
@@ -152,7 +337,6 @@ serve(async (req) => {
     }
 
     // Log the invite action IMMEDIATELY after insert (before any email attempt)
-    // This ensures the audit trail exists even if email fails
     let auditLogged = false;
     let auditError: string | null = null;
     try {
@@ -172,10 +356,21 @@ serve(async (req) => {
       auditError = err instanceof Error ? err.message : "Unknown audit error";
     }
 
-    console.log(`Staff invited: ${staffRecord.staff_code} by ${authResult.actorCode} (${authResult.actorRole}), audit_logged: ${auditLogged}`);
+    // Send invite email via Resend
+    let emailResult: { success: boolean; error?: string; messageId?: string } = { success: false, error: "RESEND_API_KEY not configured" };
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+      emailResult = await sendInviteEmail(
+        resend,
+        email.trim().toLowerCase(),
+        name.trim(),
+        vp.vendor_public_code,
+        staffRecord.staff_code || "N/A",
+        role || "staff"
+      );
+    }
 
-    // TODO: Send invite email via Supabase Auth admin invite or custom email
-    // Email sending would go here - if it fails, audit is already logged
+    console.log(`Staff invited: ${staffRecord.staff_code} by ${authResult.actorCode} (${authResult.actorRole}), audit_logged: ${auditLogged}, email_sent: ${emailResult.success}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -185,6 +380,8 @@ serve(async (req) => {
       invited_by_role: authResult.actorRole,
       audit_logged: auditLogged,
       audit_error: auditError,
+      email_sent: emailResult.success,
+      email_error: emailResult.error,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
