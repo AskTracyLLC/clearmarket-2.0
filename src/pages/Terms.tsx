@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 // Document type identifier for documents.document_type
-const DOCUMENT_TYPE = "terms_and_nda";
+const DOCUMENT_TYPE = "tos";
 
 interface SitePage {
   id: string;
@@ -166,7 +166,7 @@ const Terms = () => {
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <Card className="w-full max-w-3xl p-8 shadow-lg">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Terms of Service & NDA</h1>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">Terms of Service</h1>
           <p className="text-muted-foreground">Please read and accept our terms to continue</p>
         </div>
 
@@ -176,7 +176,7 @@ const Terms = () => {
           onScroll={handleScroll}
           className="bg-card-elevated border border-border rounded-lg p-6 h-96 overflow-y-auto mb-6 prose prose-invert max-w-none"
         >
-          <h2 className="text-xl font-bold mb-4">{termsPage?.title || "ClearMarket Terms of Service and Non-Disclosure Agreement"}</h2>
+          <h2 className="text-xl font-bold mb-4">{termsPage?.title || "ClearMarket Terms of Service"}</h2>
           <p className="mb-4 text-sm text-muted-foreground">Effective Date: {effectiveDateDisplay}</p>
 
           {termsPage?.content ? (
@@ -188,7 +188,7 @@ const Terms = () => {
             <>
               <h3 className="text-lg font-semibold mb-2">1. Agreement to Terms</h3>
               <p className="mb-4">
-                By creating an account on ClearMarket, you agree to be bound by these Terms of Service and Non-Disclosure Agreement. 
+                By creating an account on ClearMarket, you agree to be bound by these Terms of Service. 
                 This is a legally binding contract between you and ClearMarket.
               </p>
 
@@ -200,8 +200,7 @@ const Terms = () => {
               </p>
 
               <p className="text-sm text-muted-foreground mt-8">
-                By signing below, you acknowledge that you have read, understood, and agree to these Terms of Service and 
-                Non-Disclosure Agreement.
+                By signing below, you acknowledge that you have read, understood, and agree to these Terms of Service.
               </p>
             </>
           )}
@@ -239,7 +238,7 @@ const Terms = () => {
               htmlFor="confirm" 
               className="text-sm cursor-pointer"
             >
-              I confirm that I have read and agree to the Terms of Service and NDA
+              I confirm that I have read and agree to the Terms of Service
             </Label>
           </div>
 

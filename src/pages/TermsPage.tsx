@@ -249,21 +249,26 @@ const TermsPage = () => {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mt-8 mb-4">12. Non-Disclosure & Confidential Information</h2>
+            <h2 className="text-xl font-semibold text-foreground mt-8 mb-4">12. Confidential Information</h2>
             
             <h3 className="text-lg font-medium text-foreground mt-6 mb-3">12.1 Your Confidentiality Obligations</h3>
-            <p>In using ClearMarket, you may gain access to non-public information from ClearMarket and other Users, including but not limited to:</p>
+            <p>
+              ClearMarket may include non-public information such as private messages, vendor/rep pricing and negotiations, 
+              internal workflows, moderation outcomes, verification details, and other content that is not intended for public 
+              distribution ("Confidential Information"). You agree not to copy, publish, disclose, or share ClearMarket 
+              Confidential Information outside the platform.
+            </p>
+            <p className="mt-4">The only exceptions are when:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>Vendor or Field Rep pricing details</li>
-              <li>Coverage strategies and internal workflows</li>
-              <li>Business contact information shared through unlocks or direct messages</li>
-              <li>Non-public data, insights, or analytics</li>
-              <li>Any information labeled or reasonably understood as "confidential"</li>
+              <li>ClearMarket provides an explicit sharing or export feature intended for that purpose (for example, a ClearMarket-generated link, report export, or "Share" function); or</li>
+              <li>You have clear written permission from the rightful owner of the information.</li>
             </ul>
+            <p className="mt-4">
+              Confidentiality obligations are part of these Terms of Service; ClearMarket is not requiring a separate NDA for platform use.
+            </p>
             <p className="mt-4">You agree that:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>You will not disclose, share, or publish such non-public information outside of ClearMarket without the prior written consent of the party that provided it (ClearMarket or another User).</li>
-              <li>You will use such information solely for the purpose of exploring, managing, or performing work relationships formed via ClearMarket.</li>
+              <li>You will use Confidential Information solely for the purpose of exploring, managing, or performing work relationships formed via ClearMarket.</li>
               <li>You will take reasonable steps to protect this information from unauthorized use or disclosure (for example, not posting screenshots of internal pricing dashboards or another User's profile data in public forums).</li>
             </ul>
 
@@ -279,14 +284,14 @@ const TermsPage = () => {
               <li>When required by law, subpoena, or court order.</li>
             </ul>
 
-            <h3 className="text-lg font-medium text-foreground mt-6 mb-3">12.3 Separate NDAs Between Users</h3>
-            <p>If Vendors and Field Reps wish to enter a separate NDA for specific jobs or relationships:</p>
+            <h3 className="text-lg font-medium text-foreground mt-6 mb-3">12.3 Additional Confidentiality Agreements Between Users</h3>
+            <p>If Vendors and Field Reps wish to enter a separate confidentiality agreement for specific jobs or relationships:</p>
             <ul className="list-disc pl-6 space-y-2">
-              <li>That NDA is between those parties only</li>
+              <li>That agreement is between those parties only</li>
               <li>It may impose additional or stricter confidentiality obligations than these Terms</li>
-              <li>ClearMarket is not a party to that NDA and is not responsible for enforcing or monitoring compliance</li>
+              <li>ClearMarket is not a party to that agreement and is not responsible for enforcing or monitoring compliance</li>
             </ul>
-            <p className="mt-4">You are responsible for understanding, negotiating, and complying with any NDA you sign with another User.</p>
+            <p className="mt-4">You are responsible for understanding, negotiating, and complying with any confidentiality agreement you sign with another User.</p>
           </section>
 
           <section>
