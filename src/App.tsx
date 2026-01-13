@@ -102,6 +102,7 @@ import AdminSafetyAnalytics from "./pages/AdminSafetyAnalytics";
 
 // Demo Mode imports
 import { DemoProvider } from "@/demo/DemoContext";
+import { DemoAccessGate } from "@/demo/DemoAccessGate";
 import DemoSelector from "./pages/demo/DemoSelector";
 import DemoVendorDashboard from "./pages/demo/DemoVendorDashboard";
 import DemoVendorRepSearch from "./pages/demo/DemoVendorRepSearch";
@@ -155,19 +156,19 @@ const App = () => (
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/legal/:pageType" element={<LegalPage />} />
 
-                {/* Demo Mode routes - wrapped in DemoProvider */}
-                <Route path="/demo" element={<DemoProvider><DemoSelector /></DemoProvider>} />
-                <Route path="/demo/vendor" element={<DemoProvider><DemoVendorDashboard /></DemoProvider>} />
-                <Route path="/demo/vendor/search" element={<DemoProvider><DemoVendorRepSearch /></DemoProvider>} />
-                <Route path="/demo/vendor/rep/:repId" element={<DemoProvider><DemoVendorRepProfile /></DemoProvider>} />
-                <Route path="/demo/vendor/community" element={<DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider>} />
-                <Route path="/demo/vendor/coverage-map" element={<DemoProvider><DemoCoverageMapPlaceholder role="vendor" isPersonal /></DemoProvider>} />
-                <Route path="/demo/vendor/policies" element={<DemoProvider><DemoVendorPolicies /></DemoProvider>} />
-                <Route path="/demo/rep" element={<DemoProvider><DemoRepDashboard /></DemoProvider>} />
-                <Route path="/demo/rep/profile" element={<DemoProvider><DemoRepProfile /></DemoProvider>} />
-                <Route path="/demo/rep/vendors" element={<DemoProvider><DemoRepVendorDirectory /></DemoProvider>} />
-                <Route path="/demo/rep/community" element={<DemoProvider><DemoCommunityBoard role="rep" /></DemoProvider>} />
-                <Route path="/demo/rep/coverage-map" element={<DemoProvider><DemoCoverageMapPlaceholder role="rep" /></DemoProvider>} />
+                {/* Demo Mode routes - wrapped in DemoAccessGate and DemoProvider */}
+                <Route path="/demo" element={<DemoAccessGate><DemoProvider><DemoSelector /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor" element={<DemoAccessGate><DemoProvider><DemoVendorDashboard /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/search" element={<DemoAccessGate><DemoProvider><DemoVendorRepSearch /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/rep/:repId" element={<DemoAccessGate><DemoProvider><DemoVendorRepProfile /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="vendor" isPersonal /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/policies" element={<DemoAccessGate><DemoProvider><DemoVendorPolicies /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep" element={<DemoAccessGate><DemoProvider><DemoRepDashboard /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep/profile" element={<DemoAccessGate><DemoProvider><DemoRepProfile /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep/vendors" element={<DemoAccessGate><DemoProvider><DemoRepVendorDirectory /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="rep" /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="rep" /></DemoProvider></DemoAccessGate>} />
 
                 {/* Authenticated routes wrapped in AppShell layout */}
                 <Route element={<AuthenticatedLayout><Outlet /></AuthenticatedLayout>}>
