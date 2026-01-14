@@ -521,10 +521,26 @@ export default function AdminUsers() {
         body: {
           target_user_id: targetUser.id,
           reason: deleteReason || null,
+          // Enable debug diagnostics so we can show actionable blockers in the UI
+          debug: true,
         },
       });
 
       if (response.error) {
+        // Supabase functions errors often include the raw response body in context.body
+        const bodyText = (response.error as any)?.context?.body;
+        if (typeof bodyText === "string" && bodyText.trim().length > 0) {
+          try {
+            const parsed = JSON.parse(bodyText);
+            const step = parsed?.step ? ` (step: ${parsed.step})` : "";
+            const blockers = Array.isArray(parsed?.fkBlockers) && parsed.fkBlockers.length
+              ? ` Blockers: ${parsed.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
+              : "";
+            throw new Error(`${parsed?.error?.message || response.error.message}${step}.${blockers}`);
+          } catch {
+            // fall through
+          }
+        }
         throw new Error(response.error.message || "Failed to delete user");
       }
 

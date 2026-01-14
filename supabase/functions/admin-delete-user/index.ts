@@ -46,6 +46,12 @@ const FK_CANDIDATES = [
   { table: "background_checks", column: "reviewed_by_user_id", action: "null" },
   { table: "checklist_item_feedback", column: "resolved_by", action: "null" },
   { table: "help_center_articles", column: "last_updated_by", action: "null" },
+
+  // These typically cascade, but can still block deleteUser in practice; clean explicitly
+  { table: "rep_contact_info", column: "rep_user_id", action: "delete" },
+  { table: "rep_profile", column: "user_id", action: "delete" },
+  { table: "vendor_profile", column: "user_id", action: "delete" },
+
   // References to profiles (cascade should handle most, but check for edge cases)
   { table: "dual_role_access_requests", column: "reviewed_by", action: "null" },
   { table: "dual_role_access_requests", column: "gl_verified_by", action: "null" },
@@ -257,28 +263,26 @@ serve(async (req) => {
       }
     }
 
-    // STEP: Pre-delete blocker scan (always run in debug, or if we've failed before)
+    // STEP: Pre-delete blocker scan (always run). If anything still references this user, do NOT attempt delete.
     step = "pre_delete_blocker_scan";
     const blockers = await scanFkBlockers(supabaseAdmin, target_user_id);
-    
+
     if (blockers.length > 0) {
       console.error("FK blockers still present:", JSON.stringify(blockers));
-      
-      if (debug) {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            step: "pre_delete_blocker_scan",
-            error: {
-              message: `Cannot delete user: ${blockers.length} FK constraint(s) still blocking`,
-              hint: "These tables still reference the user and must be cleaned up first"
-            },
-            userId: target_user_id,
-            fkBlockers: blockers,
-          }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          step: "pre_delete_blocker_scan",
+          error: {
+            message: `Cannot delete user: ${blockers.length} FK reference(s) still present`,
+            hint: "These tables still reference the user and must be cleaned up first",
+          },
+          userId: target_user_id,
+          fkBlockers: blockers,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // STEP: Delete the user from auth.users
