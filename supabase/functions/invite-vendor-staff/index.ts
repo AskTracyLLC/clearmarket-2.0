@@ -66,7 +66,7 @@ async function canManageStaff(
   return { allowed: false, isOwner: false, actorCode: null, actorRole: "unknown" };
 }
 
-// Send staff invite email via Resend
+// Send staff invite email via Resend with ClearMarket branding
 async function sendInviteEmail(
   resend: Resend,
   toEmail: string,
@@ -77,9 +77,13 @@ async function sendInviteEmail(
   inviteId: string,
   inviteToken: string
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
-  const appBaseUrl = Deno.env.get("APP_BASE_URL") || "https://clearmarket.app";
+  // CRITICAL: Always use useclearmarket.io - never clearmarket.app
+  const appBaseUrl = (Deno.env.get("APP_BASE_URL") || "https://useclearmarket.io").replace(/\/$/, "");
   const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "ClearMarket <noreply@useclearmarket.io>";
-  const signupUrl = `${appBaseUrl}/signup?staffInvite=1&inviteId=${inviteId}&token=${inviteToken}`;
+  const logoUrl = Deno.env.get("EMAIL_LOGO_URL") || `${appBaseUrl}/images/clearmarket-logo.jpg`;
+  
+  // Use the dedicated staff accept invite route - NOT /signup
+  const acceptUrl = `${appBaseUrl}/staff/accept-invite?inviteId=${inviteId}&token=${inviteToken}`;
   
   try {
     const { data, error } = await resend.emails.send({
@@ -93,58 +97,72 @@ async function sendInviteEmail(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; background-color: #0f0f0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f0f0f; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; background-color: #24282D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #24282D; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 12px; overflow: hidden;">
-          <!-- Header -->
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1A1A1A; border-radius: 12px; overflow: hidden; border: 1px solid #2E333A;">
+          <!-- Header with Logo -->
           <tr>
-            <td style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 40px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">ClearMarket</h1>
+            <td style="padding: 30px 40px; text-align: center; border-bottom: 1px solid #2E333A;">
+              <img src="${logoUrl}" alt="ClearMarket" width="60" height="60" style="border-radius: 12px; margin-bottom: 12px;" />
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 24px; font-weight: 700;">ClearMarket</h1>
             </td>
           </tr>
           <!-- Content -->
           <tr>
             <td style="padding: 40px;">
-              <h2 style="margin: 0 0 20px; color: #ffffff; font-size: 24px;">You're Invited!</h2>
-              <p style="margin: 0 0 20px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
+              <h2 style="margin: 0 0 20px; color: #FFFFFF; font-size: 22px; font-weight: 600;">You're Invited!</h2>
+              <p style="margin: 0 0 20px; color: #A3A3A3; font-size: 16px; line-height: 1.6;">
                 Hi ${invitedName},
               </p>
-              <p style="margin: 0 0 20px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
-                You've been invited to join <strong style="color: #ffffff;">${vendorCode}</strong> as a team member on ClearMarket.
+              <p style="margin: 0 0 24px; color: #A3A3A3; font-size: 16px; line-height: 1.6;">
+                You've been invited to join <strong style="color: #FFFFFF;">${vendorCode}</strong> as a team member on ClearMarket.
               </p>
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #262626; border-radius: 8px; margin: 25px 0;">
+              <!-- Info Card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #12535F; border-radius: 8px; margin: 24px 0;">
                 <tr>
                   <td style="padding: 20px;">
-                    <p style="margin: 0 0 8px; color: #a3a3a3; font-size: 14px;">Your Staff Code</p>
-                    <p style="margin: 0; color: #22c55e; font-size: 24px; font-weight: 700; font-family: monospace;">${staffCode}</p>
-                    <p style="margin: 8px 0 0; color: #a3a3a3; font-size: 14px;">Role: <strong style="color: #ffffff;">${role}</strong></p>
+                    <p style="margin: 0 0 8px; color: #A3A3A3; font-size: 14px;">Your Staff Code</p>
+                    <p style="margin: 0; color: #E49260; font-size: 24px; font-weight: 700; font-family: monospace;">${staffCode}</p>
+                    <p style="margin: 10px 0 0; color: #A3A3A3; font-size: 14px;">Role: <strong style="color: #FFFFFF; text-transform: capitalize;">${role}</strong></p>
                   </td>
                 </tr>
               </table>
-              <p style="margin: 0 0 25px; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
-                Click the button below to create your account and get started:
+              <p style="margin: 0 0 28px; color: #A3A3A3; font-size: 16px; line-height: 1.6;">
+                Click the button below to set up your account and get started:
               </p>
-              <table cellpadding="0" cellspacing="0">
+              <!-- CTA Button - Orange -->
+              <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td style="background-color: #22c55e; border-radius: 8px;">
-                    <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                      Create Your Account
+                  <td align="center">
+                    <a href="${acceptUrl}" style="display: inline-block; background-color: #D1532C; padding: 16px 40px; color: #FFFFFF; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 8px;">
+                      Accept Invite
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="margin: 25px 0 0; color: #737373; font-size: 14px; line-height: 1.6;">
-                This invite link is valid for 7 days. If it expires, ask your vendor to resend the invite.
+              <!-- Fallback link -->
+              <p style="margin: 28px 0 0; color: #737373; font-size: 13px; line-height: 1.6;">
+                Or copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0; color: #A3A3A3; font-size: 12px; word-break: break-all;">
+                <a href="${acceptUrl}" style="color: #E49260; text-decoration: underline;">${acceptUrl}</a>
+              </p>
+              <!-- Expiry note -->
+              <p style="margin: 24px 0 0; color: #737373; font-size: 13px; line-height: 1.6;">
+                This invite link is <strong style="color: #A3A3A3;">valid for 7 days</strong>. If it expires, ask your vendor to resend the invite.
               </p>
             </td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="padding: 20px 40px; border-top: 1px solid #262626;">
-              <p style="margin: 0; color: #525252; font-size: 12px; text-align: center;">
+            <td style="padding: 24px 40px; border-top: 1px solid #2E333A; text-align: center;">
+              <p style="margin: 0 0 8px; color: #525252; font-size: 12px;">
                 ClearMarket — Connecting Field Reps & Vendors
+              </p>
+              <p style="margin: 0; color: #525252; font-size: 11px; font-style: italic;">
+                This is an automated message. Please do not reply.
               </p>
             </td>
           </tr>

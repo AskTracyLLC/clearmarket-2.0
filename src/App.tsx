@@ -42,6 +42,7 @@ import RepShareProfile from "./pages/RepShareProfile";
 import VendorShareProfile from "./pages/VendorShareProfile";
 import VendorShareProfilePage from "./pages/VendorShareProfilePage";
 import VendorStaff from "./pages/VendorStaff";
+import StaffAcceptInvite from "./pages/StaffAcceptInvite";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -146,6 +147,8 @@ const App = () => (
                 <Route path="/auth/update-password" element={<UpdatePassword />} />
                 <Route path="/onboarding/role" element={<RoleSelection />} />
                 <Route path="/onboarding/terms" element={<Terms />} />
+                {/* Staff invite acceptance - dedicated route, NOT /signup */}
+                <Route path="/staff/accept-invite" element={<StaffAcceptInvite />} />
                 <Route path="/p/:shareToken" element={<PublicProposalView />} />
                 <Route path="/snapshot/:slug" element={<PublicReputationSnapshot />} />
                 <Route path="/share/rep/:slug" element={<RepShareProfile />} />
