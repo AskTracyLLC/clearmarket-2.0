@@ -112,6 +112,32 @@ serve(async (req) => {
       );
     }
 
+    // Clean up related data that might block deletion
+    // Tables with FK to profiles that may not cascade
+    const cleanupTables = [
+      { table: "vendor_activity_events", column: "actor_user_id" },
+      { table: "vendor_activity_events", column: "vendor_owner_user_id" },
+      { table: "connection_notes", column: "author_id" },
+      { table: "connection_notes", column: "rep_id" },
+      { table: "connection_notes", column: "vendor_id" },
+      { table: "community_votes", column: "user_id" },
+      { table: "community_post_watchers", column: "user_id" },
+      { table: "admin_broadcast_recipients", column: "user_id" },
+      { table: "admin_broadcast_feedback", column: "user_id" },
+    ];
+
+    for (const { table, column } of cleanupTables) {
+      const { error: cleanupError } = await supabaseAdmin
+        .from(table)
+        .delete()
+        .eq(column, target_user_id);
+      
+      if (cleanupError) {
+        console.log(`Note: Could not clean ${table}.${column}:`, cleanupError.message);
+        // Continue - table might not exist or already be empty
+      }
+    }
+
     // Delete the user from auth.users (cascades to profiles due to FK)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(target_user_id);
 
