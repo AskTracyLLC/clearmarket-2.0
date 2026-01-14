@@ -5244,33 +5244,39 @@ export type Database = {
       vendor_activity_events: {
         Row: {
           action: string
-          actor_user_id: string
+          actor_label: string | null
+          actor_user_id: string | null
           created_at: string
           id: string
           metadata: Json | null
           target_id: string | null
           target_type: string | null
-          vendor_owner_user_id: string
+          vendor_owner_label: string | null
+          vendor_owner_user_id: string | null
         }
         Insert: {
           action: string
-          actor_user_id: string
+          actor_label?: string | null
+          actor_user_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json | null
           target_id?: string | null
           target_type?: string | null
-          vendor_owner_user_id: string
+          vendor_owner_label?: string | null
+          vendor_owner_user_id?: string | null
         }
         Update: {
           action?: string
-          actor_user_id?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
           created_at?: string
           id?: string
           metadata?: Json | null
           target_id?: string | null
           target_type?: string | null
-          vendor_owner_user_id?: string
+          vendor_owner_label?: string | null
+          vendor_owner_user_id?: string | null
         }
         Relationships: [
           {
