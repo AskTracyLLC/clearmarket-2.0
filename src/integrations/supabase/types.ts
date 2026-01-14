@@ -5241,6 +5241,82 @@ export type Database = {
           },
         ]
       }
+      vendor_activity_events: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_id: string | null
+          target_type: string | null
+          vendor_owner_user_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+          vendor_owner_user_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_id?: string | null
+          target_type?: string | null
+          vendor_owner_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_activity_events_actor_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_actor_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_actor_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_vendor_owner_fkey"
+            columns: ["vendor_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_vendor_owner_fkey"
+            columns: ["vendor_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_vendor_owner_fkey"
+            columns: ["vendor_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       vendor_alert_kudos: {
         Row: {
           alert_id: string
@@ -7212,15 +7288,34 @@ export type Database = {
             }
             Returns: Json
           }
-      log_vendor_staff_action: {
+      log_vendor_activity: {
         Args: {
-          p_action_type: string
-          p_details?: Json
-          p_target_staff_id: string
-          p_vendor_id: string
+          p_action: string
+          p_metadata?: Json
+          p_target_id?: string
+          p_target_type?: string
+          p_vendor_owner_user_id: string
         }
-        Returns: Json
+        Returns: string
       }
+      log_vendor_staff_action:
+        | {
+            Args: {
+              p_action_type: string
+              p_details?: Json
+              p_target_staff_id: string
+              p_vendor_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_action_type: string
+              p_details?: Json
+              p_vendor_profile_id: string
+            }
+            Returns: undefined
+          }
       process_waiting_automation: { Args: never; Returns: Json }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }

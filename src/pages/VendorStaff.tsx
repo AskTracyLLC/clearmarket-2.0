@@ -40,7 +40,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw } from "lucide-react";
+import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 
 interface VendorStaffMember {
@@ -407,6 +407,12 @@ export default function VendorStaff() {
             Manage your team members and their access to your vendor account
           </p>
         </div>
+        <Link to="/vendor/staff-metrics">
+          <Button variant="outline" size="sm">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Staff Metrics
+          </Button>
+        </Link>
       </div>
 
       {/* Gating Banner */}
