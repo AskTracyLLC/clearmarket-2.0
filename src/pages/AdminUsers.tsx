@@ -78,6 +78,7 @@ interface UserProfile {
   full_name: string | null;
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
+  is_vendor_staff: boolean;
   is_admin: boolean;
   is_moderator: boolean;
   is_support: boolean;
@@ -110,6 +111,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [repProfiles, setRepProfiles] = useState<Record<string, string>>({});
   const [vendorProfiles, setVendorProfiles] = useState<Record<string, { anonymousId: string; companyName: string | null }>>({});
+  const [vendorStaffCodes, setVendorStaffCodes] = useState<Record<string, string>>({});
   const [reportCounts, setReportCounts] = useState<Record<string, number>>({});
   const [profileCompleteness, setProfileCompleteness] = useState<Record<string, number>>({});
   const [trustScores, setTrustScores] = useState<Record<string, { score: number; count: number }>>({});
@@ -207,6 +209,7 @@ export default function AdminUsers() {
           full_name,
           is_fieldrep,
           is_vendor_admin,
+          is_vendor_staff,
           is_admin,
           is_moderator,
           is_support,
@@ -250,6 +253,22 @@ export default function AdminUsers() {
           };
         });
         setVendorProfiles(vendorMap);
+      }
+
+      // Load vendor staff codes for staff member anon IDs
+      const { data: vendorStaff } = await supabase
+        .from("vendor_staff")
+        .select("staff_user_id, staff_code")
+        .not("staff_user_id", "is", null);
+
+      if (vendorStaff) {
+        const staffCodeMap: Record<string, string> = {};
+        vendorStaff.forEach((vs: { staff_user_id: string | null; staff_code: string | null }) => {
+          if (vs.staff_user_id && vs.staff_code) {
+            staffCodeMap[vs.staff_user_id] = vs.staff_code;
+          }
+        });
+        setVendorStaffCodes(staffCodeMap);
       }
 
       // Load report counts per user
@@ -532,8 +551,10 @@ export default function AdminUsers() {
   };
 
   const getAnonymousId = (userProfile: UserProfile) => {
-    // Staff get their staff_anonymous_id (Admin#1, etc.)
+    // Staff get their staff_anonymous_id (MBFS_JP, Admin#1, etc.)
     if (userProfile.staff_anonymous_id) return userProfile.staff_anonymous_id;
+    // Vendor staff fallback to staff_code from vendor_staff table
+    if (vendorStaffCodes[userProfile.id]) return vendorStaffCodes[userProfile.id];
     if (repProfiles[userProfile.id]) return repProfiles[userProfile.id];
     if (vendorProfiles[userProfile.id]?.anonymousId) return vendorProfiles[userProfile.id].anonymousId;
     return "—";
@@ -561,6 +582,7 @@ export default function AdminUsers() {
       // Role filter
       if (roleFilter === "fieldreps" && !u.is_fieldrep) return false;
       if (roleFilter === "vendors" && !u.is_vendor_admin) return false;
+      if (roleFilter === "vendor_staff" && !u.is_vendor_staff) return false;
       if (roleFilter === "admins" && !u.is_admin) return false;
 
       // Status filter
@@ -629,7 +651,7 @@ export default function AdminUsers() {
     }
 
     return result;
-  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles, sortColumn, sortDirection, profileCompleteness, connectionCounts, trustScores]);
+  }, [users, debouncedSearch, roleFilter, statusFilter, repProfiles, vendorProfiles, vendorStaffCodes, sortColumn, sortDirection, profileCompleteness, connectionCounts, trustScores]);
 
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -708,13 +730,14 @@ export default function AdminUsers() {
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="fieldreps">Field Reps</SelectItem>
                   <SelectItem value="vendors">Vendors</SelectItem>
+                  <SelectItem value="vendor_staff">Vendor Staff</SelectItem>
                   <SelectItem value="admins">Admins</SelectItem>
                 </SelectContent>
               </Select>
@@ -913,6 +936,9 @@ export default function AdminUsers() {
                               )}
                               {userProfile.is_vendor_admin && (
                                 <Badge variant="secondary" className="text-xs">Vendor</Badge>
+                              )}
+                              {userProfile.is_vendor_staff && (
+                                <Badge variant="secondary" className="text-xs">Vendor Staff</Badge>
                               )}
                               {userProfile.is_admin && (
                                 <Badge variant="default" className="text-xs">Admin</Badge>
