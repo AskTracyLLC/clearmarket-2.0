@@ -143,7 +143,52 @@ serve(async (req) => {
       console.log("Note: Could not set vendor_owner_label:", ownerLabelError.message);
     }
 
-    // STEP 2: Clean up tables that should NOT preserve history (delete rows)
+    // STEP 2: Null out FK references that block deletion (NO ACTION constraints)
+    const nullOutTables = [
+      { table: "admin_users", column: "created_by" },
+      { table: "rep_contact_access_log", column: "actor_user_id" },
+      { table: "vendor_profile", column: "verified_by" },
+      { table: "staff_users", column: "created_by" },
+      { table: "vendor_code_reservations", column: "created_by" },
+      { table: "vendor_staff", column: "invited_by" },
+      { table: "admin_broadcasts", column: "created_by" },
+      { table: "background_checks", column: "reviewed_by_user_id" },
+      { table: "checklist_item_feedback", column: "resolved_by" },
+      { table: "help_center_articles", column: "last_updated_by" },
+    ];
+
+    for (const { table, column } of nullOutTables) {
+      const { error: nullError } = await supabaseAdmin
+        .from(table)
+        .update({ [column]: null })
+        .eq(column, target_user_id);
+      
+      if (nullError) {
+        console.log(`Note: Could not null ${table}.${column}:`, nullError.message);
+      }
+    }
+
+    // STEP 3: Delete rows from admin_users if this user is listed there
+    const { error: adminUserDeleteError } = await supabaseAdmin
+      .from("admin_users")
+      .delete()
+      .eq("user_id", target_user_id);
+    
+    if (adminUserDeleteError) {
+      console.log("Note: Could not delete from admin_users:", adminUserDeleteError.message);
+    }
+
+    // STEP 4: Delete rows from staff_users if this user is listed there  
+    const { error: staffUserDeleteError } = await supabaseAdmin
+      .from("staff_users")
+      .delete()
+      .eq("user_id", target_user_id);
+    
+    if (staffUserDeleteError) {
+      console.log("Note: Could not delete from staff_users:", staffUserDeleteError.message);
+    }
+
+    // STEP 5: Clean up tables that should NOT preserve history (delete rows)
     const deleteFromTables = [
       { table: "connection_notes", column: "author_id" },
       { table: "connection_notes", column: "rep_id" },
