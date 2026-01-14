@@ -979,18 +979,32 @@ export default function AdminUsers() {
                         )}
                         {isColumnVisible("connections") && (
                           <TableCell className="text-center">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="font-medium cursor-help">
-                                    {connectionCounts[userProfile.id] ?? 0}
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Active connections with other ClearMarket users</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            {/* Vendor staff show "—" since connections belong to vendor owner */}
+                            {userProfile.is_vendor_staff && !userProfile.is_vendor_admin ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-muted-foreground cursor-help">—</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Connections belong to the Vendor owner account, not individual staff members.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="font-medium cursor-help">
+                                      {connectionCounts[userProfile.id] ?? 0}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Active connections with other ClearMarket users</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </TableCell>
                         )}
                         {isColumnVisible("trust") && (

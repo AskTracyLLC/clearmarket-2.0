@@ -27,8 +27,9 @@ import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
 interface UserMetrics {
   total: number;
   fieldReps: number;
-  vendors: number;
-  staff: number;
+  vendorAdmins: number;
+  vendorStaff: number;
+  platformStaff: number;
 }
 
 interface ActivationMetrics {
@@ -147,14 +148,20 @@ const AdminMetrics = () => {
       .select("*", { count: "exact", head: true })
       .eq("is_fieldrep", true);
 
-    // Vendors
-    const { count: vendors } = await supabase
+    // Vendor Admins (company owners)
+    const { count: vendorAdmins } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("is_vendor_admin", true);
 
-    // Staff (admin OR moderator OR support)
-    const { count: staff } = await supabase
+    // Vendor Staff (staff members, not owners)
+    const { count: vendorStaff } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("is_vendor_staff", true);
+
+    // Platform Staff (admin OR moderator OR support)
+    const { count: platformStaff } = await supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .or("is_admin.eq.true,is_moderator.eq.true,is_support.eq.true");
@@ -162,8 +169,9 @@ const AdminMetrics = () => {
     setUserMetrics({
       total: total || 0,
       fieldReps: fieldReps || 0,
-      vendors: vendors || 0,
-      staff: staff || 0,
+      vendorAdmins: vendorAdmins || 0,
+      vendorStaff: vendorStaff || 0,
+      platformStaff: platformStaff || 0,
     });
   };
 
@@ -557,7 +565,7 @@ const AdminMetrics = () => {
                 <Users className="w-5 h-5" />
                 Users & Roles
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <MetricCard
                   title="Total Users"
                   value={userMetrics?.total || 0}
@@ -569,13 +577,19 @@ const AdminMetrics = () => {
                   icon={<User className="w-4 h-4" />}
                 />
                 <MetricCard
-                  title="Vendors"
-                  value={userMetrics?.vendors || 0}
+                  title="Vendor Admins"
+                  value={userMetrics?.vendorAdmins || 0}
                   icon={<Building2 className="w-4 h-4" />}
                 />
                 <MetricCard
-                  title="Staff Accounts"
-                  value={userMetrics?.staff || 0}
+                  title="Vendor Staff"
+                  value={userMetrics?.vendorStaff || 0}
+                  icon={<User className="w-4 h-4" />}
+                  subtitle="Company staff members"
+                />
+                <MetricCard
+                  title="Platform Staff"
+                  value={userMetrics?.platformStaff || 0}
                   icon={<Shield className="w-4 h-4" />}
                 />
               </div>

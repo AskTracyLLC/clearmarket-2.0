@@ -42,6 +42,7 @@ import RepShareProfile from "./pages/RepShareProfile";
 import VendorShareProfile from "./pages/VendorShareProfile";
 import VendorShareProfilePage from "./pages/VendorShareProfilePage";
 import VendorStaff from "./pages/VendorStaff";
+import VendorStaffMetrics from "./pages/VendorStaffMetrics";
 import StaffAcceptInvite from "./pages/StaffAcceptInvite";
 import NotFound from "./pages/NotFound";
 import Notifications from "./pages/Notifications";
@@ -205,6 +206,7 @@ const App = () => (
                   <Route path="/rep/reviews" element={<RepReviews />} />
                   <Route path="/vendor/credits" element={<VendorCredits />} />
                   <Route path="/vendor/staff" element={<VendorStaff />} />
+                  <Route path="/vendor/staff-metrics" element={<VendorStaffMetrics />} />
                   <Route path="/vendor/share-profile" element={<VendorShareProfilePage />} />
                   <Route path="/vendor/checklists" element={<VendorChecklists />} />
                   <Route path="/vendor/proposals" element={<VendorProposals />} />
