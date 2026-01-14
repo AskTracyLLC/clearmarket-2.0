@@ -163,13 +163,15 @@ serve(async (req) => {
       console.log(`Created new user ${userId} for staff invite`);
 
       // Create or update profile
+      // Note: Staff are NOT vendor admins - they get is_vendor_staff = true
       const { error: profileError } = await serviceClient
         .from("profiles")
         .upsert({
           id: userId,
           full_name: invite.invited_name,
           email: invite.invited_email,
-          is_vendor_admin: true, // Staff get vendor access
+          is_vendor_staff: true, // Staff flag, NOT vendor admin
+          is_vendor_admin: false,
           active_role: "vendor",
           has_signed_terms: true,
           terms_signed_at: new Date().toISOString(),
@@ -207,12 +209,12 @@ serve(async (req) => {
       });
     }
 
-    // For existing users, also update their profile for vendor access
+    // For existing users, also update their profile for vendor staff access
     if (existingUser) {
       await serviceClient
         .from("profiles")
         .update({
-          is_vendor_admin: true,
+          is_vendor_staff: true, // Staff flag, NOT vendor admin
           active_role: "vendor",
           has_signed_terms: true,
           terms_signed_at: new Date().toISOString(),

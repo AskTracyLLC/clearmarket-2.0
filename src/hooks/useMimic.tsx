@@ -8,6 +8,7 @@ interface MimickedUser {
   email: string;
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
+  is_vendor_staff: boolean;
 }
 
 interface MimicContextType {
@@ -62,7 +63,7 @@ export function MimicProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, is_fieldrep, is_vendor_admin")
+        .select("id, full_name, email, is_fieldrep, is_vendor_admin, is_vendor_staff")
         .eq("id", userId)
         .single();
 
@@ -77,6 +78,7 @@ export function MimicProvider({ children }: { children: ReactNode }) {
           email: data.email,
           is_fieldrep: data.is_fieldrep,
           is_vendor_admin: data.is_vendor_admin,
+          is_vendor_staff: data.is_vendor_staff ?? false,
         });
       }
     } catch (err) {

@@ -10,6 +10,7 @@ interface UseActiveRoleResult {
   isDualRole: boolean;
   isRep: boolean;
   isVendor: boolean;
+  isVendorStaff: boolean;
   effectiveRole: "rep" | "vendor" | null;
   loading: boolean;
   switchRole: (role: "rep" | "vendor") => Promise<void>;
@@ -27,6 +28,7 @@ export function useActiveRole(): UseActiveRoleResult {
   const [activeRole, setActiveRole] = useState<ActiveRole>(null);
   const [isFieldRep, setIsFieldRep] = useState(false);
   const [isVendorAdmin, setIsVendorAdmin] = useState(false);
+  const [isVendorStaff, setIsVendorStaff] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export function useActiveRole(): UseActiveRoleResult {
     if (mimickedUser) {
       setIsFieldRep(mimickedUser.is_fieldrep || false);
       setIsVendorAdmin(mimickedUser.is_vendor_admin || false);
+      setIsVendorStaff(mimickedUser.is_vendor_staff || false);
       setActiveRole(null); // Reset active role, will be determined by flags
       setLoading(false);
       return;
@@ -48,13 +51,14 @@ export function useActiveRole(): UseActiveRoleResult {
       try {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_fieldrep, is_vendor_admin, active_role")
+          .select("is_fieldrep, is_vendor_admin, is_vendor_staff, active_role")
           .eq("id", user.id)
           .single();
 
         if (profile) {
           setIsFieldRep(profile.is_fieldrep || false);
           setIsVendorAdmin(profile.is_vendor_admin || false);
+          setIsVendorStaff(profile.is_vendor_staff || false);
           setActiveRole((profile.active_role as ActiveRole) || null);
         }
       } catch (error) {
@@ -67,6 +71,8 @@ export function useActiveRole(): UseActiveRoleResult {
     loadRoleData();
   }, [user, mimickedUser]);
 
+  // Vendor access = admin OR staff
+  const hasVendorAccess = isVendorAdmin || isVendorStaff;
   const isDualRole = isFieldRep && isVendorAdmin;
 
   // Determine the effective role based on flags and active_role
@@ -76,16 +82,17 @@ export function useActiveRole(): UseActiveRoleResult {
       return activeRole || "rep";
     }
     if (isFieldRep) return "rep";
-    if (isVendorAdmin) return "vendor";
+    // Vendor staff or vendor admin both get "vendor" effective role
+    if (hasVendorAccess) return "vendor";
     return null;
   })();
 
   const switchRole = useCallback(async (role: "rep" | "vendor") => {
     if (!user) return;
     
-    // Guardrail: prevent setting vendor role without is_vendor_admin flag
-    if (role === "vendor" && !isVendorAdmin) {
-      console.error("Cannot switch to vendor role: user is not a vendor admin");
+    // Guardrail: prevent setting vendor role without vendor access (admin or staff)
+    if (role === "vendor" && !hasVendorAccess) {
+      console.error("Cannot switch to vendor role: user does not have vendor access");
       return;
     }
     
@@ -113,13 +120,14 @@ export function useActiveRole(): UseActiveRoleResult {
     } catch (error) {
       console.error("Error switching role:", error);
     }
-  }, [user, isDualRole, isFieldRep, isVendorAdmin]);
+  }, [user, isDualRole, isFieldRep, hasVendorAccess]);
 
   return {
     activeRole,
     isDualRole,
     isRep: isFieldRep,
-    isVendor: isVendorAdmin,
+    isVendor: hasVendorAccess, // Staff or admin = vendor access
+    isVendorStaff,
     effectiveRole,
     loading,
     switchRole,

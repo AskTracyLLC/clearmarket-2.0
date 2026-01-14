@@ -172,7 +172,8 @@ const Dashboard = () => {
       
       // If no role set after signing terms, redirect back to terms with a message
       // The user likely lost the role param somehow
-      if (!isAdmin && !currentUserData.is_fieldrep && !currentUserData.is_vendor_admin) {
+      // Note: is_vendor_staff is a valid role (staff members of a vendor)
+      if (!isAdmin && !currentUserData.is_fieldrep && !currentUserData.is_vendor_admin && !currentUserData.is_vendor_staff) {
         console.error("[Dashboard] User has no role set after signing terms. Redirecting to role selection.");
         // Redirect to a page where they can pick role - for now, send to terms with vendor param
         // In production, we might want a dedicated "pick your role" page
