@@ -69,11 +69,13 @@ export default function VendorMessageTemplates() {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin, is_admin")
+      .select("is_vendor_admin, is_vendor_staff, is_admin")
       .eq("id", user.id)
       .single();
 
-    if (!profile?.is_vendor_admin && !profile?.is_admin) {
+    // Message templates can be accessed by vendor_admin, vendor_staff, or platform admin
+    const canAccess = profile?.is_vendor_admin || profile?.is_vendor_staff || profile?.is_admin;
+    if (!canAccess) {
       toast({
         title: "Access Denied",
         description: "This page is only available to vendors",

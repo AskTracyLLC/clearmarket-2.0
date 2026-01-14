@@ -206,7 +206,9 @@ const VendorProfile = () => {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      if (!profileData.is_vendor_admin && !profileData.is_admin) {
+      // Vendor profile can be accessed by vendor_admin, vendor_staff, or platform admin
+      const canAccess = profileData.is_vendor_admin || profileData.is_vendor_staff || profileData.is_admin;
+      if (!canAccess) {
         toast({
           title: "Access Denied",
           description: "This page is only accessible to Vendors.",

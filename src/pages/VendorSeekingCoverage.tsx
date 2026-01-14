@@ -183,8 +183,9 @@ const VendorSeekingCoverage = () => {
 
     setProfile(profileData);
 
-    // Redirect if not vendor and not admin
-    if (!profileData.is_vendor_admin && !profileData.is_admin) {
+    // Seeking Coverage can be accessed by vendor_admin, vendor_staff, or platform admin
+    const canAccess = profileData.is_vendor_admin || profileData.is_vendor_staff || profileData.is_admin;
+    if (!canAccess) {
       navigate("/dashboard");
       return;
     }
