@@ -54,7 +54,9 @@ export default function VendorStaffMetrics() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isVendorAdmin, setIsVendorAdmin] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isPlatformStaff, setIsPlatformStaff] = useState(false);
+  const [vendorOwnerId, setVendorOwnerId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<"7" | "30">("7");
   const [events, setEvents] = useState<VendorActivityEvent[]>([]);
   const [staffMembers, setStaffMembers] = useState<Map<string, StaffMember>>(new Map());
@@ -72,29 +74,49 @@ export default function VendorStaffMetrics() {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (isVendorAdmin && user) {
+    if (hasAccess && user) {
       loadData();
     }
-  }, [isVendorAdmin, user, dateRange]);
+  }, [hasAccess, user, dateRange, vendorOwnerId, isPlatformStaff]);
 
   const checkAccess = async () => {
     if (!user) return;
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_vendor_admin, is_vendor_staff")
+      .select("is_vendor_admin, is_vendor_staff, is_admin, is_moderator, is_support")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile?.is_vendor_admin) {
+    // Platform staff (admin/mod/support) can view all vendor metrics
+    if (profile?.is_admin || profile?.is_moderator || profile?.is_support) {
+      setIsPlatformStaff(true);
+      setHasAccess(true);
+      setVendorOwnerId(null); // Will show all events
+      return;
+    }
+
+    // Vendor admins can view their own staff metrics
+    if (profile?.is_vendor_admin) {
+      setVendorOwnerId(user.id);
+      setHasAccess(true);
+      return;
+    }
+
+    // Vendor staff cannot view metrics - explicit deny
+    if (profile?.is_vendor_staff) {
       toast.error("Access denied", {
-        description: "Only vendor owners can view staff metrics.",
+        description: "Staff members cannot view team metrics. Contact your vendor admin.",
       });
       navigate("/dashboard");
       return;
     }
 
-    setIsVendorAdmin(true);
+    // All other users denied
+    toast.error("Access denied", {
+      description: "Only vendor owners can view staff metrics.",
+    });
+    navigate("/dashboard");
   };
 
   const loadData = async () => {
@@ -104,14 +126,20 @@ export default function VendorStaffMetrics() {
     try {
       const startDate = subDays(new Date(), parseInt(dateRange)).toISOString();
 
-      // Load activity events for this vendor
-      const { data: eventData, error: eventsError } = await supabase
+      // Load activity events - platform staff sees all, vendor admins see only theirs
+      let query = supabase
         .from("vendor_activity_events")
         .select("*")
-        .eq("vendor_owner_user_id", user.id)
         .gte("created_at", startDate)
         .order("created_at", { ascending: false })
         .limit(100);
+
+      // Filter by vendor owner if not platform staff
+      if (!isPlatformStaff && vendorOwnerId) {
+        query = query.eq("vendor_owner_user_id", vendorOwnerId);
+      }
+
+      const { data: eventData, error: eventsError } = await query;
 
       if (eventsError) {
         console.error("Error loading events:", eventsError);
