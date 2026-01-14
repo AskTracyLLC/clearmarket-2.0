@@ -90,7 +90,7 @@ serve(async (req) => {
     // Get target user info for logging before deletion
     const { data: targetProfile } = await supabaseAdmin
       .from("profiles")
-      .select("email, full_name, is_admin, is_super_admin")
+      .select("email, full_name, is_admin, is_super_admin, is_vendor_admin, staff_anonymous_id, vendor_code")
       .eq("id", target_user_id)
       .single();
 
@@ -112,11 +112,39 @@ serve(async (req) => {
       );
     }
 
-    // Clean up related data that might block deletion
-    // Tables with FK to profiles that may not cascade
-    const cleanupTables = [
-      { table: "vendor_activity_events", column: "actor_user_id" },
-      { table: "vendor_activity_events", column: "vendor_owner_user_id" },
+    // Build a label for audit snapshot before deletion
+    const userLabel = targetProfile?.staff_anonymous_id 
+      || targetProfile?.vendor_code 
+      || targetProfile?.full_name 
+      || targetProfile?.email 
+      || `User#${target_user_id.slice(0, 8)}`;
+
+    console.log("User label for audit snapshot:", userLabel);
+
+    // STEP 1: Update audit tables with snapshot labels BEFORE nulling user IDs
+    // This preserves "who did what" after the user is deleted
+    const { error: actorLabelError } = await supabaseAdmin
+      .from("vendor_activity_events")
+      .update({ actor_label: userLabel })
+      .eq("actor_user_id", target_user_id)
+      .is("actor_label", null);
+    
+    if (actorLabelError) {
+      console.log("Note: Could not set actor_label:", actorLabelError.message);
+    }
+
+    const { error: ownerLabelError } = await supabaseAdmin
+      .from("vendor_activity_events")
+      .update({ vendor_owner_label: userLabel })
+      .eq("vendor_owner_user_id", target_user_id)
+      .is("vendor_owner_label", null);
+    
+    if (ownerLabelError) {
+      console.log("Note: Could not set vendor_owner_label:", ownerLabelError.message);
+    }
+
+    // STEP 2: Clean up tables that should NOT preserve history (delete rows)
+    const deleteFromTables = [
       { table: "connection_notes", column: "author_id" },
       { table: "connection_notes", column: "rep_id" },
       { table: "connection_notes", column: "vendor_id" },
@@ -126,7 +154,7 @@ serve(async (req) => {
       { table: "admin_broadcast_feedback", column: "user_id" },
     ];
 
-    for (const { table, column } of cleanupTables) {
+    for (const { table, column } of deleteFromTables) {
       const { error: cleanupError } = await supabaseAdmin
         .from(table)
         .delete()
@@ -134,17 +162,21 @@ serve(async (req) => {
       
       if (cleanupError) {
         console.log(`Note: Could not clean ${table}.${column}:`, cleanupError.message);
-        // Continue - table might not exist or already be empty
       }
     }
 
-    // Delete the user from auth.users (cascades to profiles due to FK)
+    // STEP 3: Delete the user from auth.users
+    // FKs with ON DELETE SET NULL will automatically null out vendor_activity_events references
+    // FKs with ON DELETE CASCADE will remove profiles row
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(target_user_id);
 
     if (deleteError) {
       console.error("Failed to delete user:", deleteError);
       return new Response(
-        JSON.stringify({ error: `Failed to delete user: ${deleteError.message}` }),
+        JSON.stringify({ 
+          error: `Failed to delete user: ${deleteError.message}`,
+          hint: "There may be additional FK constraints blocking deletion. Check database logs."
+        }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -26,7 +26,10 @@ import type { Json } from "@/integrations/supabase/types";
 
 interface VendorActivityEvent {
   id: string;
-  actor_user_id: string;
+  actor_user_id: string | null;
+  actor_label: string | null;
+  vendor_owner_user_id: string | null;
+  vendor_owner_label: string | null;
   action: string;
   target_type: string | null;
   target_id: string | null;
@@ -147,10 +150,14 @@ export default function VendorStaffMetrics() {
 
       setEvents(eventData || []);
 
-      // Get unique actor IDs
-      const actorIds = [...new Set((eventData || []).map((e) => e.actor_user_id))];
+      // Get unique actor IDs (filter out nulls for deleted users)
+      const actorIds = [...new Set((eventData || [])
+        .map((e) => e.actor_user_id)
+        .filter((id): id is string => id !== null))];
 
       // Load staff info for all actors
+      const staffMap = new Map<string, StaffMember>();
+      
       if (actorIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
@@ -161,8 +168,6 @@ export default function VendorStaffMetrics() {
           .from("vendor_staff")
           .select("staff_user_id, staff_code")
           .in("staff_user_id", actorIds);
-
-        const staffMap = new Map<string, StaffMember>();
 
         profiles?.forEach((p) => {
           const staffRecord = vendorStaff?.find((vs) => vs.staff_user_id === p.id);
@@ -181,43 +186,48 @@ export default function VendorStaffMetrics() {
             staffCode: "Owner",
           });
         }
-
-        setStaffMembers(staffMap);
-
-        // Compute metrics per staff member
-        const metricsMap = new Map<string, StaffMetricsSummary>();
-
-        (eventData || []).forEach((event) => {
-          const actor = staffMap.get(event.actor_user_id);
-          if (!actor) return;
-
-          if (!metricsMap.has(event.actor_user_id)) {
-            metricsMap.set(event.actor_user_id, {
-              userId: event.actor_user_id,
-              name: actor.name,
-              staffCode: actor.staffCode,
-              totalActions: 0,
-              invitesSent: 0,
-              invitesAccepted: 0,
-              unlocks: 0,
-            });
-          }
-
-          const metrics = metricsMap.get(event.actor_user_id)!;
-          metrics.totalActions++;
-
-          // Handle both old format (vendor_staff.invited) and new format (staff_invite_sent)
-          if (event.action === "staff_invite_sent" || event.action === "vendor_staff.invited") {
-            metrics.invitesSent++;
-          } else if (event.action === "staff_invite_accepted" || event.action === "vendor_staff.invite_accepted") {
-            metrics.invitesAccepted++;
-          } else if (event.action === "rep_contact_unlocked") {
-            metrics.unlocks++;
-          }
-        });
-
-        setStaffMetrics(Array.from(metricsMap.values()).sort((a, b) => b.totalActions - a.totalActions));
       }
+
+      setStaffMembers(staffMap);
+
+      // Compute metrics per staff member (handle deleted users via actor_label)
+      const metricsMap = new Map<string, StaffMetricsSummary>();
+
+      (eventData || []).forEach((event) => {
+        // Use actor_user_id if available, otherwise use actor_label as key
+        const actorKey = event.actor_user_id || `deleted:${event.actor_label || 'unknown'}`;
+        const actor = event.actor_user_id ? staffMap.get(event.actor_user_id) : null;
+        
+        // Determine display name: profile > actor_label > "Deleted User"
+        const displayName = actor?.name || event.actor_label || "Deleted User";
+        const displayCode = actor?.staffCode || event.actor_label || "—";
+
+        if (!metricsMap.has(actorKey)) {
+          metricsMap.set(actorKey, {
+            userId: actorKey,
+            name: displayName,
+            staffCode: displayCode,
+            totalActions: 0,
+            invitesSent: 0,
+            invitesAccepted: 0,
+            unlocks: 0,
+          });
+        }
+
+        const metrics = metricsMap.get(actorKey)!;
+        metrics.totalActions++;
+
+        // Handle both old format (vendor_staff.invited) and new format (staff_invite_sent)
+        if (event.action === "staff_invite_sent" || event.action === "vendor_staff.invited") {
+          metrics.invitesSent++;
+        } else if (event.action === "staff_invite_accepted" || event.action === "vendor_staff.invite_accepted") {
+          metrics.invitesAccepted++;
+        } else if (event.action === "rep_contact_unlocked") {
+          metrics.unlocks++;
+        }
+      });
+
+      setStaffMetrics(Array.from(metricsMap.values()).sort((a, b) => b.totalActions - a.totalActions));
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load metrics");
@@ -392,13 +402,14 @@ export default function VendorStaffMetrics() {
               ) : (
                 <div className="space-y-3">
                   {events.slice(0, 20).map((event) => {
-                    const actor = staffMembers.get(event.actor_user_id);
+                    const actor = event.actor_user_id ? staffMembers.get(event.actor_user_id) : null;
+                    const actorName = actor?.name || event.actor_label || "Deleted User";
                     return (
                       <div key={event.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
                         <div className="mt-0.5">{getActionIcon(event.action)}</div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm">
-                            <span className="font-medium">{actor?.name || "Unknown"}</span>
+                            <span className="font-medium">{actorName}</span>
                             {" · "}
                             <span className="text-muted-foreground">{formatAction(event.action)}</span>
                           </p>
