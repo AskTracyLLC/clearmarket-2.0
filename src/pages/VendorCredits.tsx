@@ -68,7 +68,9 @@ const VendorCredits = () => {
       .eq("id", user.id)
       .single();
 
-    if (!profileData?.is_vendor_admin && !profileData?.is_admin) {
+    // Credits/billing page is vendor admin only (staff cannot manage billing)
+    const canAccess = profileData?.is_vendor_admin || profileData?.is_admin;
+    if (!canAccess) {
       navigate("/dashboard");
       return;
     }

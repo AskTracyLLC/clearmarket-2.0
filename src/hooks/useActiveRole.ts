@@ -10,6 +10,7 @@ interface UseActiveRoleResult {
   isDualRole: boolean;
   isRep: boolean;
   isVendor: boolean;
+  isVendorAdmin: boolean;
   isVendorStaff: boolean;
   effectiveRole: "rep" | "vendor" | null;
   loading: boolean;
@@ -127,6 +128,7 @@ export function useActiveRole(): UseActiveRoleResult {
     isDualRole,
     isRep: isFieldRep,
     isVendor: hasVendorAccess, // Staff or admin = vendor access
+    isVendorAdmin,
     isVendorStaff,
     effectiveRole,
     loading,
