@@ -104,11 +104,36 @@ serve(async (req) => {
       });
     }
 
-    // Return invite details (only name and email, nothing sensitive)
+    // Fetch vendor details for display
+    const { data: vendorStaff } = await serviceClient
+      .from("vendor_staff")
+      .select("vendor_id, role")
+      .eq("id", inviteId)
+      .single();
+
+    let vendorName = "";
+    let vendorCode = "";
+    
+    if (vendorStaff?.vendor_id) {
+      const { data: vendorProfile } = await serviceClient
+        .from("vendor_profile")
+        .select("company_name, vendor_public_code")
+        .eq("id", vendorStaff.vendor_id)
+        .single();
+      
+      vendorName = vendorProfile?.company_name || "";
+      vendorCode = vendorProfile?.vendor_public_code || "";
+    }
+
+    // Return invite details (only name, email, and vendor info - nothing sensitive)
     return new Response(JSON.stringify({
       success: true,
       full_name: invite.invited_name,
       email: invite.invited_email,
+      vendor_name: vendorName,
+      vendor_code: vendorCode,
+      role: vendorStaff?.role || "staff",
+      expires_at: invite.invite_token_expires_at,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
