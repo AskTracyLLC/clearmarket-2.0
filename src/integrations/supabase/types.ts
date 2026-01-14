@@ -7142,6 +7142,14 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      has_vendor_access_by_owner: {
+        Args: { p_owner_user_id: string }
+        Returns: boolean
+      }
+      has_vendor_access_by_profile: {
+        Args: { p_vendor_profile_id: string }
+        Returns: boolean
+      }
       is_admin_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
       is_platform_admin: { Args: { p_user_id: string }; Returns: boolean }
@@ -7153,6 +7161,10 @@ export type Database = {
       }
       is_vendor_staff_admin: {
         Args: { p_user_id: string; p_vendor_id: string }
+        Returns: boolean
+      }
+      is_vendor_staff_for_vendor: {
+        Args: { p_staff_user_id: string; p_vendor_profile_id: string }
         Returns: boolean
       }
       is_vendor_staff_member: {
