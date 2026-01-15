@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, User, HelpCircle, ChevronDown } from "lucide-react";
+import { Building2, User, HelpCircle, BookOpen } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Accordion,
@@ -115,8 +115,12 @@ export default function DemoSelector() {
             </Accordion>
           </div>
 
-          {/* Back to home */}
-          <div className="pt-8">
+          {/* Help Center & Back to home */}
+          <div className="pt-8 flex flex-col items-center gap-4">
+            <Link to="/help" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80">
+              <BookOpen className="h-4 w-4" />
+              View Help Center
+            </Link>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
               ← Back to home
             </Link>
