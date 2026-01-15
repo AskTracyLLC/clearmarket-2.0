@@ -1,4 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  VENDOR_BETA_ONBOARDING_TEMPLATE_ID,
+  isSharedVendorOnboardingTemplate,
+  isVendorStaff,
+} from "@/lib/checklistOwnerResolver";
 
 export interface ChecklistTemplate {
   id: string;
@@ -31,7 +36,7 @@ export interface UserChecklistItem {
   item_id: string;
   status: 'pending' | 'completed';
   completed_at: string | null;
-  completed_by: 'system' | 'user' | null;
+  completed_by: 'system' | 'user' | string | null;
   created_at: string;
   updated_at: string;
   // Joined data
@@ -108,6 +113,62 @@ export async function loadUserChecklists(
     return [];
   }
 
+  return buildChecklistProgress(supabase, assignments);
+}
+
+/**
+ * Load user's checklists with special handling for vendor onboarding (shared between owner and staff)
+ */
+export async function loadUserChecklistsForVendorOnboarding(
+  supabase: SupabaseClient,
+  currentUserId: string,
+  resolvedOwnerUserId: string
+): Promise<ChecklistProgress[]> {
+  // Load assignments for current user (non-vendor-onboarding templates)
+  const { data: userAssignments, error: userAssignError } = await supabase
+    .from("user_checklist_assignments")
+    .select(`
+      *,
+      template:checklist_templates(*)
+    `)
+    .eq("user_id", currentUserId)
+    .neq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID);
+
+  if (userAssignError) {
+    console.error("Error loading user checklist assignments:", userAssignError);
+  }
+
+  // Load vendor onboarding from owner (shared)
+  const { data: ownerOnboardingAssignment, error: ownerAssignError } = await supabase
+    .from("user_checklist_assignments")
+    .select(`
+      *,
+      template:checklist_templates(*)
+    `)
+    .eq("user_id", resolvedOwnerUserId)
+    .eq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID)
+    .maybeSingle();
+
+  if (ownerAssignError) {
+    console.error("Error loading vendor onboarding assignment:", ownerAssignError);
+  }
+
+  // Combine assignments
+  const allAssignments = [
+    ...(userAssignments || []),
+    ...(ownerOnboardingAssignment ? [ownerOnboardingAssignment] : []),
+  ];
+
+  return buildChecklistProgress(supabase, allAssignments);
+}
+
+/**
+ * Build ChecklistProgress objects from raw assignments
+ */
+async function buildChecklistProgress(
+  supabase: SupabaseClient,
+  assignments: Array<UserChecklistAssignment & { template: ChecklistTemplate | null }>
+): Promise<ChecklistProgress[]> {
   const results: ChecklistProgress[] = [];
 
   for (const assignment of assignments) {
@@ -172,17 +233,19 @@ export async function loadUserChecklists(
 
 /**
  * Mark a checklist item as completed manually
+ * Now accepts completedByUserId for audit trail (who actually completed it)
  */
 export async function completeChecklistItem(
   supabase: SupabaseClient,
-  userItemId: string
+  userItemId: string,
+  completedByUserId?: string
 ): Promise<boolean> {
   const { error } = await supabase
     .from("user_checklist_items")
     .update({
       status: "completed",
       completed_at: new Date().toISOString(),
-      completed_by: "user",
+      completed_by: completedByUserId || "user",
     })
     .eq("id", userItemId);
 
@@ -191,12 +254,16 @@ export async function completeChecklistItem(
 
 /**
  * Complete a checklist item by auto_track_key (called when events occur)
+ * Now accepts completedByUserId for audit trail
  */
 export async function completeChecklistByKey(
   supabase: SupabaseClient,
   userId: string,
-  autoTrackKey: string
+  autoTrackKey: string,
+  completedByUserId?: string
 ): Promise<void> {
+  // Note: The RPC doesn't support completed_by param yet, but we pass userId as target
+  // The RPC will mark completed_by as 'system' - consider updating RPC if audit needed
   await supabase.rpc("complete_checklist_item_by_key", {
     p_user_id: userId,
     p_auto_track_key: autoTrackKey,
@@ -204,13 +271,75 @@ export async function completeChecklistByKey(
 }
 
 /**
+ * Ensure vendor owner has the vendor beta onboarding checklist assigned
+ * Used when staff accesses checklist before owner has been assigned
+ */
+export async function ensureVendorOwnerHasOnboarding(
+  supabase: SupabaseClient,
+  ownerUserId: string
+): Promise<void> {
+  // Check if owner already has the assignment
+  const { data: existing } = await supabase
+    .from("user_checklist_assignments")
+    .select("id")
+    .eq("user_id", ownerUserId)
+    .eq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID)
+    .maybeSingle();
+
+  if (existing) return; // Already assigned
+
+  // Create assignment for owner
+  const { data: assignment, error: assignError } = await supabase
+    .from("user_checklist_assignments")
+    .insert({
+      user_id: ownerUserId,
+      template_id: VENDOR_BETA_ONBOARDING_TEMPLATE_ID,
+    })
+    .select("id")
+    .single();
+
+  if (assignError || !assignment) {
+    console.error("Error creating vendor onboarding assignment for owner:", assignError);
+    return;
+  }
+
+  // Create user_checklist_items for the template
+  const { data: templateItems } = await supabase
+    .from("checklist_items")
+    .select("id, auto_track_key")
+    .eq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID);
+
+  if (templateItems && templateItems.length > 0) {
+    const userItems = templateItems.map(item => ({
+      assignment_id: assignment.id,
+      item_id: item.id,
+    }));
+
+    await supabase.from("user_checklist_items").insert(userItems);
+  }
+}
+
+/**
  * Assign default checklists to a new user based on their role
+ * For vendor staff, skips the vendor onboarding template (uses owner's)
  */
 export async function assignDefaultChecklists(
   supabase: SupabaseClient,
   userId: string,
   role: "field_rep" | "vendor"
 ): Promise<void> {
+  // Check if user is vendor staff
+  const userIsStaff = role === "vendor" && await isVendorStaff(supabase, userId);
+  
+  if (userIsStaff) {
+    // For vendor staff, don't assign vendor onboarding - they use owner's
+    // We can still assign other vendor checklists if any exist
+    // For now, just return - staff will load owner's onboarding via loadUserChecklistsForVendorOnboarding
+    console.log(`[assignDefaultChecklists] Skipping vendor onboarding for staff user ${userId}`);
+    return;
+  }
+  
+  // Normal assignment for non-staff users
   await supabase.rpc("assign_default_checklists", {
     p_user_id: userId,
     p_role: role,

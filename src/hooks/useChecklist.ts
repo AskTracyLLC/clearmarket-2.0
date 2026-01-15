@@ -10,7 +10,14 @@ import {
   assignDefaultChecklists,
   syncAutoTrackedItems,
   ChecklistProgress,
+  loadUserChecklistsForVendorOnboarding,
+  ensureVendorOwnerHasOnboarding,
 } from "@/lib/checklists";
+import {
+  resolveVendorChecklistOwnerUserId,
+  VENDOR_BETA_ONBOARDING_TEMPLATE_ID,
+  isVendorStaff,
+} from "@/lib/checklistOwnerResolver";
 
 export function useChecklist() {
   const { user } = useAuth();
@@ -19,6 +26,7 @@ export function useChecklist() {
   const [checklists, setChecklists] = useState<ChecklistProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const hasSyncedRef = useRef(false);
+  const resolvedOwnerIdRef = useRef<string | null>(null);
 
   const loadChecklists = useCallback(async () => {
     if (!effectiveUserId) {
@@ -28,18 +36,41 @@ export function useChecklist() {
     }
 
     setLoading(true);
-    const data = await loadUserChecklists(supabase, effectiveUserId);
+
+    // For vendor role, resolve the owner user_id for shared onboarding checklist
+    let resolvedOwnerId = effectiveUserId;
+    if (effectiveRole === "vendor") {
+      resolvedOwnerId = await resolveVendorChecklistOwnerUserId(supabase, effectiveUserId);
+      resolvedOwnerIdRef.current = resolvedOwnerId;
+    }
+
+    // Load checklists - use resolved owner for vendor onboarding
+    const data = await loadUserChecklistsForVendorOnboarding(supabase, effectiveUserId, resolvedOwnerId);
     
     // If no checklists assigned yet, try to assign defaults (only for real user, not mimic)
     if (data.length === 0 && effectiveRole && effectiveUserId === user?.id) {
       const role = effectiveRole === "rep" ? "field_rep" : "vendor";
-      await assignDefaultChecklists(supabase, effectiveUserId, role);
+      
+      // For vendor role, check if user is staff - if so, ensure owner has the assignment
+      if (role === "vendor") {
+        const isStaff = await isVendorStaff(supabase, effectiveUserId);
+        if (isStaff && resolvedOwnerId !== effectiveUserId) {
+          // Ensure owner has the vendor onboarding assignment
+          await ensureVendorOwnerHasOnboarding(supabase, resolvedOwnerId);
+        } else {
+          // Owner - assign defaults normally
+          await assignDefaultChecklists(supabase, effectiveUserId, role);
+        }
+      } else {
+        // Field rep - assign defaults normally
+        await assignDefaultChecklists(supabase, effectiveUserId, role);
+      }
       
       // Run sync for auto-tracked items immediately after assignment
-      await syncAutoTrackedItems(supabase, effectiveUserId);
+      await syncAutoTrackedItems(supabase, resolvedOwnerId);
       
       // Reload after assignment and sync
-      const newData = await loadUserChecklists(supabase, effectiveUserId);
+      const newData = await loadUserChecklistsForVendorOnboarding(supabase, effectiveUserId, resolvedOwnerId);
       setChecklists(newData);
       hasSyncedRef.current = true;
     } else {
@@ -48,10 +79,10 @@ export function useChecklist() {
       // Run sync once on first load if we haven't already (only for real user)
       if (!hasSyncedRef.current && data.length > 0 && effectiveUserId === user?.id) {
         hasSyncedRef.current = true;
-        const syncedCount = await syncAutoTrackedItems(supabase, effectiveUserId);
+        const syncedCount = await syncAutoTrackedItems(supabase, resolvedOwnerId);
         if (syncedCount > 0) {
           // Reload to show updated status
-          const updatedData = await loadUserChecklists(supabase, effectiveUserId);
+          const updatedData = await loadUserChecklistsForVendorOnboarding(supabase, effectiveUserId, resolvedOwnerId);
           setChecklists(updatedData);
         }
       }
@@ -67,19 +98,25 @@ export function useChecklist() {
   // Reset sync flag when effective user changes
   useEffect(() => {
     hasSyncedRef.current = false;
+    resolvedOwnerIdRef.current = null;
   }, [effectiveUserId]);
 
   const markComplete = useCallback(async (userItemId: string) => {
-    const success = await completeChecklistItem(supabase, userItemId);
+    // Get the actual logged-in user for completed_by attribution
+    const completedByUserId = effectiveUserId || user?.id;
+    const success = await completeChecklistItem(supabase, userItemId, completedByUserId);
     if (success) {
       await loadChecklists();
     }
     return success;
-  }, [loadChecklists]);
+  }, [loadChecklists, effectiveUserId, user?.id]);
 
   const trackEvent = useCallback(async (autoTrackKey: string) => {
     if (!effectiveUserId) return;
-    await completeChecklistByKey(supabase, effectiveUserId, autoTrackKey);
+    
+    // For vendor onboarding events, use the resolved owner ID
+    const targetUserId = resolvedOwnerIdRef.current || effectiveUserId;
+    await completeChecklistByKey(supabase, targetUserId, autoTrackKey, effectiveUserId);
     await loadChecklists();
   }, [effectiveUserId, loadChecklists]);
 
