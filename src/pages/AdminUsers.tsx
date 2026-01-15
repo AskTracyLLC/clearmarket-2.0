@@ -89,6 +89,7 @@ interface UserProfile {
   community_score: number;
   last_seen_at: string | null;
   staff_anonymous_id: string | null;
+  anonymous_id: string | null;
 }
 
 interface RepProfile {
@@ -201,7 +202,7 @@ export default function AdminUsers() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load profiles
+      // Load profiles - anonymous_id is now sourced from profiles table
       const { data: profiles, error } = await supabase
         .from("profiles")
         .select(`
@@ -219,7 +220,8 @@ export default function AdminUsers() {
           deactivated_reason,
           community_score,
           last_seen_at,
-          staff_anonymous_id
+          staff_anonymous_id,
+          anonymous_id
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -657,6 +659,9 @@ export default function AdminUsers() {
     if (userProfile.staff_anonymous_id) return userProfile.staff_anonymous_id;
     // Vendor staff fallback to staff_code from vendor_staff table
     if (vendorStaffCodes[userProfile.id]) return vendorStaffCodes[userProfile.id];
+    // Primary source: profiles.anonymous_id (source of truth)
+    if (userProfile.anonymous_id) return userProfile.anonymous_id;
+    // Legacy fallback (can be removed after transition)
     if (repProfiles[userProfile.id]) return repProfiles[userProfile.id];
     if (vendorProfiles[userProfile.id]?.anonymousId) return vendorProfiles[userProfile.id].anonymousId;
     return "—";

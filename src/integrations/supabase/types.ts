@@ -2459,6 +2459,7 @@ export type Database = {
         Row: {
           account_status: string
           active_role: string | null
+          anonymous_id: string | null
           community_score: number
           community_score_last_calculated: string | null
           created_at: string
@@ -2466,6 +2467,7 @@ export type Database = {
           deactivated_reason: string | null
           email: string
           email_opt_in_admin_updates: boolean
+          first_dashboard_accessed_at: string | null
           full_name: string | null
           has_signed_terms: boolean
           id: string
@@ -2493,6 +2495,7 @@ export type Database = {
         Insert: {
           account_status?: string
           active_role?: string | null
+          anonymous_id?: string | null
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string
@@ -2500,6 +2503,7 @@ export type Database = {
           deactivated_reason?: string | null
           email: string
           email_opt_in_admin_updates?: boolean
+          first_dashboard_accessed_at?: string | null
           full_name?: string | null
           has_signed_terms?: boolean
           id: string
@@ -2527,6 +2531,7 @@ export type Database = {
         Update: {
           account_status?: string
           active_role?: string | null
+          anonymous_id?: string | null
           community_score?: number
           community_score_last_calculated?: string | null
           created_at?: string
@@ -2534,6 +2539,7 @@ export type Database = {
           deactivated_reason?: string | null
           email?: string
           email_opt_in_admin_updates?: boolean
+          first_dashboard_accessed_at?: string | null
           full_name?: string | null
           has_signed_terms?: boolean
           id?: string
@@ -7168,6 +7174,10 @@ export type Database = {
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean
+      }
+      ensure_anon_id_after_terms_and_dashboard: {
+        Args: never
+        Returns: undefined
       }
       generate_vendor_staff_code: {
         Args: { p_name: string; p_vendor_id: string }
