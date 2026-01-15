@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,20 +51,15 @@ import { communityCopy } from "@/copy/communityCopy";
 import { checkRateLimit, getRateLimitMessage } from "@/lib/rateLimit";
 import {
   MessageSquare,
-  Bell,
-  ShieldAlert,
-  Briefcase,
   ArrowLeft,
   Eye,
   Edit,
-  Users,
   Lock,
   BellRing,
   Award,
   HelpCircle,
   EyeOff,
   Trash2,
-  Shield,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -246,13 +241,6 @@ const CommunityPostDetail = () => {
     return 2;
   };
 
-  // Get the reply target - if replying to a level 2 comment, reply to its parent instead
-  const getReplyTargetId = (comment: CommunityComment): string => {
-    const level = getCommentLevel(comment);
-    if (level < 2) return comment.id;
-    // Level 2 - reply to parent instead
-    return comment.parent_comment_id || comment.id;
-  };
 
   // Organize comments into tree structure
   const getThreadedComments = () => {
