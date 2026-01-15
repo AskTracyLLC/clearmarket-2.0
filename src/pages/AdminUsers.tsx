@@ -506,10 +506,14 @@ export default function AdminUsers() {
     }
   };
 
+  // State to hold last delete error debug payload for copy functionality
+  const [lastDeleteDebug, setLastDeleteDebug] = useState<Record<string, unknown> | null>(null);
+
   const handleDeleteUser = async () => {
     if (!deleteDialog.user || !user) return;
 
     setActionLoading(deleteDialog.user.id);
+    setLastDeleteDebug(null);
     const targetUser = deleteDialog.user;
 
     try {
@@ -536,11 +540,48 @@ export default function AdminUsers() {
       // Handle success:false responses (now returns 200)
       if (data?.success === false) {
         console.error("admin-delete-user returned success:false:", data);
-        const step = data.step ? ` (step: ${data.step})` : "";
-        const blockers = Array.isArray(data.fkBlockers) && data.fkBlockers.length
-          ? ` Blockers: ${data.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
+        
+        // Store full debug payload for copy functionality
+        setLastDeleteDebug(data);
+
+        // Build descriptive error message
+        const step = data.step ? ` at step: ${data.step}` : "";
+        const profileBlockerCount = Array.isArray(data.fkBlockers) ? data.fkBlockers.length : 0;
+        const authBlockerCount = Array.isArray(data.authFkBlockers) ? data.authFkBlockers.length : 0;
+        
+        let blockerSummary = "";
+        if (profileBlockerCount > 0 || authBlockerCount > 0) {
+          blockerSummary = ` [Profile blockers: ${profileBlockerCount}, Auth blockers: ${authBlockerCount}]`;
+        }
+
+        const blockerDetails = Array.isArray(data.fkBlockers) && data.fkBlockers.length
+          ? `\nBlockers: ${data.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
           : "";
-        throw new Error(`${data.error?.message || data.error || "Delete failed"}${step}${blockers}`);
+
+        const errorMessage = `${data.error?.message || data.error || "Delete failed"}${step}${blockerSummary}${blockerDetails}`;
+        
+        // Show toast with copy button
+        toast.error("Failed to delete user", {
+          description: (
+            <div className="space-y-2">
+              <p className="text-sm">{errorMessage}</p>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                  toast.success("Debug payload copied to clipboard");
+                }}
+                className="text-xs underline hover:no-underline text-muted-foreground"
+              >
+                Copy debug payload
+              </button>
+            </div>
+          ),
+          duration: 15000,
+        });
+        
+        setActionLoading(null);
+        // Keep dialog open so user can see error and copy debug
+        return;
       }
 
       // Remove user from local state
@@ -549,6 +590,9 @@ export default function AdminUsers() {
       toast.success("User deleted", {
         description: `${targetUser.email || getAnonymousId(targetUser)} has been permanently deleted.`,
       });
+      
+      setDeleteDialog({ open: false, user: null });
+      setDeleteReason("");
     } catch (err: any) {
       // ✅ Immediate visibility into non-2xx function responses
       if (err instanceof FunctionsHttpError) {
@@ -558,22 +602,44 @@ export default function AdminUsers() {
         console.error("admin-delete-user HTTP status:", res?.status);
         console.error("admin-delete-user raw body:", bodyText);
 
+        let parsedError = null;
         try {
-          console.error("admin-delete-user parsed:", bodyText ? JSON.parse(bodyText) : null);
+          parsedError = bodyText ? JSON.parse(bodyText) : null;
+          console.error("admin-delete-user parsed:", parsedError);
+          if (parsedError) {
+            setLastDeleteDebug(parsedError);
+          }
         } catch {
           // ignore
         }
+
+        toast.error("Failed to delete user", {
+          description: (
+            <div className="space-y-2">
+              <p className="text-sm">{err?.message || "HTTP error from delete function"}</p>
+              {parsedError && (
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(parsedError, null, 2));
+                    toast.success("Debug payload copied to clipboard");
+                  }}
+                  className="text-xs underline hover:no-underline text-muted-foreground"
+                >
+                  Copy debug payload
+                </button>
+              )}
+            </div>
+          ),
+          duration: 15000,
+        });
       } else {
         console.error("Delete user error:", err);
+        toast.error("Failed to delete user", {
+          description: err?.message,
+        });
       }
-
-      toast.error("Failed to delete user", {
-        description: err?.message,
-      });
     } finally {
       setActionLoading(null);
-      setDeleteDialog({ open: false, user: null });
-      setDeleteReason("");
     }
   };
 

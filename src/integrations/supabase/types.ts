@@ -7177,6 +7177,17 @@ export type Database = {
         Args: { p_vendor_id: string }
         Returns: Json
       }
+      get_auth_user_fk_blockers: {
+        Args: { p_user_id: string }
+        Returns: {
+          column_name: string
+          constraint_name: string
+          match_count: number
+          on_delete: string
+          schema_name: string
+          table_name: string
+        }[]
+      }
       get_contact_access_abuse_flags: {
         Args: never
         Returns: {
@@ -7187,6 +7198,17 @@ export type Database = {
           unique_reps_24h: number
           vendor_code: string
           vendor_user_id: string
+        }[]
+      }
+      get_profile_fk_blockers: {
+        Args: { p_profile_id: string }
+        Returns: {
+          column_name: string
+          constraint_name: string
+          match_count: number
+          on_delete: string
+          schema_name: string
+          table_name: string
         }[]
       }
       get_rep_contact_access_metrics: {
