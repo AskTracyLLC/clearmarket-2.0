@@ -4634,7 +4634,7 @@ export type Database = {
           county_id: string | null
           county_name: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           decline_reason: string | null
           effective_date: string
           id: string
@@ -4662,7 +4662,7 @@ export type Database = {
           county_id?: string | null
           county_name?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           decline_reason?: string | null
           effective_date?: string
           id?: string
@@ -4690,7 +4690,7 @@ export type Database = {
           county_id?: string | null
           county_name?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           decline_reason?: string | null
           effective_date?: string
           id?: string
