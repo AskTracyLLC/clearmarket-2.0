@@ -5,19 +5,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search, HelpCircle, CreditCard, Shield, MessageCircle, Rocket, UserCog, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, HelpCircle, CreditCard, Shield, MessageCircle, Rocket, UserCog, Loader2, Users, MapPin, Star, Handshake, Lock, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 // Category configuration with icons and labels
 const CATEGORY_CONFIG: Record<string, { label: string; icon: React.ComponentType<any> }> = {
   getting_started: { label: "Getting Started", icon: Rocket },
-  accounts_access: { label: "Accounts & Access", icon: UserCog },
+  platform_purpose: { label: "Platform Purpose", icon: HelpCircle },
+  accounts_roles: { label: "Accounts & Roles", icon: UserCog },
+  profiles: { label: "Profiles", icon: Users },
+  discovery_matching: { label: "Discovery & Matching", icon: MapPin },
+  connections_privacy: { label: "Connections & Privacy", icon: Lock },
+  trust_reviews: { label: "Trust & Reviews", icon: Star },
+  community: { label: "Community Board", icon: Handshake },
   credits_billing: { label: "Credits & Billing", icon: CreditCard },
-  safety_support: { label: "Safety & Support", icon: Shield },
+  safety_support: { label: "Policies & Support", icon: Shield },
+  coming_soon: { label: "Coming Soon", icon: Bell },
 };
 
-const CATEGORY_ORDER = ["getting_started", "accounts_access", "credits_billing", "safety_support"] as const;
+const CATEGORY_ORDER = [
+  "getting_started",
+  "platform_purpose", 
+  "accounts_roles",
+  "profiles",
+  "discovery_matching",
+  "connections_privacy",
+  "trust_reviews",
+  "community",
+  "credits_billing",
+  "safety_support",
+  "coming_soon"
+] as const;
 
 // Static fallback FAQ content (kept for safety if DB is empty)
 const STATIC_FAQ = {
@@ -41,14 +60,44 @@ const STATIC_FAQ = {
         id: "get-started-vendor",
         question: "How do I get started as a Vendor?",
         answer:
-          "1. Create your account and select the Vendor role.\n2. Complete your Vendor Profile (company details, coverage, inspection types).\n3. Add the systems/platforms you use so reps know what to expect.\n4. Purchase credits if you plan to use credit-based features.\n5. Search for Field Reps in your coverage gaps or post Seeking Coverage (when available) and reach out directly.\n\nAll work agreements and pricing are handled directly between you and the Field Rep."
+          "1. Create your account and select the Vendor role.\n2. Complete your Vendor Profile (company details, coverage, inspection types).\n3. Add the systems/platforms you use so reps know what to expect.\n4. Purchase credits if you plan to use credit-based features.\n5. Search for Field Reps in your coverage gaps or post Seeking Coverage and reach out directly.\n\nAll work agreements and pricing are handled directly between you and the Field Rep."
+      },
+      {
+        id: "help-center-goal",
+        question: "What is the Help Center for?",
+        answer:
+          "The Help Center exists to help you get the best ClearMarket experience — with clear guidance, fewer mistakes, and better outcomes.\n\nYou can search for answers, browse by category, or contact Support if you need additional help."
       }
     ]
   },
-  accounts_access: {
-    label: "Accounts & Access",
+  platform_purpose: {
+    label: "Platform Purpose",
+    icon: HelpCircle,
+    items: [
+      {
+        id: "what-clearmarket-does",
+        question: "What does ClearMarket do?",
+        answer:
+          "ClearMarket is a networking + accountability platform for Vendors and Field Reps.\n\nIt's built to:\n• Reduce noise and irrelevant outreach\n• Improve match quality between Vendors and Field Reps\n• Support trust-based connections through reviews and verified profiles"
+      },
+      {
+        id: "what-clearmarket-doesnt-do",
+        question: "What ClearMarket doesn't do",
+        answer:
+          "ClearMarket does not dispatch work and does not act as an employer.\n\nAll Field Reps operate as independent contractors (1099 structure). Work agreements, pricing, and expectations are handled directly between Vendors and Field Reps."
+      }
+    ]
+  },
+  accounts_roles: {
+    label: "Accounts & Roles",
     icon: UserCog,
     items: [
+      {
+        id: "account-types",
+        question: "What account types are available?",
+        answer:
+          "ClearMarket offers two account types:\n\n• Vendor accounts — For companies seeking coverage in specific areas\n• Field Rep accounts — For independent inspectors looking for work opportunities"
+      },
       {
         id: "forgot-password",
         question: "I forgot my password — what do I do?",
@@ -69,6 +118,132 @@ const STATIC_FAQ = {
       }
     ]
   },
+  profiles: {
+    label: "Profiles",
+    icon: Users,
+    items: [
+      {
+        id: "field-rep-profile",
+        question: "What's included in a Field Rep Profile?",
+        answer:
+          "Field Rep profiles include:\n\n• Coverage areas (at minimum state + county)\n• Inspection categories:\n  - Property Inspections\n  - Loss Insurance Claims (Appointment-based)\n  - Commercial\n  - Other (free-text, multi-entry)\n• Systems used / familiar with (ex: EZ, IA, etc.)\n• Additional profile details used to improve match relevance"
+      },
+      {
+        id: "vendor-profile",
+        question: "What's included in a Vendor Profile?",
+        answer:
+          "Vendor profiles include:\n\n• Areas covered (states/counties)\n• Inspection types needed/performed\n• System the work is completed in (where applicable)\n• Company details and contact information"
+      },
+      {
+        id: "network-alerts",
+        question: "What are Network Alerts?",
+        answer:
+          "Network Alerts is a tool for Field Reps that lets them notify all vendors in their network at once — without having to update vendors individually.\n\nCommon uses include:\n• Emergency \"Stop Work\" notice for the day\n• Requesting immediate extensions\n• Marking yourself unavailable for a defined time period\n• Sharing planned time off in advance\n• Letting vendors know where you'll be working (ex: \"I'll be in X area tomorrow\")\n\nPrivacy protection: Alerts are sent so vendors do not see each other. This keeps the Field Rep's vendor network private while still streamlining communication."
+      }
+    ]
+  },
+  discovery_matching: {
+    label: "Discovery & Matching",
+    icon: MapPin,
+    items: [
+      {
+        id: "seeking-coverage-posts",
+        question: "How do Seeking Coverage posts work?",
+        answer:
+          "Vendors post Seeking Coverage requests for specific areas + work type.\n\nPosts are intended for real coverage needs (not broad advertising). Field Reps who cover those areas are alerted and can express interest in the work."
+      },
+      {
+        id: "matched-alerts",
+        question: "How do Matched Alerts work?",
+        answer:
+          "Field Reps are alerted only when a Seeking Coverage post matches their coverage area.\n\nField Reps can then show interest in the work, which starts a conversation with the Vendor."
+      },
+      {
+        id: "why-anonymous-search-limited",
+        question: "Why is anonymous search limited?",
+        answer:
+          "This approach is designed to reduce spam and irrelevant outreach, including:\n\n• \"I'm available\" messages in areas where nobody needs coverage\n• Vendor messages to reps who don't cover that area\n\nResult: less noise, more relevant connections, faster matching."
+      }
+    ]
+  },
+  connections_privacy: {
+    label: "Connections & Privacy",
+    icon: Lock,
+    items: [
+      {
+        id: "messaging-before-connecting",
+        question: "Can I message before connecting?",
+        answer:
+          "Yes! Full contact details stay private until both parties are connected.\n\nWhile a Vendor and an interested Field Rep are discussing a Seeking Coverage opportunity, they can communicate through in-platform messages.\n\nThis allows coordination and Q&A without exposing personal contact info."
+      },
+      {
+        id: "contact-unlock-after-connection",
+        question: "When are contact details shared?",
+        answer:
+          "Once both the Vendor and the interested Field Rep reach an agreement and both choose to connect, a connection is established (In Network).\n\nOnly after that connection is established will full contact details be provided to both parties."
+      }
+    ]
+  },
+  trust_reviews: {
+    label: "Trust & Reviews",
+    icon: Star,
+    items: [
+      {
+        id: "verified-reviews",
+        question: "How do verified reviews work?",
+        answer:
+          "Reviews are designed to reflect real working experiences.\n\nReview categories include:\n• On-time\n• Quality\n• Communication\n\nReviews can only be left after a connection has been established and work has been discussed."
+      },
+      {
+        id: "review-cooldown",
+        question: "What is the review cooldown?",
+        answer:
+          "Reviews are limited so that only one review can be left, then a required amount of time must pass before another review can be submitted for the same person/company.\n\nThis helps prevent spam and score manipulation (ex: daily 5-star reviews from the same user)."
+      },
+      {
+        id: "feedback-option",
+        question: "What is the Feedback option?",
+        answer:
+          "Users have a limited option to mark certain submissions as Feedback rather than a score-impacting review.\n\n• Feedback does not directly affect Trust Scores\n• Feedback is treated as an internal improvement note to encourage better performance without unfairly misrepresenting someone's overall track record"
+      },
+      {
+        id: "review-notifications",
+        question: "How do review notifications work?",
+        answer:
+          "Both parties are notified when a review is added.\n\nUsers have an opportunity to approve or dispute before it becomes public (to reduce unfair ratings)."
+      },
+      {
+        id: "trust-vs-community-score",
+        question: "What's the difference between Trust Score and Community Score?",
+        answer:
+          "Trust Score: reliability signals over time (including verified performance trends based on work-related reviews)\n\nCommunity Score: community participation + peer helpfulness signals from the Community Board\n\nCommunity Score can be used as a sort/filter signal where implemented."
+      }
+    ]
+  },
+  community: {
+    label: "Community Board",
+    icon: Handshake,
+    items: [
+      {
+        id: "community-board",
+        question: "What is the Community Board?",
+        answer:
+          "The Community Board is a space where users can post updates, ask questions, share helpful info, and support one another.\n\nIt's designed to encourage peer-to-peer support within the ClearMarket community."
+      },
+      {
+        id: "post-comment-controls",
+        question: "What controls are available for posts and comments?",
+        answer:
+          "• Mark content Helpful / Not Helpful\n• Flag/Report content for moderator review\n• Heavily flagged content may be greyed out and sent for review"
+      },
+      {
+        id: "under-review-ping",
+        question: "What is the 'Ping' feature for Under Review content?",
+        answer:
+          "Users can \"ping\" posts marked Under Review to show interest.\n\nUsers who ping are alerted once the post is reviewed and results are published.\n\nThis helps moderators prioritize what gets reviewed first."
+      }
+    ]
+  },
   credits_billing: {
     label: "Credits & Billing",
     icon: CreditCard,
@@ -77,7 +252,7 @@ const STATIC_FAQ = {
         id: "what-are-credits",
         question: "What are credits used for?",
         answer:
-          "Credits power certain actions inside ClearMarket.\n\nExamples include:\n• Unlocking more detailed contact information for Field Reps or Vendors\n• Posting or boosting Seeking Coverage requests (where available)\n• Accessing specific premium features that are marked as credit-based\n\nField Reps do not pay credits just to have a profile or participate in the community."
+          "Credits power certain actions inside ClearMarket.\n\nExamples include:\n• Posting or boosting Seeking Coverage requests\n• Accessing specific premium features that are marked as credit-based\n\nField Reps do not pay credits just to have a profile or participate in the community."
       },
       {
         id: "buy-credits",
@@ -89,14 +264,20 @@ const STATIC_FAQ = {
         id: "credit-activity",
         question: "Where can I see my recent credit activity?",
         answer:
-          "Open the Credits or Billing section and look for your credit history or activity.\n\nYou'll see:\n• When credits were purchased\n• Which actions used credits (for example, an unlock or post)\n• Your remaining credit balance\n\nIf something doesn't look right, contact Support so we can review it with you."
+          "Open the Credits or Billing section and look for your credit history or activity.\n\nYou'll see:\n• When credits were purchased\n• Which actions used credits (for example, a post)\n• Your remaining credit balance\n\nIf something doesn't look right, contact Support so we can review it with you."
       }
     ]
   },
   safety_support: {
-    label: "Safety & Support",
+    label: "Policies & Support",
     icon: Shield,
     items: [
+      {
+        id: "refund-requests",
+        question: "How do refund requests work?",
+        answer:
+          "Refunds may be considered in limited situations (ex: duplicate charges or failed feature delivery).\n\nAll refund requests require a Support Ticket submitted with detailed proof, including:\n• A clear written explanation (step-by-step)\n• Screenshots showing the issue\n• Proof of failed feature delivery (error messages, missing access after payment, timestamps, confirmation screens, etc.)\n\nRequests without sufficient detail and proof may be denied.\n\nSupport: hello@useclearmarket.io"
+      },
       {
         id: "report-user",
         question: "How do I report a user or content?",
@@ -114,6 +295,42 @@ const STATIC_FAQ = {
         question: "How do I contact Support?",
         answer:
           "You can contact Support in two ways:\n\n• Click the Contact Support button in the Help Center or Support page.\n• Email us directly at hello@useclearmarket.io.\n\nPlease include as much detail as you can (what you were trying to do, any error messages, and screenshots if possible) so we can help you faster."
+      }
+    ]
+  },
+  coming_soon: {
+    label: "Coming Soon",
+    icon: Bell,
+    items: [
+      {
+        id: "coming-soon-intro",
+        question: "What features are coming soon?",
+        answer:
+          "We're actively building and improving ClearMarket. The items below are planned features and may change as we refine the platform based on real user feedback."
+      },
+      {
+        id: "coverage-maps",
+        question: "Coverage Maps",
+        answer:
+          "• ClearMarket Coverage Map — See overall coverage growth across the network\n• My Coverage Map — Vendor-specific coverage visibility for your areas"
+      },
+      {
+        id: "expanded-analytics",
+        question: "Expanded Analytics & Reporting",
+        answer:
+          "More insights to help users identify coverage gaps and network strengths."
+      },
+      {
+        id: "more-automation",
+        question: "More Automation & Notification Preferences",
+        answer:
+          "Smarter alerts, cleaner workflows, and improved control of notifications."
+      },
+      {
+        id: "tools-area",
+        question: "Where can I see upcoming features?",
+        answer:
+          "For additional upcoming features, please also check the Tools area inside ClearMarket — we keep that section updated as new tools are added and released."
       }
     ]
   }
