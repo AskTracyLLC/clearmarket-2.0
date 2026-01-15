@@ -29,6 +29,7 @@ interface ErrorResponse {
   };
   userId: string;
   fkBlockers?: FkBlocker[];
+  authFkBlockers?: FkBlocker[];
 }
 
 // All known FK references to auth.users or profiles that could block deletion
@@ -107,9 +108,19 @@ serve(async (req) => {
     // If debug mode and we have a client, scan for remaining blockers
     if (debug && supabaseAdmin && userId) {
       errorPayload.fkBlockers = await scanFkBlockers(supabaseAdmin, userId);
+      errorPayload.authFkBlockers = await scanAuthUserFkBlockers(supabaseAdmin, userId);
     }
 
-    console.error("Delete failed at step:", step, "Error:", message, "Blockers:", errorPayload.fkBlockers);
+    console.error(
+      "Delete failed at step:",
+      step,
+      "Error:",
+      message,
+      "FK blockers:",
+      errorPayload.fkBlockers,
+      "AUTH blockers:",
+      errorPayload.authFkBlockers
+    );
 
     // Only use non-2xx for auth/permission issues; everything else stays 200 so the client can read the body.
     const responseStatus = status === 401 || status === 403 ? status : 200;
@@ -446,3 +457,55 @@ async function scanFkBlockers(
 
   return blockers;
 }
+
+/**
+ * Scan for FK references specifically to auth.users that can block auth.admin.deleteUser.
+ * This is intentionally a hardcoded list (authoritative list maintained alongside schema).
+ */
+async function scanAuthUserFkBlockers(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  userId: string
+): Promise<FkBlocker[]> {
+  const blockers: FkBlocker[] = [];
+
+  // Based on pg_constraint output for FKs referencing auth.users in this project.
+  const candidates = [
+    { table: "profiles", column: "id" },
+
+    { table: "admin_users", column: "user_id" },
+    { table: "admin_users", column: "created_by" },
+
+    { table: "staff_users", column: "user_id" },
+    { table: "staff_users", column: "created_by" },
+
+    { table: "vendor_profile", column: "verified_by" },
+    { table: "vendor_staff", column: "invited_by" },
+    { table: "vendor_staff", column: "staff_user_id" },
+    { table: "vendor_code_reservations", column: "created_by" },
+    { table: "rep_contact_access_log", column: "actor_user_id" },
+
+    { table: "vendor_client_proposals", column: "vendor_user_id" },
+    { table: "vendor_proposal_shares", column: "vendor_user_id" },
+    { table: "vendor_proposal_rep_rate_snapshots", column: "rep_user_id" },
+    { table: "rep_contact_info", column: "rep_user_id" },
+  ] as const;
+
+  for (const { table, column } of candidates) {
+    try {
+      const { count, error } = await supabase
+        .from(table)
+        .select("*", { count: "exact", head: true })
+        .eq(column, userId);
+
+      if (!error && count && count > 0) {
+        blockers.push({ table, column, count });
+      }
+    } catch (e) {
+      console.log(`Auth FK scan skip: ${table}.${column}`, (e as Error).message);
+    }
+  }
+
+  return blockers;
+}
+
