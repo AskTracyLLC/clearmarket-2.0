@@ -154,6 +154,10 @@ export default function RepFindWork() {
   const [filteredPosts, setFilteredPosts] = useState<MatchedPost[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Pagination
+  const pagination = usePagination({ pageSize: 20 });
 
   // Rep interest tracking - now includes status for declined detection
   const [repInterest, setRepInterest] = useState<Map<string, string>>(new Map());
@@ -459,6 +463,7 @@ export default function RepFindWork() {
 
       setAllPosts(matched as MatchedPost[]);
       applyClientSideFilters(matched as MatchedPost[]);
+      setLastUpdated(new Date());
       toast.success(`Found ${matched.length} matching opportunities`);
     } catch (error: any) {
       console.error("Search error:", error);
@@ -507,6 +512,8 @@ export default function RepFindWork() {
     }
 
     setFilteredPosts(filtered);
+    pagination.setTotalItems(filtered.length);
+    pagination.resetToFirstPage();
   };
 
   // Reapply filters when filter state changes
@@ -816,6 +823,16 @@ export default function RepFindWork() {
         {/* Results Section */}
         {hasSearched && (
           <div>
+            {/* Data Freshness Notice */}
+            <div className="mb-4">
+              <DataFreshnessNotice 
+                mode="manual" 
+                lastUpdated={lastUpdated?.toISOString()} 
+                onRefresh={handleSearch}
+                isRefreshing={searching}
+              />
+            </div>
+
             <h2 className="text-2xl font-semibold text-foreground mb-4">
               {filteredPosts.length} {filteredPosts.length === 1 ? "Opportunity" : "Opportunities"} Found
             </h2>
@@ -864,8 +881,15 @@ export default function RepFindWork() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredPosts.map((post) => (
+                {(() => {
+                  // Apply pagination
+                  const start = (pagination.currentPage - 1) * pagination.pageSize;
+                  const end = start + pagination.pageSize;
+                  const paginatedPosts = filteredPosts.slice(start, end);
+                  
+                  return paginatedPosts.map((post) => (
                   <Card key={post.id} className="hover:border-primary/50 transition-colors">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -1054,8 +1078,24 @@ export default function RepFindWork() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ));
+                })()}
               </div>
+              
+              {/* Pagination Controls */}
+              {filteredPosts.length > pagination.pageSize && (
+                <div className="mt-6">
+                  <PaginationControls
+                    currentPage={pagination.currentPage}
+                    totalPages={Math.ceil(filteredPosts.length / pagination.pageSize)}
+                    onPageChange={pagination.setPage}
+                    showingFrom={(pagination.currentPage - 1) * pagination.pageSize + 1}
+                    showingTo={Math.min(pagination.currentPage * pagination.pageSize, filteredPosts.length)}
+                    totalItems={filteredPosts.length}
+                  />
+                </div>
+              )}
+              </>
             )}
           </div>
         )}

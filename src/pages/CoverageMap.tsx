@@ -9,6 +9,8 @@ import { USChoroplethMap } from "@/components/USChoroplethMap";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { useAuth } from "@/hooks/useAuth";
 import { Construction } from "lucide-react";
+import { MapLoadPlaceholder } from "@/components/MapLoadPlaceholder";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
 
 type ViewMode = "reps" | "vendors" | "total";
 
@@ -27,8 +29,9 @@ interface StateNetworkCount {
 export default function CoverageMap() {
   const [viewMode, setViewMode] = useState<ViewMode>("reps");
   const [data, setData] = useState<StateNetworkCount[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
   
   const { effectiveRole } = useActiveRole();
   const { user } = useAuth();
@@ -49,23 +52,25 @@ export default function CoverageMap() {
     checkVendorStatus();
   }, [user]);
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      const { data: counts, error } = await supabase
-        .from("public_state_network_counts")
-        .select("*");
+  const fetchMapData = async () => {
+    setLoading(true);
+    const { data: counts, error } = await supabase
+      .from("public_state_network_counts")
+      .select("*");
 
-      if (!error && counts) {
-        setData(counts as StateNetworkCount[]);
-        if (counts.length > 0) {
-          setLastUpdated(counts[0].last_updated_at);
-        }
+    if (!error && counts) {
+      setData(counts as StateNetworkCount[]);
+      if (counts.length > 0) {
+        setLastUpdated(counts[0].last_updated_at);
       }
-      setLoading(false);
     }
-    fetchData();
-  }, []);
+    setLoading(false);
+    setMapLoaded(true);
+  };
+
+  const handleLoadMap = () => {
+    fetchMapData();
+  };
 
   const getCountForState = (stateCode: string): number => {
     const stateData = data.find((d) => d.state_code === stateCode);
@@ -138,23 +143,32 @@ export default function CoverageMap() {
         <Card className="mt-6">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-lg">Network Density by State</CardTitle>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-                <TabsList>
-                  <TabsTrigger value="reps">Field Reps</TabsTrigger>
-                  <TabsTrigger value="vendors">Vendors</TabsTrigger>
-                  <TabsTrigger value="total">Total</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              {lastUpdated && (
-                <span className="text-xs text-muted-foreground">
-                  Last updated {formatDistanceToNow(new Date(lastUpdated), { addSuffix: true })}
-                </span>
-              )}
-            </div>
+            {mapLoaded && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                  <TabsList>
+                    <TabsTrigger value="reps">Field Reps</TabsTrigger>
+                    <TabsTrigger value="vendors">Vendors</TabsTrigger>
+                    <TabsTrigger value="total">Total</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <DataFreshnessNotice 
+                  mode="daily" 
+                  lastUpdated={lastUpdated} 
+                  size="sm"
+                />
+              </div>
+            )}
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {!mapLoaded ? (
+              <MapLoadPlaceholder
+                onLoadMap={handleLoadMap}
+                isLoading={loading}
+                title="Coverage Map"
+                description="Click to load the interactive network density map"
+              />
+            ) : loading ? (
               <div className="h-[400px] flex items-center justify-center">
                 <span className="text-muted-foreground">Loading map data…</span>
               </div>
