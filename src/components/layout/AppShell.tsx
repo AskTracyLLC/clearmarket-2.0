@@ -226,6 +226,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
             <TopNavRow
               isVendor={mimickedUser ? mimickedUser.is_vendor_admin : profile?.is_vendor_admin}
               isRep={mimickedUser ? mimickedUser.is_fieldrep : profile?.is_fieldrep}
+              isAdmin={mimickedUser ? false : profile?.is_admin}
               vendorCredits={vendorCredits}
             />
           )}

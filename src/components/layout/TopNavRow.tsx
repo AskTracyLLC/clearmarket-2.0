@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 interface TopNavRowProps {
   isVendor?: boolean;
   isRep?: boolean;
+  isAdmin?: boolean;
   vendorCredits?: number | null;
 }
 
@@ -28,7 +29,7 @@ interface StatusChip {
   variant?: "default" | "secondary";
 }
 
-export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
+export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits }: TopNavRowProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const sectionCounts = useSectionCounts();
@@ -43,6 +44,11 @@ export function TopNavRow({ isVendor, isRep, vendorCredits }: TopNavRowProps) {
     { label: "Coverage", path: "/work-setup", icon: <Map className="h-4 w-4" /> },
     { label: "Tools", path: "/tools", icon: <Wrench className="h-4 w-4" /> },
   ];
+
+  // Add Coverage Map for admins
+  if (isAdmin) {
+    tabs.push({ label: "Coverage Map", path: "/coverage-map", icon: <Map className="h-4 w-4" /> });
+  }
 
   // Add Find Work for reps only (as a tab, NOT a chip)
   if (effectiveRole === "rep" || isRep) {
