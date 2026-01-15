@@ -26,6 +26,7 @@ interface LegacyBlocker {
   table: string;
   column: string;
   count: number;
+  on_delete?: string;
 }
 
 interface DebugInfo {
@@ -39,6 +40,10 @@ interface DebugInfo {
   profileExistsAfterDelete?: boolean;
   authUserExistsAfterDelete?: boolean;
   deleteAuthErrorRaw?: Record<string, unknown>;
+  hardProfileBlockers?: FkBlocker[];
+  hardAuthBlockers?: FkBlocker[];
+  softProfileRefs?: FkBlocker[];
+  softAuthRefs?: FkBlocker[];
   purgeReport?: PurgeReport;
 }
 
@@ -48,6 +53,12 @@ interface PurgeReport {
   skipped: { schema: string; table: string; column: string; reason: string }[];
   remainingBlockers: FkBlocker[];
 }
+
+// Hard blockers = will prevent deletion, must be resolved first
+const HARD_BLOCKER_ACTIONS = new Set(["NO ACTION", "RESTRICT", "SET DEFAULT"]);
+
+// Soft refs = will be handled automatically by Postgres on delete
+const SOFT_REF_ACTIONS = new Set(["CASCADE", "SET NULL"]);
 
 // Tables that should preserve history (SET NULL instead of DELETE) in purge mode
 const PRESERVE_TABLES = new Set([
@@ -89,7 +100,7 @@ const FK_NULL_CANDIDATES = [
   { table: "vendor_activity_events", column: "vendor_owner_user_id" },
 ];
 
-// User-owned rows to delete in safe mode
+// User-owned rows to delete in safe mode (before profile deletion)
 const FK_DELETE_CANDIDATES = [
   { table: "admin_users", column: "user_id" },
   { table: "staff_users", column: "user_id" },
@@ -97,7 +108,6 @@ const FK_DELETE_CANDIDATES = [
   { table: "rep_contact_info", column: "rep_user_id" },
   { table: "rep_profile", column: "user_id" },
   { table: "vendor_profile", column: "user_id" },
-  { table: "profiles", column: "id" },
 ];
 
 serve(async (req) => {
@@ -135,7 +145,6 @@ serve(async (req) => {
 
     console.error("Delete failed at step:", step, "Error:", message);
 
-    // Only use non-2xx for auth/permission issues; everything else stays 200 so the client can read the body.
     const responseStatus = status === 401 || status === 403 ? status : 200;
 
     return new Response(JSON.stringify(errorPayload), {
@@ -206,11 +215,9 @@ serve(async (req) => {
     // =============================================
     step = "gather_initial_state";
 
-    // Check if auth user exists
     const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(target_user_id);
     debugInfo.authUserExistsBefore = !!authUserData?.user;
 
-    // Check if profile exists
     const { data: profileCheck } = await supabaseAdmin
       .from("profiles")
       .select("id")
@@ -243,7 +250,6 @@ serve(async (req) => {
       .eq("id", target_user_id)
       .maybeSingle();
 
-    // Also check vendor_profile for vendor_code
     const { data: vendorProfile } = await supabaseAdmin
       .from("vendor_profile")
       .select("vendor_code")
@@ -259,7 +265,6 @@ serve(async (req) => {
       return makeErrorResponse(400, "Cannot delete your own account", "SELF_DELETE");
     }
 
-    // Build user label for audit snapshot
     const userLabel = targetProfile?.staff_anonymous_id 
       || vendorProfile?.vendor_code
       || targetProfile?.full_name 
@@ -275,7 +280,6 @@ serve(async (req) => {
       step = "purge_test_mode";
       debugInfo.purgeReport = await performPurgeTestMode(supabaseAdmin, target_user_id, debugInfo);
     } else {
-      // Safe mode - use known FK candidates
       step = "safe_mode_cleanup";
       await performSafeModeCleanup(supabaseAdmin, target_user_id, userLabel);
     }
@@ -309,24 +313,52 @@ serve(async (req) => {
     });
 
     // =============================================
-    // STEP: Pre-delete blocker check
+    // STEP: Classify blockers into HARD vs SOFT
     // =============================================
-    step = "pre_delete_blocker_check";
+    step = "classify_blockers";
 
-    // Filter out profiles.id from profile blockers (that's the row we're about to delete via cascade)
-    const effectiveProfileBlockers = debugInfo.profileFkBlockersAfterCleanup.filter(
+    // Filter out profiles.id from profile blockers (that's the row we're deleting)
+    const profileBlockersFiltered = debugInfo.profileFkBlockersAfterCleanup.filter(
       (b) => !(b.table_name === "profiles" && b.column_name === "id")
     );
 
-    // For auth blockers, profiles.id will cascade, so we only care about non-CASCADE blockers
-    const effectiveAuthBlockers = debugInfo.authFkBlockersAfterCleanup.filter(
-      (b) => b.on_delete !== "CASCADE"
+    // Hard blockers = NO ACTION, RESTRICT, SET DEFAULT - these WILL prevent deletion
+    const hardProfileBlockers = profileBlockersFiltered.filter(
+      (b) => HARD_BLOCKER_ACTIONS.has(b.on_delete)
+    );
+    const hardAuthBlockers = debugInfo.authFkBlockersAfterCleanup.filter(
+      (b) => HARD_BLOCKER_ACTIONS.has(b.on_delete) && !(b.table_name === "profiles" && b.column_name === "id")
     );
 
-    if (effectiveProfileBlockers.length > 0 || effectiveAuthBlockers.length > 0) {
-      console.error("FK blockers still present after cleanup:", {
-        profile: effectiveProfileBlockers,
-        auth: effectiveAuthBlockers,
+    // Soft refs = CASCADE, SET NULL - these will auto-resolve on delete
+    const softProfileRefs = profileBlockersFiltered.filter(
+      (b) => SOFT_REF_ACTIONS.has(b.on_delete)
+    );
+    const softAuthRefs = debugInfo.authFkBlockersAfterCleanup.filter(
+      (b) => SOFT_REF_ACTIONS.has(b.on_delete) && !(b.table_name === "profiles" && b.column_name === "id")
+    );
+
+    debugInfo.hardProfileBlockers = hardProfileBlockers;
+    debugInfo.hardAuthBlockers = hardAuthBlockers;
+    debugInfo.softProfileRefs = softProfileRefs;
+    debugInfo.softAuthRefs = softAuthRefs;
+
+    console.log("Blocker classification:", {
+      hardProfile: hardProfileBlockers.length,
+      hardAuth: hardAuthBlockers.length,
+      softProfile: softProfileRefs.length,
+      softAuth: softAuthRefs.length,
+    });
+
+    // =============================================
+    // STEP: Pre-delete blocker check (ONLY hard blockers)
+    // =============================================
+    step = "pre_delete_blocker_check";
+
+    if (hardProfileBlockers.length > 0 || hardAuthBlockers.length > 0) {
+      console.error("HARD FK blockers still present:", {
+        profile: hardProfileBlockers,
+        auth: hardAuthBlockers,
       });
 
       return new Response(
@@ -334,16 +366,76 @@ serve(async (req) => {
           success: false,
           step: "pre_delete_blocker_check",
           error: {
-            message: `Cannot delete user: FK references still present`,
-            hint: "These tables still reference the user and must be cleaned up first",
+            message: `Cannot delete user: ${hardProfileBlockers.length + hardAuthBlockers.length} hard FK blocker(s) exist`,
+            hint: "These tables use NO ACTION/RESTRICT and must be cleaned up manually first",
           },
           userId: target_user_id,
-          fkBlockers: effectiveProfileBlockers.map(blockerToLegacy),
-          authFkBlockers: effectiveAuthBlockers.map(blockerToLegacy),
+          fkBlockers: hardProfileBlockers.map(blockerToLegacy),
+          authFkBlockers: hardAuthBlockers.map(blockerToLegacy),
+          softRefs: {
+            profile: softProfileRefs.map(blockerToLegacy),
+            auth: softAuthRefs.map(blockerToLegacy),
+            message: "These will cascade automatically on profile deletion",
+          },
           debug: debug ? debugInfo : undefined,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Log soft refs for transparency (they will auto-resolve)
+    if (softProfileRefs.length > 0 || softAuthRefs.length > 0) {
+      console.log("Soft refs will cascade/null on delete:", {
+        profile: softProfileRefs.map((b) => `${b.table_name}.${b.column_name}(${b.match_count})`),
+        auth: softAuthRefs.map((b) => `${b.table_name}.${b.column_name}(${b.match_count})`),
+      });
+    }
+
+    // =============================================
+    // STEP: Delete profiles row FIRST (triggers CASCADE cleanup)
+    // =============================================
+    step = "delete_profile";
+    
+    if (debugInfo.profileExistsAfterCleanup) {
+      const { error: profileDeleteError } = await supabaseAdmin
+        .from("profiles")
+        .delete()
+        .eq("id", target_user_id);
+
+      if (profileDeleteError) {
+        console.error("Failed to delete profile:", profileDeleteError);
+        
+        debugInfo.deleteAuthErrorRaw = {
+          message: profileDeleteError.message,
+          code: (profileDeleteError as any).code,
+          details: (profileDeleteError as any).details,
+          hint: (profileDeleteError as any).hint,
+        };
+
+        // Re-scan blockers
+        const { data: profileBlockersFinal } = await supabaseAdmin.rpc("get_profile_fk_blockers", {
+          p_profile_id: target_user_id,
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            step,
+            error: {
+              message: profileDeleteError.message,
+              code: (profileDeleteError as any).code || "PROFILE_DELETE_FAILED",
+              details: (profileDeleteError as any).details,
+              hint: "Profile deletion failed - check remaining blockers",
+            },
+            userId: target_user_id,
+            fkBlockers: (profileBlockersFinal || []).map(blockerToLegacy),
+            debug: debug ? debugInfo : undefined,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Profile deleted successfully, cascade cleanup triggered");
     }
 
     // =============================================
@@ -353,9 +445,8 @@ serve(async (req) => {
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(target_user_id);
 
     if (deleteError) {
-      console.error("Failed to delete user:", deleteError);
+      console.error("Failed to delete auth user:", deleteError);
       
-      // Capture raw error details
       debugInfo.deleteAuthErrorRaw = {
         message: deleteError.message,
         name: deleteError.name,
@@ -367,14 +458,10 @@ serve(async (req) => {
       };
 
       // Re-scan blockers after failure
-      const { data: profileBlockersFinal } = await supabaseAdmin.rpc("get_profile_fk_blockers", {
-        p_profile_id: target_user_id,
-      });
       const { data: authBlockersFinal } = await supabaseAdmin.rpc("get_auth_user_fk_blockers", {
         p_user_id: target_user_id,
       });
 
-      // Check existence after failure
       const { data: authUserAfterFail } = await supabaseAdmin.auth.admin.getUserById(target_user_id);
       debugInfo.authUserExistsAfterDelete = !!authUserAfterFail?.user;
 
@@ -391,12 +478,11 @@ serve(async (req) => {
           step,
           error: {
             message: deleteError.message,
-            code: (deleteError as any).code || "DELETE_FAILED",
+            code: (deleteError as any).code || "AUTH_DELETE_FAILED",
             details: (deleteError as any).details,
             hint: "Check debug.deleteAuthErrorRaw for full error details",
           },
           userId: target_user_id,
-          fkBlockers: (profileBlockersFinal || []).map(blockerToLegacy),
           authFkBlockers: (authBlockersFinal || []).map(blockerToLegacy),
           debug: debug ? debugInfo : undefined,
         }),
@@ -404,7 +490,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("User deleted successfully:", target_user_id);
+    console.log("Auth user deleted successfully:", target_user_id);
 
     // =============================================
     // STEP: Log the admin action
@@ -424,6 +510,10 @@ serve(async (req) => {
           reason: reason || null,
           mode,
           debug_mode: debug,
+          soft_refs_cascaded: {
+            profile: softProfileRefs.length,
+            auth: softAuthRefs.length,
+          },
         },
         source_page: "/admin/users",
         ip_address: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || null,
@@ -440,6 +530,10 @@ serve(async (req) => {
         message: "User deleted successfully",
         userId: target_user_id,
         label: userLabel,
+        softRefsCascaded: {
+          profile: softProfileRefs.length,
+          auth: softAuthRefs.length,
+        },
         debug: debug ? debugInfo : undefined,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -476,6 +570,7 @@ function blockerToLegacy(b: FkBlocker): LegacyBlocker {
     table: b.table_name,
     column: b.column_name,
     count: b.match_count,
+    on_delete: b.on_delete,
   };
 }
 
@@ -524,7 +619,7 @@ async function performSafeModeCleanup(
     }
   }
 
-  // Delete user-owned FK references
+  // Delete user-owned FK references (not profile - that's deleted separately)
   for (const { table, column } of FK_DELETE_CANDIDATES) {
     const { error } = await supabaseAdmin
       .from(table)
@@ -552,13 +647,11 @@ async function performPurgeTestMode(
     remainingBlockers: [],
   };
 
-  // Combine profile and auth blockers
   const allBlockers = [
     ...debugInfo.profileFkBlockersBefore,
     ...debugInfo.authFkBlockersBefore,
   ];
 
-  // Deduplicate by table+column
   const seen = new Set<string>();
   const uniqueBlockers = allBlockers.filter((b) => {
     const key = `${b.schema_name}.${b.table_name}.${b.column_name}`;
@@ -569,9 +662,8 @@ async function performPurgeTestMode(
 
   for (const blocker of uniqueBlockers) {
     const { schema_name, table_name, column_name, on_delete } = blocker;
-    const fullTable = schema_name === "public" ? table_name : `${schema_name}.${table_name}`;
 
-    // Skip if it will CASCADE anyway
+    // Skip CASCADE refs - they'll auto-delete
     if (on_delete === "CASCADE") {
       report.skipped.push({
         schema: schema_name,
@@ -582,7 +674,7 @@ async function performPurgeTestMode(
       continue;
     }
 
-    // For preserve tables, try to SET NULL
+    // For preserve tables, SET NULL
     if (PRESERVE_TABLES.has(table_name)) {
       try {
         const { data, error } = await supabaseAdmin
@@ -648,24 +740,6 @@ async function performPurgeTestMode(
         reason: `DELETE exception: ${e.message}`,
       });
     }
-  }
-
-  // Delete profiles row explicitly
-  try {
-    await supabaseAdmin.from("profiles").delete().eq("id", targetUserId);
-    report.deletedRows.push({
-      schema: "public",
-      table: "profiles",
-      column: "id",
-      rowsDeleted: 1,
-    });
-  } catch (e: any) {
-    report.skipped.push({
-      schema: "public",
-      table: "profiles",
-      column: "id",
-      reason: `DELETE profiles failed: ${e.message}`,
-    });
   }
 
   // Re-scan for remaining blockers

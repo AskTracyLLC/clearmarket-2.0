@@ -544,27 +544,36 @@ export default function AdminUsers() {
         // Store full debug payload for copy functionality
         setLastDeleteDebug(data);
 
-        // Build descriptive error message
+        // Build descriptive error message with hard vs soft blocker distinction
         const step = data.step ? ` at step: ${data.step}` : "";
-        const profileBlockerCount = Array.isArray(data.fkBlockers) ? data.fkBlockers.length : 0;
-        const authBlockerCount = Array.isArray(data.authFkBlockers) ? data.authFkBlockers.length : 0;
+        const hardProfileBlockerCount = Array.isArray(data.fkBlockers) ? data.fkBlockers.length : 0;
+        const hardAuthBlockerCount = Array.isArray(data.authFkBlockers) ? data.authFkBlockers.length : 0;
+        const softProfileCount = data.softRefs?.profile?.length || 0;
+        const softAuthCount = data.softRefs?.auth?.length || 0;
         
         let blockerSummary = "";
-        if (profileBlockerCount > 0 || authBlockerCount > 0) {
-          blockerSummary = ` [Profile blockers: ${profileBlockerCount}, Auth blockers: ${authBlockerCount}]`;
+        if (hardProfileBlockerCount > 0 || hardAuthBlockerCount > 0) {
+          blockerSummary = ` [Hard blockers: ${hardProfileBlockerCount + hardAuthBlockerCount}]`;
         }
 
-        const blockerDetails = Array.isArray(data.fkBlockers) && data.fkBlockers.length
-          ? `\nBlockers: ${data.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
+        const hardBlockerDetails = Array.isArray(data.fkBlockers) && data.fkBlockers.length
+          ? `\nHard blockers: ${data.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count}) [${b.on_delete}]`).join(", ")}`
           : "";
 
-        const errorMessage = `${data.error?.message || data.error || "Delete failed"}${step}${blockerSummary}${blockerDetails}`;
+        const softRefNote = (softProfileCount > 0 || softAuthCount > 0)
+          ? `\n✓ ${softProfileCount + softAuthCount} soft ref(s) will cascade automatically`
+          : "";
+
+        const errorMessage = `${data.error?.message || data.error || "Delete failed"}${step}${blockerSummary}${hardBlockerDetails}${softRefNote}`;
         
-        // Show toast with copy button
+        // Show toast with copy button and detailed blocker info
         toast.error("Failed to delete user", {
           description: (
             <div className="space-y-2">
-              <p className="text-sm">{errorMessage}</p>
+              <p className="text-sm whitespace-pre-wrap">{errorMessage}</p>
+              {(softProfileCount > 0 || softAuthCount > 0) && hardProfileBlockerCount === 0 && hardAuthBlockerCount === 0 && (
+                <p className="text-xs text-green-600">Safe to proceed—these refs will cascade on profile deletion.</p>
+              )}
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(data, null, 2));
@@ -576,7 +585,7 @@ export default function AdminUsers() {
               </button>
             </div>
           ),
-          duration: 15000,
+          duration: 20000,
         });
         
         setActionLoading(null);
