@@ -127,7 +127,7 @@ const DEMO_ROUTE_MAP: Record<string, Record<string, string>> = {
     "/vendor/profile": "", // Not available in demo
     "/settings": "", // Not available
     "/safety": "", // Not available
-    "/help": "", // Not available
+    "/help": "/help", // Available in demo
   },
   rep: {
     // Primary nav
@@ -146,7 +146,7 @@ const DEMO_ROUTE_MAP: Record<string, Record<string, string>> = {
     "/rep/profile": "/demo/rep/profile",
     "/settings": "", // Not available
     "/safety": "", // Not available
-    "/help": "", // Not available
+    "/help": "/help", // Available in demo
   },
 };
 
