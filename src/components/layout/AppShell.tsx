@@ -27,6 +27,7 @@ interface UserProfile {
   is_fieldrep?: boolean;
   full_name?: string;
   email?: string;
+  anonymous_id?: string;
   rep_anonymous_id?: string;
   vendor_anonymous_id?: string;
 }
@@ -52,6 +53,10 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
     }
     if (user) {
       loadProfile();
+      // Fire-and-forget: stamp dashboard access + assign anon id if eligible
+      supabase.rpc("ensure_anon_id_after_terms_and_dashboard").then(({ error }) => {
+        if (error) console.warn("ensure_anon_id_after_terms_and_dashboard error:", error.message);
+      });
     }
   }, [user, authLoading, navigate, mimickedUser]);
 
@@ -70,13 +75,14 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       is_fieldrep?: boolean | null;
       full_name?: string | null;
       email?: string | null;
+      anonymous_id?: string | null;
     } | null = null;
 
     // Fetch main profile (self-only RLS)
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("is_admin, is_vendor_admin, is_fieldrep, full_name, email")
+        .select("is_admin, is_vendor_admin, is_fieldrep, full_name, email, anonymous_id")
         .eq("id", targetUserId)
         .maybeSingle();
       
@@ -129,13 +135,14 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       }
     }
 
-    // Set profile with fallbacks
+    // Set profile with fallbacks - profiles.anonymous_id is source of truth
     setProfile({
       is_admin: profileData?.is_admin ?? undefined,
       is_vendor_admin: profileData?.is_vendor_admin ?? undefined,
       is_fieldrep: profileData?.is_fieldrep ?? undefined,
       full_name: profileData?.full_name ?? undefined,
       email: profileData?.email ?? undefined,
+      anonymous_id: profileData?.anonymous_id ?? undefined,
       rep_anonymous_id: repAnonymousId,
       vendor_anonymous_id: vendorAnonymousId,
     });
