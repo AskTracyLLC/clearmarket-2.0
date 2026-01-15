@@ -13,22 +13,35 @@ interface PaginationControlsProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
   className?: string;
   /** Show compact version for mobile */
   compact?: boolean;
+  /** Optional: starting item number for "Showing X-Y of Z" */
+  showingFrom?: number;
+  /** Optional: ending item number for "Showing X-Y of Z" */
+  showingTo?: number;
+  /** Optional: total items count for "Showing X-Y of Z" */
+  totalItems?: number;
 }
 
 export function PaginationControls({
   currentPage,
   totalPages,
   onPageChange,
-  hasNextPage,
-  hasPrevPage,
+  hasNextPage: hasNextProp,
+  hasPrevPage: hasPrevProp,
   className,
   compact = false,
+  showingFrom,
+  showingTo,
+  totalItems,
 }: PaginationControlsProps) {
+  // Compute hasNextPage/hasPrevPage from currentPage/totalPages if not provided
+  const hasNextPage = hasNextProp ?? currentPage < totalPages;
+  const hasPrevPage = hasPrevProp ?? currentPage > 1;
+
   if (totalPages <= 1) return null;
 
   // Generate page numbers to display
@@ -75,55 +88,63 @@ export function PaginationControls({
   const visiblePages = getVisiblePages();
 
   return (
-    <Pagination className={cn("mt-4", className)}>
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            onClick={() => hasPrevPage && onPageChange(currentPage - 1)}
-            className={cn(
-              "cursor-pointer",
-              !hasPrevPage && "pointer-events-none opacity-50"
-            )}
-          />
-        </PaginationItem>
+    <div className={cn("flex flex-col items-center gap-2", className)}>
+      {/* "Showing X-Y of Z" indicator */}
+      {showingFrom !== undefined && showingTo !== undefined && totalItems !== undefined && (
+        <p className="text-xs text-muted-foreground">
+          Showing {showingFrom}–{showingTo} of {totalItems}
+        </p>
+      )}
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              onClick={() => hasPrevPage && onPageChange(currentPage - 1)}
+              className={cn(
+                "cursor-pointer",
+                !hasPrevPage && "pointer-events-none opacity-50"
+              )}
+            />
+          </PaginationItem>
 
-        {!compact &&
-          visiblePages.map((page, idx) =>
-            page === "ellipsis" ? (
-              <PaginationItem key={`ellipsis-${idx}`}>
-                <PaginationEllipsis />
-              </PaginationItem>
-            ) : (
-              <PaginationItem key={page}>
-                <PaginationLink
-                  onClick={() => onPageChange(page)}
-                  isActive={page === currentPage}
-                  className="cursor-pointer"
-                >
-                  {page}
-                </PaginationLink>
-              </PaginationItem>
-            )
+          {!compact &&
+            visiblePages.map((page, idx) =>
+              page === "ellipsis" ? (
+                <PaginationItem key={`ellipsis-${idx}`}>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              ) : (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    onClick={() => onPageChange(page)}
+                    isActive={page === currentPage}
+                    className="cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
+
+          {compact && (
+            <PaginationItem>
+              <span className="px-2 text-sm text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+            </PaginationItem>
           )}
 
-        {compact && (
           <PaginationItem>
-            <span className="px-2 text-sm text-muted-foreground">
-              {currentPage} / {totalPages}
-            </span>
+            <PaginationNext
+              onClick={() => hasNextPage && onPageChange(currentPage + 1)}
+              className={cn(
+                "cursor-pointer",
+                !hasNextPage && "pointer-events-none opacity-50"
+              )}
+            />
           </PaginationItem>
-        )}
-
-        <PaginationItem>
-          <PaginationNext
-            onClick={() => hasNextPage && onPageChange(currentPage + 1)}
-            className={cn(
-              "cursor-pointer",
-              !hasNextPage && "pointer-events-none opacity-50"
-            )}
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
+        </PaginationContent>
+      </Pagination>
+    </div>
   );
 }
