@@ -55,6 +55,7 @@ import {
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import { DeclineRepDialog } from "@/components/DeclineRepDialog";
 import { checklist } from "@/lib/checklistTracking";
+import { checkRateLimit, getRateLimitMessage } from "@/lib/rateLimit";
 
 interface Message {
   id: string;
@@ -636,6 +637,19 @@ export default function MessageThread() {
     }
 
     setSending(true);
+
+    // Rate limit check
+    const rl = await checkRateLimit({ action: "send_message" });
+    if (!rl.allowed) {
+      toast({
+        title: "Slow down",
+        description: getRateLimitMessage("send_message"),
+        variant: "destructive",
+      });
+      setSending(false);
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("messages")

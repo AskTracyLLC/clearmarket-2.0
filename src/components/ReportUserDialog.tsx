@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { createReport } from "@/lib/reports";
 import { toast } from "sonner";
+import { checkRateLimit, getRateLimitMessage } from "@/lib/rateLimit";
 
 interface ReportUserDialogProps {
   open: boolean;
@@ -57,6 +58,15 @@ export function ReportUserDialog({
     }
 
     setSubmitting(true);
+
+    // Rate limit check
+    const rl = await checkRateLimit({ action: "report_content" });
+    if (!rl.allowed) {
+      toast.error(getRateLimitMessage("report_content"));
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const result = await createReport({
         reporterUserId,
