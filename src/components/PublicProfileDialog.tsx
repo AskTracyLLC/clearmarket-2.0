@@ -348,12 +348,26 @@ export function PublicProfileDialog({
   const guardContactAccess = async (accessType: "view_contact" | "unlock_contact" | "export_contact") => {
     if (!user || !targetUserId) return { allowed: false as const, reason: "NOT_AUTHENTICATED" };
     try {
+      // Include anon session ID for server-side rate limiting (backup for bypassed frontend)
+      const anonSessionId = (() => {
+        const key = "clearmarket_anon_session_id";
+        let id = localStorage.getItem(key);
+        if (!id) {
+          id = crypto.randomUUID();
+          localStorage.setItem(key, id);
+        }
+        return id;
+      })();
+
       const { data, error } = await supabase.functions.invoke("guard_contact_access", {
         body: {
           repUserId: targetUserId,
           accessType,
           // ask it to include email so we don't have to ever select profiles.email client-side
           includeContact: accessType === "view_contact",
+        },
+        headers: {
+          "x-anon-session-id": anonSessionId,
         },
       });
       if (error) {

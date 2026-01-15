@@ -17,11 +17,17 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-anon-session-id",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };
 }
+
+// Rate limit configurations for contact access actions
+const RATE_LIMIT_CONFIG: Record<string, { maxRequests: number; windowSeconds: number }> = {
+  view_contact: { maxRequests: 30, windowSeconds: 60 },
+  export_contact: { maxRequests: 10, windowSeconds: 60 },
+};
 
 // UUID v4 regex for validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -199,6 +205,42 @@ Deno.serve(async (req) => {
         JSON.stringify({ allowed: false, reason: "INVALID_ACCESS_TYPE" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // === SERVER-SIDE RATE LIMITING (before any sensitive data access) ===
+    const rateLimitConfig = RATE_LIMIT_CONFIG[accessType];
+    if (rateLimitConfig) {
+      // Read x-anon-session-id header for anonymous identifier (fallback for unauthenticated)
+      const anonSessionId = req.headers.get("x-anon-session-id");
+      // For authenticated users, check_rate_limit uses auth.uid() internally
+      // For unauthenticated/anonymous, we pass the session id as identifier
+      const identifier = user?.id || anonSessionId || null;
+
+      const { data: rateLimitAllowed, error: rateLimitError } = await supabaseAdmin.rpc(
+        "check_rate_limit",
+        {
+          p_action: accessType,
+          p_max_requests: rateLimitConfig.maxRequests,
+          p_window_seconds: rateLimitConfig.windowSeconds,
+          p_identifier: identifier,
+        } as Record<string, unknown>
+      );
+
+      // FAIL CLOSED: if rate limiter is unavailable, block to protect sensitive data
+      if (rateLimitError) {
+        console.error("Rate limit RPC error (fail closed):", rateLimitError);
+        return new Response(
+          JSON.stringify({ error: "Temporary protection check failed. Please retry." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      if (!rateLimitAllowed) {
+        return new Response(
+          JSON.stringify({ error: "Too many requests. Please wait and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // 4) Prevent self-access logging spam
