@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useMimic } from "@/hooks/useMimic";
@@ -22,6 +22,9 @@ import {
   formatShortCaseId,
   isArchivedCategory 
 } from "@/lib/supportCategory";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
 
 
 interface ConversationWithParticipant {
@@ -73,29 +76,18 @@ export default function MessagesList() {
   const [filterMode, setFilterMode] = useState<"all" | "seeking" | "direct" | "support">("all");
   const [openPostsOnly, setOpenPostsOnly] = useState(false);
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user) {
-      navigate("/signin");
-      return;
-    }
+  // Pagination - 20 conversations per page
+  const pagination = usePagination({ pageSize: 20 });
 
-    if (!effectiveUserId) return;
-
-    loadUserRole();
-    loadBlockedUsers();
-    loadConversations();
-    loadPendingRequests();
-  }, [user, authLoading, navigate, effectiveUserId]);
-
-  async function loadBlockedUsers() {
+  // Helper functions need to be defined before useEffect that uses them
+  const loadBlockedUsers = useCallback(async () => {
     const blocked = await fetchBlockedUserIds();
     setBlockedUserIds(blocked);
-  }
+  }, []);
 
-  async function loadUserRole() {
+  const loadUserRole = useCallback(async () => {
     if (!effectiveUserId) return;
 
     const { data: profile } = await supabase
@@ -105,9 +97,9 @@ export default function MessagesList() {
       .maybeSingle();
 
     setIsRep(profile?.is_fieldrep || false);
-  }
+  }, [effectiveUserId]);
 
-  async function loadPendingRequests() {
+  const loadPendingRequests = useCallback(async () => {
     if (!effectiveUserId) return;
 
     // Check if user is a rep
@@ -187,7 +179,7 @@ export default function MessagesList() {
     });
 
     setPendingRequests(requests);
-  }
+  }, [effectiveUserId]);
 
   async function handleAcceptRequest(requestId: string) {
     setProcessingRequestId(requestId);
@@ -308,7 +300,7 @@ export default function MessagesList() {
     }
   }
 
-  async function loadConversations() {
+  const loadConversations = useCallback(async () => {
     if (!effectiveUserId) return;
 
     setLoading(true);
@@ -322,7 +314,21 @@ export default function MessagesList() {
 
       const viewerIsVendor = viewerProfile?.is_vendor_admin ?? false;
 
-      // Fetch all conversations where user is a participant
+      // Get total count first for pagination
+      const { count: totalCount, error: countError } = await supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .or(`participant_one.eq.${effectiveUserId},participant_two.eq.${effectiveUserId}`);
+
+      if (countError) {
+        console.error("Error getting conversation count:", countError);
+      }
+
+      if (totalCount !== null) {
+        pagination.setTotalItems(totalCount);
+      }
+
+      // Fetch paginated conversations where user is a participant
       const { data, error } = await supabase
         .from("conversations")
         .select(`
@@ -346,7 +352,8 @@ export default function MessagesList() {
           )
         `)
         .or(`participant_one.eq.${effectiveUserId},participant_two.eq.${effectiveUserId}`)
-        .order("last_message_at", { ascending: false, nullsFirst: false });
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .range(pagination.range[0], pagination.range[1]);
 
       if (error) {
         console.error("Error loading conversations:", error);
@@ -447,12 +454,35 @@ export default function MessagesList() {
       }
 
       setConversations(filteredConversations);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Unexpected error loading conversations:", error);
     } finally {
       setLoading(false);
     }
-  }
+  }, [effectiveUserId, blockedUserIds, pagination.range]);
+
+  // Effects - after all function definitions
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      navigate("/signin");
+      return;
+    }
+
+    if (!effectiveUserId) return;
+
+    loadUserRole();
+    loadBlockedUsers();
+    loadPendingRequests();
+  }, [user, authLoading, navigate, effectiveUserId, loadUserRole, loadBlockedUsers, loadPendingRequests]);
+
+  // Separate effect for loading conversations (depends on pagination)
+  useEffect(() => {
+    if (!effectiveUserId || authLoading) return;
+    loadConversations();
+  }, [effectiveUserId, authLoading, loadConversations, pagination.currentPage]);
 
   if (authLoading || loading) {
     return (
@@ -476,6 +506,14 @@ export default function MessagesList() {
               : undefined
             }
             showBackToDashboard
+          />
+          
+          {/* Data Freshness Notice */}
+          <DataFreshnessNotice
+            mode="manual"
+            lastUpdated={lastUpdated}
+            onRefresh={loadConversations}
+            isRefreshing={loading}
           />
           
           {/* Primary Filter */}
@@ -752,8 +790,22 @@ export default function MessagesList() {
               );
             })}
           </div>
-          );
+           );
         })()}
+
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <PaginationControls
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={pagination.setPage}
+            hasNextPage={pagination.hasNextPage}
+            hasPrevPage={pagination.hasPrevPage}
+            showingFrom={(pagination.currentPage - 1) * pagination.pageSize + 1}
+            showingTo={Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)}
+            totalItems={pagination.totalItems}
+          />
+        )}
         
         <PublicProfileDialog
           open={profileDialogOpen}
