@@ -6705,7 +6705,7 @@ export type Database = {
           requested_states: string[]
           status: string
           updated_at: string
-          vendor_id: string
+          vendor_id: string | null
         }
         Insert: {
           created_at?: string
@@ -6717,7 +6717,7 @@ export type Database = {
           requested_states?: string[]
           status?: string
           updated_at?: string
-          vendor_id: string
+          vendor_id?: string | null
         }
         Update: {
           created_at?: string
@@ -6729,7 +6729,7 @@ export type Database = {
           requested_states?: string[]
           status?: string
           updated_at?: string
-          vendor_id?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -6794,7 +6794,7 @@ export type Database = {
           status: string
           turnaround_days: number | null
           updated_at: string
-          vendor_id: string
+          vendor_id: string | null
           working_terms_request_id: string
         }
         Insert: {
@@ -6814,7 +6814,7 @@ export type Database = {
           status?: string
           turnaround_days?: number | null
           updated_at?: string
-          vendor_id: string
+          vendor_id?: string | null
           working_terms_request_id: string
         }
         Update: {
@@ -6834,7 +6834,7 @@ export type Database = {
           status?: string
           turnaround_days?: number | null
           updated_at?: string
-          vendor_id?: string
+          vendor_id?: string | null
           working_terms_request_id?: string
         }
         Relationships: [
