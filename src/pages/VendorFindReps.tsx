@@ -135,6 +135,10 @@ export default function VendorFindReps() {
   const [hasSearched, setHasSearched] = useState(false);
   const [searching, setSearching] = useState(false);
   const [sortBy, setSortBy] = useState<string>("best-match");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  // Pagination
+  const pagination = usePagination({ pageSize: 20 });
 
   // Reviews dialog
   const [showReviewsDialog, setShowReviewsDialog] = useState(false);
@@ -505,6 +509,9 @@ export default function VendorFindReps() {
       }
 
       setResults(enhancedResults as RepResult[]);
+      pagination.setTotalItems(enhancedResults.length);
+      pagination.resetToFirstPage();
+      setLastUpdated(new Date());
       toast.success(`Found ${enhancedResults.length} matching reps`);
     } catch (error: any) {
       console.error("Search error:", error);
@@ -604,6 +611,14 @@ export default function VendorFindReps() {
       default:
         return sorted;
     }
+  };
+
+  // Get paginated results
+  const getPaginatedResults = () => {
+    const sorted = getSortedResults();
+    const start = (pagination.currentPage - 1) * pagination.pageSize;
+    const end = start + pagination.pageSize;
+    return sorted.slice(start, end);
   };
 
   const getActivityStatus = (lastSeenAt: string | null | undefined) => {
@@ -919,8 +934,18 @@ export default function VendorFindReps() {
 
           return (
             <div>
+              {/* Data Freshness Notice */}
+              <div className="mb-4">
+                <DataFreshnessNotice 
+                  mode="manual" 
+                  lastUpdated={lastUpdated?.toISOString()} 
+                  onRefresh={handleSearch}
+                  isRefreshing={searching}
+                />
+              </div>
+
               {/* Sort Control */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                 <h2 className="text-2xl font-semibold text-foreground">
                   {filteredResults.length} {filteredResults.length === 1 ? "Rep" : "Reps"} Found
                 </h2>
@@ -954,19 +979,15 @@ export default function VendorFindReps() {
                   </CardContent>
                 </Card>
               ) : (
+              <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {getSortedResults().filter(rep => {
-                    // Apply the same filtering logic as above
-                    const hasValidBgCheck = isBackgroundCheckActive({
-                      background_check_is_active: rep.background_check_is_active,
-                      background_check_expires_on: rep.background_check_expires_on,
-                    });
-                    const isWillingToObtain = !hasValidBgCheck && (rep.willing_to_obtain_background_check ?? false);
+                  {(() => {
+                    // Apply pagination to filtered results
+                    const start = (pagination.currentPage - 1) * pagination.pageSize;
+                    const end = start + pagination.pageSize;
+                    const paginatedResults = filteredResults.slice(start, end);
                     
-                    if (!post || !post.requires_background_check) return true;
-                    if (bgCheckFilterMode === "active-only") return hasValidBgCheck;
-                    return true;
-                  }).map((rep) => {
+                    return paginatedResults.map((rep) => {
                     const hasValidBgCheck = isBackgroundCheckActive({
                       background_check_is_active: rep.background_check_is_active,
                       background_check_expires_on: rep.background_check_expires_on,
@@ -1305,8 +1326,24 @@ export default function VendorFindReps() {
                     </CardContent>
                   </Card>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
+                
+                {/* Pagination Controls */}
+                {filteredResults.length > pagination.pageSize && (
+                  <div className="mt-6">
+                    <PaginationControls
+                      currentPage={pagination.currentPage}
+                      totalPages={Math.ceil(filteredResults.length / pagination.pageSize)}
+                      onPageChange={pagination.setPage}
+                      showingFrom={(pagination.currentPage - 1) * pagination.pageSize + 1}
+                      showingTo={Math.min(pagination.currentPage * pagination.pageSize, filteredResults.length)}
+                      totalItems={filteredResults.length}
+                    />
+                  </div>
+                )}
+              </>
               )}
           </div>
         );

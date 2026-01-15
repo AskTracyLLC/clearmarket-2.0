@@ -817,7 +817,7 @@ export default function AdminUsers() {
     <>
       <div className="max-w-7xl mx-auto p-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">User Management</h1>
             <p className="text-muted-foreground">Search, reset passwords, and manage account status.</p>
@@ -826,6 +826,15 @@ export default function AdminUsers() {
             <Users className="h-5 w-5" />
             <span className="font-medium">{users.length} users</span>
           </div>
+        </div>
+        
+        {/* Data Freshness Notice */}
+        <div className="mb-6">
+          <DataFreshnessNotice 
+            mode="manual" 
+            onRefresh={loadUsers}
+            isRefreshing={loading}
+          />
         </div>
 
         {/* Search and Filters */}
