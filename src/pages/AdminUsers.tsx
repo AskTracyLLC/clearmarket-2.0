@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   computeRepProfileCompleteness,
   computeVendorProfileCompleteness,
@@ -517,35 +518,68 @@ export default function AdminUsers() {
         throw new Error("No session found");
       }
 
-      const response = await supabase.functions.invoke("admin-delete-user", {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
         body: {
           target_user_id: targetUser.id,
           reason: deleteReason || null,
-          // Enable debug diagnostics so we can show actionable blockers in the UI
           debug: true,
         },
       });
 
-      if (response.error) {
-        // Supabase functions errors often include the raw response body in context.body
-        const bodyText = (response.error as any)?.context?.body;
-        if (typeof bodyText === "string" && bodyText.trim().length > 0) {
-          try {
-            const parsed = JSON.parse(bodyText);
-            const step = parsed?.step ? ` (step: ${parsed.step})` : "";
-            const blockers = Array.isArray(parsed?.fkBlockers) && parsed.fkBlockers.length
-              ? ` Blockers: ${parsed.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
-              : "";
-            throw new Error(`${parsed?.error?.message || response.error.message}${step}.${blockers}`);
-          } catch {
-            // fall through
+      // Handle FunctionsHttpError (non-2xx) - extract real body
+      if (error) {
+        console.error("invoke error:", error);
+        
+        if (error instanceof FunctionsHttpError) {
+          const res = (error as any).context?.response;
+          let bodyText: string | null = null;
+          
+          // Try to get body from different possible locations
+          if (res && typeof res.text === "function") {
+            try {
+              bodyText = await res.text();
+            } catch {
+              // response may already be consumed
+            }
+          }
+          if (!bodyText && (error as any).context?.body) {
+            bodyText = (error as any).context.body;
+          }
+
+          console.error("admin-delete-user HTTP status:", res?.status);
+          console.error("admin-delete-user raw body:", bodyText);
+
+          if (bodyText) {
+            try {
+              const parsed = JSON.parse(bodyText);
+              console.error("admin-delete-user parsed:", parsed);
+              
+              const step = parsed?.step ? ` (step: ${parsed.step})` : "";
+              const blockers = Array.isArray(parsed?.fkBlockers) && parsed.fkBlockers.length
+                ? ` Blockers: ${parsed.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
+                : "";
+              throw new Error(`${parsed?.error?.message || error.message}${step}${blockers}`);
+            } catch (parseErr) {
+              if (parseErr instanceof Error && parseErr.message.includes("step:")) {
+                throw parseErr; // re-throw our formatted error
+              }
+              // JSON parse failed, use raw body
+              throw new Error(bodyText || error.message);
+            }
           }
         }
-        throw new Error(response.error.message || "Failed to delete user");
+        
+        throw new Error(error.message || "Failed to delete user");
       }
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
+      // Handle success:false responses (now returns 200)
+      if (data?.success === false) {
+        console.error("admin-delete-user returned success:false:", data);
+        const step = data.step ? ` (step: ${data.step})` : "";
+        const blockers = Array.isArray(data.fkBlockers) && data.fkBlockers.length
+          ? ` Blockers: ${data.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
+          : "";
+        throw new Error(`${data.error?.message || data.error || "Delete failed"}${step}${blockers}`);
       }
 
       // Remove user from local state

@@ -270,6 +270,7 @@ serve(async (req) => {
     if (blockers.length > 0) {
       console.error("FK blockers still present:", JSON.stringify(blockers));
 
+      // Return 200 so client can read the payload (not 4xx/5xx which loses body)
       return new Response(
         JSON.stringify({
           success: false,
@@ -281,7 +282,7 @@ serve(async (req) => {
           userId: target_user_id,
           fkBlockers: blockers,
         }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -295,6 +296,7 @@ serve(async (req) => {
       // Scan blockers for diagnostic info
       const postErrorBlockers = await scanFkBlockers(supabaseAdmin, target_user_id);
       
+      // Return 200 so client can read the payload
       return new Response(
         JSON.stringify({
           success: false,
@@ -308,7 +310,7 @@ serve(async (req) => {
           userId: target_user_id,
           fkBlockers: postErrorBlockers,
         }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
