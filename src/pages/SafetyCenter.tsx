@@ -235,7 +235,7 @@ export default function SafetyCenter() {
           <PageHeader
             title="Safety Center"
             subtitle="Manage your blocked users and view reports you've submitted"
-            showBackToDashboard
+            backTo="/dashboard"
           />
 
           <Tabs defaultValue="blocked" className="w-full">

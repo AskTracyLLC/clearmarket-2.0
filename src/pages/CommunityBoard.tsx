@@ -149,7 +149,7 @@ const CommunityBoard = () => {
         <PageHeader
           title={communityCopy.main.sectionTitle}
           subtitle={communityCopy.main.sectionSubtitle}
-          showBackToDashboard
+          backTo="/dashboard"
         />
 
         {/* Tabs */}

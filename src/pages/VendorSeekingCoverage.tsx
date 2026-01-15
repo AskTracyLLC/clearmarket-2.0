@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,16 +9,16 @@ import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  ArrowLeft, PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, 
-  ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, ChevronDown
+  PlusCircle, Edit2, XCircle, RotateCcw, Trash2, Eye, AlertCircle, Users, 
+  ArrowUpDown, ArrowUp, ArrowDown, Search, ChevronDown
 } from "lucide-react";
-import { VendorPostPricingAlert } from "@/components/VendorPostPricingAlert";
+
 import { SeekingCoverageDialog } from "@/components/SeekingCoverageDialog";
 import { format, differenceInDays } from "date-fns";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { PageHeader } from "@/components/PageHeader";
-import AdminViewBanner from "@/components/AdminViewBanner";
+
 import { formatVendorOfferedRate } from "@/lib/vendorRateDisplay";
 import {
   Dialog,
@@ -53,7 +53,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
+
 
 interface SeekingCoveragePost {
   id: string;
@@ -736,7 +736,7 @@ Thank you again for your interest!`;
           subtitle={isAdminViewingOther 
             ? `Viewing Seeking Coverage posts for ${targetVendorName || 'this vendor'}.`
             : "Post where you need Field Reps. Requests auto-expire after 30 days."}
-          showBackToDashboard
+          backTo="/dashboard"
         />
 
         {/* Create New Button */}
@@ -971,7 +971,8 @@ Thank you again for your interest!`;
                     const isActive = post.status === "active";
                     const isClosed = post.status === "closed";
                     const now = new Date();
-                    const isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
+                    // Check if post is time-expired (for display/logic)
+                    const _isExpired = post.auto_expires_at && new Date(post.auto_expires_at) < now;
                     const canReopen = (isClosed || post.status === "expired") && (!post.auto_expires_at || new Date(post.auto_expires_at) >= now);
                     const isHighlighted = highlightPostId === post.id;
                     const interestedCount = interestedCounts[post.id] || 0;
