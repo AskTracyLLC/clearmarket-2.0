@@ -505,7 +505,7 @@ export default function MessagesList() {
               ? `${sectionCounts.unreadMessages} conversation${sectionCounts.unreadMessages !== 1 ? "s" : ""} with unread messages`
               : undefined
             }
-            showBackToDashboard
+            backTo="/dashboard"
           />
           
           {/* Data Freshness Notice */}

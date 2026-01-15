@@ -153,7 +153,7 @@ export default function Settings() {
           <PageHeader
             title="Settings"
             subtitle="Control your notifications, account details, and preferences."
-            showBackToDashboard
+            backTo="/dashboard"
           />
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -168,7 +168,7 @@ export default function Settings() {
           <PageHeader
             title="Settings"
             subtitle="Control your notifications, account details, and preferences."
-            showBackToDashboard
+            backTo="/dashboard"
           />
 
           <Tabs defaultValue={defaultTab} className="w-full">

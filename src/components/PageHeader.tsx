@@ -18,8 +18,6 @@ interface PageHeaderProps {
    * Label for the back button. Defaults to "Back" or inferred from path.
    */
   backLabel?: string;
-  /** @deprecated Use backTo="/dashboard" instead */
-  showBackToDashboard?: boolean;
   children?: React.ReactNode;
 }
 
@@ -49,11 +47,9 @@ export function PageHeader({
   subtitle, 
   backTo,
   backLabel,
-  showBackToDashboard = false,
   children 
 }: PageHeaderProps) {
-  // Support legacy showBackToDashboard prop
-  const effectiveBackTo = backTo || (showBackToDashboard ? "/dashboard" : undefined);
+  const effectiveBackTo = backTo;
   const effectiveLabel = backLabel || (effectiveBackTo ? getBackLabel(effectiveBackTo) : "Back");
 
   return (
