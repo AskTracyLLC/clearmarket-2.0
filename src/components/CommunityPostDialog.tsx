@@ -23,6 +23,7 @@ import { CommunityImageUpload, UploadedImage } from "@/components/CommunityImage
 import { supabase } from "@/integrations/supabase/client";
 import { checklist } from "@/lib/checklistTracking";
 import { communityCopy } from "@/copy/communityCopy";
+import { checkRateLimit, getRateLimitMessage } from "@/lib/rateLimit";
 
 interface CommunityPostDialogProps {
   open: boolean;
@@ -137,6 +138,20 @@ export function CommunityPostDialog({
     }
 
     setSubmitting(true);
+
+    // Rate limit check for new posts only (not edits)
+    if (!isEditing) {
+      const rl = await checkRateLimit({ action: "post_create" });
+      if (!rl.allowed) {
+        toast({
+          title: "Slow down",
+          description: getRateLimitMessage("post_create"),
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+    }
 
     // Get final image URLs (exclude any still uploading)
     const imageUrls = images.filter((img) => !img.isUploading).map((img) => img.url);

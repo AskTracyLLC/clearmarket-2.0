@@ -48,6 +48,7 @@ import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { checklist } from "@/lib/checklistTracking";
 import { communityCopy } from "@/copy/communityCopy";
+import { checkRateLimit, getRateLimitMessage } from "@/lib/rateLimit";
 import {
   MessageSquare,
   Bell,
@@ -203,6 +204,15 @@ const CommunityPostDetail = () => {
     }
 
     setSubmitting(true);
+
+    // Rate limit check
+    const rl = await checkRateLimit({ action: "comment_create" });
+    if (!rl.allowed) {
+      toast({ title: "Slow down", description: getRateLimitMessage("comment_create"), variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
     const result = await createCommunityComment(post.id, user.id, commentBody, parentCommentId);
 
     if (result.success) {
