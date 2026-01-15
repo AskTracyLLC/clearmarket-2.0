@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,16 +27,22 @@ import { CommunityImageGallery } from "@/components/CommunityImageGallery";
 import { ReportFlagButton } from "@/components/ReportFlagButton";
 import { ReportUserDialog } from "@/components/ReportUserDialog";
 import { PostBookmarkButton } from "@/components/PostBookmarkButton";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Plus,
   MessageCircle,
   Award,
   HelpCircle,
   Image as ImageIcon,
+  RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
 
 const TRUSTED_CONTRIBUTOR_MIN_SCORE = 20;
+const PAGE_SIZE = 20;
 
 interface Props {
   userId: string;
@@ -49,6 +55,7 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
 
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState<"newest" | "helpful" | "comments" | "author_score">("newest");
   const [myPostsOnly, setMyPostsOnly] = useState(false);
@@ -57,25 +64,50 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportTargetPost, setReportTargetPost] = useState<CommunityPost | null>(null);
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
   const categories = getCategoriesForChannel(channel);
+  
+  // Pagination
+  const pagination = usePagination({ pageSize: PAGE_SIZE });
 
   useEffect(() => {
     loadPosts();
-  }, [userId, channel, categoryFilter, sortBy, myPostsOnly]);
+  }, [userId, channel, categoryFilter, sortBy, myPostsOnly, pagination.currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    pagination.resetToFirstPage();
+  }, [categoryFilter, sortBy, myPostsOnly, channel]);
 
   const loadPosts = async () => {
+    if (refreshing) return; // Prevent double-loading during refresh
     setLoading(true);
+
+    // First get count for pagination (without limit)
+    const { count } = await supabase
+      .from("community_posts")
+      .select("id", { count: "exact", head: true })
+      .eq("channel", channel)
+      .eq("status", "active")
+      .match(categoryFilter !== "all" ? { category: categoryFilter } : {})
+      .match(myPostsOnly ? { author_id: userId } : {});
+
+    setTotalCount(count ?? 0);
+    pagination.setTotalItems(count ?? 0);
 
     const data = await fetchCommunityPosts({
       channel,
       category: categoryFilter,
       authorId: myPostsOnly ? userId : undefined,
       sortBy,
-      limit: 50,
+      limit: PAGE_SIZE,
+      offset: pagination.offset,
     });
 
     setPosts(data);
+    setLastFetchedAt(new Date());
 
     if (data.length > 0) {
       const votes = await fetchUserVotes(userId, "post", data.map((p) => p.id));
@@ -88,6 +120,12 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
 
     setLoading(false);
   };
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPosts();
+    setRefreshing(false);
+  }, [userId, channel, categoryFilter, sortBy, myPostsOnly, pagination.currentPage]);
 
   const handleReportPost = (post: CommunityPost) => {
     setReportTargetPost(post);
@@ -126,6 +164,14 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
 
   return (
     <div className="space-y-6">
+      {/* Freshness Notice */}
+      <DataFreshnessNotice 
+        mode="manual" 
+        lastUpdated={lastFetchedAt ?? undefined}
+        onRefresh={handleRefresh}
+        isRefreshing={refreshing}
+      />
+
       {/* Actions & Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
@@ -297,6 +343,20 @@ export function CommunityTab({ userId, channel = "community", canCreate = true }
               </Card>
             );
           })}
+
+          {/* Pagination */}
+          {totalCount > PAGE_SIZE && (
+            <div className="pt-4">
+              <PaginationControls
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={pagination.setPage}
+                showingFrom={pagination.offset + 1}
+                showingTo={Math.min(pagination.offset + PAGE_SIZE, totalCount)}
+                totalItems={totalCount}
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -23,6 +23,9 @@ import { MatchAssistantCard } from "@/components/dashboard/MatchAssistantCard";
 import { ExpressInterestDialog } from "@/components/ExpressInterestDialog";
 import { NotInterestedDialog } from "@/components/NotInterestedDialog";
 import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
 
 // MVP options for inspection types and systems
 const SYSTEM_OPTIONS = [

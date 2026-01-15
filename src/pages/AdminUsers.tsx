@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +57,11 @@ import { AdminMessageUserDialog } from "@/components/admin/AdminMessageUserDialo
 import { logAdminAction } from "@/lib/adminAudit";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
+
+const PAGE_SIZE = 50;
 
 // Column definitions for Admin User Management table
 const ADMIN_USERS_COLUMNS: ColumnDefinition[] = [

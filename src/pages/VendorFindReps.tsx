@@ -21,6 +21,9 @@ import { fetchBlockedUserIds } from "@/lib/blocks";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { DataFreshnessNotice } from "@/components/DataFreshnessNotice";
 
 // MVP placeholder options - same as used in RepProfile
 const SYSTEM_OPTIONS = [
