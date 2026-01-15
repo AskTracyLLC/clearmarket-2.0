@@ -1,7 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import {
   VENDOR_BETA_ONBOARDING_TEMPLATE_ID,
-  isSharedVendorOnboardingTemplate,
   isVendorStaff,
 } from "@/lib/checklistOwnerResolver";
 
@@ -254,16 +253,15 @@ export async function completeChecklistItem(
 
 /**
  * Complete a checklist item by auto_track_key (called when events occur)
- * Now accepts completedByUserId for audit trail
+ * Note: completedByUserId is reserved for future RPC enhancement for audit trail
  */
 export async function completeChecklistByKey(
   supabase: SupabaseClient,
   userId: string,
   autoTrackKey: string,
-  completedByUserId?: string
+  _completedByUserId?: string // Prefixed with _ as RPC doesn't yet support this param
 ): Promise<void> {
-  // Note: The RPC doesn't support completed_by param yet, but we pass userId as target
-  // The RPC will mark completed_by as 'system' - consider updating RPC if audit needed
+  // Note: The RPC marks completed_by as 'system' - consider updating RPC if audit needed
   await supabase.rpc("complete_checklist_item_by_key", {
     p_user_id: userId,
     p_auto_track_key: autoTrackKey,
