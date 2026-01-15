@@ -3269,6 +3269,49 @@ export type Database = {
           },
         ]
       }
+      rep_score_summary: {
+        Row: {
+          community_score: number
+          refreshed_at: string
+          rep_user_id: string
+          trust_score: number
+        }
+        Insert: {
+          community_score?: number
+          refreshed_at?: string
+          rep_user_id: string
+          trust_score?: number
+        }
+        Update: {
+          community_score?: number
+          refreshed_at?: string
+          rep_user_id?: string
+          trust_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_score_summary_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_score_summary_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_score_summary_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: true
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       rep_vendor_contacts: {
         Row: {
           company_name: string | null
@@ -6444,6 +6487,46 @@ export type Database = {
             foreignKeyName: "vendor_rep_agreements_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      vendor_score_summary: {
+        Row: {
+          refreshed_at: string
+          trust_score: number
+          vendor_user_id: string
+        }
+        Insert: {
+          refreshed_at?: string
+          trust_score?: number
+          vendor_user_id: string
+        }
+        Update: {
+          refreshed_at?: string
+          trust_score?: number
+          vendor_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_score_summary_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_score_summary_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_score_summary_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: true
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
