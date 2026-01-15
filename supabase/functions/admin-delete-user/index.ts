@@ -42,6 +42,7 @@ const FK_CANDIDATES = [
   { table: "vendor_profile", column: "verified_by", action: "null" },
   { table: "vendor_code_reservations", column: "created_by", action: "null" },
   { table: "vendor_staff", column: "invited_by", action: "null" },
+  { table: "vendor_staff", column: "staff_user_id", action: "delete" }, // user's own staff membership
   { table: "admin_broadcasts", column: "created_by", action: "null" },
   { table: "background_checks", column: "reviewed_by_user_id", action: "null" },
   { table: "checklist_item_feedback", column: "resolved_by", action: "null" },
@@ -58,6 +59,9 @@ const FK_CANDIDATES = [
   { table: "review_change_requests", column: "reviewed_by", action: "null" },
   { table: "vendor_activity_events", column: "actor_user_id", action: "null" },
   { table: "vendor_activity_events", column: "vendor_owner_user_id", action: "null" },
+
+  // Delete the profiles row LAST (before auth.deleteUser) — this is not an FK but the row itself
+  { table: "profiles", column: "id", action: "delete" },
 ];
 
 // Tables where we delete rows entirely (the user owns these)
@@ -270,8 +274,13 @@ serve(async (req) => {
     step = "pre_delete_blocker_scan";
     const blockers = await scanFkBlockers(supabaseAdmin, target_user_id);
 
-    if (blockers.length > 0) {
-      console.error("FK blockers still present:", JSON.stringify(blockers));
+    // profiles.id is not an FK — it's the row we just deleted. Filter it out from abort condition.
+    const effectiveBlockers = blockers.filter(
+      (b) => !(b.table === "profiles" && b.column === "id")
+    );
+
+    if (effectiveBlockers.length > 0) {
+      console.error("FK blockers still present:", JSON.stringify(effectiveBlockers));
 
       // Return 200 so client can read the payload (not 4xx/5xx which loses body)
       return new Response(
@@ -279,11 +288,11 @@ serve(async (req) => {
           success: false,
           step: "pre_delete_blocker_scan",
           error: {
-            message: `Cannot delete user: ${blockers.length} FK reference(s) still present`,
+            message: `Cannot delete user: ${effectiveBlockers.length} FK reference(s) still present`,
             hint: "These tables still reference the user and must be cleaned up first",
           },
           userId: target_user_id,
-          fkBlockers: blockers,
+          fkBlockers: effectiveBlockers,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -388,7 +397,8 @@ async function scanFkBlockers(
 ): Promise<FkBlocker[]> {
   const blockers: FkBlocker[] = [];
   
-  // Comprehensive list of all tables/columns that reference auth.users or profiles
+  // Comprehensive list of FK references that could block auth.admin.deleteUser.
+  // NOTE: profiles.id is NOT included here — it's not an FK, it's the user's own row.
   const allCandidates = [
     // auth.users references (NO ACTION constraints - must be cleaned)
     { table: "admin_users", column: "user_id" },
@@ -408,8 +418,7 @@ async function scanFkBlockers(
     { table: "vendor_proposal_shares", column: "vendor_user_id" },
     { table: "vendor_proposal_rep_rate_snapshots", column: "rep_user_id" },
     { table: "rep_contact_info", column: "rep_user_id" },
-    // profiles references (should cascade, but check anyway)
-    { table: "profiles", column: "id" },
+    // profiles-level references (should cascade, but check anyway)
     { table: "rep_profile", column: "user_id" },
     { table: "vendor_profile", column: "user_id" },
     { table: "vendor_activity_events", column: "actor_user_id" },
