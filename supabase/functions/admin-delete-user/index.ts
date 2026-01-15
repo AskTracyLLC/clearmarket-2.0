@@ -107,10 +107,13 @@ serve(async (req) => {
 
     console.error("Delete failed at step:", step, "Error:", message, "Blockers:", errorPayload.fkBlockers);
 
-    return new Response(
-      JSON.stringify(errorPayload),
-      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Only use non-2xx for auth/permission issues; everything else stays 200 so the client can read the body.
+    const responseStatus = status === 401 || status === 403 ? status : 200;
+
+    return new Response(JSON.stringify(errorPayload), {
+      status: responseStatus,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   };
 
   try {
@@ -353,20 +356,23 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Unexpected error at step:", step, error);
-    
-    const errObj = error as Error;
+
+    const errObj = error as any;
+
+    // Return 200 so the client receives the diagnostic payload (only auth uses non-2xx)
     return new Response(
       JSON.stringify({
         success: false,
         step,
         error: {
-          message: errObj.message || "An unexpected error occurred",
-          code: "UNEXPECTED",
-          details: errObj.stack,
+          message: errObj?.message || String(errObj) || "An unexpected error occurred",
+          code: errObj?.code || "UNEXPECTED",
+          details: errObj?.details || errObj?.stack || null,
+          hint: errObj?.hint || null,
         },
         userId,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

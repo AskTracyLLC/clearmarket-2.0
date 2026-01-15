@@ -526,51 +526,12 @@ export default function AdminUsers() {
         },
       });
 
-      // Handle FunctionsHttpError (non-2xx) - extract real body
       if (error) {
         console.error("invoke error:", error);
-        
-        if (error instanceof FunctionsHttpError) {
-          const res = (error as any).context?.response;
-          let bodyText: string | null = null;
-          
-          // Try to get body from different possible locations
-          if (res && typeof res.text === "function") {
-            try {
-              bodyText = await res.text();
-            } catch {
-              // response may already be consumed
-            }
-          }
-          if (!bodyText && (error as any).context?.body) {
-            bodyText = (error as any).context.body;
-          }
-
-          console.error("admin-delete-user HTTP status:", res?.status);
-          console.error("admin-delete-user raw body:", bodyText);
-
-          if (bodyText) {
-            try {
-              const parsed = JSON.parse(bodyText);
-              console.error("admin-delete-user parsed:", parsed);
-              
-              const step = parsed?.step ? ` (step: ${parsed.step})` : "";
-              const blockers = Array.isArray(parsed?.fkBlockers) && parsed.fkBlockers.length
-                ? ` Blockers: ${parsed.fkBlockers.map((b: any) => `${b.table}.${b.column}(${b.count})`).join(", ")}`
-                : "";
-              throw new Error(`${parsed?.error?.message || error.message}${step}${blockers}`);
-            } catch (parseErr) {
-              if (parseErr instanceof Error && parseErr.message.includes("step:")) {
-                throw parseErr; // re-throw our formatted error
-              }
-              // JSON parse failed, use raw body
-              throw new Error(bodyText || error.message);
-            }
-          }
-        }
-        
-        throw new Error(error.message || "Failed to delete user");
+        throw error;
       }
+
+      console.log("delete-user data:", data);
 
       // Handle success:false responses (now returns 200)
       if (data?.success === false) {
@@ -588,10 +549,26 @@ export default function AdminUsers() {
       toast.success("User deleted", {
         description: `${targetUser.email || getAnonymousId(targetUser)} has been permanently deleted.`,
       });
-    } catch (error: any) {
-      console.error("Delete user error:", error);
+    } catch (err: any) {
+      // ✅ Immediate visibility into non-2xx function responses
+      if (err instanceof FunctionsHttpError) {
+        const res = (err as any).context?.response;
+        const bodyText = res ? await res.text().catch(() => null) : null;
+
+        console.error("admin-delete-user HTTP status:", res?.status);
+        console.error("admin-delete-user raw body:", bodyText);
+
+        try {
+          console.error("admin-delete-user parsed:", bodyText ? JSON.parse(bodyText) : null);
+        } catch {
+          // ignore
+        }
+      } else {
+        console.error("Delete user error:", err);
+      }
+
       toast.error("Failed to delete user", {
-        description: error.message,
+        description: err?.message,
       });
     } finally {
       setActionLoading(null);
