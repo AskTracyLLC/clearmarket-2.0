@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { useMimic } from "@/hooks/useMimic";
 import {
-  loadUserChecklists,
   completeChecklistItem,
   completeChecklistByKey,
   assignDefaultChecklists,
@@ -15,7 +14,6 @@ import {
 } from "@/lib/checklists";
 import {
   resolveVendorChecklistOwnerUserId,
-  VENDOR_BETA_ONBOARDING_TEMPLATE_ID,
   isVendorStaff,
 } from "@/lib/checklistOwnerResolver";
 
