@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MessageSquare, Eye, Headphones } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getUserDisplayName, batchGetUserDisplayNames } from "@/lib/conversations";
+import { batchGetUserDisplayNames } from "@/lib/conversations";
 import { formatDistanceToNow } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
