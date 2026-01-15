@@ -2568,55 +2568,36 @@ export type Database = {
       }
       rate_limit_counters: {
         Row: {
-          action_type: string
+          action: string
+          actor_key: string
           count: number
           created_at: string
           id: string
           updated_at: string
-          user_id: string
+          window_seconds: number
           window_start: string
         }
         Insert: {
-          action_type: string
+          action: string
+          actor_key: string
           count?: number
           created_at?: string
           id?: string
           updated_at?: string
-          user_id: string
+          window_seconds: number
           window_start: string
         }
         Update: {
-          action_type?: string
+          action?: string
+          actor_key?: string
           count?: number
           created_at?: string
           id?: string
           updated_at?: string
-          user_id?: string
+          window_seconds?: number
           window_start?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "rate_limit_counters_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rate_limit_counters_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_staff_safe"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rate_limit_counters_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "public_vendor_gl_badges"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       rep_availability: {
         Row: {
@@ -7239,6 +7220,15 @@ export type Database = {
       calculate_community_score: {
         Args: { p_user_id: string }
         Returns: number
+      }
+      check_rate_limit: {
+        Args: {
+          p_action: string
+          p_identifier?: string
+          p_max_requests: number
+          p_window_seconds: number
+        }
+        Returns: boolean
       }
       check_vendor_code_available: { Args: { p_code: string }; Returns: Json }
       complete_checklist_item_by_key: {
