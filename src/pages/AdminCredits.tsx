@@ -39,6 +39,7 @@ interface VendorSearchResult {
   owner_email: string;
   owner_full_name: string | null;
   anonymous_id: string | null;
+  vendor_public_code: string | null;
   credits_balance: number;
 }
 
@@ -101,6 +102,7 @@ const AdminCredits = () => {
         user_id,
         company_name,
         anonymous_id,
+        vendor_public_code,
         profiles!vendor_profile_user_id_fkey(email, full_name)
       `)
       .eq("id", vendorId)
@@ -128,6 +130,7 @@ const AdminCredits = () => {
       owner_email: ownerProfile?.email || "Unknown",
       owner_full_name: ownerProfile?.full_name || null,
       anonymous_id: vendorData.anonymous_id,
+      vendor_public_code: vendorData.vendor_public_code,
       credits_balance: walletData?.credits_balance ?? 0,
     };
 
@@ -145,7 +148,7 @@ const AdminCredits = () => {
     try {
       const searchTerm = `%${query.trim()}%`;
 
-      // Search vendor_profile by company_name or anonymous_id
+      // Search vendor_profile by company_name, anonymous_id, or vendor_public_code
       const { data: vendorData, error: vendorError } = await supabase
         .from("vendor_profile")
         .select(`
@@ -153,9 +156,10 @@ const AdminCredits = () => {
           user_id,
           company_name,
           anonymous_id,
+          vendor_public_code,
           profiles!vendor_profile_user_id_fkey(email, full_name)
         `)
-        .or(`company_name.ilike.${searchTerm},anonymous_id.ilike.${searchTerm}`)
+        .or(`company_name.ilike.${searchTerm},anonymous_id.ilike.${searchTerm},vendor_public_code.ilike.${searchTerm}`)
         .limit(20);
 
       if (vendorError) {
@@ -186,6 +190,7 @@ const AdminCredits = () => {
                 user_id,
                 company_name,
                 anonymous_id,
+                vendor_public_code,
                 profiles!vendor_profile_user_id_fkey(email, full_name)
               `)
               .in("user_id", newOwnerIds);
@@ -215,6 +220,7 @@ const AdminCredits = () => {
           owner_email: ownerProfile?.email || "Unknown",
           owner_full_name: ownerProfile?.full_name || null,
           anonymous_id: v.anonymous_id,
+          vendor_public_code: v.vendor_public_code,
           credits_balance: walletMap.get(v.id) ?? 0,
         };
       });
@@ -395,13 +401,13 @@ const AdminCredits = () => {
                 Find Vendor
               </CardTitle>
               <CardDescription>
-                Search by company name, Vendor# anonymous ID, or owner email
+                Search by company name, Vendor Code, Vendor #, or owner email
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="relative">
                 <Input
-                  placeholder="Search vendors..."
+                  placeholder="Company, Vendor Code, Vendor #, or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pr-10"
@@ -427,9 +433,14 @@ const AdminCredits = () => {
                             <Building2 className="h-3 w-3 text-muted-foreground" />
                             {v.company_name || "Unnamed Vendor"}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {v.anonymous_id && <span className="mr-2">{v.anonymous_id}</span>}
-                            · {v.owner_email}
+                          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1">
+                            {v.vendor_public_code && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                Code: {v.vendor_public_code}
+                              </Badge>
+                            )}
+                            {v.anonymous_id && <span>{v.anonymous_id}</span>}
+                            <span>· {v.owner_email}</span>
                           </div>
                           {v.owner_full_name && (
                             <div className="text-xs text-muted-foreground">
@@ -483,13 +494,18 @@ const AdminCredits = () => {
                         <Coins className="h-5 w-5 text-secondary" />
                         {selectedVendor.company_name || "Unnamed Vendor"}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="flex flex-wrap items-center gap-2">
+                        {selectedVendor.vendor_public_code && (
+                          <Badge variant="outline" className="text-xs">
+                            Code: {selectedVendor.vendor_public_code}
+                          </Badge>
+                        )}
                         {selectedVendor.anonymous_id && (
-                          <Badge variant="secondary" className="mr-2 text-xs">
+                          <Badge variant="secondary" className="text-xs">
                             {selectedVendor.anonymous_id}
                           </Badge>
                         )}
-                        {selectedVendor.owner_email}
+                        <span>{selectedVendor.owner_email}</span>
                       </CardDescription>
                       {selectedVendor.owner_full_name && (
                         <p className="text-xs text-muted-foreground mt-1">

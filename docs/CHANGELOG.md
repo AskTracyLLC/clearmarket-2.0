@@ -1,5 +1,12 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Admin Credits Vendor Code Search
+- **AdminCredits.tsx**: Added `vendor_public_code` to search query (matches "MBFS"-style codes)
+- Search now matches: company name, Vendor Code, Vendor # (anonymous_id), or owner email
+- Updated placeholder and helper text to reflect new search capability
+- Added Vendor Code badge in search results and selected vendor panel
+- No changes to wallet logic (vendor_wallet remains canonical for vendors)
+
 Newest entries at top.
 
 ## 2026-01-16
