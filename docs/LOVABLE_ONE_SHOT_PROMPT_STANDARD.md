@@ -1,6 +1,6 @@
 # ClearMarket — Lovable One-Shot Prompt Standard (No Check-ins)
 
-Standards for AI-assisted development on this project.
+This document is the project’s source of truth for Lovable behavior and must be followed on every task. Standards for AI-assisted development on this project.
 
 ---
 
