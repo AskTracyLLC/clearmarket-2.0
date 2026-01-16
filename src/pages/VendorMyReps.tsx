@@ -30,6 +30,7 @@ import { fetchBlockedUserIds } from "@/lib/blocks";
 import { MyRepsTable } from "@/components/MyRepsTable";
 import { ConnectionNotesModal } from "@/components/ConnectionNotesModal";
 import { VendorOfflineRepContacts } from "@/components/VendorOfflineRepContacts";
+import { VendorRepNotesDrawer } from "@/components/VendorRepNotesDrawer";
 
 interface ConnectedRep {
   repUserId: string;
@@ -103,6 +104,10 @@ const VendorMyReps = () => {
   // Notes modal state
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesModalRep, setNotesModalRep] = useState<ConnectedRep | null>(null);
+
+  // Rep Notes Drawer state (vendor_rep_notes table)
+  const [repNotesDrawerOpen, setRepNotesDrawerOpen] = useState(false);
+  const [repNotesSelectedRep, setRepNotesSelectedRep] = useState<ConnectedRep | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -389,6 +394,11 @@ const VendorMyReps = () => {
     setShowNotesModal(true);
   };
 
+  const handleOpenRepNotes = (rep: ConnectedRep) => {
+    setRepNotesSelectedRep(rep);
+    setRepNotesDrawerOpen(true);
+  };
+
   const handleAddNote = async () => {
     if (!notesModalRep) return;
     const text = noteDrafts[notesModalRep.repUserId]?.trim();
@@ -639,6 +649,7 @@ const VendorMyReps = () => {
                       setShowReviewsDialog(true);
                     }}
                     onOpenNotes={handleOpenNotes}
+                    onOpenRepNotes={handleOpenRepNotes}
                     onWorkingTermsSaved={loadConnectedReps}
                   />
                 </CardContent>
@@ -727,6 +738,21 @@ const VendorMyReps = () => {
         onOpenChange={setShowReviewsDialog}
         targetUserId={reviewsDialogUserId}
       />
+
+      {/* Rep Notes Drawer (vendor_rep_notes) */}
+      {user && repNotesSelectedRep && (
+        <VendorRepNotesDrawer
+          open={repNotesDrawerOpen}
+          onOpenChange={(open) => {
+            setRepNotesDrawerOpen(open);
+            if (!open) setRepNotesSelectedRep(null);
+          }}
+          vendorProfileId={user.id}
+          repUserId={repNotesSelectedRep.repUserId}
+          repName={repNotesSelectedRep.displayName || repNotesSelectedRep.anonymousId}
+          isCurrentUserAdmin={profile?.is_vendor_admin || profile?.is_admin || false}
+        />
+      )}
 
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
         <AlertDialogContent>
