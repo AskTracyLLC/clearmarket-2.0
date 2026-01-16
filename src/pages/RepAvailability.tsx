@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle, MapPin, Clock, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Calendar, Send, Plus, Edit, Trash2, ArrowLeft, AlertTriangle, MapPin, Clock, ChevronDown, ChevronUp, History, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -482,12 +482,13 @@ export default function RepAvailability() {
         return;
       }
 
-      // Handle Planned Route differently - schedule instead of send
+      // Handle Planned Route - send immediately if today, schedule if future
       if (alertType === "route") {
         const routeDateStr = format(routeDate!, "yyyy-MM-dd");
         const stateName = coverageStates.find(s => s.code === routeState)?.name || routeState;
         const formattedDate = format(routeDate!, "MMMM do, yyyy");
         const countiesList = routeCounties.join(", ");
+        const isRouteToday = isToday(routeDate!);
 
         // Substitute placeholders so we store the final message, not the raw template
         let finalMessage = alertMessage
@@ -495,46 +496,116 @@ export default function RepAvailability() {
           .replace(/\{STATE\}/g, stateName)
           .replace(/\{COUNTIES\}/g, countiesList);
 
-        const alertData = {
-          rep_user_id: user.id,
-          alert_type: "planned_route",
-          message: finalMessage,
-          affected_start_date: routeDateStr,
-          affected_end_date: routeDateStr,
-          recipient_vendor_ids: vendorIds,
-          route_date: routeDateStr,
-          route_state: stateName,
-          route_counties: routeCounties,
-          is_scheduled: true,
-          scheduled_status: "pending_confirmation" as const,
-        };
+        if (isRouteToday) {
+          // Send immediately for today's date
+          const alertData = {
+            rep_user_id: user.id,
+            alert_type: "planned_route",
+            message: finalMessage,
+            affected_start_date: routeDateStr,
+            affected_end_date: routeDateStr,
+            recipient_vendor_ids: vendorIds,
+            route_date: routeDateStr,
+            route_state: stateName,
+            route_counties: routeCounties,
+            is_scheduled: false,
+            scheduled_status: null,
+          };
 
-        if (editingRouteId) {
-          // Update existing
-          const { error } = await supabase
-            .from("vendor_alerts")
-            .update(alertData)
-            .eq("id", editingRouteId);
+          let alertId: string;
 
-          if (error) throw error;
+          if (editingRouteId) {
+            // Update existing and get ID
+            const { data, error } = await supabase
+              .from("vendor_alerts")
+              .update(alertData)
+              .eq("id", editingRouteId)
+              .select("id")
+              .single();
+
+            if (error) throw error;
+            alertId = data.id;
+          } else {
+            // Insert new and get ID
+            const { data, error } = await supabase
+              .from("vendor_alerts")
+              .insert(alertData)
+              .select("id")
+              .single();
+
+            if (error) throw error;
+            alertId = data.id;
+          }
+
+          // Invoke edge function to send immediately
+          const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+            "send-rep-network-alert",
+            {
+              body: {
+                alertId,
+                repUserId: user.id,
+              },
+            }
+          );
+
+          if (sendError) throw sendError;
+
+          const inAppCount = sendResult?.inAppNotifications || 0;
+          const emailCount = sendResult?.emailsSent || 0;
+          let description = `Alert sent to ${inAppCount} vendor${inAppCount !== 1 ? 's' : ''}`;
+          if (emailCount > 0) {
+            description += ` and ${emailCount} manual contact${emailCount !== 1 ? 's' : ''}`;
+          }
+
+          toast({ title: "Alert Sent", description });
+
+          // Reset form and refresh data
+          resetAlertForm();
+          await Promise.all([loadPendingRoutes(), loadScheduledAlerts(), loadAlertHistory()]);
+          return;
         } else {
-          // Insert new
-          const { error } = await supabase
-            .from("vendor_alerts")
-            .insert(alertData);
+          // Schedule for future date
+          const alertData = {
+            rep_user_id: user.id,
+            alert_type: "planned_route",
+            message: finalMessage,
+            affected_start_date: routeDateStr,
+            affected_end_date: routeDateStr,
+            recipient_vendor_ids: vendorIds,
+            route_date: routeDateStr,
+            route_state: stateName,
+            route_counties: routeCounties,
+            is_scheduled: true,
+            scheduled_status: "pending_confirmation" as const,
+          };
 
-          if (error) throw error;
+          if (editingRouteId) {
+            // Update existing
+            const { error } = await supabase
+              .from("vendor_alerts")
+              .update(alertData)
+              .eq("id", editingRouteId);
+
+            if (error) throw error;
+          } else {
+            // Insert new
+            const { error } = await supabase
+              .from("vendor_alerts")
+              .insert(alertData);
+
+            if (error) throw error;
+          }
+
+          toast({
+            title: "Route Scheduled",
+            description: `Your planned route for ${format(routeDate!, "MMMM do, yyyy")} is saved. You'll be prompted to confirm and send it on that day.`,
+          });
+
+          // Reset form
+          resetAlertForm();
+          await Promise.all([loadPendingRoutes(), loadScheduledAlerts()]);
+          return;
         }
-
-        toast({
-          title: "Route Scheduled",
-          description: `Your planned route for ${format(routeDate!, "MMMM do, yyyy")} is saved. You'll be prompted to confirm and send it on that day.`,
-        });
-
-        // Reset form
-        resetAlertForm();
-        await loadPendingRoutes();
-        return;
       }
 
       // Prepare message with placeholder replacement for other types
@@ -982,6 +1053,15 @@ export default function RepAvailability() {
                     </Popover>
                   </div>
 
+                  {/* Info alert explaining send-now vs scheduled behavior */}
+                  <Alert variant="info">
+                    <Info className="w-4 h-4" />
+                    <AlertTitle>Today sends immediately</AlertTitle>
+                    <AlertDescription>
+                      If you select today's date, your planned route alert will send now. Future dates will be saved and sent after confirmation on that day.
+                    </AlertDescription>
+                  </Alert>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="mb-2 block">State</Label>
@@ -1046,7 +1126,14 @@ export default function RepAvailability() {
                 {alertType === "route" ? (
                   <>
                     <MapPin className="w-4 h-4 mr-2" />
-                    {sendingAlert ? "Scheduling..." : editingRouteId ? "Update Planned Route" : "Schedule Planned Route"}
+                    {sendingAlert 
+                      ? (routeDate && isToday(routeDate) ? "Sending..." : "Scheduling...") 
+                      : routeDate && isToday(routeDate) 
+                        ? "Send Planned Route Now" 
+                        : editingRouteId 
+                          ? "Update Planned Route" 
+                          : "Schedule Planned Route"
+                    }
                   </>
                 ) : (
                   <>
