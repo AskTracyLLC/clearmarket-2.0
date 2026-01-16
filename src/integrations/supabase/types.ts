@@ -2348,6 +2348,7 @@ export type Database = {
           stripe_payment_intent_id: string | null
           stripe_price_id: string | null
           user_id: string
+          vendor_id: string | null
         }
         Insert: {
           amount_cents?: number | null
@@ -2364,6 +2365,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_price_id?: string | null
           user_id: string
+          vendor_id?: string | null
         }
         Update: {
           amount_cents?: number | null
@@ -2380,6 +2382,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_price_id?: string | null
           user_id?: string
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -2402,6 +2405,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pending_credit_purchases_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6516,6 +6526,7 @@ export type Database = {
       vendor_staff: {
         Row: {
           accepted_at: string | null
+          can_spend_credits: boolean
           created_at: string | null
           disabled_at: string | null
           id: string
@@ -6534,6 +6545,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          can_spend_credits?: boolean
           created_at?: string | null
           disabled_at?: string | null
           id?: string
@@ -6552,6 +6564,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          can_spend_credits?: boolean
           created_at?: string | null
           disabled_at?: string | null
           id?: string
@@ -6653,6 +6666,70 @@ export type Database = {
             columns: ["vendor_staff_email_id"]
             isOneToOne: false
             referencedRelation: "vendor_staff_emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_wallet: {
+        Row: {
+          credits_balance: number
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          credits_balance?: number
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          credits_balance?: number
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_wallet_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: true
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_wallet_transactions: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          delta: number
+          id: string
+          metadata: Json | null
+          txn_type: string
+          vendor_id: string
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          delta: number
+          id?: string
+          metadata?: Json | null
+          txn_type: string
+          vendor_id: string
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          delta?: number
+          id?: string
+          metadata?: Json | null
+          txn_type?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_wallet_transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
         ]
@@ -7190,6 +7267,16 @@ export type Database = {
         Args: { p_assignment_id: string; p_rep_user_id: string }
         Returns: Json
       }
+      add_vendor_credits: {
+        Args: {
+          p_actor_user_id: string
+          p_amount: number
+          p_metadata?: Json
+          p_txn_type: string
+          p_vendor_id: string
+        }
+        Returns: undefined
+      }
       admin_assign_vendor_code: {
         Args: {
           p_admin_override?: boolean
@@ -7445,6 +7532,15 @@ export type Database = {
       revoke_proposal_share: { Args: { p_share_id: string }; Returns: Json }
       send_admin_broadcast: { Args: { p_broadcast_id: string }; Returns: Json }
       set_onboarding_role: { Args: { p_role: string }; Returns: Json }
+      spend_vendor_credits: {
+        Args: {
+          p_amount: number
+          p_metadata?: Json
+          p_txn_type: string
+          p_vendor_id: string
+        }
+        Returns: undefined
+      }
       unlock_rep_contact: {
         Args: { p_rep_user_id: string; p_vendor_user_id: string }
         Returns: Json

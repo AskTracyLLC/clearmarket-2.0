@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -40,8 +41,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw, BarChart3 } from "lucide-react";
+import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw, BarChart3, Coins } from "lucide-react";
 import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface VendorStaffMember {
   id: string;
@@ -54,6 +62,7 @@ interface VendorStaffMember {
   invited_at: string;
   accepted_at: string | null;
   disabled_at: string | null;
+  can_spend_credits: boolean;
 }
 
 // Helper to log staff actions to audit log
@@ -91,11 +100,14 @@ export default function VendorStaff() {
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [togglingSpend, setTogglingSpend] = useState<string | null>(null);
+  const [isCurrentUserOwnerOrAdmin, setIsCurrentUserOwnerOrAdmin] = useState(false);
   
   // Invite form state
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "staff">("staff");
+  const [inviteCanSpendCredits, setInviteCanSpendCredits] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -141,6 +153,13 @@ export default function VendorStaff() {
 
         if (staffError) throw staffError;
         setStaffMembers((staff || []) as VendorStaffMember[]);
+        
+        // Check if current user is owner (matched vendor_profile.user_id) or admin staff
+        const isOwner = Boolean(vp.id && user.id);
+        const isAdminStaff = (staff || []).some(
+          (s: any) => s.staff_user_id === user.id && s.role === "admin" && s.status === "active"
+        );
+        setIsCurrentUserOwnerOrAdmin(isOwner || isAdminStaff);
       }
     } catch (error: any) {
       console.error("Error loading staff data:", error);
@@ -174,6 +193,7 @@ export default function VendorStaff() {
           name: inviteName.trim(),
           email: inviteEmail.trim(),
           role: inviteRole,
+          canSpendCredits: inviteCanSpendCredits,
         },
       });
 
@@ -192,6 +212,7 @@ export default function VendorStaff() {
       setInviteName("");
       setInviteEmail("");
       setInviteRole("staff");
+      setInviteCanSpendCredits(false);
       setInviteDialogOpen(false);
       
       // Reload staff list
@@ -307,6 +328,39 @@ export default function VendorStaff() {
         description: err.message || "Failed to update status.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleToggleCanSpendCredits = async (member: VendorStaffMember) => {
+    if (!vendorProfile || !user) return;
+    if (!isCurrentUserOwnerOrAdmin) return;
+    
+    setTogglingSpend(member.id);
+    try {
+      const { error } = await supabase
+        .from("vendor_staff")
+        .update({ can_spend_credits: !member.can_spend_credits })
+        .eq("id", member.id);
+
+      if (error) throw error;
+
+      await logStaffAction(vendorProfile.id, "vendor_staff.spend_permission_changed", member.id, {
+        can_spend_credits: String(!member.can_spend_credits),
+      });
+
+      toast({
+        title: "Permission Updated",
+        description: `${member.invited_name} can ${!member.can_spend_credits ? "now" : "no longer"} spend credits.`,
+      });
+      loadData();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update permission.",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingSpend(null);
     }
   };
 
@@ -499,6 +553,16 @@ export default function VendorStaff() {
                 <p className="text-xs text-muted-foreground">
                   Admins can manage staff and settings. Staff can perform standard operations.
                 </p>
+              </div>
+              <div className="flex items-center space-x-3 pt-2">
+                <Checkbox
+                  id="invite-can-spend"
+                  checked={inviteCanSpendCredits}
+                  onCheckedChange={(checked) => setInviteCanSpendCredits(checked === true)}
+                />
+                <Label htmlFor="invite-can-spend" className="text-sm font-normal cursor-pointer">
+                  Allow this user to spend credits
+                </Label>
               </div>
             </div>
             <DialogFooter>
