@@ -16,7 +16,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Info } from "lucide-react";
+import { Users, Info, Ban } from "lucide-react";
+import { VendorDoNotUseReps } from "@/components/VendorDoNotUseReps";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getOrCreateConversation } from "@/lib/conversations";
 import AdminViewBanner from "@/components/AdminViewBanner";
@@ -76,6 +77,7 @@ const VendorMyReps = () => {
   const [profile, setProfile] = useState<{ is_vendor_admin: boolean; is_admin: boolean } | null>(null);
   const [connectedReps, setConnectedReps] = useState<ConnectedRep[]>([]);
   const [offlineRepCount, setOfflineRepCount] = useState(0);
+  const [doNotUseCount, setDoNotUseCount] = useState(0);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [selectedRepUserId, setSelectedRepUserId] = useState<string | null>(null);
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -618,6 +620,10 @@ const VendorMyReps = () => {
             <TabsTrigger value="offline">
               Offline Rep Contacts ({offlineRepCount})
             </TabsTrigger>
+            <TabsTrigger value="donotuse" className="gap-1">
+              <Ban className="h-4 w-4" />
+              Do Not Use ({doNotUseCount})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="connected">
@@ -659,6 +665,15 @@ const VendorMyReps = () => {
 
           <TabsContent value="offline">
             {user && <VendorOfflineRepContacts vendorId={user.id} embedded />}
+          </TabsContent>
+
+          <TabsContent value="donotuse">
+            {user && (
+              <VendorDoNotUseReps
+                vendorId={user.id}
+                onCountChange={setDoNotUseCount}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>

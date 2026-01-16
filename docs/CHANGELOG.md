@@ -56,22 +56,18 @@ Newest entries at top.
 
   - **DB:** `20260116003102_b80213d8-064a-4e92-a066-675c9603e828`
 
-  - **Routes:** `/vendor/blocked-reps`
-
-  - **Files:** `VendorStaffNotesDrawer.tsx`, `VendorRepNotesDrawer.tsx`, `VendorBlockedReps.tsx`, `VendorStaff.tsx`, `VendorMyReps.tsx`, `MyRepsTable.tsx`, `LeftSidebar.tsx`, `App.tsx`
+  - **Files:** `VendorStaffNotesDrawer.tsx`, `VendorRepNotesDrawer.tsx`, `VendorStaff.tsx`, `VendorMyReps.tsx`, `MyRepsTable.tsx`
 
 - **Pinned Sidebar Persistence** — User UI preferences now persist to database
 
   - **DB:** `20260116003102_b80213d8-064a-4e92-a066-675c9603e828` (user_ui_preferences table)
 
-  - **Routes:** none
-
   - **Files:** `usePinnedFeatures.ts`, `LeftSidebar.tsx`
 
-- **Blocked Reps Page** — "Do Not Assign" list for vendor teams
+- **Do Not Use List** — "Do Not Use" list integrated as third tab on My Reps page
 
-  - **DB:** `20260116003102_b80213d8-064a-4e92-a066-675c9603e828` (extended vendor_offline_rep_contacts)
+  - **DB:** `20260116030923_5175f074-9a02-4bde-b985-68ec1cf8cb6c` (vendor_do_not_use_reps table)
 
-  - **Routes:** `/vendor/blocked-reps`
+  - **Routes:** `/vendor/my-reps` (tab: donotuse)
 
-  - **Files:** `VendorBlockedReps.tsx`, `LeftSidebar.tsx`, `App.tsx`
+  - **Files:** `VendorDoNotUseReps.tsx`, `MarkDoNotUseDialog.tsx`, `VendorMyReps.tsx`
