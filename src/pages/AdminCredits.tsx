@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,13 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { 
   Search, 
   Coins, 
-  User, 
+  Building2, 
   Loader2, 
   AlertCircle,
   Plus,
@@ -24,29 +23,33 @@ import {
   ExternalLink
 } from "lucide-react";
 
-interface UserSearchResult {
-  id: string;
-  email: string;
-  full_name: string | null;
-  is_fieldrep: boolean;
-  is_vendor_admin: boolean;
-  is_admin: boolean;
-  is_moderator: boolean;
-  is_support: boolean;
-  credits: number;
-  rep_anonymous_id?: string | null;
-  vendor_anonymous_id?: string | null;
-  staff_anonymous_id?: string | null;
+/**
+ * Credit System Rule:
+ * - Vendor credits live in vendor_wallet (keyed by vendor_profile.id)
+ * - Rep credits (if enabled) live in user_wallet (keyed by profiles.id)
+ * - Never mix spend/adjust flows across them
+ * 
+ * This page manages VENDOR credits only via vendor_wallet + vendor_wallet_transactions.
+ */
+
+interface VendorSearchResult {
+  vendor_id: string; // vendor_profile.id
+  owner_user_id: string; // vendor_profile.user_id (profiles.id of owner)
+  company_name: string | null;
+  owner_email: string;
+  owner_full_name: string | null;
+  anonymous_id: string | null;
+  credits_balance: number;
 }
 
-interface Transaction {
+interface VendorWalletTransaction {
   id: string;
+  vendor_id: string;
+  actor_user_id: string;
+  txn_type: string;
+  delta: number;
+  metadata: Record<string, any> | null;
   created_at: string;
-  amount: number;
-  action: string;
-  metadata: any;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
 }
 
 const AdminCredits = () => {
@@ -56,22 +59,22 @@ const AdminCredits = () => {
   const { permissions, loading: permLoading } = useStaffPermissions();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<VendorSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedVendor, setSelectedVendor] = useState<VendorSearchResult | null>(null);
+  const [transactions, setTransactions] = useState<VendorWalletTransaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   const [adjustAmount, setAdjustAmount] = useState<string>("");
   const [adjustNote, setAdjustNote] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
-  // Check for userId query param on mount
+  // Check for vendorId query param on mount
   useEffect(() => {
-    const userIdParam = searchParams.get("userId");
-    if (userIdParam && !selectedUser) {
-      loadUserById(userIdParam);
+    const vendorIdParam = searchParams.get("vendorId");
+    if (vendorIdParam && !selectedVendor) {
+      loadVendorById(vendorIdParam);
     }
   }, [searchParams]);
 
@@ -89,49 +92,50 @@ const AdminCredits = () => {
     }
   }, [user, authLoading, permissions, permLoading, navigate]);
 
-  const loadUserById = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
+  const loadVendorById = async (vendorId: string) => {
+    // Fetch vendor_profile with owner profile info
+    const { data: vendorData, error: vendorError } = await supabase
+      .from("vendor_profile")
       .select(`
-        id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
-        rep_profile(anonymous_id),
-        vendor_profile(anonymous_id)
+        id,
+        user_id,
+        company_name,
+        anonymous_id,
+        profiles!vendor_profile_user_id_fkey(email, full_name)
       `)
-      .eq("id", userId)
+      .eq("id", vendorId)
       .single();
 
-    if (error || !data) {
-      console.error("Error loading user:", error);
+    if (vendorError || !vendorData) {
+      console.error("Error loading vendor:", vendorError);
+      toast.error("Vendor not found");
       return;
     }
 
-    // Get wallet balance
+    // Get vendor wallet balance
     const { data: walletData } = await supabase
-      .from("user_wallet")
-      .select("credits")
-      .eq("user_id", userId)
+      .from("vendor_wallet")
+      .select("credits_balance")
+      .eq("vendor_id", vendorId)
       .maybeSingle();
 
-    const userResult: UserSearchResult = {
-      id: data.id,
-      email: data.email,
-      full_name: data.full_name,
-      is_fieldrep: data.is_fieldrep,
-      is_vendor_admin: data.is_vendor_admin,
-      is_admin: data.is_admin,
-      is_moderator: data.is_moderator,
-      is_support: data.is_support,
-      credits: walletData?.credits ?? 0,
-      rep_anonymous_id: (data.rep_profile as any)?.anonymous_id,
-      vendor_anonymous_id: (data.vendor_profile as any)?.anonymous_id,
-      staff_anonymous_id: data.staff_anonymous_id,
+    const ownerProfile = vendorData.profiles as { email: string; full_name: string | null } | null;
+
+    const vendorResult: VendorSearchResult = {
+      vendor_id: vendorData.id,
+      owner_user_id: vendorData.user_id,
+      company_name: vendorData.company_name,
+      owner_email: ownerProfile?.email || "Unknown",
+      owner_full_name: ownerProfile?.full_name || null,
+      anonymous_id: vendorData.anonymous_id,
+      credits_balance: walletData?.credits_balance ?? 0,
     };
 
-    setSelectedUser(userResult);
-    loadTransactions(userId);
+    setSelectedVendor(vendorResult);
+    loadTransactions(vendorId);
   };
 
-  const searchUsers = useCallback(async (query: string) => {
+  const searchVendors = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
       return;
@@ -141,105 +145,79 @@ const AdminCredits = () => {
     try {
       const searchTerm = `%${query.trim()}%`;
 
-      const { data, error } = await supabase
-        .from("profiles")
+      // Search vendor_profile by company_name or anonymous_id
+      const { data: vendorData, error: vendorError } = await supabase
+        .from("vendor_profile")
         .select(`
-          id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
-          rep_profile(anonymous_id),
-          vendor_profile(anonymous_id)
+          id,
+          user_id,
+          company_name,
+          anonymous_id,
+          profiles!vendor_profile_user_id_fkey(email, full_name)
         `)
-        .or(`email.ilike.${searchTerm},full_name.ilike.${searchTerm}`)
+        .or(`company_name.ilike.${searchTerm},anonymous_id.ilike.${searchTerm}`)
         .limit(20);
 
-      if (error) {
-        console.error("Search error:", error);
+      if (vendorError) {
+        console.error("Vendor search error:", vendorError);
         setSearchResults([]);
         return;
       }
 
-      // Get wallet balances for all results
-      const userIds = (data || []).map((u) => u.id);
-      const { data: wallets } = await supabase
-        .from("user_wallet")
-        .select("user_id, credits")
-        .in("user_id", userIds);
-
-      const walletMap = new Map((wallets || []).map((w) => [w.user_id, w.credits]));
-
-      const results: UserSearchResult[] = (data || []).map((u) => ({
-        id: u.id,
-        email: u.email,
-        full_name: u.full_name,
-        is_fieldrep: u.is_fieldrep,
-        is_vendor_admin: u.is_vendor_admin,
-        is_admin: u.is_admin,
-        is_moderator: u.is_moderator,
-        is_support: u.is_support,
-        credits: walletMap.get(u.id) ?? 0,
-        rep_anonymous_id: (u.rep_profile as any)?.anonymous_id,
-        vendor_anonymous_id: (u.vendor_profile as any)?.anonymous_id,
-        staff_anonymous_id: u.staff_anonymous_id,
-      }));
-
-      // Also search by anonymous ID if query matches pattern
-      if (query.toLowerCase().includes("fieldrep#") || query.toLowerCase().includes("vendor#") || query.toLowerCase().includes("admin#")) {
-        const { data: repData } = await supabase
-          .from("rep_profile")
-          .select("user_id, anonymous_id")
-          .ilike("anonymous_id", searchTerm);
-
-        const { data: vendorData } = await supabase
-          .from("vendor_profile")
-          .select("user_id, anonymous_id")
-          .ilike("anonymous_id", searchTerm);
-
-        // Also search staff_anonymous_id for Admin# pattern
-        const { data: staffData } = await supabase
+      // Also search by owner email if the pattern looks like an email
+      let additionalVendors: typeof vendorData = [];
+      if (query.includes("@")) {
+        const { data: profileMatches } = await supabase
           .from("profiles")
           .select("id")
-          .ilike("staff_anonymous_id", searchTerm);
+          .ilike("email", searchTerm)
+          .limit(10);
 
-        const additionalUserIds = [
-          ...(repData || []).map((r) => r.user_id),
-          ...(vendorData || []).map((v) => v.user_id),
-          ...(staffData || []).map((s) => s.id),
-        ].filter((id) => !userIds.includes(id));
+        if (profileMatches && profileMatches.length > 0) {
+          const ownerIds = profileMatches.map((p) => p.id);
+          const existingOwnerIds = (vendorData || []).map((v) => v.user_id);
+          const newOwnerIds = ownerIds.filter((id) => !existingOwnerIds.includes(id));
 
-        if (additionalUserIds.length > 0) {
-          const { data: additionalUsers } = await supabase
-            .from("profiles")
-            .select(`
-              id, email, full_name, is_fieldrep, is_vendor_admin, is_admin, is_moderator, is_support, staff_anonymous_id,
-              rep_profile(anonymous_id),
-              vendor_profile(anonymous_id)
-            `)
-            .in("id", additionalUserIds);
+          if (newOwnerIds.length > 0) {
+            const { data: moreVendors } = await supabase
+              .from("vendor_profile")
+              .select(`
+                id,
+                user_id,
+                company_name,
+                anonymous_id,
+                profiles!vendor_profile_user_id_fkey(email, full_name)
+              `)
+              .in("user_id", newOwnerIds);
 
-          const { data: additionalWallets } = await supabase
-            .from("user_wallet")
-            .select("user_id, credits")
-            .in("user_id", additionalUserIds);
-
-          const addWalletMap = new Map((additionalWallets || []).map((w) => [w.user_id, w.credits]));
-
-          (additionalUsers || []).forEach((u) => {
-            results.push({
-              id: u.id,
-              email: u.email,
-              full_name: u.full_name,
-              is_fieldrep: u.is_fieldrep,
-              is_vendor_admin: u.is_vendor_admin,
-              is_admin: u.is_admin,
-              is_moderator: u.is_moderator,
-              is_support: u.is_support,
-              credits: addWalletMap.get(u.id) ?? 0,
-              rep_anonymous_id: (u.rep_profile as any)?.anonymous_id,
-              vendor_anonymous_id: (u.vendor_profile as any)?.anonymous_id,
-              staff_anonymous_id: u.staff_anonymous_id,
-            });
-          });
+            additionalVendors = moreVendors || [];
+          }
         }
       }
+
+      const allVendors = [...(vendorData || []), ...additionalVendors];
+      const vendorIds = allVendors.map((v) => v.id);
+
+      // Get wallet balances for all vendors
+      const { data: wallets } = await supabase
+        .from("vendor_wallet")
+        .select("vendor_id, credits_balance")
+        .in("vendor_id", vendorIds);
+
+      const walletMap = new Map((wallets || []).map((w) => [w.vendor_id, w.credits_balance]));
+
+      const results: VendorSearchResult[] = allVendors.map((v) => {
+        const ownerProfile = v.profiles as { email: string; full_name: string | null } | null;
+        return {
+          vendor_id: v.id,
+          owner_user_id: v.user_id,
+          company_name: v.company_name,
+          owner_email: ownerProfile?.email || "Unknown",
+          owner_full_name: ownerProfile?.full_name || null,
+          anonymous_id: v.anonymous_id,
+          credits_balance: walletMap.get(v.id) ?? 0,
+        };
+      });
 
       setSearchResults(results);
     } finally {
@@ -250,57 +228,57 @@ const AdminCredits = () => {
   // Debounced search
   useEffect(() => {
     const timer = setTimeout(() => {
-      searchUsers(searchQuery);
+      searchVendors(searchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, searchUsers]);
+  }, [searchQuery, searchVendors]);
 
-  const loadTransactions = async (userId: string) => {
+  const loadTransactions = async (vendorId: string) => {
     setLoadingTransactions(true);
     try {
       const { data, error } = await supabase
-        .from("vendor_credit_transactions")
+        .from("vendor_wallet_transactions")
         .select("*")
-        .eq("user_id", userId)
+        .eq("vendor_id", vendorId)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .limit(30);
 
       if (error) {
         console.error("Error loading transactions:", error);
         return;
       }
 
-      setTransactions(data || []);
+      setTransactions((data || []) as VendorWalletTransaction[]);
     } finally {
       setLoadingTransactions(false);
     }
   };
 
-  const selectUser = (u: UserSearchResult) => {
-    setSelectedUser(u);
+  const selectVendor = (v: VendorSearchResult) => {
+    setSelectedVendor(v);
     setAdjustAmount("");
     setAdjustNote("");
-    loadTransactions(u.id);
+    loadTransactions(v.vendor_id);
   };
 
-  const refreshSelectedUser = async () => {
-    if (!selectedUser) return;
+  const refreshSelectedVendor = async () => {
+    if (!selectedVendor) return;
     
     const { data: walletData } = await supabase
-      .from("user_wallet")
-      .select("credits")
-      .eq("user_id", selectedUser.id)
+      .from("vendor_wallet")
+      .select("credits_balance")
+      .eq("vendor_id", selectedVendor.vendor_id)
       .maybeSingle();
 
-    setSelectedUser({
-      ...selectedUser,
-      credits: walletData?.credits ?? 0,
+    setSelectedVendor({
+      ...selectedVendor,
+      credits_balance: walletData?.credits_balance ?? 0,
     });
-    loadTransactions(selectedUser.id);
+    loadTransactions(selectedVendor.vendor_id);
   };
 
   const handleAdjust = async () => {
-    if (!selectedUser) return;
+    if (!selectedVendor) return;
 
     const amount = parseInt(adjustAmount, 10);
     if (isNaN(amount) || amount === 0) {
@@ -315,9 +293,10 @@ const AdminCredits = () => {
 
     setAdjusting(true);
     try {
+      // Call edge function with vendor_id (not user_id)
       const { data, error } = await supabase.functions.invoke("admin-adjust-credits", {
         body: {
-          target_user_id: selectedUser.id,
+          vendor_id: selectedVendor.vendor_id,
           amount,
           note: adjustNote.trim(),
         },
@@ -334,63 +313,51 @@ const AdminCredits = () => {
         return;
       }
 
-      toast.success(`Credits updated successfully. New balance: ${data.new_balance}`);
+      toast.success(`Vendor credits updated. New balance: ${data.new_balance}`);
       
       // Update local state
-      setSelectedUser({
-        ...selectedUser,
-        credits: data.new_balance,
+      setSelectedVendor({
+        ...selectedVendor,
+        credits_balance: data.new_balance,
       });
       setAdjustAmount("");
       setAdjustNote("");
-      loadTransactions(selectedUser.id);
+      loadTransactions(selectedVendor.vendor_id);
     } finally {
       setAdjusting(false);
     }
   };
 
-  const getRoleBadges = (u: UserSearchResult) => {
-    const badges = [];
-    if (u.is_fieldrep) badges.push(<Badge key="rep" variant="secondary" className="text-xs">Rep</Badge>);
-    if (u.is_vendor_admin) badges.push(<Badge key="vendor" variant="secondary" className="text-xs">Vendor</Badge>);
-    if (u.is_admin) badges.push(<Badge key="admin" variant="default" className="text-xs">Admin</Badge>);
-    if (u.is_moderator) badges.push(<Badge key="mod" variant="outline" className="text-xs">Mod</Badge>);
-    if (u.is_support) badges.push(<Badge key="support" variant="outline" className="text-xs">Support</Badge>);
-    return badges;
-  };
-
-  const getAnonymousId = (u: UserSearchResult) => {
-    // Staff get their staff_anonymous_id first (Admin#1, etc.)
-    return u.staff_anonymous_id || u.rep_anonymous_id || u.vendor_anonymous_id || null;
-  };
-
-  const getActionLabel = (action: string) => {
-    switch (action) {
+  const getTxnTypeLabel = (txnType: string) => {
+    switch (txnType) {
       case "post_seeking_coverage":
+      case "seeking_coverage_post":
         return "Seeking Coverage Post";
       case "credit_purchase":
         return "Credits Purchased";
       case "purchase":
         return "Credits Added";
-      case "unlock_contact":
-        return "Contact Access (Legacy)"; // Historical transaction label
       case "admin_adjustment":
         return "Admin Adjustment";
+      case "migration_from_user_wallet":
+        return "Migrated from Legacy";
+      case "spend_unlock":
+        return "Contact Unlock";
       default:
-        return action;
+        return txnType;
     }
   };
 
   const previewNewBalance = () => {
-    if (!selectedUser) return null;
+    if (!selectedVendor) return null;
     const amount = parseInt(adjustAmount, 10);
     if (isNaN(amount) || amount === 0) return null;
-    const newBalance = Math.max(0, selectedUser.credits + amount);
+    const newBalance = Math.max(0, selectedVendor.credits_balance + amount);
     return newBalance;
   };
 
   const isAdjustDisabled = () => {
-    if (!selectedUser) return true;
+    if (!selectedVendor) return true;
     const amount = parseInt(adjustAmount, 10);
     if (isNaN(amount) || amount === 0) return true;
     if (!adjustNote.trim()) return true;
@@ -408,245 +375,261 @@ const AdminCredits = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Credit Management</h1>
-          <p className="text-muted-foreground">
-            Search for users and manually adjust their credit balance. All changes are logged.
-          </p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Vendor Credit Management</h1>
+        <p className="text-muted-foreground">
+          Search for vendors and manually adjust their shared credit balance. All changes are logged.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Vendor credits use <code className="bg-muted px-1 rounded">vendor_wallet</code> — changes apply to the entire vendor team.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left: Search Panel */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Find Vendor
+              </CardTitle>
+              <CardDescription>
+                Search by company name, Vendor# anonymous ID, or owner email
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <Input
+                  placeholder="Search vendors..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10"
+                />
+                {searching && (
+                  <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                )}
+              </div>
+
+              {searchResults.length > 0 && (
+                <div className="mt-4 border border-border rounded-md divide-y divide-border max-h-80 overflow-y-auto">
+                  {searchResults.map((v) => (
+                    <div
+                      key={v.vendor_id}
+                      className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
+                        selectedVendor?.vendor_id === v.vendor_id ? "bg-muted" : ""
+                      }`}
+                      onClick={() => selectVendor(v)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-foreground truncate flex items-center gap-1">
+                            <Building2 className="h-3 w-3 text-muted-foreground" />
+                            {v.company_name || "Unnamed Vendor"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {v.anonymous_id && <span className="mr-2">{v.anonymous_id}</span>}
+                            · {v.owner_email}
+                          </div>
+                          {v.owner_full_name && (
+                            <div className="text-xs text-muted-foreground">
+                              Owner: {v.owner_full_name}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-foreground flex items-center gap-1">
+                            <Coins className="h-3 w-3 text-secondary" />
+                            {v.credits_balance}
+                          </div>
+                          <Button size="sm" variant="outline" className="mt-1 text-xs h-7">
+                            Manage
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {searchQuery.trim() && !searching && searchResults.length === 0 && (
+                <div className="mt-4 text-center py-6 text-muted-foreground text-sm">
+                  No vendors found matching "{searchQuery}"
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Left: Search Panel */}
-          <div className="space-y-4">
+        {/* Right: Vendor Credits Panel */}
+        <div className="space-y-4">
+          {!selectedVendor ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  Find User
-                </CardTitle>
-                <CardDescription>
-                  Search by email, full name, or anonymous ID (e.g., FieldRep#123)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative">
-                  <Input
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pr-10"
-                  />
-                  {searching && (
-                    <Loader2 className="h-4 w-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  )}
-                </div>
-
-                {searchResults.length > 0 && (
-                  <div className="mt-4 border border-border rounded-md divide-y divide-border max-h-80 overflow-y-auto">
-                    {searchResults.map((u) => (
-                      <div
-                        key={u.id}
-                        className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
-                          selectedUser?.id === u.id ? "bg-muted" : ""
-                        }`}
-                        onClick={() => selectUser(u)}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-foreground truncate">
-                              {u.email}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {u.full_name || "No name"} {getAnonymousId(u) && `· ${getAnonymousId(u)}`}
-                            </div>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {getRoleBadges(u)}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                              <Coins className="h-3 w-3 text-secondary" />
-                              {u.credits}
-                            </div>
-                            <Button size="sm" variant="outline" className="mt-1 text-xs h-7">
-                              Manage
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {searchQuery.trim() && !searching && searchResults.length === 0 && (
-                  <div className="mt-4 text-center py-6 text-muted-foreground text-sm">
-                    No users found matching "{searchQuery}"
-                  </div>
-                )}
+              <CardContent className="py-12 text-center">
+                <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">
+                  Search and select a vendor to manage their credits
+                </p>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Right: User Credits Panel */}
-          <div className="space-y-4">
-            {!selectedUser ? (
+          ) : (
+            <>
+              {/* Vendor Info Card */}
               <Card>
-                <CardContent className="py-12 text-center">
-                  <User className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">
-                    Search and select a user to manage their credits
-                  </p>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Coins className="h-5 w-5 text-secondary" />
+                        {selectedVendor.company_name || "Unnamed Vendor"}
+                      </CardTitle>
+                      <CardDescription>
+                        {selectedVendor.anonymous_id && (
+                          <Badge variant="secondary" className="mr-2 text-xs">
+                            {selectedVendor.anonymous_id}
+                          </Badge>
+                        )}
+                        {selectedVendor.owner_email}
+                      </CardDescription>
+                      {selectedVendor.owner_full_name && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Owner: {selectedVendor.owner_full_name}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={refreshSelectedVendor}
+                      title="Refresh"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-5xl font-bold text-foreground mb-2">
+                    {selectedVendor.credits_balance}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Shared Vendor Balance</p>
                 </CardContent>
               </Card>
-            ) : (
-              <>
-                {/* User Info Card */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <Coins className="h-5 w-5 text-secondary" />
-                          Credits for {getAnonymousId(selectedUser) || "User"}
-                        </CardTitle>
-                        <CardDescription>
-                          {selectedUser.email} · {selectedUser.full_name || "No name"}
-                        </CardDescription>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {getRoleBadges(selectedUser)}
-                        </div>
-                      </div>
-                      <Button 
-                        variant="ghost" 
+
+              {/* Manual Adjustment Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Manual Adjustment</CardTitle>
+                  <CardDescription>
+                    Add or remove credits. Positive values add, negative values remove.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
                         size="icon"
-                        onClick={refreshSelectedUser}
-                        title="Refresh"
+                        type="button"
+                        onClick={() => {
+                          const current = parseInt(adjustAmount, 10) || 0;
+                          setAdjustAmount(String(current - 1));
+                        }}
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        id="amount"
+                        type="number"
+                        placeholder="e.g., 10 or -5"
+                        value={adjustAmount}
+                        onChange={(e) => setAdjustAmount(e.target.value)}
+                        className="text-center"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => {
+                          const current = parseInt(adjustAmount, 10) || 0;
+                          setAdjustAmount(String(current + 1));
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-5xl font-bold text-foreground mb-2">
-                      {selectedUser.credits}
-                    </div>
-                    <p className="text-sm text-muted-foreground">Current Balance</p>
-                  </CardContent>
-                </Card>
+                  </div>
 
-                {/* Manual Adjustment Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Manual Adjustment</CardTitle>
-                    <CardDescription>
-                      Add or remove credits. Positive values add, negative values remove.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Amount</Label>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          type="button"
-                          onClick={() => {
-                            const current = parseInt(adjustAmount, 10) || 0;
-                            setAdjustAmount(String(current - 1));
-                          }}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <Input
-                          id="amount"
-                          type="number"
-                          placeholder="e.g., 10 or -5"
-                          value={adjustAmount}
-                          onChange={(e) => setAdjustAmount(e.target.value)}
-                          className="text-center"
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          type="button"
-                          onClick={() => {
-                            const current = parseInt(adjustAmount, 10) || 0;
-                            setAdjustAmount(String(current + 1));
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="note">Reason / Note (required)</Label>
+                    <Textarea
+                      id="note"
+                      placeholder="Why are you adjusting this vendor's credits?"
+                      value={adjustNote}
+                      onChange={(e) => setAdjustNote(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {previewNewBalance() !== null && (
+                    <div className="bg-muted/50 rounded-md p-3 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <AlertCircle className="h-4 w-4" />
+                        <span>
+                          Balance will change from <strong>{selectedVendor.credits_balance}</strong> to{" "}
+                          <strong>{previewNewBalance()}</strong> credits
+                        </span>
                       </div>
                     </div>
+                  )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="note">Reason / Note (required)</Label>
-                      <Textarea
-                        id="note"
-                        placeholder="Why are you adjusting this user's credits?"
-                        value={adjustNote}
-                        onChange={(e) => setAdjustNote(e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-
-                    {previewNewBalance() !== null && (
-                      <div className="bg-muted/50 rounded-md p-3 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <AlertCircle className="h-4 w-4" />
-                          <span>
-                            Balance will change from <strong>{selectedUser.credits}</strong> to{" "}
-                            <strong>{previewNewBalance()}</strong> credits
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <Button
-                      onClick={handleAdjust}
-                      disabled={isAdjustDisabled()}
-                      className="w-full"
-                    >
-                      {adjusting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Applying...
-                        </>
-                      ) : (
-                        "Apply Adjustment"
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Recent Transactions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Recent Transactions</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingTransactions ? (
-                      <div className="py-8 text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                      </div>
-                    ) : transactions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-8 text-center">
-                        No transactions yet.
-                      </p>
+                  <Button
+                    onClick={handleAdjust}
+                    disabled={isAdjustDisabled()}
+                    className="w-full"
+                  >
+                    {adjusting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Applying...
+                      </>
                     ) : (
-                      <div className="space-y-1 max-h-64 overflow-y-auto">
-                        <div className="grid grid-cols-12 gap-2 px-2 py-1 text-xs font-medium text-muted-foreground border-b border-border">
-                          <div className="col-span-3">Date</div>
-                          <div className="col-span-5">Action</div>
-                          <div className="col-span-2 text-right">Amount</div>
-                          <div className="col-span-2 text-right">Note</div>
-                        </div>
-                        {transactions.map((tx) => {
-                          // Determine if this transaction has a clickable related entity
-                          const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
-                          const postTitle = tx.metadata?.post_title || tx.metadata?.state_code || null;
-                          
-                          return (
+                      "Apply Adjustment"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Recent Transactions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Transactions</CardTitle>
+                  <CardDescription>
+                    From <code className="bg-muted px-1 rounded text-xs">vendor_wallet_transactions</code>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingTransactions ? (
+                    <div className="py-8 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </div>
+                  ) : transactions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-8 text-center">
+                      No transactions yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      <div className="grid grid-cols-12 gap-2 px-2 py-1 text-xs font-medium text-muted-foreground border-b border-border">
+                        <div className="col-span-3">Date</div>
+                        <div className="col-span-5">Type</div>
+                        <div className="col-span-2 text-right">Delta</div>
+                        <div className="col-span-2 text-right">Note</div>
+                      </div>
+                      {transactions.map((tx) => {
+                        const postTitle = tx.metadata?.post_title || tx.metadata?.state_code || null;
+                        const hasPostLink = tx.metadata?.post_id || tx.metadata?.related_entity_id;
+                        
+                        return (
                           <div
                             key={tx.id}
                             className="grid grid-cols-12 gap-2 px-2 py-2 text-sm border-b border-border last:border-0 hover:bg-muted/30"
@@ -655,17 +638,17 @@ const AdminCredits = () => {
                               {format(new Date(tx.created_at), "MM/dd/yy HH:mm")}
                             </div>
                             <div className="col-span-5 text-xs">
-                              {hasRelatedEntity ? (
+                              {hasPostLink ? (
                                 <button
                                   type="button"
-                                  onClick={() => navigate(`/vendor/seeking-coverage?vendorId=${selectedUser.id}&highlightPostId=${tx.related_entity_id}`)}
+                                  onClick={() => navigate(`/vendor/seeking-coverage?vendorId=${selectedVendor.owner_user_id}&highlightPostId=${tx.metadata?.post_id || tx.metadata?.related_entity_id}`)}
                                   className="text-primary hover:underline flex items-center gap-1 text-left"
                                 >
-                                  {getActionLabel(tx.action)}
+                                  {getTxnTypeLabel(tx.txn_type)}
                                   <ExternalLink className="h-3 w-3" />
                                 </button>
                               ) : (
-                                <span className="text-foreground">{getActionLabel(tx.action)}</span>
+                                <span className="text-foreground">{getTxnTypeLabel(tx.txn_type)}</span>
                               )}
                               {postTitle && (
                                 <div className="text-muted-foreground text-[10px] mt-0.5 truncate" title={postTitle}>
@@ -674,24 +657,25 @@ const AdminCredits = () => {
                               )}
                             </div>
                             <div className={`col-span-2 text-right font-semibold text-xs ${
-                              tx.amount > 0 ? "text-green-600" : "text-orange-600"
+                              tx.delta > 0 ? "text-green-600" : "text-orange-600"
                             }`}>
-                              {tx.amount > 0 ? "+" : ""}{tx.amount}
+                              {tx.delta > 0 ? "+" : ""}{tx.delta}
                             </div>
                             <div className="col-span-2 text-right text-xs text-muted-foreground truncate" title={tx.metadata?.note || ""}>
                               {tx.metadata?.note ? "📝" : ""}
                             </div>
                           </div>
-                        )})}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
+    </div>
   );
 };
 
