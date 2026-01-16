@@ -117,7 +117,7 @@ export default function DemoSelector() {
 
           {/* Help Center & Back to home */}
           <div className="pt-8 flex flex-col items-center gap-4">
-            <Link to="/public-help" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80">
+            <Link to="/help" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80">
               <BookOpen className="h-4 w-4" />
               View Help Center
             </Link>

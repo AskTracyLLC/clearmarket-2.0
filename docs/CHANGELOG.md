@@ -1,5 +1,11 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Help Center Routing Fix (Public + Demo + Signed-In)
+- Help Center is now **fully public** under `/help/*` (no auth/layout guard)
+- Deep links (e.g. `/help/:articleSlug` and `/help/:sectionSlug/:articleSlug`) no longer redirect to `/signin`
+- Demo + signed-in users both link to the same public Help Center routes
+- Back-compat: `/public-help` now redirects to `/help`
+
 ## 2026-01-16 — Unified Availability Calendar
 - **UnifiedAvailabilityCalendar.tsx**: New component showing rep time off + all vendor network alerts in one calendar view
   - Displays: Time Off, Planned Routes, Planned Time Off Alerts, Availability Updates, Emergency alerts

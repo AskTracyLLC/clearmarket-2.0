@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Search, BookOpen, ChevronRight } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HelpArticle {
   id: string;
@@ -17,7 +18,11 @@ interface HelpArticle {
 }
 
 export default function PublicHelpCenter() {
-  const { articleSlug } = useParams<{ articleSlug: string }>();
+  const { user } = useAuth();
+  const { articleSlug, sectionSlug } = useParams<{ sectionSlug?: string; articleSlug?: string }>();
+  // Supports both /help/:articleSlug and /help/:sectionSlug/:articleSlug
+  const resolvedArticleSlug = articleSlug ?? sectionSlug;
+
   const [loading, setLoading] = useState(true);
   const [articles, setArticles] = useState<HelpArticle[]>([]);
   const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
@@ -30,13 +35,13 @@ export default function PublicHelpCenter() {
   }, []);
 
   useEffect(() => {
-    if (articleSlug && articles.length > 0) {
-      const article = articles.find((a) => a.slug === articleSlug);
+    if (resolvedArticleSlug && articles.length > 0) {
+      const article = articles.find((a) => a.slug === resolvedArticleSlug);
       setSelectedArticle(article || null);
     } else {
       setSelectedArticle(null);
     }
-  }, [articleSlug, articles]);
+  }, [resolvedArticleSlug, articles]);
 
   async function loadArticles() {
     try {
@@ -107,9 +112,15 @@ export default function PublicHelpCenter() {
             <p className="text-sm text-muted-foreground mb-4">
               Still need help? Contact our support team.
             </p>
-            <Link to="/support">
-              <Button variant="outline">Contact Support</Button>
-            </Link>
+            {user ? (
+              <Link to="/support">
+                <Button variant="outline">Contact Support</Button>
+              </Link>
+            ) : (
+              <a href="mailto:hello@useclearmarket.io" className="inline-flex">
+                <Button variant="outline">Email Support</Button>
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -196,12 +207,16 @@ export default function PublicHelpCenter() {
         )}
 
         <div className="mt-12 pt-6 border-t text-center">
-          <p className="text-muted-foreground mb-4">
-            Can't find what you're looking for?
-          </p>
-          <Link to="/support">
-            <Button>Contact Support</Button>
-          </Link>
+          <p className="text-muted-foreground mb-4">Can't find what you're looking for?</p>
+          {user ? (
+            <Link to="/support">
+              <Button>Contact Support</Button>
+            </Link>
+          ) : (
+            <a href="mailto:hello@useclearmarket.io" className="inline-flex">
+              <Button>Email Support</Button>
+            </a>
+          )}
         </div>
       </div>
     </div>
