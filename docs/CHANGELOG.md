@@ -4,6 +4,16 @@ Newest entries at top.
 
 ## 2026-01-16
 
+- **Admin Credits Vendor Wallet Reconciliation** — AdminCredits page now reads/writes vendor credits from `vendor_wallet` + `vendor_wallet_transactions`
+
+  - **DB:** none (code-only, edge function already used vendor_wallet)
+
+  - **Routes:** `/admin/credits`
+
+  - **Files:** `AdminCredits.tsx`, `FEATURE_MAP.md`, `CHANGELOG.md`
+
+  - **Notes:** Separated vendor/rep credit systems. Vendor search by company name, anonymous ID, or owner email. Transactions display from `vendor_wallet_transactions`. Credit System Rule documented: vendor credits in vendor_wallet, rep credits in user_wallet—never mixed.
+
 - **Feature Map Reconciliation** — Migrated credit flows from legacy `user_wallet` to shared `vendor_wallet`
 
   - **DB:** none (code-only migration)

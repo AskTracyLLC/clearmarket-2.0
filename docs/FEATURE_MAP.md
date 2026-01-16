@@ -117,14 +117,22 @@ Quick reference for UI routes, backend objects, and their connections.
 - `connection_reviews` — Work-tied reviews (Trust Score)
 - `community_posts`, `community_comments`, `community_votes` — Community board
 
-### Credits System (Shared Vendor Wallet)
+### Credits System
 
+> **Credit System Rule:** Vendor credits live in `vendor_wallet`. Rep credits (if enabled) live in `user_wallet`. Never mix spend/adjust flows across them.
+
+**Vendor Credits (vendor_wallet)**
 - `vendor_wallet` — Shared credit balance per vendor (keyed by vendor_profile.id)
 - `vendor_wallet_transactions` — Transaction log for vendor wallet
 - `pending_credit_purchases` — Pending Stripe purchases
 - `spend_vendor_credits` (RPC) — Atomic credit deduction with auth check
+- `add_vendor_credits` (RPC) — Add credits (service-role, admin adjustments, purchases)
 
-> **Note:** Legacy `user_wallet` and `transactions` tables exist but are deprecated. All vendor credit flows now use `vendor_wallet`.
+**Rep Credits (user_wallet) — if enabled**
+- `user_wallet` — Per-user credit balance for field reps
+- `vendor_credit_transactions` — Legacy transaction log (being deprecated)
+
+> **Note:** Admin adjustments for vendors use `admin-adjust-credits` edge function which writes to `vendor_wallet`. Rep credit adjustments (if enabled) would require a separate flow targeting `user_wallet`.
 
 ### Notes & Preferences
 
