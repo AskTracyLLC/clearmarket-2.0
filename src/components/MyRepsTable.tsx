@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ClipboardList,
+  Ban,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchPendingChangeRequestsForVendor } from "@/lib/workingTerms";
@@ -50,6 +51,7 @@ import { AssignChecklistDialog } from "@/components/AssignChecklistDialog";
 import { ColumnChooser } from "@/components/ColumnChooser";
 import { useColumnVisibility, ColumnDefinition } from "@/hooks/useColumnVisibility";
 import { WorkingTermsDialog } from "@/components/WorkingTermsDialog";
+import { MarkDoNotUseDialog } from "@/components/MarkDoNotUseDialog";
 
 // Column definitions for My Field Reps table
 const MY_REPS_COLUMNS: ColumnDefinition[] = [
@@ -108,6 +110,7 @@ interface MyRepsTableProps {
   onOpenNotes: (rep: ConnectedRep) => void;
   onOpenRepNotes?: (rep: ConnectedRep) => void;
   onWorkingTermsSaved?: () => void;
+  onDoNotUseChanged?: () => void;
 }
 
 type SortKey = "name" | "connectedAt" | "agreementStatus";
@@ -124,6 +127,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   onOpenNotes,
   onOpenRepNotes,
   onWorkingTermsSaved,
+  onDoNotUseChanged,
 }) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,6 +152,10 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   // Working Terms Dialog state
   const [showWorkingTermsDialog, setShowWorkingTermsDialog] = useState(false);
   const [workingTermsDialogRep, setWorkingTermsDialogRep] = useState<ConnectedRep | null>(null);
+
+  // Mark Do Not Use Dialog state
+  const [showDnuDialog, setShowDnuDialog] = useState(false);
+  const [dnuDialogRep, setDnuDialogRep] = useState<ConnectedRep | null>(null);
 
   // Load working terms statuses for all reps
   useEffect(() => {
@@ -695,6 +703,25 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
           mode="vendor"
           onTermsUpdated={() => {
             onWorkingTermsSaved?.();
+          }}
+        />
+      )}
+
+      {/* Mark Do Not Use Dialog */}
+      {dnuDialogRep && (
+        <MarkDoNotUseDialog
+          open={showDnuDialog}
+          onOpenChange={(open) => {
+            setShowDnuDialog(open);
+            if (!open) setDnuDialogRep(null);
+          }}
+          vendorId={vendorId}
+          repUserId={dnuDialogRep.repUserId}
+          repName={dnuDialogRep.displayName || dnuDialogRep.anonymousId}
+          onMarked={() => {
+            setShowDnuDialog(false);
+            setDnuDialogRep(null);
+            onDoNotUseChanged?.();
           }}
         />
       )}

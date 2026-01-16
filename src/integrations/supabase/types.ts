@@ -5967,6 +5967,112 @@ export type Database = {
           },
         ]
       }
+      vendor_do_not_use_reps: {
+        Row: {
+          aliases: string[] | null
+          created_at: string
+          created_by: string | null
+          emails: string[] | null
+          full_name: string
+          id: string
+          notes: string | null
+          primary_email: string | null
+          reason: string
+          rep_user_id: string | null
+          vendor_id: string
+        }
+        Insert: {
+          aliases?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          emails?: string[] | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          primary_email?: string | null
+          reason: string
+          rep_user_id?: string | null
+          vendor_id: string
+        }
+        Update: {
+          aliases?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          emails?: string[] | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          primary_email?: string | null
+          reason?: string
+          rep_user_id?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_do_not_use_reps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       vendor_message_templates: {
         Row: {
           body: string
