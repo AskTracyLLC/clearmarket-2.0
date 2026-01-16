@@ -6,6 +6,7 @@ import { Home, Users, Map, Briefcase, MessageSquare, Bell, CreditCard, Star, Wre
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface TopNavRowProps {
   isVendor?: boolean;
@@ -133,7 +134,7 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits }: TopNavRow
             ))}
           </nav>
 
-          {/* Right: Status chips */}
+          {/* Right: Status chips + Theme toggle */}
           <div className="flex items-center gap-2">
             {statusChips.map((chip) => (
               <Tooltip key={chip.label}>
@@ -165,6 +166,11 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits }: TopNavRow
                 </TooltipContent>
               </Tooltip>
             ))}
+            
+            {/* Theme toggle - far right */}
+            <div className="ml-2 border-l border-border pl-2">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </div>
