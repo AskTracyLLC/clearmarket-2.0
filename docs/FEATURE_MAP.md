@@ -12,8 +12,8 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `SeekingCoverageDialog`, `VendorPostPricingAlert`
 - `/vendor/seeking-coverage/:postId/interested` — Review interested reps
   - Components: `ExpressInterestDialog`, `DeclineRepDialog`
-- `/vendor/my-reps` — Connected reps management + internal rep notes
-  - Components: `MyRepsTable`, `VendorRepNotesDrawer`, `ReviewDialog`
+- `/vendor/my-reps` — Connected reps management + internal rep notes + Do Not Use list
+  - Components: `MyRepsTable`, `VendorRepNotesDrawer`, `ReviewDialog`, `VendorDoNotUseReps`, `MarkDoNotUseDialog`
 - `/vendor/find-reps` — Search rep directory
   - Components: `RepCoverageTable`, `PublicProfileDialog`
 - `/vendor/blocked-reps` — Do Not Assign list
@@ -141,6 +141,9 @@ Quick reference for UI routes, backend objects, and their connections.
 - `vendor_rep_notes` — Internal rep notes (vendor-scoped, hidden from reps)
 - `connection_notes` — CRM-style notes per vendor/rep connection (side: vendor | rep)
 - `user_ui_preferences` — Pinned sidebar items per user (persisted across sessions)
+- `vendor_do_not_use_reps` — Vendor-scoped DNU list (rep_user_id for on-platform, or just name/email for offline)
+  - RLS: vendor members SELECT, vendor admin/owner INSERT/UPDATE/DELETE
+  - Separate from `vendor_offline_rep_contacts` (no schema overlap)
 
 ### Safety & Moderation
 

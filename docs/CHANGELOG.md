@@ -1,5 +1,17 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Vendor Do Not Use List
+- **DB Migration**: Added `vendor_do_not_use_reps` table for vendor-scoped DNU list
+  - Columns: `id`, `vendor_id`, `rep_user_id`, `full_name`, `primary_email`, `emails[]`, `aliases[]`, `reason`, `notes`, `created_at`, `created_by`
+  - Partial unique index on `(vendor_id, rep_user_id)` where `rep_user_id IS NOT NULL`
+  - RLS: vendor members SELECT, vendor admin/owner INSERT/UPDATE/DELETE
+- **VendorMyReps.tsx**: Added 3rd tab "Do Not Use" with count badge
+- **VendorDoNotUseReps.tsx**: New component listing DNU entries with Reason column, expandable Notes, multi-email display (Primary/Alt labels)
+- **MarkDoNotUseDialog.tsx**: New dialog for marking connected reps as DNU (upsert on unique constraint)
+- **MyRepsTable.tsx**: Added "Mark Do Not Use" action in row dropdown menu
+- Connected Reps are now filtered to exclude reps in the DNU list
+- Separate from Offline Rep Contacts (no schema changes to that table)
+
 ## 2026-01-16 — Admin Credits Refresh Fix + Admin RLS for Vendor Wallet
 - **DB Migration**: Added admin-only SELECT RLS policies for `vendor_wallet` and `vendor_wallet_transactions`
 - Admins can now read any vendor's wallet balance and transaction history
