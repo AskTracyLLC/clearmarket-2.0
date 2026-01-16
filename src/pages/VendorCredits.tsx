@@ -5,31 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles, ExternalLink, RefreshCw } from "lucide-react";
-import { getVendorCredits, getVendorTransactions } from "@/lib/credits";
+import { Coins, CheckCircle, XCircle, Loader2, CreditCard, Sparkles, ExternalLink, RefreshCw } from "lucide-react";
 import { CREDIT_PACKS, CreditPack } from "@/lib/creditPacks";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import AdminViewBanner from "@/components/AdminViewBanner";
-
-interface Transaction {
-  id: string;
-  created_at: string;
-  amount: number;
-  action: string;
-  metadata: any;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
-}
+import { 
+  resolveCurrentVendorId, 
+  getVendorWalletBalance, 
+  getVendorWalletTransactions,
+  VendorWalletTransaction 
+} from "@/lib/vendorWallet";
 
 const VendorCredits = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number>(0);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<VendorWalletTransaction[]>([]);
   const [purchaseLoading, setPurchaseLoading] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
 
@@ -46,17 +42,18 @@ const VendorCredits = () => {
   const initialBalanceRef = useRef<number | null>(null);
   const initialTxCountRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
+  const vendorIdRef = useRef<string | null>(null);
 
-  // Stable fetch functions
+  // Stable fetch functions using vendorIdRef
   const fetchBalance = useCallback(async () => {
-    if (!user) return null;
-    return await getVendorCredits(user.id);
-  }, [user]);
+    if (!vendorIdRef.current) return null;
+    return await getVendorWalletBalance(vendorIdRef.current);
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
-    if (!user) return [];
-    return await getVendorTransactions(user.id);
-  }, [user]);
+    if (!vendorIdRef.current) return [];
+    return await getVendorWalletTransactions(vendorIdRef.current, 100);
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -68,9 +65,22 @@ const VendorCredits = () => {
       .eq("id", user.id)
       .single();
 
-    // Credits/billing page is vendor admin only (staff cannot manage billing)
-    const canAccess = profileData?.is_vendor_admin || profileData?.is_admin;
-    if (!canAccess) {
+    // Credits page accessible to vendor owner AND vendor staff
+    const isVendorOwner = profileData?.is_vendor_admin;
+    const isAdmin = profileData?.is_admin;
+
+    // Check if user is a vendor staff member
+    const { data: staffRecord } = await supabase
+      .from("vendor_staff")
+      .select("vendor_id")
+      .eq("staff_user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const isVendorStaff = !!staffRecord;
+
+    // Allow access if admin, vendor owner, or vendor staff
+    if (!isAdmin && !isVendorOwner && !isVendorStaff) {
       navigate("/dashboard");
       return;
     }
@@ -79,19 +89,32 @@ const VendorCredits = () => {
       setProfile(profileData);
     }
 
-    // Load credit balance
-    const credits = await fetchBalance();
+    // Resolve vendor_id for shared wallet
+    const resolvedVendorId = await resolveCurrentVendorId(user.id);
+    if (!resolvedVendorId) {
+      toast.error("Could not determine vendor account.");
+      navigate("/dashboard");
+      return;
+    }
+
+    if (mountedRef.current) {
+      setVendorId(resolvedVendorId);
+      vendorIdRef.current = resolvedVendorId;
+    }
+
+    // Load credit balance from vendor_wallet
+    const credits = await getVendorWalletBalance(resolvedVendorId);
     if (mountedRef.current) {
       setBalance(credits ?? 0);
     }
 
-    // Load transaction history
-    const txData = await fetchTransactions();
+    // Load transaction history from vendor_wallet_transactions
+    const txData = await getVendorWalletTransactions(resolvedVendorId, 100);
     if (mountedRef.current) {
       setTransactions(txData);
       setLoading(false);
     }
-  }, [user, navigate, fetchBalance, fetchTransactions]);
+  }, [user, navigate]);
 
   // Track mounted state
   useEffect(() => {
@@ -221,16 +244,18 @@ const VendorCredits = () => {
     }
   };
 
-  const getDetailsText = (tx: Transaction) => {
+  const getDetailsText = (tx: VendorWalletTransaction) => {
     if (!tx.metadata) return "";
 
-    if (tx.action === "post_seeking_coverage") {
-      const { state_code, post_title } = tx.metadata;
+    const meta = tx.metadata as Record<string, any>;
+
+    if (tx.txn_type === "post_seeking_coverage") {
+      const { state_code, post_title } = meta;
       return `${state_code ? state_code + " – " : ""}${post_title || "Seeking Coverage post"}`;
     }
 
-    if (tx.action === "credit_purchase") {
-      const { credit_pack_id } = tx.metadata;
+    if (tx.txn_type === "credit_purchase") {
+      const { credit_pack_id } = meta;
       const pack = CREDIT_PACKS.find((p) => p.id === credit_pack_id);
       return pack ? pack.label : "Credit pack purchase";
     }
@@ -402,11 +427,13 @@ const VendorCredits = () => {
                   // Sum all transactions NEWER than this one (indices 0 to idx-1)
                   const creditsAfterNewerTx = transactions
                     .slice(0, idx)
-                    .reduce((sum, t) => sum + t.amount, 0);
+                    .reduce((sum, t) => sum + t.delta, 0);
                   const balanceAfterThisTx = balance - creditsAfterNewerTx;
 
                   // Determine if this transaction has a clickable related entity
-                  const hasRelatedEntity = tx.related_entity_type === "seeking_coverage_post" && tx.related_entity_id;
+                  const meta = tx.metadata as Record<string, any> | null;
+                  const relatedPostId = meta?.post_id || meta?.related_entity_id;
+                  const hasRelatedEntity = tx.txn_type === "post_seeking_coverage" && relatedPostId;
 
                   return (
                     <div
@@ -419,21 +446,21 @@ const VendorCredits = () => {
                       <div className="col-span-4">
                         {hasRelatedEntity ? (
                           <Link
-                            to={`/vendor/seeking-coverage?highlightPostId=${tx.related_entity_id}`}
+                            to={`/vendor/seeking-coverage?highlightPostId=${relatedPostId}`}
                             className="font-medium text-primary hover:underline flex items-center gap-1"
                           >
-                            {getActionLabel(tx.action)}
+                            {getActionLabel(tx.txn_type)}
                             <ExternalLink className="h-3 w-3" />
                           </Link>
                         ) : (
-                          <div className="font-medium text-foreground">{getActionLabel(tx.action)}</div>
+                          <div className="font-medium text-foreground">{getActionLabel(tx.txn_type)}</div>
                         )}
                         {getDetailsText(tx) && (
                           <div className="text-xs text-muted-foreground mt-0.5">{getDetailsText(tx)}</div>
                         )}
                       </div>
-                      <div className={`col-span-3 text-right font-semibold ${tx.amount > 0 ? "text-green-600" : "text-orange-600"}`}>
-                        {tx.amount > 0 ? "+" : ""}{tx.amount}
+                      <div className={`col-span-3 text-right font-semibold ${tx.delta > 0 ? "text-green-600" : "text-orange-600"}`}>
+                        {tx.delta > 0 ? "+" : ""}{tx.delta}
                       </div>
                       <div className="col-span-2 text-right text-muted-foreground">
                         {balanceAfterThisTx}

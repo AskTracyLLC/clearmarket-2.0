@@ -154,8 +154,9 @@ export default function VendorStaff() {
         if (staffError) throw staffError;
         setStaffMembers((staff || []) as VendorStaffMember[]);
         
-        // Check if current user is owner (matched vendor_profile.user_id) or admin staff
-        const isOwner = Boolean(vp.id && user.id);
+        // Check if current user is owner (vendor_profile.user_id was matched) or admin staff
+        // Since we queried vendor_profile by user_id = user.id and got results, user is the owner
+        const isOwner = true; // We confirmed ownership above by the query returning vp
         const isAdminStaff = (staff || []).some(
           (s: any) => s.staff_user_id === user.id && s.role === "admin" && s.status === "active"
         );
@@ -598,85 +599,126 @@ export default function VendorStaff() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-help">
+                          <Coins className="h-3.5 w-3.5" />
+                          Spend
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Allow staff to spend vendor credits</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableHead>
                 <TableHead>Invited</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {staffMembers.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell className="font-mono font-semibold">
-                    {member.staff_code || "—"}
-                  </TableCell>
-                  <TableCell>{member.invited_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{member.invited_email}</TableCell>
-                  <TableCell>
-                    <Badge variant={member.role === "owner" ? "default" : member.role === "admin" ? "secondary" : "outline"}>
-                      {member.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {member.status === "active" && (
-                      <Badge variant="default" className="bg-green-600">Active</Badge>
-                    )}
-                    {member.status === "invited" && (
-                      <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                        <Mail className="h-3 w-3 mr-1" />
-                        Invited
+              {staffMembers.map((member) => {
+                const isOwnerOrAdminRole = member.role === "owner" || member.role === "admin";
+                const isOwnRow = member.staff_user_id === user?.id;
+                
+                return (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-mono font-semibold">
+                      {member.staff_code || "—"}
+                    </TableCell>
+                    <TableCell>{member.invited_name}</TableCell>
+                    <TableCell className="text-muted-foreground">{member.invited_email}</TableCell>
+                    <TableCell>
+                      <Badge variant={member.role === "owner" ? "default" : member.role === "admin" ? "secondary" : "outline"}>
+                        {member.role}
                       </Badge>
-                    )}
-                    {member.status === "disabled" && (
-                      <Badge variant="destructive">
-                        <UserX className="h-3 w-3 mr-1" />
-                        Disabled
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {format(new Date(member.invited_at), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    {canManageMember(member) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {member.status === "invited" && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleResendInvite(member)}>
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                                Resend Invite
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                            </>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => handleChangeRole(member, member.role === "admin" ? "staff" : "admin")}
-                          >
-                            <UserCog className="h-4 w-4 mr-2" />
-                            {member.role === "admin" ? "Demote to Staff" : "Promote to Admin"}
-                          </DropdownMenuItem>
-                          {canDisableMember(member) && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleToggleStatus(member)}
-                                className={member.status === "disabled" ? "text-green-600" : "text-destructive"}
-                              >
-                                <UserX className="h-4 w-4 mr-2" />
-                                {member.status === "disabled" ? "Re-enable" : "Disable"}
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {member.status === "active" && (
+                        <Badge variant="default" className="bg-green-600">Active</Badge>
+                      )}
+                      {member.status === "invited" && (
+                        <Badge variant="outline" className="text-yellow-500 border-yellow-500">
+                          <Mail className="h-3 w-3 mr-1" />
+                          Invited
+                        </Badge>
+                      )}
+                      {member.status === "disabled" && (
+                        <Badge variant="destructive">
+                          <UserX className="h-3 w-3 mr-1" />
+                          Disabled
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {/* Owner and admin always have spend permission - show static badge */}
+                      {isOwnerOrAdminRole ? (
+                        <Badge variant="secondary" className="text-xs">
+                          <Coins className="h-3 w-3 mr-1" />
+                          Always
+                        </Badge>
+                      ) : isCurrentUserOwnerOrAdmin && !isOwnRow ? (
+                        /* Owner/admin can toggle for other non-owner/admin staff */
+                        <Switch
+                          checked={member.can_spend_credits}
+                          onCheckedChange={() => handleToggleCanSpendCredits(member)}
+                          disabled={togglingSpend === member.id}
+                        />
+                      ) : (
+                        /* Read-only badge for own row or if not owner/admin */
+                        <Badge variant={member.can_spend_credits ? "default" : "outline"} className="text-xs">
+                          {member.can_spend_credits ? "Enabled" : "Disabled"}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {format(new Date(member.invited_at), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      {canManageMember(member) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {member.status === "invited" && (
+                              <>
+                                <DropdownMenuItem onClick={() => handleResendInvite(member)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Resend Invite
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleChangeRole(member, member.role === "admin" ? "staff" : "admin")}
+                            >
+                              <UserCog className="h-4 w-4 mr-2" />
+                              {member.role === "admin" ? "Demote to Staff" : "Promote to Admin"}
+                            </DropdownMenuItem>
+                            {canDisableMember(member) && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleStatus(member)}
+                                  className={member.status === "disabled" ? "text-green-600" : "text-destructive"}
+                                >
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  {member.status === "disabled" ? "Re-enable" : "Disable"}
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
