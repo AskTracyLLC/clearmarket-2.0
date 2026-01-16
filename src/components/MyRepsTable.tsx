@@ -106,6 +106,7 @@ interface MyRepsTableProps {
   onDisconnect: (repUserId: string) => void;
   onViewTrustScore: (repUserId: string) => void;
   onOpenNotes: (rep: ConnectedRep) => void;
+  onOpenRepNotes?: (rep: ConnectedRep) => void;
   onWorkingTermsSaved?: () => void;
 }
 
@@ -121,6 +122,7 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
   onDisconnect,
   onViewTrustScore,
   onOpenNotes,
+  onOpenRepNotes,
   onWorkingTermsSaved,
 }) => {
   const navigate = useNavigate();
@@ -622,6 +624,12 @@ export const MyRepsTable: React.FC<MyRepsTableProps> = ({
                                 <ClipboardList className="mr-2 h-4 w-4" />
                                 Assign Checklist
                               </DropdownMenuItem>
+                              {onOpenRepNotes && (
+                                <DropdownMenuItem onClick={() => onOpenRepNotes(rep)}>
+                                  <StickyNote className="mr-2 h-4 w-4" />
+                                  Rep Notes
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 onClick={() => onDisconnect(rep.repUserId)}
