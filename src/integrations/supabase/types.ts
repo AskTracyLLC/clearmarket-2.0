@@ -5235,6 +5235,24 @@ export type Database = {
           },
         ]
       }
+      user_ui_preferences: {
+        Row: {
+          pinned_sidebar: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          pinned_sidebar?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          pinned_sidebar?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_wallet: {
         Row: {
           created_at: string
@@ -6061,39 +6079,60 @@ export type Database = {
       }
       vendor_offline_rep_contacts: {
         Row: {
+          aliases: string[] | null
           company: string | null
           created_at: string
+          created_by: string | null
           email: string | null
+          emails: string[] | null
+          first_name: string | null
           id: string
+          last_name: string | null
           notes: string | null
           phone: string | null
+          phones: string[] | null
           rep_name: string
+          rep_user_id: string | null
           status: string
           systems: string[] | null
           updated_at: string
           vendor_id: string
         }
         Insert: {
+          aliases?: string[] | null
           company?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
+          emails?: string[] | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
+          phones?: string[] | null
           rep_name: string
+          rep_user_id?: string | null
           status?: string
           systems?: string[] | null
           updated_at?: string
           vendor_id: string
         }
         Update: {
+          aliases?: string[] | null
           company?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
+          emails?: string[] | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
+          phones?: string[] | null
           rep_name?: string
+          rep_user_id?: string | null
           status?: string
           systems?: string[] | null
           updated_at?: string
@@ -6483,6 +6522,47 @@ export type Database = {
           },
         ]
       }
+      vendor_rep_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+          note_type: string | null
+          rep_user_id: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          note: string
+          note_type?: string | null
+          rep_user_id: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string
+          note_type?: string | null
+          rep_user_id?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_rep_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_score_summary: {
         Row: {
           refreshed_at: string
@@ -6635,6 +6715,50 @@ export type Database = {
           {
             foreignKeyName: "vendor_staff_emails_vendor_profile_id_fkey"
             columns: ["vendor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_staff_notes: {
+        Row: {
+          audience: string
+          created_at: string
+          created_by: string
+          id: string
+          note: string
+          note_type: string | null
+          staff_user_id: string
+          updated_at: string
+          vendor_id: string
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          note: string
+          note_type?: string | null
+          staff_user_id: string
+          updated_at?: string
+          vendor_id: string
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          note?: string
+          note_type?: string | null
+          staff_user_id?: string
+          updated_at?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_staff_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
