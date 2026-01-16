@@ -41,7 +41,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw, BarChart3, Coins } from "lucide-react";
+import { ArrowLeft, Plus, Users, AlertCircle, Mail, ShieldCheck, UserX, MoreHorizontal, UserCog, RefreshCw, BarChart3, Coins, StickyNote } from "lucide-react";
 import { format } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -50,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { VendorStaffNotesDrawer } from "@/components/VendorStaffNotesDrawer";
 
 interface VendorStaffMember {
   id: string;
@@ -102,6 +103,10 @@ export default function VendorStaff() {
   const [inviting, setInviting] = useState(false);
   const [togglingSpend, setTogglingSpend] = useState<string | null>(null);
   const [isCurrentUserOwnerOrAdmin, setIsCurrentUserOwnerOrAdmin] = useState(false);
+  
+  // Staff notes drawer state
+  const [notesDrawerOpen, setNotesDrawerOpen] = useState(false);
+  const [selectedStaffMember, setSelectedStaffMember] = useState<VendorStaffMember | null>(null);
   
   // Invite form state
   const [inviteName, setInviteName] = useState("");
@@ -429,6 +434,11 @@ export default function VendorStaff() {
     return true;
   };
 
+  const handleOpenStaffNotes = (member: VendorStaffMember) => {
+    setSelectedStaffMember(member);
+    setNotesDrawerOpen(true);
+  };
+
   const isVerified = vendorProfile?.vendor_verification_status === "verified";
   const hasCode = !!vendorProfile?.vendor_public_code;
   const canInviteStaff = isVerified && hasCode;
@@ -694,6 +704,12 @@ export default function VendorStaff() {
                                 <DropdownMenuSeparator />
                               </>
                             )}
+                            {member.staff_user_id && (
+                              <DropdownMenuItem onClick={() => handleOpenStaffNotes(member)}>
+                                <StickyNote className="h-4 w-4 mr-2" />
+                                Staff Notes
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() => handleChangeRole(member, member.role === "admin" ? "staff" : "admin")}
                             >
@@ -723,6 +739,17 @@ export default function VendorStaff() {
           </Table>
         )}
       </Card>
+
+      {/* Staff Notes Drawer */}
+      {vendorProfile && (
+        <VendorStaffNotesDrawer
+          open={notesDrawerOpen}
+          onOpenChange={setNotesDrawerOpen}
+          vendorProfileId={vendorProfile.id}
+          staffMember={selectedStaffMember}
+          isCurrentUserAdmin={isCurrentUserOwnerOrAdmin}
+        />
+      )}
     </div>
   );
 }
