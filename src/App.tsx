@@ -161,7 +161,14 @@ const App = () => (
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/legal/:pageType" element={<LegalPage />} />
-                <Route path="/public-help" element={<PublicHelpCenter />} />
+
+                {/* Help Center (PUBLIC) */}
+                <Route path="/help" element={<PublicHelpCenter />} />
+                <Route path="/help/:articleSlug" element={<PublicHelpCenter />} />
+                <Route path="/help/:sectionSlug/:articleSlug" element={<PublicHelpCenter />} />
+
+                {/* Back-compat */}
+                <Route path="/public-help" element={<Navigate to="/help" replace />} />
 
                 {/* Demo Mode routes - wrapped in DemoAccessGate and DemoProvider */}
                 {/* Demo routes are fully self-contained and NEVER redirect to /signin */}
@@ -256,8 +263,6 @@ const App = () => (
                   <Route path="/admin/support-queue" element={<AdminSupportQueue />} />
                   <Route path="/admin/safety-analytics" element={<AdminSafetyAnalytics />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
-                  <Route path="/help" element={<HelpCenter />} />
-                  <Route path="/help/:slug" element={<HelpCenter />} />
                   
                   <Route path="/safety" element={<SafetyCenter />} />
                   <Route path="/community" element={<CommunityBoard />} />

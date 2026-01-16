@@ -93,13 +93,13 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `NotificationFeed`, `NotificationsDropdown`
 - `/coverage-map` — Interactive US map
   - Components: `USChoroplethMap`
-- `/help` — Help center
-  - Components: `HelpCenter`
 - `/support` — Submit support ticket
   - Components: `Support`
 
 ### Public Routes
 
+- `/help/*` — Help Center (no auth required; works for public + demo + signed-in)
+  - Components: `PublicHelpCenter`
 - `/snapshot/:slug` — Public reputation snapshot
 - `/share/rep/:slug`, `/share/vendor/:slug` — Profile share pages
 - `/p/:shareToken` — Public proposal view
