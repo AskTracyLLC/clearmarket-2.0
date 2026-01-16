@@ -267,20 +267,34 @@ const AdminCredits = () => {
     loadTransactions(v.vendor_id);
   };
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const refreshSelectedVendor = async () => {
     if (!selectedVendor) return;
     
-    const { data: walletData } = await supabase
-      .from("vendor_wallet")
-      .select("credits_balance")
-      .eq("vendor_id", selectedVendor.vendor_id)
-      .maybeSingle();
+    setRefreshing(true);
+    try {
+      const { data: walletData, error } = await supabase
+        .from("vendor_wallet")
+        .select("credits_balance")
+        .eq("vendor_id", selectedVendor.vendor_id)
+        .maybeSingle();
 
-    setSelectedVendor({
-      ...selectedVendor,
-      credits_balance: walletData?.credits_balance ?? 0,
-    });
-    loadTransactions(selectedVendor.vendor_id);
+      if (error) {
+        console.error("Error refreshing vendor wallet:", error);
+        toast.error("Failed to refresh balance");
+        return;
+      }
+
+      setSelectedVendor({
+        ...selectedVendor,
+        credits_balance: walletData?.credits_balance ?? 0,
+      });
+      loadTransactions(selectedVendor.vendor_id);
+      toast.success("Balance refreshed");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const handleAdjust = async () => {
@@ -517,9 +531,10 @@ const AdminCredits = () => {
                       variant="ghost" 
                       size="icon"
                       onClick={refreshSelectedVendor}
+                      disabled={refreshing}
                       title="Refresh"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                     </Button>
                   </div>
                 </CardHeader>
