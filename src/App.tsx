@@ -65,6 +65,7 @@ import AdminAuditLog from "./pages/AdminAuditLog";
 import AdminMetrics from "./pages/AdminMetrics";
 import AdminCredits from "./pages/AdminCredits";
 import AdminInspectionTypes from "./pages/AdminInspectionTypes";
+import AdminSystemsUsed from "./pages/AdminSystemsUsed";
 import AdminBackgroundChecks from "./pages/AdminBackgroundChecks";
 import HelpCenter from "./pages/HelpCenter";
 import TermsPage from "./pages/TermsPage";
@@ -231,6 +232,7 @@ const App = () => (
                   <Route path="/admin/metrics" element={<AdminMetrics />} />
                   <Route path="/admin/credits" element={<AdminCredits />} />
                   <Route path="/admin/inspection-types" element={<AdminInspectionTypes />} />
+                  <Route path="/admin/systems-used" element={<AdminSystemsUsed />} />
                   <Route path="/admin/background-checks" element={<AdminBackgroundChecks />} />
                   <Route path="/admin/legal" element={<AdminLegalHelpCenter />} />
                   <Route path="/admin/legal/:pageType" element={<AdminSitePageEditor />} />

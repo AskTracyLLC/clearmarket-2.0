@@ -12,7 +12,7 @@ import { useActiveRole } from "@/hooks/useActiveRole";
 import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { SYSTEMS_LIST } from "@/lib/constants";
+import { fetchSystemsUsed, SystemUsed } from "@/lib/systemsUsed";
 import { InspectionTypeMultiSelect } from "@/components/InspectionTypeMultiSelect";
 import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,6 +64,9 @@ const WorkSetup = () => {
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [countyNameMap, setCountyNameMap] = useState<Map<string, string>>(new Map());
+  
+  // DB-driven systems list
+  const [dbSystems, setDbSystems] = useState<SystemUsed[]>([]);
 
   // Rep form
   const repForm = useForm<RepWorkSetupForm>({
@@ -105,6 +108,10 @@ const WorkSetup = () => {
     setLoading(true);
 
     try {
+      // Load DB-driven systems list (all, including inactive, for display of legacy selections)
+      const systemsData = await fetchSystemsUsed({ includeInactive: true });
+      setDbSystems(systemsData);
+      
       if (isRep) {
         await loadRepData();
       } else if (isVendor) {
@@ -400,33 +407,146 @@ const WorkSetup = () => {
                     </p>
                     
                     <div className="space-y-3">
-                      {SYSTEMS_LIST.map((system) => (
-                        <div key={system} className="flex items-center space-x-3">
-                          <Checkbox
-                            id={`system-${system}`}
-                            checked={systemsUsed.includes(system)}
-                            onCheckedChange={(checked) => {
-                              const current = systemsUsed;
-                              if (isRep) {
-                                if (checked) {
-                                  repForm.setValue("systems_used", [...current, system]);
-                                } else {
-                                  repForm.setValue("systems_used", current.filter((s) => s !== system));
-                                }
-                              } else {
-                                if (checked) {
-                                  vendorForm.setValue("systems_used", [...current, system]);
-                                } else {
-                                  vendorForm.setValue("systems_used", current.filter((s) => s !== system));
-                                }
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`system-${system}`} className="text-foreground font-normal cursor-pointer">
-                            {system}
-                          </Label>
-                        </div>
-                      ))}
+                      {/* Build combined list: active DB systems + inactive systems user has selected */}
+                      {(() => {
+                        // Get active system labels
+                        const activeSystemLabels = dbSystems.filter(s => s.is_active).map(s => s.label);
+                        
+                        // Find inactive systems user has selected (exclude "Other" and "Other: ..." patterns)
+                        const inactiveSelectedLabels = systemsUsed.filter(
+                          s => !activeSystemLabels.includes(s) && s !== "Other" && !s.startsWith("Other: ")
+                        );
+                        
+                        // Get inactive system objects that user selected
+                        const inactiveSelectedSystems = dbSystems.filter(
+                          s => !s.is_active && inactiveSelectedLabels.includes(s.label)
+                        );
+                        
+                        // Also handle legacy systems not in DB at all
+                        const legacySystemLabels = inactiveSelectedLabels.filter(
+                          label => !dbSystems.find(s => s.label === label)
+                        );
+                        
+                        return (
+                          <>
+                            {/* Active systems from DB */}
+                            {dbSystems.filter(s => s.is_active).map((system) => (
+                              <div key={system.id} className="flex items-center space-x-3">
+                                <Checkbox
+                                  id={`system-${system.code}`}
+                                  checked={systemsUsed.includes(system.label)}
+                                  onCheckedChange={(checked) => {
+                                    const current = systemsUsed;
+                                    if (isRep) {
+                                      if (checked) {
+                                        repForm.setValue("systems_used", [...current, system.label]);
+                                      } else {
+                                        repForm.setValue("systems_used", current.filter((s) => s !== system.label));
+                                      }
+                                    } else {
+                                      if (checked) {
+                                        vendorForm.setValue("systems_used", [...current, system.label]);
+                                      } else {
+                                        vendorForm.setValue("systems_used", current.filter((s) => s !== system.label));
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`system-${system.code}`} className="text-foreground font-normal cursor-pointer">
+                                  {system.label}
+                                </Label>
+                              </div>
+                            ))}
+                            
+                            {/* Inactive systems user has selected (from DB) - shown muted with badge */}
+                            {inactiveSelectedSystems.map((system) => (
+                              <div key={system.id} className="flex items-center space-x-3 opacity-70">
+                                <Checkbox
+                                  id={`system-${system.code}`}
+                                  checked={systemsUsed.includes(system.label)}
+                                  onCheckedChange={(checked) => {
+                                    const current = systemsUsed;
+                                    if (isRep) {
+                                      if (checked) {
+                                        repForm.setValue("systems_used", [...current, system.label]);
+                                      } else {
+                                        repForm.setValue("systems_used", current.filter((s) => s !== system.label));
+                                      }
+                                    } else {
+                                      if (checked) {
+                                        vendorForm.setValue("systems_used", [...current, system.label]);
+                                      } else {
+                                        vendorForm.setValue("systems_used", current.filter((s) => s !== system.label));
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`system-${system.code}`} className="text-muted-foreground font-normal cursor-pointer">
+                                  {system.label}
+                                </Label>
+                                <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                              </div>
+                            ))}
+                            
+                            {/* Legacy systems not in DB - shown muted with badge */}
+                            {legacySystemLabels.map((label) => (
+                              <div key={`legacy-${label}`} className="flex items-center space-x-3 opacity-70">
+                                <Checkbox
+                                  id={`system-legacy-${label}`}
+                                  checked={systemsUsed.includes(label)}
+                                  onCheckedChange={(checked) => {
+                                    const current = systemsUsed;
+                                    if (isRep) {
+                                      if (checked) {
+                                        repForm.setValue("systems_used", [...current, label]);
+                                      } else {
+                                        repForm.setValue("systems_used", current.filter((s) => s !== label));
+                                      }
+                                    } else {
+                                      if (checked) {
+                                        vendorForm.setValue("systems_used", [...current, label]);
+                                      } else {
+                                        vendorForm.setValue("systems_used", current.filter((s) => s !== label));
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Label htmlFor={`system-legacy-${label}`} className="text-muted-foreground font-normal cursor-pointer">
+                                  {label}
+                                </Label>
+                                <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                              </div>
+                            ))}
+                            
+                            {/* Other option - always available */}
+                            <div className="flex items-center space-x-3">
+                              <Checkbox
+                                id="system-other"
+                                checked={systemsUsed.includes("Other")}
+                                onCheckedChange={(checked) => {
+                                  const current = systemsUsed;
+                                  if (isRep) {
+                                    if (checked) {
+                                      repForm.setValue("systems_used", [...current, "Other"]);
+                                    } else {
+                                      repForm.setValue("systems_used", current.filter((s) => s !== "Other"));
+                                    }
+                                  } else {
+                                    if (checked) {
+                                      vendorForm.setValue("systems_used", [...current, "Other"]);
+                                    } else {
+                                      vendorForm.setValue("systems_used", current.filter((s) => s !== "Other"));
+                                    }
+                                  }
+                                }}
+                              />
+                              <Label htmlFor="system-other" className="text-foreground font-normal cursor-pointer">
+                                Other
+                              </Label>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Other system free text */}

@@ -366,6 +366,7 @@ export function LeftSidebar({
         { id: "admin-email", label: "Email Templates", path: "/admin/email-templates", icon: <Mail className="h-5 w-5" /> },
         { id: "admin-review", label: "Review Settings", path: "/admin/review-settings", icon: <Star className="h-5 w-5" /> },
         { id: "admin-inspect", label: "Inspection Types", path: "/admin/inspection-types", icon: <ClipboardList className="h-5 w-5" /> },
+        { id: "admin-systems", label: "Systems Used", path: "/admin/systems-used", icon: <Wrench className="h-5 w-5" /> },
         { id: "admin-checklists", label: "Checklists", path: "/admin/checklists", icon: <ClipboardList className="h-5 w-5" /> },
         { id: "admin-legal", label: "Legal & Help Center", path: "/admin/legal-help", icon: <Scale className="h-5 w-5" /> },
       ],

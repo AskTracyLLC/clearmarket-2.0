@@ -1,5 +1,21 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Admin Systems Used Module + Layout Fix
+- **DB Migration**: Added `platform_systems_used` table for admin-managed systems
+  - Columns: `id`, `label`, `code` (unique), `description`, `is_active`, `sort_order`, `created_at`, `updated_at`
+  - RLS: Authenticated users can SELECT; staff/admin can INSERT/UPDATE/DELETE
+  - Seeds: EZInspections, InspectorADE, PPW, Form.com, WorldApp
+- **AdminSystemsUsed.tsx**: New CRUD page at `/admin/systems-used`
+  - Add, edit, activate/deactivate, delete systems
+  - Gated via `useStaffPermissions().canViewAdminDashboard`
+- **systemsUsed.ts**: New data layer with `fetchSystemsUsed`, `createSystemUsed`, `updateSystemUsed`, `setSystemUsedActive`, `deleteSystemUsed`
+- **WorkSetup.tsx**: Replaced hardcoded `SYSTEMS_LIST` with DB-driven systems
+  - Active systems shown normally; inactive/legacy selections shown with "Inactive" badge
+  - "Other: ..." format preserved
+- **LeftSidebar.tsx**: Added "Systems Used" nav item under Platform Settings
+- **AdminInspectionTypes.tsx**: Removed duplicate `<AuthenticatedLayout>` wrapper (route-level layout only)
+- **FEATURE_MAP.md**: Added `platform_systems_used` table and `/admin/systems-used` route documentation
+
 ## 2026-01-16 — Vendor Do Not Use List
 - **DB Migration**: Added `vendor_do_not_use_reps` table for vendor-scoped DNU list
   - Columns: `id`, `vendor_id`, `rep_user_id`, `full_name`, `primary_email`, `emails[]`, `aliases[]`, `reason`, `notes`, `created_at`, `created_by`
