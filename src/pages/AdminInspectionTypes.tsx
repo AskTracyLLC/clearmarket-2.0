@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
+
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -392,16 +392,14 @@ const AdminInspectionTypes = () => {
 
   if (authLoading || permissionsLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-4">
           <Link to="/dashboard">
@@ -890,7 +888,7 @@ const AdminInspectionTypes = () => {
           </AlertDialogContent>
         </AlertDialog>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 };
 

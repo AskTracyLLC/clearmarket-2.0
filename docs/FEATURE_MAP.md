@@ -69,6 +69,10 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `AdminChecklists`
 - `/admin/features` — Feature flags
   - Components: `AdminFeatureFlags`
+- `/admin/inspection-types` — Admin-managed inspection types & categories
+  - Components: `AdminInspectionTypes`
+- `/admin/systems-used` — Admin-managed systems for Work Setup
+  - Components: `AdminSystemsUsed`
 - `/admin/background-checks` — Review submitted checks
   - Components: `AdminBackgroundChecks`
 - `/admin/safety-analytics` — Safety metrics
@@ -164,6 +168,8 @@ Quick reference for UI routes, backend objects, and their connections.
 
 - `admin_broadcasts`, `admin_broadcast_recipients` — Announcements
 - `feature_flags` — Feature toggles
+- `platform_systems_used` — Admin-managed systems for Work Setup (label, code, is_active, sort_order)
+- `inspection_type_options`, `inspection_categories` — Admin-managed inspection types
 - `background_checks` — Rep background verification
 - `dual_role_access_requests` — Vendor role requests
 
@@ -226,7 +232,7 @@ Quick reference for UI routes, backend objects, and their connections.
 | `/rep/my-vendors` | `vendor_connections`, `connection_notes` | — |
 | `/rep/profile` | `rep_profile`, `profiles` | — |
 | `/rep/reviews` | `connection_reviews`, `profiles` | — |
-| `/work-setup` | `rep_profile` (coverage_areas, systems_used) | — |
+| `/work-setup` | `rep_profile` (or `vendor_profile`), `platform_systems_used` | — |
 | `/rep/working-terms-request/:requestId` | `working_terms_requests`, `working_terms_rows` | — |
 
 ### Admin
