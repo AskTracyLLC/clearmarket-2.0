@@ -257,6 +257,7 @@ const App = () => (
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
                   <Route path="/help" element={<HelpCenter />} />
                   <Route path="/help/:slug" element={<HelpCenter />} />
+                  <Route path="/public-help" element={<PublicHelpCenter />} />
                   <Route path="/safety" element={<SafetyCenter />} />
                   <Route path="/community" element={<CommunityBoard />} />
                   <Route path="/community/:postId" element={<CommunityPostDetail />} />
