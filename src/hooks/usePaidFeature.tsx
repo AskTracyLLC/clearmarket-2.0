@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
-import { getVendorCredits, deductVendorCredits } from "@/lib/credits";
+import { resolveCurrentVendorId, getVendorWalletBalance, spendVendorCredits } from "@/lib/vendorWallet";
 import { useAuth } from "@/hooks/useAuth";
 
 type ConsumeResult =
@@ -30,12 +30,20 @@ export function usePaidFeature(featureKey: string, opts: PaidFeatureOptions = {}
 
   const betaNote = flag?.beta_note ?? "Free during beta testing. This will use credits after launch.";
 
+  const [vendorId, setVendorId] = useState<string | null>(null);
+
+  // Resolve vendor ID on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    resolveCurrentVendorId(user.id).then((vid) => setVendorId(vid));
+  }, [user?.id]);
+
   const loadCredits = useCallback(async () => {
-    if (!user?.id) return null;
-    const bal = await getVendorCredits(user.id);
+    if (!vendorId) return null;
+    const bal = await getVendorWalletBalance(vendorId);
     setCredits(bal ?? 0);
     return bal ?? 0;
-  }, [user?.id]);
+  }, [vendorId]);
 
   const canUse = useMemo(() => {
     if (!isEnabled) return false;
@@ -55,7 +63,7 @@ export function usePaidFeature(featureKey: string, opts: PaidFeatureOptions = {}
       return { ok: true, reason: "free" };
     }
 
-    if (!user?.id) {
+    if (!user?.id || !vendorId) {
       return { ok: false, reason: "unauth", message: "Not authenticated." };
     }
 
@@ -67,9 +75,9 @@ export function usePaidFeature(featureKey: string, opts: PaidFeatureOptions = {}
         return { ok: false, reason: "no_credits", message: "Not enough credits." };
       }
 
-      // Atomic deduct via RPC wrapper + transaction log
-      const result = await deductVendorCredits(
-        user.id,
+      // Atomic deduct via RPC wrapper (vendor_wallet)
+      const result = await spendVendorCredits(
+        vendorId,
         cost,
         opts.actionType ?? featureKey,
         opts.metadata ?? {}
@@ -85,8 +93,7 @@ export function usePaidFeature(featureKey: string, opts: PaidFeatureOptions = {}
       }
 
       // Refresh local balance
-      const newBal = await getVendorCredits(user.id);
-      setCredits(newBal ?? 0);
+      await loadCredits();
 
       return { ok: true, reason: "paid" };
     } catch (e: any) {
@@ -99,7 +106,7 @@ export function usePaidFeature(featureKey: string, opts: PaidFeatureOptions = {}
     } finally {
       setBusy(false);
     }
-  }, [isEnabled, isPaid, isBetaFree, credits, cost, featureKey, user?.id, loadCredits, opts.actionType, opts.metadata]);
+  }, [isEnabled, isPaid, isBetaFree, credits, cost, featureKey, user?.id, vendorId, loadCredits, opts.actionType, opts.metadata]);
 
   return {
     isEnabled,
