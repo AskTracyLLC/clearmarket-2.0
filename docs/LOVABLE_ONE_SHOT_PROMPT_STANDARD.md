@@ -39,6 +39,10 @@ When you finish a feature and write a Completion Report, also append a short ent
 - Keep file lists to max 8 entries; use "+N more" for overflow.
 - Every Completion Report MUST include a changelog append in the same commit.
 
+### Feature Map Rule
+- After every feature completion, also update `/docs/FEATURE_MAP.md` in the same commit.
+- Add new routes to Section 1, new tables/functions to Section 2, and update the crosswalk in Section 3.
+
 ---
 
 ## Other Standards
