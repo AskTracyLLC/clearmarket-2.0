@@ -87,6 +87,114 @@ function formatRouteDate(dateStr: string): string {
   }
 }
 
+// Format a YYYY-MM-DD date as "DOW - MM/DD/YY" (e.g., "Fri - 01/16/26")
+function formatRouteDateShortWithDow(dateStr: string): string {
+  try {
+    const [yearStr, monthStr, dayStr] = dateStr.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!year || !month || !day) return dateStr;
+
+    const date = new Date(year, month - 1, day);
+    const dayOfWeek = date.getDay();
+    const dowNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dow = dowNames[dayOfWeek];
+
+    // Format as MM/DD/YY with leading zeros
+    const mm = String(month).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    const yy = String(year).slice(-2);
+
+    return `${dow} - ${mm}/${dd}/${yy}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+// US state name to 2-letter code mapping
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  "alabama": "AL",
+  "alaska": "AK",
+  "arizona": "AZ",
+  "arkansas": "AR",
+  "california": "CA",
+  "colorado": "CO",
+  "connecticut": "CT",
+  "delaware": "DE",
+  "florida": "FL",
+  "georgia": "GA",
+  "hawaii": "HI",
+  "idaho": "ID",
+  "illinois": "IL",
+  "indiana": "IN",
+  "iowa": "IA",
+  "kansas": "KS",
+  "kentucky": "KY",
+  "louisiana": "LA",
+  "maine": "ME",
+  "maryland": "MD",
+  "massachusetts": "MA",
+  "michigan": "MI",
+  "minnesota": "MN",
+  "mississippi": "MS",
+  "missouri": "MO",
+  "montana": "MT",
+  "nebraska": "NE",
+  "nevada": "NV",
+  "new hampshire": "NH",
+  "new jersey": "NJ",
+  "new mexico": "NM",
+  "new york": "NY",
+  "north carolina": "NC",
+  "north dakota": "ND",
+  "ohio": "OH",
+  "oklahoma": "OK",
+  "oregon": "OR",
+  "pennsylvania": "PA",
+  "rhode island": "RI",
+  "south carolina": "SC",
+  "south dakota": "SD",
+  "tennessee": "TN",
+  "texas": "TX",
+  "utah": "UT",
+  "vermont": "VT",
+  "virginia": "VA",
+  "washington": "WA",
+  "west virginia": "WV",
+  "wisconsin": "WI",
+  "wyoming": "WY",
+  "district of columbia": "DC",
+};
+
+// Convert state name or code to 2-letter code
+function toStateCode(input: string): string {
+  const trimmed = input.trim();
+  // If already a 2-letter uppercase code, return as-is
+  if (/^[A-Z]{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Look up the state name (case-insensitive)
+  const code = STATE_NAME_TO_CODE[trimmed.toLowerCase()];
+  return code || trimmed;
+}
+
+// Parse route_state into an array of 2-letter state codes
+function parseStateCodes(routeState: unknown): string[] {
+  let rawValues: string[] = [];
+
+  if (Array.isArray(routeState)) {
+    rawValues = routeState.map(v => String(v).trim()).filter(Boolean);
+  } else if (typeof routeState === "string") {
+    // Handle comma-separated string
+    rawValues = routeState.split(",").map(v => v.trim()).filter(Boolean);
+  }
+
+  // Convert each to 2-letter code and dedupe
+  const codes = rawValues.map(toStateCode);
+  return [...new Set(codes)];
+}
+
 // Render coverage snapshot HTML section
 function renderCoverageSnapshotHtml(repName: string, areas: CoverageArea[]): string {
   if (areas.length === 0) {
@@ -462,10 +570,15 @@ serve(async (req: Request): Promise<Response> => {
         break;
       case "planned_route":
         if (alert.route_date) {
-          const formattedDate = formatRouteDate(alert.route_date as string);
-          alertTitle = `Field Rep Route Update for ${formattedDate}`;
+          const shortDate = formatRouteDateShortWithDow(alert.route_date as string);
+          const stateCodes = parseStateCodes(alert.route_state);
+          if (stateCodes.length > 0) {
+            alertTitle = `${repName} (${stateCodes.join(", ")}) Route Update for ${shortDate}`;
+          } else {
+            alertTitle = `${repName} Route Update for ${shortDate}`;
+          }
         } else {
-          alertTitle = "Field Rep Route Update";
+          alertTitle = `${repName} Route Update`;
         }
         break;
     }
