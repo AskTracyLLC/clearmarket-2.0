@@ -306,7 +306,7 @@ export function LeftSidebar({
     { id: "vendor-interested", label: "Interested Reps", path: "/vendor/seeking-coverage?status=open&interest=with_interest", icon: <Bell className="h-5 w-5" />, badge: isDemo ? undefined : sectionCounts.vendorTotalInterestedReps, pinnable: true },
     { id: "vendor-myreps", label: "My Reps", path: "/vendor/my-reps", icon: <Users className="h-5 w-5" />, pinnable: true },
     { id: "vendor-staff", label: "My Staff", path: "/vendor/staff", icon: <Users className="h-5 w-5" />, pinnable: true },
-    { id: "vendor-blocked", label: "Do Not Assign", path: "/vendor/blocked-reps", icon: <Ban className="h-5 w-5" />, pinnable: true },
+    
     { id: "vendor-proposals", label: "Proposals", path: "/vendor/proposals", icon: <FileText className="h-5 w-5" />, pinnable: true },
     { id: "vendor-reviews", label: "Reviews", path: "/vendor/reviews", icon: <Star className="h-5 w-5" />, pinnable: true },
     { id: "vendor-tools", label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" />, pinnable: true },

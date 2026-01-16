@@ -12,12 +12,10 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `SeekingCoverageDialog`, `VendorPostPricingAlert`
 - `/vendor/seeking-coverage/:postId/interested` — Review interested reps
   - Components: `ExpressInterestDialog`, `DeclineRepDialog`
-- `/vendor/my-reps` — Connected reps management + internal rep notes + Do Not Use list
-  - Components: `MyRepsTable`, `VendorRepNotesDrawer`, `ReviewDialog`, `VendorDoNotUseReps`, `MarkDoNotUseDialog`
+- `/vendor/my-reps` — Connected reps management + internal rep notes + Do Not Use list (as tabs)
+  - Components: `MyRepsTable`, `VendorRepNotesDrawer`, `ReviewDialog`, `VendorDoNotUseReps`, `MarkDoNotUseDialog`, `VendorOfflineRepContacts`
 - `/vendor/find-reps` — Search rep directory
   - Components: `RepCoverageTable`, `PublicProfileDialog`
-- `/vendor/blocked-reps` — Do Not Assign list
-  - Components: `VendorBlockedReps`
 - `/vendor/staff` — Team management + staff notes
   - Components: `VendorStaffEmailsCard`, `VendorStaffNotesDrawer`
 - `/vendor/credits` — Credit balance (shared vendor wallet), purchase, history
@@ -213,8 +211,7 @@ Quick reference for UI routes, backend objects, and their connections.
 |-------|--------|----------------------|
 | `/vendor/seeking-coverage` | `seeking_coverage_posts`, `vendor_wallet`, `vendor_wallet_transactions` | `spend_vendor_credits` (RPC) |
 | `/vendor/seeking-coverage/:postId/interested` | `rep_interest`, `profiles`, `rep_profile` | — |
-| `/vendor/my-reps` | `vendor_connections`, `connection_notes`, `vendor_rep_notes`, `connection_reviews` | — |
-| `/vendor/blocked-reps` | `vendor_offline_rep_contacts` (status='blocked') | — |
+| `/vendor/my-reps` | `vendor_connections`, `connection_notes`, `vendor_rep_notes`, `connection_reviews`, `vendor_do_not_use_reps` | — |
 | `/vendor/staff` | `vendor_staff`, `vendor_staff_notes` | `invite-vendor-staff` |
 | `/vendor/credits` | `vendor_wallet`, `vendor_wallet_transactions`, `pending_credit_purchases` | `create-credit-checkout`, `stripe-webhook` |
 | `/vendor/checklists` | `checklist_templates`, `checklist_items`, `user_checklist_items` | — |
