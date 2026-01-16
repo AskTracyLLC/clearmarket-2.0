@@ -376,6 +376,9 @@ serve(async (req) => {
     const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
     // Insert staff record with token (trigger will generate staff_code)
+    // Accept canSpendCredits from body (default false)
+    const canSpendCredits = body.canSpendCredits === true;
+    
     const { data: staffRecord, error: insertError } = await serviceClient
       .from("vendor_staff")
       .insert({
@@ -383,6 +386,7 @@ serve(async (req) => {
         invited_name: name.trim(),
         invited_email: email.trim().toLowerCase(),
         role: role || "staff",
+        can_spend_credits: canSpendCredits,
         status: "invited",
         invited_by: user.id,
         invite_token_hash: inviteTokenHash,

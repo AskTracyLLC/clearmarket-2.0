@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface AdjustCreditsPayload {
-  target_user_id: string;
+  vendor_id: string;  // Required: vendor to adjust
   amount: number;
   note: string;
 }
@@ -75,26 +75,26 @@ serve(async (req) => {
 
     // Parse and validate payload
     const payload: AdjustCreditsPayload = await req.json();
-    const { target_user_id, amount, note } = payload;
+    const { vendor_id, amount, note } = payload;
 
-    // Validate target_user_id
-    if (!target_user_id || typeof target_user_id !== "string") {
+    // Validate vendor_id
+    if (!vendor_id || typeof vendor_id !== "string") {
       return new Response(
-        JSON.stringify({ success: false, error: "target_user_id is required" }),
+        JSON.stringify({ success: false, error: "vendor_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Verify target user exists
-    const { data: targetProfile, error: targetError } = await supabase
-      .from("profiles")
-      .select("id, email, full_name")
-      .eq("id", target_user_id)
+    // Verify vendor exists
+    const { data: vendorProfile, error: vendorError } = await supabase
+      .from("vendor_profile")
+      .select("id, user_id, company_name")
+      .eq("id", vendor_id)
       .single();
 
-    if (targetError || !targetProfile) {
+    if (vendorError || !vendorProfile) {
       return new Response(
-        JSON.stringify({ success: false, error: "Target user not found" }),
+        JSON.stringify({ success: false, error: "Vendor not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -116,76 +116,51 @@ serve(async (req) => {
       );
     }
 
-    // Get current balance (or 0 if no wallet exists)
+    // Get current vendor wallet balance
     const { data: walletData, error: walletError } = await supabase
-      .from("user_wallet")
-      .select("credits")
-      .eq("user_id", target_user_id)
+      .from("vendor_wallet")
+      .select("credits_balance")
+      .eq("vendor_id", vendor_id)
       .maybeSingle();
 
     if (walletError) {
       console.error("Wallet lookup error:", walletError);
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to fetch wallet" }),
+        JSON.stringify({ success: false, error: "Failed to fetch vendor wallet" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const currentBalance = walletData?.credits ?? 0;
-    let newBalance = currentBalance + amount;
+    const currentBalance = walletData?.credits_balance ?? 0;
 
-    // Clamp to 0 if going negative
-    if (newBalance < 0) {
-      newBalance = 0;
+    // Use add_vendor_credits RPC for the adjustment (handles positive and negative amounts)
+    const { error: rpcError } = await supabase.rpc("add_vendor_credits", {
+      p_vendor_id: vendor_id,
+      p_amount: amount,
+      p_txn_type: "admin_adjustment",
+      p_actor_user_id: actorUserId,
+      p_metadata: {
+        note: trimmedNote,
+        previous_balance: currentBalance,
+      },
+    });
+
+    if (rpcError) {
+      console.error("RPC error:", rpcError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to adjust vendor credits" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Update or insert wallet
-    if (walletData) {
-      const { error: updateError } = await supabase
-        .from("user_wallet")
-        .update({ credits: newBalance, updated_at: new Date().toISOString() })
-        .eq("user_id", target_user_id);
+    // Get new balance
+    const { data: newWalletData } = await supabase
+      .from("vendor_wallet")
+      .select("credits_balance")
+      .eq("vendor_id", vendor_id)
+      .single();
 
-      if (updateError) {
-        console.error("Wallet update error:", updateError);
-        return new Response(
-          JSON.stringify({ success: false, error: "Failed to update wallet" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else {
-      const { error: insertError } = await supabase
-        .from("user_wallet")
-        .insert({ user_id: target_user_id, credits: newBalance });
-
-      if (insertError) {
-        console.error("Wallet insert error:", insertError);
-        return new Response(
-          JSON.stringify({ success: false, error: "Failed to create wallet" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    // Log transaction
-    const { error: txError } = await supabase
-      .from("vendor_credit_transactions")
-      .insert({
-        user_id: target_user_id,
-        amount: amount,
-        action: "admin_adjustment",
-        metadata: {
-          note: trimmedNote,
-          adjusted_by: actorUserId,
-          previous_balance: currentBalance,
-          new_balance: newBalance,
-        },
-      });
-
-    if (txError) {
-      console.error("Transaction log error:", txError);
-      // Don't fail the request, but log the error
-    }
+    const newBalance = newWalletData?.credits_balance ?? 0;
 
     // Log to admin audit log
     const ipAddress = req.headers.get("x-forwarded-for") || 
@@ -197,10 +172,11 @@ serve(async (req) => {
       .from("admin_audit_log")
       .insert({
         actor_user_id: actorUserId,
-        target_user_id: target_user_id,
-        action_type: "credits.adjusted",
-        action_summary: `Adjusted credits by ${amount > 0 ? "+" : ""}${amount} for ${targetProfile.email || targetProfile.full_name || target_user_id}`,
+        target_user_id: vendorProfile.user_id, // Vendor owner for reference
+        action_type: "vendor_credits.adjusted",
+        action_summary: `Adjusted vendor credits by ${amount > 0 ? "+" : ""}${amount} for ${vendorProfile.company_name || vendor_id}`,
         action_details: {
+          vendor_id,
           amount,
           note: trimmedNote,
           previous_balance: currentBalance,
@@ -216,7 +192,7 @@ serve(async (req) => {
       // Don't fail the request
     }
 
-    console.log(`Admin ${actorUserId} adjusted credits for ${target_user_id}: ${amount > 0 ? "+" : ""}${amount} (${currentBalance} -> ${newBalance})`);
+    console.log(`Admin ${actorUserId} adjusted vendor credits for ${vendor_id}: ${amount > 0 ? "+" : ""}${amount} (${currentBalance} -> ${newBalance})`);
 
     return new Response(
       JSON.stringify({ success: true, new_balance: newBalance }),

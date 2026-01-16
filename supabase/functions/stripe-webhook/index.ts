@@ -305,10 +305,11 @@ serve(async (req) => {
 
       logStep("Metadata extracted", { userId, creditPackId, creditsToAdd });
 
-      // Check if already processed via pending_credit_purchases (secondary idempotency)
+      // === RESOLVE VENDOR_ID ===
+      // Fetch pending purchase first - it should have vendor_id
       const { data: existingPurchase } = await supabaseAdmin
         .from("pending_credit_purchases")
-        .select("id, status")
+        .select("id, status, vendor_id")
         .eq("stripe_checkout_session_id", session.id)
         .maybeSingle();
 
@@ -336,67 +337,121 @@ serve(async (req) => {
         });
       }
 
-      // Get current wallet balance
-      const { data: wallet, error: walletError } = await supabaseAdmin
-        .from("user_wallet")
-        .select("credits")
-        .eq("user_id", userId)
+      // Get vendor_id from DB and Stripe metadata
+      const vendorIdFromDb = existingPurchase?.vendor_id;
+      const vendorIdFromStripe = session.metadata?.vendor_id;
+
+      logStep("Vendor ID sources", { vendorIdFromDb, vendorIdFromStripe });
+
+      // CRITICAL: Validate mismatch if both exist
+      if (vendorIdFromDb && vendorIdFromStripe && vendorIdFromDb !== vendorIdFromStripe) {
+        logStep("CRITICAL: vendor_id mismatch between pending_purchase and Stripe metadata", {
+          vendorIdFromDb,
+          vendorIdFromStripe,
+          sessionId: session.id
+        });
+        throw new Error("vendor_id mismatch between database and Stripe metadata - aborting credit");
+      }
+
+      // Prefer DB, fallback to Stripe metadata
+      let vendorId = vendorIdFromDb || vendorIdFromStripe;
+
+      // Legacy fallback: resolve from user_id if no vendor_id (for in-flight purchases)
+      if (!vendorId) {
+        logStep("WARNING: No vendor_id found, attempting legacy resolution from user_id");
+        
+        // Check if user is vendor owner
+        const { data: vendorProfile } = await supabaseAdmin
+          .from("vendor_profile")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (vendorProfile?.id) {
+          vendorId = vendorProfile.id;
+          logStep("Legacy: resolved vendor_id from owner profile", { vendorId });
+        } else {
+          // Check if staff
+          const { data: staffRecord } = await supabaseAdmin
+            .from("vendor_staff")
+            .select("vendor_id")
+            .eq("staff_user_id", userId)
+            .eq("status", "active")
+            .maybeSingle();
+
+          vendorId = staffRecord?.vendor_id;
+          logStep("Legacy: resolved vendor_id from staff record", { vendorId });
+        }
+
+        // Backfill vendor_id on pending purchase if we resolved it
+        if (vendorId && existingPurchase && !vendorIdFromDb) {
+          const { error: backfillError } = await supabaseAdmin
+            .from("pending_credit_purchases")
+            .update({ vendor_id: vendorId })
+            .eq("id", existingPurchase.id);
+          
+          if (backfillError) {
+            logStep("Warning: Failed to backfill vendor_id on pending purchase", { error: backfillError.message });
+          } else {
+            logStep("Backfilled vendor_id on pending purchase", { vendorId });
+          }
+        }
+      }
+
+      if (!vendorId) {
+        logStep("ERROR: Could not resolve vendor_id for credit purchase");
+        throw new Error("Could not determine which vendor to credit");
+      }
+
+      logStep("Final vendor_id resolved", { vendorId });
+
+      // Get current vendor wallet balance
+      const { data: vendorWallet, error: walletError } = await supabaseAdmin
+        .from("vendor_wallet")
+        .select("credits_balance")
+        .eq("vendor_id", vendorId)
         .maybeSingle();
 
       if (walletError) {
-        logStep("Error fetching wallet", { error: walletError.message });
-        throw new Error(`Failed to fetch wallet: ${walletError.message}`);
+        logStep("Error fetching vendor wallet", { error: walletError.message });
+        throw new Error(`Failed to fetch vendor wallet: ${walletError.message}`);
       }
 
-      const currentBalance = wallet?.credits ?? 0;
-      const newBalance = currentBalance + creditsToAdd;
+      const currentBalance = vendorWallet?.credits_balance ?? 0;
 
-      logStep("Updating wallet", { currentBalance, creditsToAdd, newBalance });
+      logStep("Current vendor wallet balance", { vendorId, currentBalance, creditsToAdd });
 
-      // Update wallet balance
-      if (wallet) {
-        const { error: updateError } = await supabaseAdmin
-          .from("user_wallet")
-          .update({ credits: newBalance, updated_at: new Date().toISOString() })
-          .eq("user_id", userId);
+      // Credit vendor wallet using the add_vendor_credits RPC (service role can call it)
+      const { error: rpcError } = await supabaseAdmin.rpc("add_vendor_credits", {
+        p_vendor_id: vendorId,
+        p_amount: creditsToAdd,
+        p_txn_type: "credit_purchase",
+        p_actor_user_id: userId,
+        p_metadata: {
+          stripe_session_id: session.id,
+          credit_pack_id: creditPackId,
+          stripe_payment_intent: session.payment_intent,
+          amount_paid: session.amount_total,
+          currency: session.currency,
+          livemode: event.livemode,
+        },
+      });
 
-        if (updateError) {
-          throw new Error(`Failed to update wallet: ${updateError.message}`);
-        }
-      } else {
-        const { error: insertWalletError } = await supabaseAdmin
-          .from("user_wallet")
-          .insert({ user_id: userId, credits: creditsToAdd });
-
-        if (insertWalletError) {
-          throw new Error(`Failed to create wallet: ${insertWalletError.message}`);
-        }
+      if (rpcError) {
+        logStep("Error crediting vendor wallet", { error: rpcError.message });
+        throw new Error(`Failed to credit vendor wallet: ${rpcError.message}`);
       }
 
-      logStep("Wallet updated successfully");
+      // Get new balance for notifications/email
+      const { data: newWalletData } = await supabaseAdmin
+        .from("vendor_wallet")
+        .select("credits_balance")
+        .eq("vendor_id", vendorId)
+        .single();
 
-      // Insert transaction record
-      const { error: txError } = await supabaseAdmin
-        .from("vendor_credit_transactions")
-        .insert({
-          user_id: userId,
-          amount: creditsToAdd,
-          action: "credit_purchase",
-          metadata: {
-            credit_pack_id: creditPackId,
-            stripe_checkout_session_id: session.id,
-            stripe_payment_intent: session.payment_intent,
-            amount_paid: session.amount_total,
-            currency: session.currency,
-            livemode: event.livemode,
-          },
-        });
+      const newBalance = newWalletData?.credits_balance ?? (currentBalance + creditsToAdd);
 
-      if (txError) {
-        logStep("Warning: Failed to insert transaction record", { error: txError.message });
-      } else {
-        logStep("Transaction record created");
-      }
+      logStep("Vendor wallet credited successfully", { vendorId, currentBalance, creditsToAdd, newBalance });
 
       // Update pending purchase status
       if (existingPurchase) {

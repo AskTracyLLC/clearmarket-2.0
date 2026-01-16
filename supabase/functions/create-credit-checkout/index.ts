@@ -77,6 +77,56 @@ serve(async (req) => {
     }
     logStep("Pack validated", { packId, credits: pack.credits });
 
+    // Use service role for vendor lookups
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // === RESOLVE VENDOR_ID ===
+    // First check if user is a vendor owner
+    const { data: vendorProfile } = await supabaseAdmin
+      .from("vendor_profile")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    let vendorId = vendorProfile?.id;
+    logStep("Checked vendor owner", { isOwner: !!vendorId });
+
+    if (!vendorId) {
+      // Not an owner - check if staff on any vendor(s)
+      const { data: staffRecords, error: staffError } = await supabaseAdmin
+        .from("vendor_staff")
+        .select("vendor_id")
+        .eq("staff_user_id", user.id)
+        .eq("status", "active");
+
+      if (staffError) {
+        logStep("Error checking staff records", { error: staffError.message });
+        throw new Error("Failed to determine vendor association");
+      }
+
+      // CRITICAL: Fail loudly if staff on multiple vendors
+      if (staffRecords && staffRecords.length > 1) {
+        logStep("FAIL: User is staff on multiple vendors", { 
+          count: staffRecords.length, 
+          vendorIds: staffRecords.map(r => r.vendor_id) 
+        });
+        throw new Error("You are staff on multiple vendors. Please contact support to determine which vendor should be credited.");
+      }
+
+      vendorId = staffRecords?.[0]?.vendor_id;
+      logStep("Checked vendor staff", { isStaff: !!vendorId, vendorId });
+    }
+
+    if (!vendorId) {
+      throw new Error("You are not associated with any vendor. Only vendors can purchase credits.");
+    }
+
+    logStep("Vendor ID resolved", { vendorId });
+
     // Initialize Stripe - prefer LIVE key (STRIPE_SECRET_KEY2 is live in this project)
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY2") || Deno.env.get("STRIPE_SECRET_KEY_LIVE") || Deno.env.get("STRIPE_SECRET_KEY") || Deno.env.get("STRIPE_SECRET_TESTKEY");
     if (!stripeKey) {
@@ -96,7 +146,7 @@ serve(async (req) => {
     // Get origin for redirect URLs (fallback to production URL)
     const origin = req.headers.get("origin") || Deno.env.get("ORIGIN") || "https://useclearmarket.io";
 
-    // Create Stripe Checkout Session
+    // Create Stripe Checkout Session with vendor_id in metadata
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email!,
@@ -111,25 +161,20 @@ serve(async (req) => {
       cancel_url: `${origin}/vendor/credits?status=cancelled`,
       metadata: {
         user_id: user.id,
+        vendor_id: vendorId, // Explicit vendor_id for webhook
         credit_pack_id: packId,
         credits_to_add: pack.credits.toString(),
       },
     });
 
-    logStep("Checkout session created", { sessionId: session.id });
+    logStep("Checkout session created", { sessionId: session.id, vendorId });
 
-    // Insert pending purchase record using service role for backend write
-    // This is REQUIRED for webhook + email idempotency
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } }
-    );
-
+    // Insert pending purchase record with vendor_id
     const { error: insertError } = await supabaseAdmin
       .from("pending_credit_purchases")
       .insert({
         user_id: user.id,
+        vendor_id: vendorId, // Explicit vendor_id for webhook
         credit_pack_id: packId,
         credits_to_add: pack.credits,
         stripe_checkout_session_id: session.id,
@@ -151,7 +196,7 @@ serve(async (req) => {
       );
     }
     
-    logStep("Pending purchase record created");
+    logStep("Pending purchase record created with vendor_id", { vendorId });
 
     return new Response(
       JSON.stringify({ checkoutUrl: session.url }),
