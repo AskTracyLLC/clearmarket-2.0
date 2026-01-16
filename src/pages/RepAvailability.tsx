@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +49,7 @@ import { format, parseISO, isToday } from "date-fns";
 
 import { MyVendorContacts } from "@/components/MyVendorContacts";
 import { PlannedRouteConfirmBanner } from "@/components/PlannedRouteConfirmBanner";
+import { UnifiedAvailabilityCalendar, CalendarAlert, AvailabilityEntry as CalendarAvailabilityEntry } from "@/components/UnifiedAvailabilityCalendar";
 
 interface AvailabilityEntry {
   id: string;
@@ -133,6 +134,9 @@ export default function RepAvailability() {
   const [alertHistory, setAlertHistory] = useState<AlertHistoryEntry[]>([]);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
+  
+  // Calendar alerts state
+  const [calendarAlerts, setCalendarAlerts] = useState<CalendarAlert[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -174,6 +178,7 @@ export default function RepAvailability() {
         loadPendingRoutes(),
         loadScheduledAlerts(),
         loadAlertHistory(),
+        loadAlertsForCalendar(),
       ]);
     } catch (error) {
       console.error("Error loading data:", error);
@@ -299,6 +304,38 @@ export default function RepAvailability() {
       scheduled_status: d.scheduled_status,
       sent_at: d.sent_at,
       created_at: d.created_at,
+    })));
+  }
+
+  // Load all alerts for the calendar view
+  async function loadAlertsForCalendar() {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("vendor_alerts")
+      .select("id, alert_type, message, affected_start_date, affected_end_date, is_scheduled, scheduled_status, created_at, sent_at, route_date, route_state, route_counties")
+      .eq("rep_user_id", user.id)
+      .neq("scheduled_status", "canceled")
+      .order("affected_start_date", { ascending: true });
+
+    if (error) {
+      console.error("Error loading calendar alerts:", error);
+      return;
+    }
+
+    setCalendarAlerts((data || []).map(d => ({
+      id: d.id,
+      alert_type: d.alert_type,
+      message: d.message,
+      affected_start_date: d.affected_start_date,
+      affected_end_date: d.affected_end_date,
+      is_scheduled: d.is_scheduled || false,
+      scheduled_status: d.scheduled_status,
+      created_at: d.created_at,
+      sent_at: d.sent_at,
+      route_date: d.route_date,
+      route_state: d.route_state,
+      route_counties: d.route_counties,
     })));
   }
 
@@ -561,7 +598,7 @@ export default function RepAvailability() {
 
           // Reset form and refresh data
           resetAlertForm();
-          await Promise.all([loadPendingRoutes(), loadScheduledAlerts(), loadAlertHistory()]);
+          await Promise.all([loadPendingRoutes(), loadScheduledAlerts(), loadAlertHistory(), loadAlertsForCalendar()]);
           return;
         } else {
           // Schedule for future date
@@ -603,7 +640,7 @@ export default function RepAvailability() {
 
           // Reset form
           resetAlertForm();
-          await Promise.all([loadPendingRoutes(), loadScheduledAlerts()]);
+          await Promise.all([loadPendingRoutes(), loadScheduledAlerts(), loadAlertsForCalendar()]);
           return;
         }
       }
@@ -656,6 +693,7 @@ export default function RepAvailability() {
 
       toast({ title: "Alert Sent", description });
       resetAlertForm();
+      await loadAlertsForCalendar();
     } catch (error: any) {
       console.error("Error sending alert:", error);
       toast({ title: "Error", description: error.message || "Failed to send.", variant: "destructive" });
@@ -732,10 +770,91 @@ export default function RepAvailability() {
         description: "The scheduled alert has been canceled.",
       });
 
-      await Promise.all([loadScheduledAlerts(), loadAlertHistory()]);
+      await Promise.all([loadScheduledAlerts(), loadAlertHistory(), loadAlertsForCalendar()]);
     } catch (error: any) {
       console.error("Error canceling alert:", error);
       toast({ title: "Error", description: error.message || "Failed to cancel.", variant: "destructive" });
+    }
+  }
+
+  // Calendar handlers
+  function handleCalendarEditTimeOff(entry: CalendarAvailabilityEntry) {
+    // Find the full entry with auto_reply fields
+    const fullEntry = availabilityEntries.find(e => e.id === entry.id);
+    if (fullEntry) {
+      openEditDialog(fullEntry);
+    }
+  }
+
+  function handleCalendarDeleteTimeOff(entryId: string) {
+    setDeletingEntryId(entryId);
+    setShowDeleteDialog(true);
+  }
+
+  function handleCalendarEditAlert(alert: CalendarAlert) {
+    // Handle planned route alerts
+    if (alert.alert_type === "planned_route" && alert.route_date) {
+      setAlertType("route");
+      setEditingRouteId(alert.id);
+      setRouteDate(parseISO(alert.route_date));
+      
+      // Find state code from name
+      const stateCode = coverageStates.find(s => s.name === alert.route_state)?.code || "";
+      setRouteState(stateCode);
+      setRouteCounties(alert.route_counties || []);
+      setAlertMessage(alert.message);
+      
+      // Scroll to form
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    } else {
+      // For other alert types, just show info
+      toast({
+        title: "Edit Alert",
+        description: "This alert type cannot be edited. You can create a new alert instead.",
+      });
+    }
+  }
+
+  async function handleCalendarSendNowAlert(alert: CalendarAlert) {
+    if (!user) return;
+    
+    try {
+      // Update to immediate send
+      const { error: updateError } = await supabase
+        .from("vendor_alerts")
+        .update({
+          is_scheduled: false,
+          scheduled_status: null,
+        })
+        .eq("id", alert.id);
+
+      if (updateError) throw updateError;
+
+      // Invoke edge function to send
+      const { data: sendResult, error: sendError } = await supabase.functions.invoke(
+        "send-rep-network-alert",
+        {
+          body: {
+            alertId: alert.id,
+            repUserId: user.id,
+          },
+        }
+      );
+
+      if (sendError) throw sendError;
+
+      const inAppCount = sendResult?.inAppNotifications || 0;
+      const emailCount = sendResult?.emailsSent || 0;
+      let description = `Alert sent to ${inAppCount} vendor${inAppCount !== 1 ? 's' : ''}`;
+      if (emailCount > 0) {
+        description += ` and ${emailCount} manual contact${emailCount !== 1 ? 's' : ''}`;
+      }
+
+      toast({ title: "Alert Sent", description });
+      await Promise.all([loadPendingRoutes(), loadScheduledAlerts(), loadAlertHistory(), loadAlertsForCalendar()]);
+    } catch (error: any) {
+      console.error("Error sending alert:", error);
+      toast({ title: "Error", description: error.message || "Failed to send.", variant: "destructive" });
     }
   }
 
@@ -780,6 +899,21 @@ export default function RepAvailability() {
           </Button>
           <h1 className="text-xl font-bold text-foreground">Availability & Vendor Alerts</h1>
         </div>
+
+        {/* Unified Availability Calendar */}
+        <UnifiedAvailabilityCalendar
+          availabilityEntries={availabilityEntries.map(e => ({
+            id: e.id,
+            start_date: e.start_date,
+            end_date: e.end_date,
+            reason: e.reason,
+          }))}
+          alerts={calendarAlerts}
+          onEditTimeOff={handleCalendarEditTimeOff}
+          onDeleteTimeOff={handleCalendarDeleteTimeOff}
+          onEditAlert={handleCalendarEditAlert}
+          onSendNowAlert={handleCalendarSendNowAlert}
+        />
 
         {/* Section 1: Time Off / Availability */}
         <Card className="mb-8">

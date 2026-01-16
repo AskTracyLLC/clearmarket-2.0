@@ -1,5 +1,18 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Unified Availability Calendar
+- **UnifiedAvailabilityCalendar.tsx**: New component showing rep time off + all vendor network alerts in one calendar view
+  - Displays: Time Off, Planned Routes, Planned Time Off Alerts, Availability Updates, Emergency alerts
+  - Emergency alerts highlighted in red (chip + day number)
+  - Day details panel shows entries when clicking a date
+  - Filters for Show Time Off / Show Alerts
+  - Max 2 chips per day cell with "+N more" overflow
+- **RepAvailability.tsx**: Integrated unified calendar
+  - New `loadAlertsForCalendar()` loader fetching all alert types from `vendor_alerts`
+  - Calendar refreshes after any alert action (send/schedule/edit)
+  - Click-to-edit from calendar day panel
+- **No DB changes**: Uses existing `rep_availability` and `vendor_alerts` tables
+
 ## 2026-01-16 — Admin Systems Used Module + Layout Fix
 - **DB Migration**: Added `platform_systems_used` table for admin-managed systems
   - Columns: `id`, `label`, `code` (unique), `description`, `is_active`, `sort_order`, `created_at`, `updated_at`
