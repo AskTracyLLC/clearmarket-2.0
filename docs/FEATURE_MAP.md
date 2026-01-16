@@ -8,19 +8,19 @@ Quick reference for UI routes, backend objects, and their connections.
 
 ### Vendor Routes
 
-- `/vendor/seeking-coverage` — Create/manage coverage posts (Vendor Admin)
+- `/vendor/seeking-coverage` — Create/manage coverage posts (costs 1 credit)
   - Components: `SeekingCoverageDialog`, `VendorPostPricingAlert`
 - `/vendor/seeking-coverage/:postId/interested` — Review interested reps
   - Components: `ExpressInterestDialog`, `DeclineRepDialog`
-- `/vendor/my-reps` — Connected reps management
+- `/vendor/my-reps` — Connected reps management + internal rep notes
   - Components: `MyRepsTable`, `VendorRepNotesDrawer`, `ReviewDialog`
 - `/vendor/find-reps` — Search rep directory
   - Components: `RepCoverageTable`, `PublicProfileDialog`
 - `/vendor/blocked-reps` — Do Not Assign list
   - Components: `VendorBlockedReps`
-- `/vendor/staff` — Team management
+- `/vendor/staff` — Team management + staff notes
   - Components: `VendorStaffEmailsCard`, `VendorStaffNotesDrawer`
-- `/vendor/credits` — Credit balance, purchase, history
+- `/vendor/credits` — Credit balance (shared vendor wallet), purchase, history
   - Components: `ConfirmCreditSpendDialog`, `OutOfCreditsDialog`
 - `/vendor/checklists` — Onboarding checklists for reps
   - Components: `VendorChecklistManager`, `AssignChecklistDialog`
@@ -37,7 +37,7 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `ExpressInterestDialog`, `SaveSearchDialog`
 - `/rep/seeking-coverage/:postId` — Post detail view
   - Components: `RepSeekingCoveragePost`
-- `/rep/my-vendors` — Connected vendors
+- `/rep/my-vendors` — Connected vendors + private notes
   - Components: `ConnectedVendorsTable`, `MyVendorContacts`
 - `/rep/find-vendors` — Vendor directory
   - Components: `RepFindVendors`
@@ -60,7 +60,7 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `AdminUsers`, `AdminMessageUserDialog`
 - `/admin/staff` — Staff role management
   - Components: `AdminStaff`
-- `/admin/credits` — Manual credit adjustments
+- `/admin/credits` — Manual credit adjustments (vendor_wallet)
   - Components: `AdminCredits`
 - `/admin/audit` — Activity log
   - Components: `AdminAuditLog`
@@ -77,7 +77,7 @@ Quick reference for UI routes, backend objects, and their connections.
 
 ### Shared Routes
 
-- `/dashboard` — Role-aware home
+- `/dashboard` — Role-aware home (credits from vendor_wallet for vendors)
   - Components: `TodayFeed`, `QuickActions`, `AtAGlanceSidebar`
 - `/messages`, `/messages/:conversationId` — Messaging
   - Components: `MessagesList`, `MessageThread`
@@ -116,16 +116,42 @@ Quick reference for UI routes, backend objects, and their connections.
 - `notifications` — In-app notifications
 - `connection_reviews` — Work-tied reviews (Trust Score)
 - `community_posts`, `community_comments`, `community_votes` — Community board
-- `user_wallet`, `transactions`, `pending_credit_purchases` — Credits
+
+### Credits System (Shared Vendor Wallet)
+
+- `vendor_wallet` — Shared credit balance per vendor (keyed by vendor_profile.id)
+- `vendor_wallet_transactions` — Transaction log for vendor wallet
+- `pending_credit_purchases` — Pending Stripe purchases
+- `spend_vendor_credits` (RPC) — Atomic credit deduction with auth check
+
+> **Note:** Legacy `user_wallet` and `transactions` tables exist but are deprecated. All vendor credit flows now use `vendor_wallet`.
+
+### Notes & Preferences
+
+- `vendor_staff_notes` — Internal staff notes (public/private audience)
+- `vendor_rep_notes` — Internal rep notes (vendor-scoped, hidden from reps)
+- `connection_notes` — CRM-style notes per vendor/rep connection (side: vendor | rep)
+- `user_ui_preferences` — Pinned sidebar items per user (persisted across sessions)
+
+### Safety & Moderation
+
 - `support_tickets` — Support cases
 - `admin_audit_log` — Staff action audit trail
 - `user_blocks`, `user_reports` — Safety/moderation
+
+### Teams & Checklists
+
 - `checklist_templates`, `checklist_items`, `user_checklist_items` — Checklists
-- `vendor_staff` — Team members
-- `connection_notes` — Internal notes (vendor/rep side)
-- `vendor_offline_rep_contacts` — Do Not Assign list
+- `vendor_staff` — Team members (with can_spend_credits flag)
+- `vendor_offline_rep_contacts` — Do Not Assign list (status='blocked')
+
+### Terms & Proposals
+
 - `working_terms_requests`, `working_terms_rows` — Terms negotiation
 - `vendor_proposals`, `vendor_proposal_items` — Rate proposals
+
+### System
+
 - `admin_broadcasts`, `admin_broadcast_recipients` — Announcements
 - `feature_flags` — Feature toggles
 - `background_checks` — Rep background verification
@@ -134,8 +160,8 @@ Quick reference for UI routes, backend objects, and their connections.
 ### Edge Functions
 
 - `stripe-webhook` — Stripe payment processing
-- `create-credit-checkout` — Initiate credit purchase
-- `admin-adjust-credits` — Manual credit adjustment
+- `create-credit-checkout` — Initiate credit purchase (writes to vendor_wallet)
+- `admin-adjust-credits` — Manual credit adjustment (vendor_wallet)
 - `reconcile-pending-purchases` — Cleanup pending transactions
 - `stripe-health` — Stripe connection status
 - `send-notification-email` — Transactional emails
@@ -171,14 +197,14 @@ Quick reference for UI routes, backend objects, and their connections.
 
 ### Vendor
 
-| Route | Tables | Edge Functions |
-|-------|--------|----------------|
-| `/vendor/seeking-coverage` | `seeking_coverage_posts`, `user_wallet`, `transactions` | — |
+| Route | Tables | Edge Functions / RPC |
+|-------|--------|----------------------|
+| `/vendor/seeking-coverage` | `seeking_coverage_posts`, `vendor_wallet`, `vendor_wallet_transactions` | `spend_vendor_credits` (RPC) |
 | `/vendor/seeking-coverage/:postId/interested` | `rep_interest`, `profiles`, `rep_profile` | — |
-| `/vendor/my-reps` | `vendor_connections`, `connection_notes`, `connection_reviews` | — |
-| `/vendor/blocked-reps` | `vendor_offline_rep_contacts` | — |
-| `/vendor/staff` | `vendor_staff`, `connection_notes` | `invite-vendor-staff` |
-| `/vendor/credits` | `user_wallet`, `transactions`, `pending_credit_purchases` | `create-credit-checkout`, `stripe-webhook` |
+| `/vendor/my-reps` | `vendor_connections`, `connection_notes`, `vendor_rep_notes`, `connection_reviews` | — |
+| `/vendor/blocked-reps` | `vendor_offline_rep_contacts` (status='blocked') | — |
+| `/vendor/staff` | `vendor_staff`, `vendor_staff_notes` | `invite-vendor-staff` |
+| `/vendor/credits` | `vendor_wallet`, `vendor_wallet_transactions`, `pending_credit_purchases` | `create-credit-checkout`, `stripe-webhook` |
 | `/vendor/checklists` | `checklist_templates`, `checklist_items`, `user_checklist_items` | — |
 | `/vendor/proposals` | `vendor_proposals`, `vendor_proposal_items` | `public-profile-share` |
 | `/vendor/working-terms-review/:requestId` | `working_terms_requests`, `working_terms_rows`, `connection_agreement_areas` | — |
@@ -200,7 +226,7 @@ Quick reference for UI routes, backend objects, and their connections.
 |-------|--------|----------------|
 | `/admin/support-queue` | `support_tickets`, `user_reports`, `dual_role_access_requests` | `create-support-case` |
 | `/admin/users` | `profiles`, `rep_profile`, `vendor_profile` | `admin-delete-user` |
-| `/admin/credits` | `user_wallet`, `transactions`, `admin_audit_log` | `admin-adjust-credits` |
+| `/admin/credits` | `vendor_wallet`, `vendor_wallet_transactions`, `admin_audit_log` | `admin-adjust-credits` |
 | `/admin/audit` | `admin_audit_log` | `admin-audit-log` |
 | `/admin/broadcasts` | `admin_broadcasts`, `admin_broadcast_recipients` | `send-admin-broadcast-emails` |
 | `/admin/background-checks` | `background_checks` | — |
@@ -209,10 +235,12 @@ Quick reference for UI routes, backend objects, and their connections.
 
 | Route | Tables | Edge Functions |
 |-------|--------|----------------|
+| `/dashboard` | `profiles`, `vendor_wallet` (vendors), `notifications` | — |
 | `/messages` | `conversations`, `messages` | `send-notification-email` |
 | `/community` | `community_posts`, `community_comments`, `community_votes` | — |
 | `/notifications` | `notifications` | — |
 | `/support` | `support_tickets` | `create-support-case` |
+| Sidebar pins | `user_ui_preferences` | — |
 
 ### Public
 

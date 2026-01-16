@@ -39,6 +39,7 @@ import { useCreditConfirm } from "@/hooks/useCreditConfirm";
 import { fetchInspectionTypesForRole, InspectionTypeOption } from "@/lib/inspectionTypes";
 import { checklist } from "@/lib/checklistTracking";
 import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
+import { resolveCurrentVendorId, spendVendorCredits } from "@/lib/vendorWallet";
 
 const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -381,27 +382,27 @@ export const SeekingCoverageDialog = ({
         navigate("/vendor/seeking-coverage");
       }
     } else {
-      // Create new active post - deduct credits atomically first
-      const { data: deductResult, error: deductError } = await supabase.rpc(
-        "deduct_credit_for_post" as any,
-        { p_user_id: user.id, p_amount: 1 }
-      );
-
-      if (deductError) {
-        console.error("Error deducting credits:", deductError);
+      // Create new active post - deduct credits via vendor wallet
+      const vendorId = await resolveCurrentVendorId(user.id);
+      if (!vendorId) {
         toast({
           title: "Error",
-          description: "Failed to deduct credits. Please try again.",
+          description: "Could not resolve vendor account. Please try again.",
           variant: "destructive",
         });
         setSaving(false);
         return;
       }
 
-      if (!deductResult) {
+      const spendResult = await spendVendorCredits(vendorId, 1, "seeking_coverage_post", {
+        post_title: data.title,
+        state_code: data.state_code,
+      });
+
+      if (!spendResult.success) {
         toast({
-          title: "Insufficient Credits",
-          description: "You don't have enough credits to post Seeking Coverage.",
+          title: spendResult.error?.includes("Insufficient") ? "Insufficient Credits" : "Error",
+          description: spendResult.error || "Failed to deduct credits. Please try again.",
           variant: "destructive",
         });
         setSaving(false);
@@ -417,41 +418,15 @@ export const SeekingCoverageDialog = ({
 
       if (error) {
         console.error("Error creating post:", error);
-        
-        // Refund the credit on error - add back 1 credit
-        await supabase
-          .from("user_wallet")
-          .update({ credits: supabase.rpc ? undefined : undefined }) // Can't easily refund without knowing balance
-          .eq("user_id", user.id);
-        
-        // Better: use direct increment for refund
-        await supabase.rpc("deduct_credit_for_post" as any, { 
-          p_user_id: user.id, 
-          p_amount: -1 // Negative to add back
-        });
-
+        // Note: Credit refund would need an admin action or support ticket since spend_vendor_credits is atomic
         toast({
           title: "Error",
-          description: seekingCoverageCopy.toasts.saveError,
+          description: seekingCoverageCopy.toasts.saveError + " Credit was deducted - please contact support for a refund.",
           variant: "destructive",
         });
         setSaving(false);
         return;
       }
-
-      // Log the transaction with related entity reference
-      await supabase.from("vendor_credit_transactions").insert({
-        user_id: user.id,
-        amount: -1,
-        action: "post_seeking_coverage",
-        metadata: {
-          post_id: newPost.id,
-          post_title: data.title,
-          state_code: data.state_code,
-        },
-        related_entity_type: "seeking_coverage_post",
-        related_entity_id: newPost.id,
-      });
 
       // Evaluate match alerts for reps
       evaluateMatchAlertsForNewPost(newPost.id).catch((err) => {

@@ -333,15 +333,14 @@ const Dashboard = () => {
     
     setUnreadNotificationCount(notificationCount || 0);
 
-    // Load vendor credits if vendor
+    // Load vendor credits if vendor (from shared vendor_wallet)
     if (data.is_vendor_admin) {
-      const { data: walletData } = await supabase
-        .from("user_wallet")
-        .select("credits")
-        .eq("user_id", targetUserId)
-        .maybeSingle();
-      
-      setVendorCredits(walletData?.credits ?? 0);
+      const { resolveCurrentVendorId, getVendorWalletBalance } = await import("@/lib/vendorWallet");
+      const vendorId = await resolveCurrentVendorId(targetUserId);
+      if (vendorId) {
+        const balance = await getVendorWalletBalance(vendorId);
+        setVendorCredits(balance ?? 0);
+      }
     }
 
     // Check for 14-day review prompts

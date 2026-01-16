@@ -4,6 +4,18 @@ Newest entries at top.
 
 ## 2026-01-16
 
+- **Feature Map Reconciliation** — Migrated credit flows from legacy `user_wallet` to shared `vendor_wallet`
+
+  - **DB:** none (code-only migration)
+
+  - **Routes:** none
+
+  - **Files:** `SeekingCoverageDialog.tsx`, `usePaidFeature.tsx`, `Dashboard.tsx`, `FEATURE_MAP.md`
+
+  - **Notes:** Corrected FEATURE_MAP.md to reflect actual tables: `vendor_wallet`, `vendor_wallet_transactions`, `vendor_staff_notes`, `vendor_rep_notes`, `user_ui_preferences`. Legacy `user_wallet` references removed from vendor flows.
+
+
+
 - **Vendor Staff/Rep Notes System** — Internal notes for vendor teams with public/private visibility
 
   - **DB:** `20260116003102_b80213d8-064a-4e92-a066-675c9603e828`
