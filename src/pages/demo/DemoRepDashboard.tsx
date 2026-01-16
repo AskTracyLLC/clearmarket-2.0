@@ -14,6 +14,7 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function DemoRepDashboard() {
   const navigate = useNavigate();
@@ -25,11 +26,15 @@ export default function DemoRepDashboard() {
   return (
     <DemoAppShell role="rep">
       <div className="container mx-auto py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Field Rep Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {currentRep.real_name}
-          </p>
+        {/* Header with theme toggle */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Field Rep Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back, {currentRep.real_name}
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

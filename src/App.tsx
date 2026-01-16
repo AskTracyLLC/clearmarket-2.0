@@ -116,7 +116,7 @@ import DemoRepDashboard from "./pages/demo/DemoRepDashboard";
 import DemoRepProfile from "./pages/demo/DemoRepProfile";
 import DemoRepVendorDirectory from "./pages/demo/DemoRepVendorDirectory";
 import DemoCommunityBoard from "./pages/demo/DemoCommunityBoard";
-import DemoCoverageMapPlaceholder from "./pages/demo/DemoCoverageMapPlaceholder";
+import DemoCoverageMap from "./pages/demo/DemoCoverageMap";
 
 import { Navigate } from "react-router-dom";
 
@@ -171,14 +171,14 @@ const App = () => (
                 <Route path="/demo/vendor/search" element={<DemoAccessGate><DemoProvider><DemoVendorRepSearch /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/rep/:repId" element={<DemoAccessGate><DemoProvider><DemoVendorRepProfile /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider></DemoAccessGate>} />
-                <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="vendor" /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMap role="vendor" /></DemoProvider></DemoAccessGate>} />
                 
                 {/* Field Rep Demo Routes */}
                 <Route path="/demo/rep" element={<DemoAccessGate><DemoProvider><DemoRepDashboard /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/profile" element={<DemoAccessGate><DemoProvider><DemoRepProfile /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/vendors" element={<DemoAccessGate><DemoProvider><DemoRepVendorDirectory /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="rep" /></DemoProvider></DemoAccessGate>} />
-                <Route path="/demo/rep/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMapPlaceholder role="rep" /></DemoProvider></DemoAccessGate>} />
+                <Route path="/demo/rep/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMap role="rep" /></DemoProvider></DemoAccessGate>} />
 
                 {/* Authenticated routes wrapped in AppShell layout */}
                 <Route element={<AuthenticatedLayout><Outlet /></AuthenticatedLayout>}>

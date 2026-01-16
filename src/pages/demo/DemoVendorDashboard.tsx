@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, MapPin, Link2, Search, ArrowRight, Star } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function DemoVendorDashboard() {
   const navigate = useNavigate();
@@ -16,11 +17,15 @@ export default function DemoVendorDashboard() {
   return (
     <DemoAppShell role="vendor">
       <div className="container mx-auto py-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome to NorthStar Field Services (Demo)
-          </p>
+        {/* Header with theme toggle */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome to NorthStar Field Services (Demo)
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
