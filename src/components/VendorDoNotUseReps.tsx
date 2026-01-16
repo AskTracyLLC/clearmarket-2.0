@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MoreVertical, Pencil, Trash2, ChevronDown, ChevronUp, Ban } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, ChevronDown, ChevronUp, Ban, Plus } from "lucide-react";
 
 interface DoNotUseEntry {
   id: string;
@@ -67,6 +67,18 @@ export const VendorDoNotUseReps: React.FC<VendorDoNotUseRepsProps> = ({
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<DoNotUseEntry[]>([]);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  
+  // Add dialog state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addForm, setAddForm] = useState({
+    full_name: "",
+    primary_email: "",
+    emails: "",
+    aliases: "",
+    reason: "",
+    notes: "",
+  });
+  const [addingSaving, setAddingSaving] = useState(false);
   
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -111,6 +123,69 @@ export const VendorDoNotUseReps: React.FC<VendorDoNotUseRepsProps> = ({
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetAddForm = () => {
+    setAddForm({
+      full_name: "",
+      primary_email: "",
+      emails: "",
+      aliases: "",
+      reason: "",
+      notes: "",
+    });
+  };
+
+  const handleAdd = async () => {
+    if (!addForm.full_name.trim() || !addForm.reason.trim()) {
+      toast({
+        title: "Missing required fields",
+        description: "Full name and reason are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingSaving(true);
+    try {
+      const emailsArray = addForm.emails
+        .split(",")
+        .map(e => e.trim())
+        .filter(e => e.length > 0);
+      
+      const aliasesArray = addForm.aliases
+        .split(",")
+        .map(a => a.trim())
+        .filter(a => a.length > 0);
+
+      const { error } = await supabase
+        .from("vendor_do_not_use_reps")
+        .insert({
+          vendor_id: vendorId,
+          full_name: addForm.full_name.trim(),
+          primary_email: addForm.primary_email.trim() || null,
+          emails: emailsArray.length > 0 ? emailsArray : null,
+          aliases: aliasesArray.length > 0 ? aliasesArray : null,
+          reason: addForm.reason.trim(),
+          notes: addForm.notes.trim() || null,
+        });
+
+      if (error) throw error;
+
+      toast({ title: "Added", description: "Rep added to Do Not Use list." });
+      setAddDialogOpen(false);
+      resetAddForm();
+      loadEntries();
+    } catch (error) {
+      console.error("Error adding DNU entry:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add entry.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingSaving(false);
     }
   };
 
@@ -261,20 +336,121 @@ export const VendorDoNotUseReps: React.FC<VendorDoNotUseRepsProps> = ({
     );
   }
 
+  const headerSection = (
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <Ban className="h-5 w-5 text-destructive" />
+        <h3 className="text-lg font-semibold">Do Not Use List</h3>
+      </div>
+      <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add Rep
+      </Button>
+    </div>
+  );
+
+  const addDialog = (
+    <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) resetAddForm(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add to Do Not Use List</DialogTitle>
+          <DialogDescription>
+            Add a rep you don't want to work with. They'll be filtered from your Connected Reps.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="add-full-name">Full Name *</Label>
+            <Input
+              id="add-full-name"
+              value={addForm.full_name}
+              onChange={(e) => setAddForm(prev => ({ ...prev, full_name: e.target.value }))}
+              placeholder="John Doe"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-primary-email">Primary Email</Label>
+            <Input
+              id="add-primary-email"
+              type="email"
+              value={addForm.primary_email}
+              onChange={(e) => setAddForm(prev => ({ ...prev, primary_email: e.target.value }))}
+              placeholder="john@example.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-emails">Additional Emails (comma-separated)</Label>
+            <Input
+              id="add-emails"
+              value={addForm.emails}
+              onChange={(e) => setAddForm(prev => ({ ...prev, emails: e.target.value }))}
+              placeholder="alt1@example.com, alt2@example.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-aliases">Aliases (comma-separated)</Label>
+            <Input
+              id="add-aliases"
+              value={addForm.aliases}
+              onChange={(e) => setAddForm(prev => ({ ...prev, aliases: e.target.value }))}
+              placeholder="Johnny, J. Doe"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-reason">Reason *</Label>
+            <Input
+              id="add-reason"
+              value={addForm.reason}
+              onChange={(e) => setAddForm(prev => ({ ...prev, reason: e.target.value }))}
+              placeholder="Quality issues, no-shows, etc."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="add-notes">Notes</Label>
+            <Textarea
+              id="add-notes"
+              value={addForm.notes}
+              onChange={(e) => setAddForm(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="Additional details..."
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { setAddDialogOpen(false); resetAddForm(); }}>
+            Cancel
+          </Button>
+          <Button onClick={handleAdd} disabled={addingSaving}>
+            {addingSaving ? "Adding..." : "Add to List"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (entries.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <Ban className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-        <h3 className="text-lg font-semibold mb-2">No Do Not Use entries</h3>
-        <p className="text-muted-foreground text-sm">
-          When you mark a rep as "Do Not Use", they'll appear here and be filtered out of your Connected Reps list.
-        </p>
-      </div>
+      <>
+        {headerSection}
+        <div className="py-12 text-center border rounded-lg border-dashed">
+          <Ban className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">No Do Not Use entries</h3>
+          <p className="text-muted-foreground text-sm mb-4">
+            When you mark a rep as "Do Not Use", they'll appear here and be filtered out of your Connected Reps list.
+          </p>
+          <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Rep Manually
+          </Button>
+        </div>
+        {addDialog}
+      </>
     );
   }
 
   return (
     <>
+      {headerSection}
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
@@ -469,6 +645,8 @@ export const VendorDoNotUseReps: React.FC<VendorDoNotUseRepsProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {addDialog}
     </>
   );
 };
