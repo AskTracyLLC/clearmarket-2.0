@@ -14,6 +14,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { resolveCurrentVendorId, getVendorWalletBalance } from "@/lib/vendorWallet";
 
 interface AppShellProps {
   children: ReactNode;
@@ -43,6 +44,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [vendorCredits, setVendorCredits] = useState<number | null>(null);
+  const [isVendorMember, setIsVendorMember] = useState(false); // True if owner or staff
   const [profileLoading, setProfileLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -147,23 +149,36 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       vendor_anonymous_id: vendorAnonymousId,
     });
 
-    // Fetch vendor credits if applicable
-    if (profileData?.is_vendor_admin) {
+    // Fetch vendor credits from shared vendor_wallet (for owner or staff)
+    // First check if user is vendor owner or vendor staff
+    const isVendorOwner = profileData?.is_vendor_admin;
+    let isVendorStaff = false;
+    
+    if (!isVendorOwner) {
+      // Check if user is active vendor staff
+      const { data: staffRecord } = await supabase
+        .from("vendor_staff")
+        .select("vendor_id")
+        .eq("staff_user_id", targetUserId)
+        .eq("status", "active")
+        .maybeSingle();
+      
+      isVendorStaff = !!staffRecord;
+    }
+
+    if (isVendorOwner || isVendorStaff) {
+      setIsVendorMember(true);
       try {
-        const { data: walletData, error } = await supabase
-          .from("user_wallet")
-          .select("credits")
-          .eq("user_id", targetUserId)
-          .maybeSingle();
-        
-        if (error) {
-          console.warn("AppShell: Could not fetch vendor credits:", error.message);
-        } else {
-          setVendorCredits(walletData?.credits ?? 0);
+        const resolvedVendorId = await resolveCurrentVendorId(targetUserId);
+        if (resolvedVendorId) {
+          const balance = await getVendorWalletBalance(resolvedVendorId);
+          setVendorCredits(balance ?? 0);
         }
       } catch (err) {
-        console.warn("AppShell: Unexpected error fetching credits:", err);
+        console.warn("AppShell: Unexpected error fetching vendor credits:", err);
       }
+    } else {
+      setIsVendorMember(false);
     }
 
     setProfileLoading(false);
@@ -185,7 +200,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       setCommandOpen(true);
     },
     isAdmin: mimickedUser ? false : profile?.is_admin,
-    isVendor: mimickedUser ? mimickedUser.is_vendor_admin : profile?.is_vendor_admin,
+    isVendor: mimickedUser ? mimickedUser.is_vendor_admin : (profile?.is_vendor_admin || isVendorMember),
     isRep: mimickedUser ? mimickedUser.is_fieldrep : profile?.is_fieldrep,
     vendorCredits,
     userProfile: profile,
@@ -224,7 +239,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
           {/* Top nav row - hide on mobile as it's redundant */}
           {!hideTopNav && !isMobile && (
             <TopNavRow
-              isVendor={mimickedUser ? mimickedUser.is_vendor_admin : profile?.is_vendor_admin}
+              isVendor={mimickedUser ? mimickedUser.is_vendor_admin : (profile?.is_vendor_admin || isVendorMember)}
               isRep={mimickedUser ? mimickedUser.is_fieldrep : profile?.is_fieldrep}
               isAdmin={mimickedUser ? false : profile?.is_admin}
               vendorCredits={vendorCredits}
