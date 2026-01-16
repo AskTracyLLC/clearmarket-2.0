@@ -1,5 +1,12 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Admin Credits Refresh Fix + Admin RLS for Vendor Wallet
+- **DB Migration**: Added admin-only SELECT RLS policies for `vendor_wallet` and `vendor_wallet_transactions`
+- Admins can now read any vendor's wallet balance and transaction history
+- Refresh button now correctly reloads balance from `vendor_wallet` with proper error handling
+- Existing vendor-member policies remain intact (unchanged)
+- Credit System Rule preserved: vendor credits in `vendor_wallet`, rep credits in `user_wallet` (never mixed)
+
 ## 2026-01-16 — Admin Credits Vendor Code Search
 - **AdminCredits.tsx**: Added `vendor_public_code` to search query (matches "MBFS"-style codes)
 - Search now matches: company name, Vendor Code, Vendor # (anonymous_id), or owner email
