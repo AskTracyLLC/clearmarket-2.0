@@ -235,7 +235,7 @@ Quick reference for UI routes, backend objects, and their connections.
 |-------|--------|----------------|
 | `/admin/support-queue` | `support_tickets`, `user_reports`, `dual_role_access_requests` | `create-support-case` |
 | `/admin/users` | `profiles`, `rep_profile`, `vendor_profile` | `admin-delete-user` |
-| `/admin/credits` | `vendor_wallet`, `vendor_wallet_transactions`, `vendor_profile` (search by company_name, vendor_public_code, anonymous_id), `admin_audit_log` | `admin-adjust-credits` |
+| `/admin/credits` | `vendor_wallet` (admin RLS for read), `vendor_wallet_transactions` (admin RLS for read), `vendor_profile` (search by company_name, vendor_public_code, anonymous_id), `admin_audit_log` | `admin-adjust-credits` |
 | `/admin/audit` | `admin_audit_log` | `admin-audit-log` |
 | `/admin/broadcasts` | `admin_broadcasts`, `admin_broadcast_recipients` | `send-admin-broadcast-emails` |
 | `/admin/background-checks` | `background_checks` | — |
