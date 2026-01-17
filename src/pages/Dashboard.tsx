@@ -660,6 +660,7 @@ const Dashboard = () => {
                         }
                       }}
                       defaultExpanded={primaryChecklist.percent < 50}
+                      showReward={true}
                     />
                   </div>
                 )}

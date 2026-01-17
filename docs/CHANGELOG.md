@@ -1,5 +1,18 @@
 # ClearMarket Changelog
 
+## 2026-01-16 — Onboarding Completion Reward (5 Credits)
+- **DB Migration**: Added `onboarding_rewards` table for idempotent reward tracking
+  - `user_wallet_transactions` table for rep credit audit trail
+  - `rep_onboarding_status` and `vendor_onboarding_status` views (REQUIRED items only)
+  - `award_rep_onboarding_credits()` and `award_vendor_onboarding_credits(p_vendor_id)` RPCs
+  - RLS policies for secure access
+- **useOnboardingReward.ts**: New hook for checking status and auto-claiming rewards
+- **GettingStartedChecklist.tsx**: Added reward banner showing pending/earned state
+- **gettingStartedChecklistCopy.ts**: Added reward copy strings
+- **Dashboard.tsx**: Enabled `showReward={true}` on primary checklist
+- Credits awarded only when REQUIRED onboarding items complete; optional items never block
+- Award is strictly one-time (idempotent) with full transaction audit trail
+
 ## 2026-01-16 — Help Center Routing Fix (Public + Demo + Signed-In)
 - Help Center is now **fully public** under `/help/*` (no auth/layout guard)
 - Deep links (e.g. `/help/:articleSlug` and `/help/:sectionSlug/:articleSlug`) no longer redirect to `/signin`

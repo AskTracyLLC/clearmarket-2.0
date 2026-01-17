@@ -8,6 +8,15 @@ export const gettingStartedChecklistCopy = {
     emptyItems: "No steps in this checklist yet.",
   },
 
+  reward: {
+    title: "Complete required onboarding → Earn 5 credits",
+    pendingDescription: "Finish the required steps above to claim your reward.",
+    earnedBadge: "Earned",
+    earnedDescription: "5 credits added to your wallet!",
+    claimButton: "Claim Reward",
+    claimingButton: "Claiming...",
+  },
+
   itemRow: {
     completed: "Completed",
     completedOn: "Completed {date}",
