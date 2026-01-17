@@ -1,5 +1,17 @@
 # ClearMarket Changelog
 
+## 2026-01-17 — Share Profile Routing + Short URLs + Vendor Calendar Checklist Fix
+- **RepShareProfilePage.tsx**: New authenticated page for reps to manage share links (`/rep/share-profile`)
+- **ShortShareRedirect.tsx**: New redirect component for short share URLs (`/s/:slug`)
+- **ProfileSharePanel.tsx**: 
+  - Shortened slug generation (10-12 chars, base62 with crypto.getRandomValues)
+  - Copy link now uses short URL format: `/s/:slug`
+  - Preview still opens direct `/share/:role/:slug` path
+- **App.tsx**: Added routes for `/rep/share-profile` and `/s/:slug`
+- **checklistTracking.ts**: Fixed `vendor_calendar_updated` evaluation to check both `vendor_office_hours` and `vendor_calendar_events` tables
+- **Bug Fix**: Vendor #9's calendar checklist item manually backfilled to complete status
+- Short URL flow: `/s/:slug` → edge function resolves role → redirects to `/share/rep/:slug` or `/share/vendor/:slug`
+
 ## 2026-01-17 — Rep Milestone Reward (2 Credits) + Onboarding Fix
 - **DB Migration**: Added rep milestone reward system
   - `rep_profile_pricing_status` view: checks profile details + coverage pricing (base_price only)

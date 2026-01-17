@@ -48,6 +48,8 @@ Quick reference for UI routes, backend objects, and their connections.
   - Features: Time off management, unified calendar view, alert sending (planned time off, emergency, availability update, planned route)
 - `/rep/calendar` — Availability calendar
   - Components: `CalendarMonthView`, `AddCalendarEventDialog`
+- `/rep/share-profile` — Manage public profile share link
+  - Components: `RepShareProfilePage`, `ProfileSharePanel`
 - `/rep/working-terms-request/:requestId` — Submit terms
   - Components: `WorkingTermsDialog`
 - `/work-setup` — Coverage areas + systems setup
@@ -101,7 +103,10 @@ Quick reference for UI routes, backend objects, and their connections.
 - `/help/*` — Help Center (no auth required; works for public + demo + signed-in)
   - Components: `PublicHelpCenter`
 - `/snapshot/:slug` — Public reputation snapshot
+- `/s/:slug` — Short share URL (resolves role, redirects to full path)
+  - Components: `ShortShareRedirect`
 - `/share/rep/:slug`, `/share/vendor/:slug` — Profile share pages
+  - Components: `RepShareProfile`, `VendorShareProfile`
 - `/p/:shareToken` — Public proposal view
 - `/rep/reviews/:id`, `/vendor/reviews/:id` — Public reviews
 
