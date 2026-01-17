@@ -44,6 +44,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
   
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [vendorCredits, setVendorCredits] = useState<number | null>(null);
+  const [repCredits, setRepCredits] = useState<number | null>(null);
   const [isVendorMember, setIsVendorMember] = useState(false); // True if owner or staff
   const [profileLoading, setProfileLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -181,6 +182,20 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       setIsVendorMember(false);
     }
 
+    // Fetch rep credits if user is a rep
+    if (profileData?.is_fieldrep) {
+      try {
+        const { data: walletData } = await supabase
+          .from("user_wallet")
+          .select("credits")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        setRepCredits(walletData?.credits ?? 0);
+      } catch (err) {
+        console.warn("AppShell: Error fetching rep credits:", err);
+      }
+    }
+
     setProfileLoading(false);
   };
 
@@ -243,6 +258,7 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
               isRep={mimickedUser ? mimickedUser.is_fieldrep : profile?.is_fieldrep}
               isAdmin={mimickedUser ? false : profile?.is_admin}
               vendorCredits={vendorCredits}
+              repCredits={repCredits}
             />
           )}
 

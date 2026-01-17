@@ -94,6 +94,10 @@ interface RepResult {
   unavailable_to?: string | null;
   unavailable_note?: string | null;
   inspectionTypesInArea?: string[];
+  // Boost visibility fields
+  isBoosted?: boolean;
+  boostEndsAt?: string | null;
+  boostStartsAt?: string | null;
 }
 
 export default function VendorFindReps() {
@@ -421,6 +425,19 @@ export default function VendorFindReps() {
       const communityScoreMap = new Map<string, number>();
       communityScoreData?.forEach(p => communityScoreMap.set(p.id, p.community_score ?? 0));
 
+      // Fetch boost status for all reps
+      const { data: boostData } = await supabase
+        .from("rep_active_boost_status")
+        .select("rep_user_id, is_boosted, active_ends_at, active_starts_at")
+        .in("rep_user_id", repUserIds);
+      
+      const boostMap = new Map<string, { isBoosted: boolean; endsAt: string | null; startsAt: string | null }>();
+      boostData?.forEach(b => boostMap.set(b.rep_user_id, {
+        isBoosted: b.is_boosted ?? false,
+        endsAt: b.active_ends_at ?? null,
+        startsAt: b.active_starts_at ?? null,
+      }));
+
       // Fetch connection status (connected_at) for all reps
       let connectionMap = new Map<string, string | null>();
       if (user && repUserIds.length > 0) {
@@ -463,6 +480,9 @@ export default function VendorFindReps() {
             (rep.inspection_types || []).forEach((t: string) => repTypesInArea.add(t));
           }
 
+          // Get boost status for this rep
+          const boostInfo = boostMap.get(rep.user_id);
+
           return {
             ...rep,
             trustScore: trustScores[rep.user_id]?.average ?? null,
@@ -470,6 +490,9 @@ export default function VendorFindReps() {
             communityScore: communityScoreMap.get(rep.user_id) ?? 0,
             connectedSince: connectionMap.get(rep.user_id) ?? null,
             inspectionTypesInArea: Array.from(repTypesInArea),
+            isBoosted: boostInfo?.isBoosted ?? false,
+            boostEndsAt: boostInfo?.endsAt ?? null,
+            boostStartsAt: boostInfo?.startsAt ?? null,
           };
         });
 
@@ -552,12 +575,31 @@ export default function VendorFindReps() {
   const getSortedResults = () => {
     const sorted = [...results];
     
+    // Helper: boosted reps always come first, sorted by ends_at desc, then starts_at desc
+    const applyBoostPriority = (list: typeof sorted) => {
+      const boosted = list.filter(r => r.isBoosted);
+      const notBoosted = list.filter(r => !r.isBoosted);
+      
+      // Sort boosted: ends_at DESC, then starts_at DESC
+      boosted.sort((a, b) => {
+        const endsA = a.boostEndsAt ? new Date(a.boostEndsAt).getTime() : 0;
+        const endsB = b.boostEndsAt ? new Date(b.boostEndsAt).getTime() : 0;
+        if (endsA !== endsB) return endsB - endsA;
+        const startsA = a.boostStartsAt ? new Date(a.boostStartsAt).getTime() : 0;
+        const startsB = b.boostStartsAt ? new Date(b.boostStartsAt).getTime() : 0;
+        return startsB - startsA;
+      });
+      
+      return [...boosted, ...notBoosted];
+    };
+
     switch (sortBy) {
       case "best-match":
-        // Primary: Trust Score desc (neutral baseline 3.0 for new users)
-        // Secondary: has active background check > willing to obtain > none
-        // Tertiary: HUD keys present > none
-        return sorted.sort((a, b) => {
+        // Primary: Boosted reps first
+        // Then: Trust Score desc (neutral baseline 3.0 for new users)
+        // Then: has active background check > willing to obtain > none
+        // Then: HUD keys present > none
+        const bestMatch = sorted.sort((a, b) => {
           const scoreA = a.trustScore ?? 3.0;
           const scoreB = b.trustScore ?? 3.0;
           if (scoreA !== scoreB) return scoreB - scoreA;
@@ -570,6 +612,7 @@ export default function VendorFindReps() {
           const hudScoreB = b.has_hud_keys ? 1 : 0;
           return hudScoreB - hudScoreA;
         });
+        return applyBoostPriority(bestMatch);
       
       case "trust-score":
         return sorted.sort((a, b) => {

@@ -4640,6 +4640,127 @@ export type Database = {
           },
         ]
       }
+      rep_visibility_boosts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          credits_spent: number
+          ends_at: string
+          id: string
+          metadata: Json
+          rep_user_id: string
+          starts_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          credits_spent?: number
+          ends_at: string
+          id?: string
+          metadata?: Json
+          rep_user_id: string
+          starts_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          credits_spent?: number
+          ends_at?: string
+          id?: string
+          metadata?: Json
+          rep_user_id?: string
+          starts_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
       reputation_share_links: {
         Row: {
           created_at: string
@@ -10022,6 +10143,58 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_active_boost_status: {
+        Row: {
+          active_ends_at: string | null
+          active_starts_at: string | null
+          is_boosted: boolean | null
+          rep_user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_visibility_boosts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
       rep_alert_sent_status: {
         Row: {
           has_sent_alert: boolean | null
@@ -10440,6 +10613,10 @@ export type Database = {
             Returns: undefined
           }
       process_waiting_automation: { Args: never; Returns: Json }
+      purchase_rep_boost: {
+        Args: { p_cost?: number; p_hours?: number }
+        Returns: Json
+      }
       refresh_community_score_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
