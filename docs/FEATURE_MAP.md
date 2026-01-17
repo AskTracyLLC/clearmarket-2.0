@@ -139,11 +139,14 @@ Quick reference for UI routes, backend objects, and their connections.
 - `spend_vendor_credits` (RPC) — Atomic credit deduction with auth check
 - `add_vendor_credits` (RPC) — Add credits (service-role, admin adjustments, purchases)
 
-**Rep Credits (user_wallet) — if enabled**
+**Rep Credits (user_wallet)**
 - `user_wallet` — Per-user credit balance for field reps
-- `vendor_credit_transactions` — Legacy transaction log (being deprecated)
+- `user_wallet_transactions` — Transaction log for rep credits (txn_type, delta, metadata)
+- `rep_visibility_boosts` — Boost purchase records (starts_at, ends_at, credits_spent, status)
+- `rep_active_boost_status` — View: current boost state per rep (is_boosted, active_ends_at)
+- `purchase_rep_boost()` (RPC) — Atomic boost purchase/extend (2 credits for 48 hours)
 
-> **Note:** Admin adjustments for vendors use `admin-adjust-credits` edge function which writes to `vendor_wallet`. Rep credit adjustments (if enabled) would require a separate flow targeting `user_wallet`.
+> **Note:** Admin adjustments for vendors use `admin-adjust-credits` edge function which writes to `vendor_wallet`. Rep credit adjustments target `user_wallet`.
 
 ### Notes & Preferences
 
@@ -235,6 +238,7 @@ Quick reference for UI routes, backend objects, and their connections.
 
 | Route | Tables | Edge Functions / RPC |
 |-------|--------|----------------------|
+| `/vendor/find-reps` | `rep_profile`, `profiles`, `rep_active_boost_status` | — |
 | `/vendor/seeking-coverage` | `seeking_coverage_posts`, `vendor_wallet`, `vendor_wallet_transactions` | `spend_vendor_credits` (RPC) |
 | `/vendor/seeking-coverage/:postId/interested` | `rep_interest`, `profiles`, `rep_profile` | — |
 | `/vendor/my-reps` | `vendor_connections`, `connection_notes`, `vendor_rep_notes`, `connection_reviews`, `vendor_do_not_use_reps` | — |
@@ -249,6 +253,7 @@ Quick reference for UI routes, backend objects, and their connections.
 | Route | Tables | Edge Functions |
 |-------|--------|----------------|
 | `/rep/find-work` | `seeking_coverage_posts`, `rep_interest`, `saved_searches` | — |
+| `/dashboard` (rep) | `user_wallet`, `user_wallet_transactions`, `rep_visibility_boosts`, `rep_active_boost_status` | `purchase_rep_boost` (RPC) |
 | `/rep/my-vendors` | `vendor_connections`, `connection_notes` | — |
 | `/rep/profile` | `rep_profile`, `profiles` | — |
 | `/rep/reviews` | `connection_reviews`, `profiles` | — |
