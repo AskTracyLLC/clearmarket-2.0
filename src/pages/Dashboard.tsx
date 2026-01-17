@@ -22,6 +22,7 @@ import { BetaBadge } from "@/components/BetaBadge";
 import { useSectionCounts } from "@/hooks/useSectionCounts";
 import { CountBadge } from "@/components/CountBadge";
 import { TodayFeed } from "@/components/dashboard/TodayFeed";
+import { RepEarnCreditsCard } from "@/components/dashboard/RepEarnCreditsCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 // AuthenticatedNav, SiteFooter, MimicBanner now come from AppShell wrapper
 import { useMimic } from "@/hooks/useMimic";
@@ -620,6 +621,11 @@ const Dashboard = () => {
 
             {/* Main Content */}
             <div className="max-w-3xl space-y-6">
+                {/* Rep Earn Credits Card - shown prominently for reps */}
+                {showingAsRep && (
+                  <RepEarnCreditsCard />
+                )}
+
                 {/* Today Feed */}
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">

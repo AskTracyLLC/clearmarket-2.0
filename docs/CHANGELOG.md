@@ -1,5 +1,23 @@
 # ClearMarket Changelog
 
+## 2026-01-17 — Rep Milestone Reward (2 Credits) + Onboarding Fix
+- **DB Migration**: Added rep milestone reward system
+  - `rep_profile_pricing_status` view: checks profile details + coverage pricing (base_price only)
+  - `rep_onboarding_status` view: fixed to use `vendor_alerts.rep_user_id` + `sent_at` for route alert check
+  - `rep_alert_sent_status` view: helper for checklist sync
+  - `award_rep_profile_pricing_credits()` RPC: awards 2 credits for milestone
+  - `award_rep_onboarding_credits()` RPC: updated to award remaining credits (5 - already earned)
+  - `get_rep_reward_summary()` RPC: returns full reward status for dashboard
+  - RLS policies for `onboarding_rewards` and `user_wallet_transactions`
+- **useRepRewardSummary.ts**: New hook for rep milestone + onboarding reward tracking
+- **RepEarnCreditsCard.tsx**: New dashboard card showing:
+  - ✅/⬜ "Complete profile & pricing" (2 credits)
+  - ✅/⬜ "Finish required onboarding" (+3 more credits)
+  - Next action links for incomplete items
+- **Dashboard.tsx**: Added `RepEarnCreditsCard` prominently for reps
+- **Bug Fix**: Route alert checklist item now uses `vendor_alerts` table (was using wrong table)
+- Credits: Reps earn 2 for milestone, then 3 more (5 total) for full onboarding
+
 ## 2026-01-16 — Onboarding Completion Reward (5 Credits)
 - **DB Migration**: Added `onboarding_rewards` table for idempotent reward tracking
   - `user_wallet_transactions` table for rep credit audit trail
