@@ -43,6 +43,8 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `RepProfile`, `CoverageAreaDialog`
 - `/rep/reviews` — Trust score, reviews
   - Components: `RepReputationSnapshot`, `ReviewsTable`
+- `/rep/credits` — Credit balance, transaction history, boost purchase
+  - Components: `RepCredits`
 - `/rep/availability` — Availability & vendor network alerts
   - Components: `UnifiedAvailabilityCalendar`, `PlannedRouteConfirmBanner`, `MyVendorContacts`
   - Features: Time off management, unified calendar view, alert sending (planned time off, emergency, availability update, planned route)

@@ -321,6 +321,7 @@ export function LeftSidebar({
     { id: "rep-myvendors", label: "My Vendors", path: "/rep/my-vendors", icon: <Building2 className="h-5 w-5" />, pinnable: true },
     { id: "rep-coverage", label: "My Coverage", path: "/work-setup", icon: <Map className="h-5 w-5" />, pinnable: true },
     { id: "rep-reviews", label: "Reviews", path: "/rep/reviews", icon: <Star className="h-5 w-5" />, pinnable: true },
+    { id: "rep-credits", label: "Credits", path: "/rep/credits", icon: <Coins className="h-5 w-5" />, pinnable: true },
     { id: "rep-tools", label: "Tools", path: "/tools", icon: <Wrench className="h-5 w-5" />, pinnable: true },
     { id: "rep-share", label: "Share Profile", path: "/rep/share-profile", icon: <Share2 className="h-5 w-5" />, pinnable: true },
     { id: "coverage-map", label: "Coverage Map", path: "/coverage-map", icon: <Map className="h-5 w-5" />, pinnable: true },
