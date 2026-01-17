@@ -159,9 +159,18 @@ Quick reference for UI routes, backend objects, and their connections.
 ### Teams & Checklists
 
 - `checklist_templates`, `checklist_items`, `user_checklist_items` — Checklists
-- `onboarding_rewards` — Idempotent reward tracking (5 credits for completing required onboarding)
+- `onboarding_rewards` — Idempotent reward tracking
+  - Rep milestone: `rep_profile_pricing_v1` (2 credits for profile + pricing)
+  - Rep full: `rep_onboarding_complete_v1` (remaining credits to reach 5 total)
+  - Vendor: `vendor_onboarding_complete_v1` (5 credits)
 - `user_wallet_transactions` — Rep credit audit trail (txn_type, delta, metadata, timestamp)
-- `rep_onboarding_status`, `vendor_onboarding_status` — Views for REQUIRED-only completion status
+- `rep_profile_pricing_status` — View: rep profile details + coverage pricing completion
+- `rep_onboarding_status` — View: REQUIRED-only rep onboarding (profile + pricing + route alert)
+- `rep_alert_sent_status` — View: has rep sent at least one alert (vendor_alerts)
+- `vendor_onboarding_status` — View: REQUIRED-only vendor completion status
+- `award_rep_profile_pricing_credits()` — RPC: award 2-credit milestone
+- `award_rep_onboarding_credits()` — RPC: award remaining credits (5 - already earned)
+- `get_rep_reward_summary()` — RPC: returns full rep reward status JSON
 - `vendor_staff` — Team members (with can_spend_credits flag)
 - `vendor_offline_rep_contacts` — Do Not Assign list (status='blocked')
 
