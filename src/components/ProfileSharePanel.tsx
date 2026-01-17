@@ -12,14 +12,13 @@ interface ProfileSharePanelProps {
   roleType: 'rep' | 'vendor';
 }
 
-// Generate a random URL-safe slug
+// Generate a short, random URL-safe slug (10-12 chars)
 function generateSlug(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let slug = '';
-  for (let i = 0; i < 32; i++) {
-    slug += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return slug;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const length = 10 + Math.floor(Math.random() * 3); // 10, 11, or 12 chars
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
 }
 
 export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
@@ -162,7 +161,8 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
 
   function handleCopyLink() {
     if (!profile?.share_profile_slug) return;
-    const url = `${window.location.origin}/share/${roleType}/${profile.share_profile_slug}`;
+    // Use short URL format: /s/:slug
+    const url = `${window.location.origin}/s/${profile.share_profile_slug}`;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link copied",
@@ -172,6 +172,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
 
   function handlePreview() {
     if (!profile?.share_profile_slug) return;
+    // Preview opens the actual page directly (avoid redirect)
     window.open(`/share/${roleType}/${profile.share_profile_slug}`, '_blank');
   }
 
@@ -210,7 +211,8 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
     );
   }
 
-  const shareUrl = `${window.location.origin}/share/${roleType}/${profile.share_profile_slug}`;
+  // Use short URL format for display
+  const shareUrl = `${window.location.origin}/s/${profile.share_profile_slug}`;
 
   return (
     <Card>
