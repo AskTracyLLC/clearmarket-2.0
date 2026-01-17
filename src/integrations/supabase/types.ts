@@ -80,6 +80,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "admin_audit_log_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "admin_audit_log_target_user_id_fkey"
             columns: ["target_user_id"]
             isOneToOne: false
@@ -99,6 +106,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "admin_audit_log_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -170,6 +184,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "admin_broadcast_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -253,6 +274,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "admin_broadcast_recipients_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       admin_broadcasts: {
@@ -322,6 +350,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "admin_broadcasts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -412,6 +447,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "background_checks_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "background_checks_reviewed_by_user_id_fkey"
             columns: ["reviewed_by_user_id"]
             isOneToOne: false
@@ -431,6 +473,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "background_checks_reviewed_by_user_id_fkey"
+            columns: ["reviewed_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -486,6 +535,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "beta_invite_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -543,6 +599,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "checklist_assignment_events_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "checklist_assignment_events_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -571,6 +634,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "checklist_assignment_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "checklist_assignment_events_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -590,6 +660,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "checklist_assignment_events_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -672,6 +749,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "checklist_item_feedback_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "checklist_item_feedback_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
@@ -705,6 +789,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "checklist_item_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -814,6 +905,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "checklist_templates_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       community_comments: {
@@ -874,6 +972,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "community_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "community_comments_parent_comment_id_fkey"
@@ -938,6 +1043,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "community_post_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1015,6 +1127,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "community_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       community_votes: {
@@ -1063,6 +1182,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "community_votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1189,6 +1315,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "connection_notes_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "connection_notes_rep_id_fkey"
             columns: ["rep_id"]
             isOneToOne: false
@@ -1210,6 +1343,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "connection_notes_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "connection_notes_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -1229,6 +1369,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "connection_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1339,6 +1486,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "connection_reviews_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "connection_reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
@@ -1358,6 +1512,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "connection_reviews_subject_id_fkey"
@@ -1381,6 +1542,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "connection_reviews_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "connection_reviews_vendor_user_id_fkey"
             columns: ["vendor_user_id"]
             isOneToOne: false
@@ -1400,6 +1568,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "connection_reviews_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1491,6 +1666,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "conversations_participant_one_fkey"
+            columns: ["participant_one"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "conversations_participant_two_fkey"
             columns: ["participant_two"]
             isOneToOne: false
@@ -1510,6 +1692,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "conversations_participant_two_fkey"
+            columns: ["participant_two"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "conversations_rep_interest_id_fkey"
@@ -1575,6 +1764,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1689,6 +1885,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "dual_role_access_requests_gl_verified_by_fkey"
+            columns: ["gl_verified_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "dual_role_access_requests_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -1710,6 +1913,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "dual_role_access_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "dual_role_access_requests_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1729,6 +1939,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "dual_role_access_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -1866,6 +2083,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "field_rep_offline_vendor_contacts_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       help_center_articles: {
@@ -1926,6 +2150,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "help_center_articles_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2076,6 +2307,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
             isOneToOne: false
@@ -2095,6 +2333,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2143,6 +2388,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "mimic_audit_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "mimic_audit_target_user_id_fkey"
             columns: ["target_user_id"]
             isOneToOne: false
@@ -2162,6 +2414,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "mimic_audit_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2248,6 +2507,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       notifications: {
@@ -2330,7 +2596,44 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
+      }
+      onboarding_rewards: {
+        Row: {
+          awarded_at: string
+          awarded_by: string | null
+          credits_awarded: number
+          id: string
+          reward_key: string
+          subject_id: string
+          subject_type: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by?: string | null
+          credits_awarded?: number
+          id?: string
+          reward_key: string
+          subject_id: string
+          subject_type: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string | null
+          credits_awarded?: number
+          id?: string
+          reward_key?: string
+          subject_id?: string
+          subject_type?: string
+        }
+        Relationships: []
       }
       pending_credit_purchases: {
         Row: {
@@ -2405,6 +2708,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pending_credit_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "pending_credit_purchases_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
           },
           {
             foreignKeyName: "pending_credit_purchases_vendor_id_fkey"
@@ -2495,6 +2812,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "post_saves_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2698,6 +3022,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "rep_availability_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       rep_contact_access_log: {
@@ -2760,6 +3091,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rep_contact_access_log_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "rep_contact_access_log_vendor_user_id_fkey"
             columns: ["vendor_user_id"]
             isOneToOne: false
@@ -2779,6 +3117,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_contact_access_log_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2851,6 +3196,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rep_contact_unlocks_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "rep_contact_unlocks_vendor_user_id_fkey"
             columns: ["vendor_user_id"]
             isOneToOne: false
@@ -2870,6 +3222,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_contact_unlocks_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -2954,6 +3313,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "rep_coverage_areas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       rep_interest: {
@@ -3020,6 +3386,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_interest_declined_by_user_id_fkey"
+            columns: ["declined_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "rep_interest_post_id_fkey"
@@ -3100,6 +3473,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "rep_match_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       rep_network_alerts: {
@@ -3169,6 +3549,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_network_alerts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3291,6 +3678,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "rep_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       rep_score_summary: {
@@ -3333,6 +3727,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_score_summary_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3405,6 +3806,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rep_vendor_contacts_converted_vendor_id_fkey"
+            columns: ["converted_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "rep_vendor_contacts_potential_vendor_profile_id_fkey"
             columns: ["potential_vendor_profile_id"]
             isOneToOne: false
@@ -3426,6 +3834,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rep_vendor_contacts_potential_vendor_profile_id_fkey"
+            columns: ["potential_vendor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "rep_vendor_contacts_rep_user_id_fkey"
             columns: ["rep_user_id"]
             isOneToOne: false
@@ -3445,6 +3860,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_vendor_contacts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3503,6 +3925,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reputation_share_links_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3685,6 +4114,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "reviews_converted_to_coaching_by_fkey"
+            columns: ["converted_to_coaching_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "reviews_feedback_marked_by_user_id_fkey"
             columns: ["feedback_marked_by_user_id"]
             isOneToOne: false
@@ -3704,6 +4140,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reviews_feedback_marked_by_user_id_fkey"
+            columns: ["feedback_marked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "reviews_inspection_type_id_fkey"
@@ -3741,6 +4184,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "reviews_reviewee_id_fkey"
+            columns: ["reviewee_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
@@ -3760,6 +4210,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3806,6 +4263,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "role_switch_audit_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -3893,6 +4357,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "saved_searches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4029,6 +4500,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "seeking_coverage_posts_filled_by_rep_id_fkey"
+            columns: ["filled_by_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "seeking_coverage_posts_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -4048,6 +4526,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "seeking_coverage_posts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4112,6 +4597,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "site_pages_last_updated_by_fkey"
+            columns: ["last_updated_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4289,6 +4781,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "support_queue_actions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "support_queue_actions_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -4347,6 +4846,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_internal_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "support_queue_internal_notes_queue_item_id_fkey"
@@ -4409,6 +4915,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_item_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "support_queue_item_events_queue_item_id_fkey"
@@ -4524,6 +5037,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "support_queue_items_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "support_queue_items_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
@@ -4552,6 +5072,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "support_queue_items_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "support_queue_items_second_look_requested_by_fkey"
             columns: ["second_look_requested_by"]
             isOneToOne: false
@@ -4571,6 +5098,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_queue_items_second_look_requested_by_fkey"
+            columns: ["second_look_requested_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4620,6 +5154,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_ticket_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "support_ticket_messages_ticket_id_fkey"
@@ -4697,6 +5238,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4822,6 +5370,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "territory_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "territory_assignments_rep_confirmed_by_fkey"
             columns: ["rep_confirmed_by"]
             isOneToOne: false
@@ -4843,6 +5398,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "territory_assignments_rep_confirmed_by_fkey"
+            columns: ["rep_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "territory_assignments_rep_id_fkey"
             columns: ["rep_id"]
             isOneToOne: false
@@ -4862,6 +5424,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "territory_assignments_seeking_coverage_post_id_fkey"
@@ -4890,6 +5459,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "territory_assignments_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -4965,6 +5541,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "user_blocks_blocked_user_id_fkey"
+            columns: ["blocked_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "user_blocks_blocker_user_id_fkey"
             columns: ["blocker_user_id"]
             isOneToOne: false
@@ -4984,6 +5567,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_blocks_blocker_user_id_fkey"
+            columns: ["blocker_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5040,6 +5630,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_checklist_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5176,6 +5773,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "user_reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "user_reports_reporter_user_id_fkey"
             columns: ["reporter_user_id"]
             isOneToOne: false
@@ -5197,6 +5801,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "user_reports_reporter_user_id_fkey"
+            columns: ["reporter_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "user_reports_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -5216,6 +5827,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_reports_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5265,6 +5883,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_table_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5330,6 +5955,100 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "user_wallet_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
+      user_wallet_transactions: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          delta: number
+          id: string
+          metadata: Json
+          txn_type: string
+          user_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          delta: number
+          id?: string
+          metadata?: Json
+          txn_type: string
+          user_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          delta?: number
+          id?: string
+          metadata?: Json
+          txn_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_wallet_transactions_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "user_wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       vendor_activity_events: {
@@ -5392,6 +6111,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_activity_events_actor_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_activity_events_vendor_owner_fkey"
             columns: ["vendor_owner_user_id"]
             isOneToOne: false
@@ -5411,6 +6137,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_activity_events_vendor_owner_fkey"
+            columns: ["vendor_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5466,6 +6199,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_alert_kudos_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_alert_kudos_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -5485,6 +6225,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_alert_kudos_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5559,6 +6306,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "vendor_alerts_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       vendor_calendar_events: {
@@ -5622,6 +6376,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_calendar_events_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5768,6 +6529,13 @@ export type Database = {
             foreignKeyName: "vendor_code_reservations_reserved_for_vendor_id_fkey"
             columns: ["reserved_for_vendor_id"]
             isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_code_reservations_reserved_for_vendor_id_fkey"
+            columns: ["reserved_for_vendor_id"]
+            isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
@@ -5840,6 +6608,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_connections_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -5859,6 +6634,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -5943,6 +6725,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "vendor_coverage_areas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       vendor_credit_transactions: {
@@ -5997,6 +6786,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_credit_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6063,6 +6859,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_do_not_use_reps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_do_not_use_reps_rep_user_id_fkey"
             columns: ["rep_user_id"]
             isOneToOne: false
@@ -6084,6 +6887,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_do_not_use_reps_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_do_not_use_reps_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -6103,6 +6913,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_do_not_use_reps_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6159,6 +6976,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "vendor_message_templates_vendor_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       vendor_office_hours: {
@@ -6213,6 +7037,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_office_hours_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6298,6 +7129,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_offline_rep_contacts_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6431,6 +7269,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6632,6 +7477,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_rep_agreements_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_rep_agreements_source_seeking_coverage_post_id_fkey"
             columns: ["source_seeking_coverage_post_id"]
             isOneToOne: false
@@ -6658,6 +7510,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_rep_agreements_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6693,6 +7552,13 @@ export type Database = {
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vendor_rep_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
           {
             foreignKeyName: "vendor_rep_notes_vendor_id_fkey"
             columns: ["vendor_id"]
@@ -6739,6 +7605,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_score_summary_vendor_user_id_fkey"
+            columns: ["vendor_user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -6805,6 +7678,13 @@ export type Database = {
             foreignKeyName: "vendor_staff_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_staff_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
@@ -6855,6 +7735,13 @@ export type Database = {
             foreignKeyName: "vendor_staff_emails_vendor_profile_id_fkey"
             columns: ["vendor_profile_id"]
             isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_staff_emails_vendor_profile_id_fkey"
+            columns: ["vendor_profile_id"]
+            isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
@@ -6895,6 +7782,13 @@ export type Database = {
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vendor_staff_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
           {
             foreignKeyName: "vendor_staff_notes_vendor_id_fkey"
             columns: ["vendor_id"]
@@ -6954,6 +7848,13 @@ export type Database = {
             foreignKeyName: "vendor_wallet_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: true
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
+          {
+            foreignKeyName: "vendor_wallet_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: true
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
@@ -6988,6 +7889,13 @@ export type Database = {
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vendor_wallet_transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_onboarding_status"
+            referencedColumns: ["vendor_id"]
+          },
           {
             foreignKeyName: "vendor_wallet_transactions_vendor_id_fkey"
             columns: ["vendor_id"]
@@ -7075,6 +7983,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "working_terms_change_requests_requested_by_user_id_fkey"
+            columns: ["requested_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "working_terms_change_requests_responded_by_user_id_fkey"
             columns: ["responded_by_user_id"]
             isOneToOne: false
@@ -7094,6 +8009,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "working_terms_change_requests_responded_by_user_id_fkey"
+            columns: ["responded_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "working_terms_change_requests_working_terms_row_id_fkey"
@@ -7164,6 +8086,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "working_terms_requests_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "working_terms_requests_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -7183,6 +8112,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "working_terms_requests_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -7270,6 +8206,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "working_terms_rows_inactivated_by_fkey"
+            columns: ["inactivated_by"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "working_terms_rows_rep_id_fkey"
             columns: ["rep_id"]
             isOneToOne: false
@@ -7291,6 +8234,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "working_terms_rows_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "working_terms_rows_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -7310,6 +8260,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "working_terms_rows_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
           {
             foreignKeyName: "working_terms_rows_working_terms_request_id_fkey"
@@ -7365,6 +8322,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
             foreignKeyName: "vendor_connections_vendor_id_fkey"
             columns: ["vendor_id"]
             isOneToOne: false
@@ -7384,6 +8348,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
           },
         ]
       }
@@ -7424,6 +8395,14 @@ export type Database = {
           gl_expires_on: string | null
           has_active_gl_badge: boolean | null
           user_id: string | null
+        }
+        Relationships: []
+      }
+      rep_onboarding_status: {
+        Row: {
+          is_complete: boolean | null
+          missing_required: string[] | null
+          rep_user_id: string | null
         }
         Relationships: []
       }
@@ -7507,6 +8486,13 @@ export type Database = {
             referencedRelation: "public_vendor_gl_badges"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "rep_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
         ]
       }
       support_queue_counts_by_category_status: {
@@ -7521,6 +8507,14 @@ export type Database = {
         Row: {
           category: string | null
           open_count: number | null
+        }
+        Relationships: []
+      }
+      vendor_onboarding_status: {
+        Row: {
+          is_complete: boolean | null
+          missing_required: string[] | null
+          vendor_id: string | null
         }
         Relationships: []
       }
@@ -7560,6 +8554,11 @@ export type Database = {
       assign_default_checklists: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
+      }
+      award_rep_onboarding_credits: { Args: never; Returns: Json }
+      award_vendor_onboarding_credits: {
+        Args: { p_vendor_id: string }
+        Returns: Json
       }
       backfill_support_queue_items: { Args: never; Returns: undefined }
       backfill_vendor_verification_conversations: { Args: never; Returns: Json }

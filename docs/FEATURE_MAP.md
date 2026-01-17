@@ -159,6 +159,9 @@ Quick reference for UI routes, backend objects, and their connections.
 ### Teams & Checklists
 
 - `checklist_templates`, `checklist_items`, `user_checklist_items` — Checklists
+- `onboarding_rewards` — Idempotent reward tracking (5 credits for completing required onboarding)
+- `user_wallet_transactions` — Rep credit audit trail (txn_type, delta, metadata, timestamp)
+- `rep_onboarding_status`, `vendor_onboarding_status` — Views for REQUIRED-only completion status
 - `vendor_staff` — Team members (with can_spend_credits flag)
 - `vendor_offline_rep_contacts` — Do Not Assign list (status='blocked')
 
