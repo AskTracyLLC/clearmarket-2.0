@@ -587,6 +587,12 @@ export default function RepAvailability() {
 
           if (sendError) throw sendError;
 
+          // Mark as sent after successful edge function call
+          await supabase
+            .from("vendor_alerts")
+            .update({ sent_at: new Date().toISOString() })
+            .eq("id", alertId);
+
           const inAppCount = sendResult?.inAppNotifications || 0;
           const emailCount = sendResult?.emailsSent || 0;
           let description = `Alert sent to ${inAppCount} vendor${inAppCount !== 1 ? 's' : ''}`;
@@ -683,6 +689,12 @@ export default function RepAvailability() {
       );
 
       if (sendError) throw sendError;
+
+      // Mark as sent after successful edge function call
+      await supabase
+        .from("vendor_alerts")
+        .update({ sent_at: new Date().toISOString() })
+        .eq("id", alertRecord.id);
 
       const inAppCount = sendResult?.inAppNotifications || 0;
       const emailCount = sendResult?.emailsSent || 0;
