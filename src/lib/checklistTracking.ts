@@ -183,11 +183,30 @@ export async function evaluateAutoTrackKeyForUser(
         return Boolean(data?.vendor_verification_status && data.vendor_verification_status !== "draft");
       }
 
+      case "vendor_calendar_updated": {
+        // Check if vendor has saved office hours OR calendar events
+        // Either counts as having set up the calendar
+        const [officeHoursResult, calendarEventsResult] = await Promise.all([
+          client
+            .from("vendor_office_hours")
+            .select("*", { count: "exact", head: true })
+            .eq("vendor_id", userId),
+          client
+            .from("vendor_calendar_events")
+            .select("*", { count: "exact", head: true })
+            .eq("vendor_id", userId)
+        ]);
+        
+        const hasOfficeHours = (officeHoursResult.count ?? 0) > 0;
+        const hasCalendarEvents = (calendarEventsResult.count ?? 0) > 0;
+        
+        return hasOfficeHours || hasCalendarEvents;
+      }
+
       // These require specific user actions that can't be retroactively determined easily
       case "password_reset":
       case "first_rep_message_sent":
       case "first_route_alert_acknowledged":
-      case "vendor_calendar_updated":
       default:
         return false;
     }

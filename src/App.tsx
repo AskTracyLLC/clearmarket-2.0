@@ -41,6 +41,8 @@ import PublicVendorReviews from "./pages/PublicVendorReviews";
 import RepShareProfile from "./pages/RepShareProfile";
 import VendorShareProfile from "./pages/VendorShareProfile";
 import VendorShareProfilePage from "./pages/VendorShareProfilePage";
+import RepShareProfilePage from "./pages/RepShareProfilePage";
+import ShortShareRedirect from "./components/ShortShareRedirect";
 import VendorStaff from "./pages/VendorStaff";
 import VendorStaffMetrics from "./pages/VendorStaffMetrics";
 
@@ -154,6 +156,7 @@ const App = () => (
                 <Route path="/staff/accept-invite" element={<StaffAcceptInvite />} />
                 <Route path="/p/:shareToken" element={<PublicProposalView />} />
                 <Route path="/snapshot/:slug" element={<PublicReputationSnapshot />} />
+                <Route path="/s/:slug" element={<ShortShareRedirect />} />
                 <Route path="/share/rep/:slug" element={<RepShareProfile />} />
                 <Route path="/share/vendor/:slug" element={<VendorShareProfile />} />
                 <Route path="/rep/reviews/:id" element={<PublicRepReviews />} />
@@ -219,6 +222,7 @@ const App = () => (
                   <Route path="/vendor/staff-metrics" element={<VendorStaffMetrics />} />
                   
                   <Route path="/vendor/share-profile" element={<VendorShareProfilePage />} />
+                  <Route path="/rep/share-profile" element={<RepShareProfilePage />} />
                   <Route path="/vendor/checklists" element={<VendorChecklists />} />
                   <Route path="/vendor/proposals" element={<VendorProposals />} />
                   <Route path="/vendor/proposals/:proposalId" element={<VendorProposalBuilder />} />
