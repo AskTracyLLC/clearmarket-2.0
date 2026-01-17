@@ -13,6 +13,7 @@ interface TopNavRowProps {
   isRep?: boolean;
   isAdmin?: boolean;
   vendorCredits?: number | null;
+  repCredits?: number | null;
 }
 
 interface NavTab {
@@ -30,7 +31,7 @@ interface StatusChip {
   variant?: "default" | "secondary";
 }
 
-export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits }: TopNavRowProps) {
+export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits, repCredits }: TopNavRowProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const sectionCounts = useSectionCounts();
@@ -100,6 +101,14 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits }: TopNavRow
         icon: <Bell className="h-3.5 w-3.5" />, 
         count: sectionCounts.networkUnread,
         showCount: true,
+      },
+      { 
+        label: "Credits", 
+        path: "/rep/availability", 
+        icon: <CreditCard className="h-3.5 w-3.5" />, 
+        count: repCredits ?? 0,
+        showCount: true,
+        variant: "secondary",
       },
       { 
         label: "Reviews", 
