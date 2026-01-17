@@ -144,11 +144,11 @@ export function RepEarnCreditsCard({ className }: RepEarnCreditsCardProps) {
               <span className="text-sm font-medium text-foreground">
                 Finish required onboarding
               </span>
-              <Badge variant={summary.remaining === 0 ? "default" : "secondary"} className="text-xs">
+              <Badge variant={summary.onboarding_earned ? "default" : "secondary"} className="text-xs">
                 <Coins className="h-3 w-3 mr-1" />
-                {summary.remaining === 0 
+                {summary.onboarding_earned 
                   ? `${summary.total_earned} total` 
-                  : `+${summary.remaining} more`}
+                  : "+3 more"}
               </Badge>
             </div>
             {summary.remaining > 0 && (
