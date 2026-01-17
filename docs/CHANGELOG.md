@@ -1,5 +1,22 @@
 # ClearMarket Changelog
 
+## 2026-01-17 — Field Rep Credits Visibility + Boost Visibility Feature
+- **DB Migration**: Added rep visibility boost system
+  - `rep_visibility_boosts` table: tracks rep boost purchases (starts_at, ends_at, credits_spent, status)
+  - `rep_active_boost_status` view: returns current boost state per rep (is_boosted, ends_at)
+  - `purchase_rep_boost()` RPC: atomic boost purchase/extend (2 credits for 48 hours)
+  - RLS: reps can SELECT own boosts; no direct writes (SECURITY DEFINER only)
+- **useRepCredits.ts**: New hook for rep credit balance + transaction history from `user_wallet`
+- **useRepBoostStatus.ts**: New hook for boost status + purchase via RPC
+- **RepCreditsCard.tsx**: Dashboard card showing credits, boost status, history + purchase dialogs
+- **RepTransactionHistoryDialog.tsx**: Modal listing rep credit transactions
+- **RepBoostPurchaseDialog.tsx**: Confirmation dialog for boost purchase/extend
+- **TopNavRow.tsx**: Added rep credits indicator (mirrors vendor pattern)
+- **AppShell.tsx**: Fetches rep credits for top nav display
+- **VendorFindReps.tsx**: Boosted reps now sort first in search results
+  - Sort: boosted first → ends_at DESC → starts_at DESC → Trust Score
+- **Help Center**: Added "Boost Visibility (Field Reps)" article explaining ranking, multi-boost behavior, non-refundable policy
+
 ## 2026-01-17 — Share Profile Routing + Short URLs + Vendor Calendar Checklist Fix
 - **RepShareProfilePage.tsx**: New authenticated page for reps to manage share links (`/rep/share-profile`)
 - **ShortShareRedirect.tsx**: New redirect component for short share URLs (`/s/:slug`)
