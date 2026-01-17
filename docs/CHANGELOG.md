@@ -1,5 +1,17 @@
 # ClearMarket Changelog
 
+## 2026-01-17 — Rep Credits Page + Navigation Fix
+- **RepCredits.tsx**: New dedicated Rep Credits page at `/rep/credits`
+  - Matches VendorCredits layout/styling
+  - Shows credit balance, transaction history, boost status
+  - Boost purchase/extend functionality
+  - Links to Help Center article for boost details
+- **TopNavRow.tsx**: Removed Credits from top nav for both vendors and reps (sidebar only)
+- **LeftSidebar.tsx**: Added Credits to rep sidebar nav items
+- **RepCreditsCard.tsx**: Updated to navigate to `/rep/credits` instead of opening dialogs
+- **App.tsx**: Added `/rep/credits` route
+- **Bug Fix**: Rep dashboard Credits click now routes to `/rep/credits` (was `/rep/availability`)
+
 ## 2026-01-17 — Field Rep Credits Visibility + Boost Visibility Feature
 - **DB Migration**: Added rep visibility boost system
   - `rep_visibility_boosts` table: tracks rep boost purchases (starts_at, ends_at, credits_spent, status)
@@ -11,8 +23,6 @@
 - **RepCreditsCard.tsx**: Dashboard card showing credits, boost status, history + purchase dialogs
 - **RepTransactionHistoryDialog.tsx**: Modal listing rep credit transactions
 - **RepBoostPurchaseDialog.tsx**: Confirmation dialog for boost purchase/extend
-- **TopNavRow.tsx**: Added rep credits indicator (mirrors vendor pattern)
-- **AppShell.tsx**: Fetches rep credits for top nav display
 - **VendorFindReps.tsx**: Boosted reps now sort first in search results
   - Sort: boosted first → ends_at DESC → starts_at DESC → Trust Score
 - **Help Center**: Added "Boost Visibility (Field Reps)" article explaining ranking, multi-boost behavior, non-refundable policy

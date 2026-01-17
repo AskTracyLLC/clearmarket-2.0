@@ -52,6 +52,7 @@ import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
 import Settings from "./pages/Settings";
 import VendorCredits from "./pages/VendorCredits";
+import RepCredits from "./pages/RepCredits";
 // Removed: AdminReports and AdminModeration - consolidated into Support Queue Violation Review
 import AdminInviteCodes from "./pages/AdminInviteCodes";
 import AdminUsers from "./pages/AdminUsers";
@@ -218,6 +219,7 @@ const App = () => (
                   <Route path="/vendor/reviews" element={<VendorReviews />} />
                   <Route path="/rep/reviews" element={<RepReviews />} />
                   <Route path="/vendor/credits" element={<VendorCredits />} />
+                  <Route path="/rep/credits" element={<RepCredits />} />
                   <Route path="/vendor/staff" element={<VendorStaff />} />
                   <Route path="/vendor/staff-metrics" element={<VendorStaffMetrics />} />
                   

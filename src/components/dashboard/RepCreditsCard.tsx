@@ -1,11 +1,12 @@
 /**
  * RepCreditsCard
  * 
- * Shows rep credit balance, boost status, and provides access to transaction history.
+ * Shows rep credit balance, boost status, and provides access to the full Credits page.
  */
 
 import { useState } from "react";
-import { Coins, Zap, History, Loader2, Clock, Rocket } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Coins, Zap, History, Loader2, Clock, Rocket, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ interface RepCreditsCardProps {
 }
 
 export function RepCreditsCard({ className }: RepCreditsCardProps) {
+  const navigate = useNavigate();
   const { balance, loading: creditsLoading, refresh: refreshCredits } = useRepCredits();
   const { status: boostStatus, loading: boostLoading } = useRepBoostStatus();
   const [showHistory, setShowHistory] = useState(false);
@@ -52,7 +54,7 @@ export function RepCreditsCard({ className }: RepCreditsCardProps) {
 
   return (
     <>
-      <Card className={cn("", className)}>
+      <Card className={cn("cursor-pointer hover:border-primary/50 transition-colors", className)} onClick={() => navigate("/rep/credits")}>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -63,10 +65,13 @@ export function RepCreditsCard({ className }: RepCreditsCardProps) {
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => setShowHistory(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/rep/credits");
+              }}
             >
-              <History className="h-3.5 w-3.5 mr-1" />
-              History
+              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+              View All
             </Button>
           </CardTitle>
         </CardHeader>

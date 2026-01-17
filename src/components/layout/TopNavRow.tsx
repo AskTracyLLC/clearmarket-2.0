@@ -57,7 +57,7 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits, repCredits 
     tabs.push({ label: "Find Work", path: "/rep/find-work", icon: <Briefcase className="h-4 w-4" /> });
   }
 
-  // Right status chips - role-based
+  // Right status chips - role-based (Credits removed - now in sidebar only)
   const getStatusChips = (): StatusChip[] => {
     if (effectiveRole === "vendor" || isVendor) {
       return [
@@ -75,18 +75,10 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits, repCredits 
           count: sectionCounts.vendorPostsWithInterest,
           showCount: true,
         },
-        { 
-          label: "Credits", 
-          path: "/vendor/credits", 
-          icon: <CreditCard className="h-3.5 w-3.5" />, 
-          count: vendorCredits ?? 0,
-          showCount: true,
-          variant: "secondary",
-        },
       ];
     }
 
-    // Field Rep chips (Find Work is a TAB, not a chip - avoid duplication)
+    // Field Rep chips (Credits removed - now in sidebar only)
     return [
       { 
         label: "Messages", 
@@ -101,14 +93,6 @@ export function TopNavRow({ isVendor, isRep, isAdmin, vendorCredits, repCredits 
         icon: <Bell className="h-3.5 w-3.5" />, 
         count: sectionCounts.networkUnread,
         showCount: true,
-      },
-      { 
-        label: "Credits", 
-        path: "/rep/availability", 
-        icon: <CreditCard className="h-3.5 w-3.5" />, 
-        count: repCredits ?? 0,
-        showCount: true,
-        variant: "secondary",
       },
       { 
         label: "Reviews", 
