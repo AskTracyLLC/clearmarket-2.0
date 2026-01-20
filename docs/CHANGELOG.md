@@ -1,5 +1,20 @@
 # ClearMarket Changelog
 
+## 2026-01-20 — Share Profile Public URL Fix
+- **publicUrl.ts**: New utility for generating public share URLs
+  - `getPublicBaseUrl()`: Returns production URL, never preview/dev domains
+  - `getPublicShareUrl(slug)`: Generates `/s/:slug` URL with correct base
+  - `isPreviewEnvironment()`: Detects if running in preview mode
+  - Fallback order: VITE_PUBLIC_APP_URL → production origin → `https://useclearmarket.io`
+- **ProfileSharePanel.tsx**: Updated to use `getPublicShareUrl()` instead of `window.location.origin`
+  - Share links now always point to production (never `id-preview--` or `lovable.app`)
+  - Added preview mode warning banner when in dev environment
+- **ShortShareRedirect.tsx**: Improved error handling
+  - Friendly error pages for "not found", "expired", and "invalid" cases
+  - No longer redirects to generic 404 page
+  - CTA button to visit ClearMarket homepage
+- **reputationSharing.ts**: Re-exports `getPublicShareUrl` for consistency
+
 ## 2026-01-17 — Rep Credits Page + Navigation Fix
 - **RepCredits.tsx**: New dedicated Rep Credits page at `/rep/credits`
   - Matches VendorCredits layout/styling

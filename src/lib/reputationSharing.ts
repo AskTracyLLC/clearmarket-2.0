@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getPublicShareUrl } from "@/lib/publicUrl";
 
 /**
  * Generate a random URL-safe slug for reputation share links
@@ -11,6 +12,9 @@ function generateSlug(): string {
   }
   return slug;
 }
+
+// Re-export for backward compatibility
+export { getPublicShareUrl };
 
 /**
  * Create a new reputation share link for the current user

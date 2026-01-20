@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, ExternalLink, Share2, RefreshCw } from "lucide-react";
+import { Copy, ExternalLink, Share2, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getPublicShareUrl, isPreviewEnvironment } from "@/lib/publicUrl";
 
 interface ProfileSharePanelProps {
   roleType: 'rep' | 'vendor';
@@ -161,8 +162,8 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
 
   function handleCopyLink() {
     if (!profile?.share_profile_slug) return;
-    // Use short URL format: /s/:slug
-    const url = `${window.location.origin}/s/${profile.share_profile_slug}`;
+    // Use the public URL utility - never uses preview domains
+    const url = getPublicShareUrl(profile.share_profile_slug);
     navigator.clipboard.writeText(url);
     toast({
       title: "Link copied",
@@ -172,7 +173,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
 
   function handlePreview() {
     if (!profile?.share_profile_slug) return;
-    // Preview opens the actual page directly (avoid redirect)
+    // Preview opens the local page for testing (this is OK to use current origin)
     window.open(`/share/${roleType}/${profile.share_profile_slug}`, '_blank');
   }
 
@@ -211,8 +212,9 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
     );
   }
 
-  // Use short URL format for display
-  const shareUrl = `${window.location.origin}/s/${profile.share_profile_slug}`;
+  // Use the public URL utility - never uses preview domains
+  const shareUrl = getPublicShareUrl(profile.share_profile_slug);
+  const showPreviewWarning = isPreviewEnvironment();
 
   return (
     <Card>
@@ -238,6 +240,18 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
 
         {profile.share_profile_enabled && (
           <>
+            {showPreviewWarning && (
+              <div className="flex items-start gap-2 p-3 text-sm bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <span className="font-medium text-amber-500">Preview Mode:</span>{" "}
+                  <span className="text-muted-foreground">
+                    The link below points to the production site. Use "Preview" to test locally.
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Share URL</Label>
               <div className="flex gap-2">
