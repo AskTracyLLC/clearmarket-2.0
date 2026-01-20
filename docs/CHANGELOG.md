@@ -1,5 +1,18 @@
 # ClearMarket Changelog
 
+## 2026-01-20 — Background Checks Consolidated to Dedicated Page
+- **Migration**: Removed background checks from the Support Queue
+  - Dropped `sync_background_check_to_queue_trigger` (no longer creates queue items)
+  - Dropped `sync_background_check_to_queue()` function
+  - Archived existing background check queue items (status = `resolved`)
+- **UI Changes**:
+  - Removed "Background Checks" category from `/admin/support-queue`
+  - All background check actions (view/approve/reject/notes) now happen only at `/admin/background-checks`
+- **Type Updates**:
+  - Removed `background_checks` from `QueueCategory` type in `useQueueItems.ts` and `supportQueueCategories.ts`
+  - Removed `background_checks` count from `QueueCounts` interface
+- **Result**: Single source of truth for background check workflow at `/admin/background-checks`
+
 ## 2026-01-20 — Canonical Anonymous ID Migration
 - **Database Migration**: Made `profiles.anonymous_id` the single source of truth
   - Deleted orphaned `rep_profile` row for admin user (Tracy)
