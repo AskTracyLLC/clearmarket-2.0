@@ -203,7 +203,7 @@ export default function AdminBackgroundChecks() {
     return (
       check.profiles?.email?.toLowerCase().includes(searchLower) ||
       check.profiles?.full_name?.toLowerCase().includes(searchLower) ||
-      check.rep_profile?.anonymous_id?.toLowerCase().includes(searchLower) ||
+      check.profiles?.anonymous_id?.toLowerCase().includes(searchLower) ||
       check.check_id?.toLowerCase().includes(searchLower) ||
       check.provider?.toLowerCase().includes(searchLower)
     );
@@ -334,7 +334,7 @@ export default function AdminBackgroundChecks() {
                 {filteredChecks.map((check) => (
                   <TableRow key={check.id}>
                     <TableCell className="font-medium">
-                      {check.rep_profile?.anonymous_id || check.profiles?.full_name || "Unknown"}
+                      {check.profiles?.anonymous_id || check.profiles?.full_name || "Unknown"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {check.profiles?.email || "—"}

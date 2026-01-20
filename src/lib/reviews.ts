@@ -220,11 +220,11 @@ export async function markReviewAsFeedback(
 
   // Notify the reviewer that their review was marked as feedback
   if (review?.reviewer_id) {
-    // Get reviewee display name
-    const { data: repProfile } = await supabase
-      .from("rep_profile")
+    // Get reviewee display name from profiles (canonical source)
+    const { data: profileData } = await supabase
+      .from("profiles")
       .select("anonymous_id")
-      .eq("user_id", revieweeId)
+      .eq("id", revieweeId)
       .maybeSingle();
 
     await supabase.from("notifications").insert({
@@ -232,7 +232,7 @@ export async function markReviewAsFeedback(
       type: "review_marked_feedback",
       ref_id: reviewId,
       title: "Your review was marked as Feedback",
-      body: `${repProfile?.anonymous_id || "A field rep"} has chosen to treat your review as Feedback in order to improve. The review remains visible but will not count toward their score.`,
+      body: `${profileData?.anonymous_id || "A field rep"} has chosen to treat your review as Feedback in order to improve. The review remains visible but will not count toward their score.`,
     });
   }
 

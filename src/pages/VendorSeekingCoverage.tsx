@@ -272,15 +272,15 @@ const VendorSeekingCoverage = () => {
           enrichedPost.us_counties = countyData;
         }
         
-        // Fetch rep anonymous ID for filled posts
+        // Fetch rep anonymous ID for filled posts from profiles (canonical source)
         if (post.filled_by_rep_id) {
-          const { data: repData } = await supabase
-            .from("rep_profile")
+          const { data: profileData } = await supabase
+            .from("profiles")
             .select("anonymous_id")
-            .eq("user_id", post.filled_by_rep_id)
+            .eq("id", post.filled_by_rep_id)
             .maybeSingle();
           
-          enrichedPost.filled_by_rep = repData;
+          enrichedPost.filled_by_rep = profileData;
         }
         
         return enrichedPost;

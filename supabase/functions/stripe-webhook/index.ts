@@ -504,29 +504,24 @@ serve(async (req) => {
           });
         } else {
           try {
-            // Fetch user profile with role fields
+            // Fetch user profile with role fields and anonymous_id (canonical source)
             const { data: userProfile } = await supabaseAdmin
               .from("profiles")
-              .select("email, full_name, active_role, is_vendor_admin, is_fieldrep")
+              .select("email, full_name, active_role, is_vendor_admin, is_fieldrep, anonymous_id")
               .eq("id", userId)
               .single();
 
-            // Fetch vendor_profile and rep_profile to get the signup-assigned anonymous_id
-            const [vendorProfileResult, repProfileResult] = await Promise.all([
-              supabaseAdmin
-                .from("vendor_profile")
-                .select("anonymous_id")
-                .eq("user_id", userId)
-                .maybeSingle(),
-              supabaseAdmin
-                .from("rep_profile")
-                .select("anonymous_id")
-                .eq("user_id", userId)
-                .maybeSingle(),
-            ]);
+            // Fetch vendor_profile for vendor-specific anonymous_id if different display is needed
+            const { data: vendorProfile } = await supabaseAdmin
+              .from("vendor_profile")
+              .select("anonymous_id")
+              .eq("user_id", userId)
+              .maybeSingle();
 
-            const vendorAnonymousId = vendorProfileResult.data?.anonymous_id;
-            const repAnonymousId = repProfileResult.data?.anonymous_id;
+            // profiles.anonymous_id is the canonical source
+            const canonicalAnonymousId = userProfile?.anonymous_id;
+            const vendorAnonymousId = vendorProfile?.anonymous_id;
+            const repAnonymousId = canonicalAnonymousId;
 
             // Determine buyer email (prefer profile, fallback to session customer_email)
             const buyerEmail = userProfile?.email || session.customer_email || "";

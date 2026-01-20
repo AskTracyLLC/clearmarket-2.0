@@ -20,7 +20,6 @@ interface InterestedRep {
   declined_at: string | null;
   rep_profile: {
     user_id: string;
-    anonymous_id: string | null;
     city: string | null;
     state: string | null;
     zip_code: string | null;
@@ -30,6 +29,7 @@ interface InterestedRep {
     willing_to_travel_out_of_state: boolean | null;
     profiles: {
       full_name: string | null;
+      anonymous_id: string | null;
     } | null;
   };
   rep_coverage_areas: {
@@ -131,7 +131,6 @@ export default function VendorInterestedReps() {
           declined_at,
           rep_profile!inner (
             user_id,
-            anonymous_id,
             city,
             state,
             zip_code,
@@ -140,7 +139,8 @@ export default function VendorInterestedReps() {
             is_accepting_new_vendors,
             willing_to_travel_out_of_state,
             profiles:user_id (
-              full_name
+              full_name,
+              anonymous_id
             )
           )
         `)
@@ -412,7 +412,7 @@ export default function VendorInterestedReps() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2 flex-wrap">
                                   <h3 className="text-xl font-semibold text-foreground">
-                                    {interest.rep_profile.anonymous_id || "FieldRep"}
+                                    {interest.rep_profile.profiles?.anonymous_id || "FieldRep"}
                                   </h3>
                                   {getStatusBadge(interest.status, interest.declined_reason)}
                                   {/* Rate comparison badge */}
@@ -589,7 +589,7 @@ export default function VendorInterestedReps() {
                               <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                   <h3 className="text-xl font-semibold text-foreground">
-                                    {interest.rep_profile.anonymous_id || "FieldRep"}
+                                    {interest.rep_profile.profiles?.anonymous_id || "FieldRep"}
                                   </h3>
                                   {getStatusBadge(interest.status, interest.declined_reason)}
                                 </div>
@@ -657,7 +657,7 @@ export default function VendorInterestedReps() {
           <DialogHeader>
             <DialogTitle className="space-y-1">
               <div className="text-2xl font-bold">
-                {selectedRep?.rep_profile.anonymous_id || "Field Rep Profile"}
+                {selectedRep?.rep_profile.profiles?.anonymous_id || "Field Rep Profile"}
               </div>
               {selectedRep?.rep_profile.profiles?.full_name && (
                 <div className="text-base font-normal text-muted-foreground">
@@ -808,7 +808,7 @@ export default function VendorInterestedReps() {
           open={!!declineDialogRep}
           onOpenChange={(open) => !open && setDeclineDialogRep(null)}
           repInterestId={declineDialogRep.id}
-          repAnonymousId={declineDialogRep.rep_profile.anonymous_id || "FieldRep"}
+          repAnonymousId={declineDialogRep.rep_profile.profiles?.anonymous_id || "FieldRep"}
           postTitle={post.title}
           vendorUserId={user.id}
           repUserId={declineDialogRep.rep_profile.user_id}
