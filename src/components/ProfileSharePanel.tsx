@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, ExternalLink, Share2, RefreshCw, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { getPublicShareUrl, isPreviewEnvironment } from "@/lib/publicUrl";
 
 interface ProfileSharePanelProps {
@@ -24,24 +25,25 @@ function generateSlug(): string {
 
 export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
   const { user } = useAuth();
+  const { effectiveUserId } = useMimic();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       loadProfile();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   async function loadProfile() {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('share_profile_slug, share_profile_enabled, share_profile_last_generated_at')
-        .eq('id', user.id)
+        .eq('id', effectiveUserId)
         .single();
 
       if (error) throw error;
@@ -54,7 +56,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
   }
 
   async function handleGenerateLink() {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setUpdating(true);
     try {
       const newSlug = generateSlug();
@@ -65,7 +67,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
           share_profile_enabled: true,
           share_profile_last_generated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', effectiveUserId);
 
       if (error) throw error;
 
@@ -93,7 +95,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
   }
 
   async function handleRegenerateLink() {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setUpdating(true);
     try {
       const newSlug = generateSlug();
@@ -103,7 +105,7 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
           share_profile_slug: newSlug,
           share_profile_last_generated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', effectiveUserId);
 
       if (error) throw error;
 
@@ -130,13 +132,13 @@ export function ProfileSharePanel({ roleType }: ProfileSharePanelProps) {
   }
 
   async function handleToggleEnabled(enabled: boolean) {
-    if (!user || !profile?.share_profile_slug) return;
+    if (!effectiveUserId || !profile?.share_profile_slug) return;
     setUpdating(true);
     try {
       const { error } = await supabase
         .from('profiles')
         .update({ share_profile_enabled: enabled })
-        .eq('id', user.id);
+        .eq('id', effectiveUserId);
 
       if (error) throw error;
 
