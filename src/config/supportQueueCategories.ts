@@ -1,9 +1,8 @@
-import { LucideIcon, Star, ShieldAlert, FileCheck, CreditCard, Headphones, CheckCircle2, MoreHorizontal, UserRoundCog } from "lucide-react";
+import { LucideIcon, Star, ShieldAlert, CreditCard, Headphones, CheckCircle2, MoreHorizontal, UserRoundCog } from "lucide-react";
 
 export type QueueCategory = 
   | "reviews" 
   | "violation_review"
-  | "background_checks" 
   | "billing" 
   | "support_tickets" 
   | "vendor_verification"
@@ -115,33 +114,7 @@ export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
     ],
     emptyStateCopy: "Review flagged content and user-submitted safety violations.",
   },
-  {
-    key: "background_checks",
-    label: "Background Checks",
-    icon: FileCheck,
-    color: "text-blue-400",
-    summaryFields: [
-      { key: "user", label: "User", metadataPath: "user_name" },
-      { key: "check_status", label: "Status", metadataPath: "check_status" },
-    ],
-    detailFields: [
-      { key: "user_name", label: "User Name", metadataPath: "user_name" },
-      { key: "user_id", label: "User ID", metadataPath: "user_id" },
-      { key: "provider", label: "Provider", metadataPath: "provider" },
-      { key: "submitted_date", label: "Submitted Date", metadataPath: "submitted_at" },
-      { key: "result_date", label: "Result Date", metadataPath: "reviewed_at" },
-      { key: "expiration_date", label: "Expiration Date", metadataPath: "expiration_date" },
-      { key: "check_status", label: "Check Status", metadataPath: "check_status" },
-      { key: "notes", label: "Notes/Reason", metadataPath: "review_notes" },
-    ],
-    primaryActions: [
-      { key: "in_progress", label: "Mark In Progress", targetStatus: "in_progress" },
-      { key: "approve", label: "Approve/Verify", targetStatus: "resolved" },
-      { key: "reject", label: "Reject", variant: "destructive", requiresConfirmation: true },
-      { key: "note", label: "Add Note", variant: "outline" },
-    ],
-    resolveLabel: "Approve/Verify",
-  },
+  // Background Checks removed - managed at /admin/background-checks only
   {
     key: "billing",
     label: "Billing",

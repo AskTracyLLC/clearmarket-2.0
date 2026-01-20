@@ -59,7 +59,7 @@ Quick reference for UI routes, backend objects, and their connections.
 
 ### Admin Routes
 
-- `/admin/support-queue` — Unified support/moderation queue
+- `/admin/support-queue` — Unified support/moderation queue (excludes background checks)
   - Components: `SupportQueueItemCard`, `SupportQueueItemDetail`
 - `/admin/users` — User search, deactivate, reset
   - Components: `AdminUsers`, `AdminMessageUserDialog`
@@ -80,8 +80,10 @@ Quick reference for UI routes, backend objects, and their connections.
   - Components: `AdminInspectionTypes`
 - `/admin/systems-used` — Admin-managed systems for Work Setup
   - Components: `AdminSystemsUsed`
-- `/admin/background-checks` — Review submitted checks
+- `/admin/background-checks` — Single source of truth for background check workflow
   - Components: `AdminBackgroundChecks`
+  - Actions: View details, Approve, Reject, Notes, Status tracking
+  - Note: Background checks are NOT managed in the Support Queue
 - `/admin/safety-analytics` — Safety metrics
   - Components: `SafetyAnalyticsTab`
 
