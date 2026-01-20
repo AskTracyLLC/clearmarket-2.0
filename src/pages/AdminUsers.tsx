@@ -65,7 +65,7 @@ const PAGE_SIZE = 50;
 
 // Column definitions for Admin User Management table
 const ADMIN_USERS_COLUMNS: ColumnDefinition[] = [
-  { id: "user", label: "User", description: "User name and email", required: true },
+  { id: "user", label: "User", description: "User name", required: true },
   { id: "anonId", label: "Anon ID", description: "Anonymous identifier (e.g., FieldRep#1)" },
   { id: "roles", label: "Roles", description: "User role badges (Rep, Vendor, Admin)" },
   { id: "profile", label: "Profile", description: "Profile completion percentage" },
@@ -80,7 +80,6 @@ const ADMIN_USERS_DEFAULT_COLUMNS = ["user", "anonId", "roles", "profile", "last
 
 interface UserProfile {
   id: string;
-  email: string;
   full_name: string | null;
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
@@ -207,19 +206,16 @@ export default function AdminUsers() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load profiles - anonymous_id is now sourced from profiles table
+      // Load profiles from profiles_safe (email column removed for privacy)
       const { data: profiles, error } = await supabase
-        .from("profiles")
+        .from("profiles_safe")
         .select(`
           id,
-          email,
           full_name,
           is_fieldrep,
           is_vendor_admin,
           is_vendor_staff,
           is_admin,
-          is_moderator,
-          is_support,
           account_status,
           deactivated_at,
           deactivated_reason,
@@ -232,7 +228,26 @@ export default function AdminUsers() {
         .limit(500);
 
       if (error) throw error;
-      setUsers(profiles || []);
+      
+      // Map to UserProfile with defaults for missing fields
+      const mappedProfiles: UserProfile[] = (profiles || []).map((p: any) => ({
+        id: p.id,
+        full_name: p.full_name,
+        is_fieldrep: p.is_fieldrep ?? false,
+        is_vendor_admin: p.is_vendor_admin ?? false,
+        is_vendor_staff: p.is_vendor_staff ?? false,
+        is_admin: p.is_admin ?? false,
+        is_moderator: false, // Not in profiles_safe view
+        is_support: false, // Not in profiles_safe view
+        account_status: p.account_status ?? "active",
+        deactivated_at: p.deactivated_at ?? null,
+        deactivated_reason: p.deactivated_reason ?? null,
+        community_score: p.community_score ?? 0,
+        last_seen_at: p.last_seen_at ?? null,
+        staff_anonymous_id: p.staff_anonymous_id ?? null,
+        anonymous_id: p.anonymous_id ?? null,
+      }));
+      setUsers(mappedProfiles);
 
       // Load rep profiles for anonymous IDs
       const { data: reps } = await supabase
@@ -701,13 +716,12 @@ export default function AdminUsers() {
       if (statusFilter === "active" && u.account_status !== "active") return false;
       if (statusFilter === "deactivated" && u.account_status !== "deactivated") return false;
 
-      // Search filter
+      // Search filter (email removed for privacy - search by name, anon ID, company, or UUID)
       if (!debouncedSearch) return true;
       const term = debouncedSearch.toLowerCase();
       const anonId = getAnonymousId(u).toLowerCase();
       const companyName = getCompanyName(u)?.toLowerCase() || "";
       return (
-        u.email.toLowerCase().includes(term) ||
         anonId.includes(term) ||
         u.full_name?.toLowerCase().includes(term) ||
         companyName.includes(term) ||
@@ -723,8 +737,8 @@ export default function AdminUsers() {
 
         switch (sortColumn) {
           case "user":
-            aVal = (a.full_name || a.email).toLowerCase();
-            bVal = (b.full_name || b.email).toLowerCase();
+            aVal = (a.full_name || getAnonymousId(a)).toLowerCase();
+            bVal = (b.full_name || getAnonymousId(b)).toLowerCase();
             break;
           case "anonymous_id":
             aVal = getAnonymousId(a).toLowerCase();
@@ -844,7 +858,7 @@ export default function AdminUsers() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by email, name, anonymous ID, or company..."
+                  placeholder="Search by name, anonymous ID, or company..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -1037,9 +1051,9 @@ export default function AdminUsers() {
                                   onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
                                   className="font-medium text-left hover:underline hover:text-primary transition-colors"
                                 >
-                                  {userProfile.full_name || "—"}
+                                  {userProfile.full_name || getAnonymousId(userProfile)}
                                 </button>
-                                <p className="text-sm text-muted-foreground">{userProfile.email}</p>
+                                <p className="text-xs text-muted-foreground font-mono">{userProfile.id.slice(0, 8)}...</p>
                               </div>
                             </div>
                           </TableCell>
@@ -1262,7 +1276,7 @@ export default function AdminUsers() {
               Deactivate Account
             </DialogTitle>
             <DialogDescription>
-              This will prevent {deactivateDialog.user?.email} from logging in. Their data will be preserved.
+              This will prevent {deactivateDialog.user?.full_name || getAnonymousId(deactivateDialog.user!)} from logging in. Their data will be preserved.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1329,7 +1343,7 @@ export default function AdminUsers() {
               Delete User Permanently
             </DialogTitle>
             <DialogDescription>
-              This will permanently delete {deleteDialog.user?.email || "this user"} and all their data. 
+              This will permanently delete {deleteDialog.user?.full_name || getAnonymousId(deleteDialog.user!)} and all their data. 
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

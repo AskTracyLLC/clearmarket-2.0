@@ -62,6 +62,7 @@ export function useCurrentUserRoles(): UseCurrentUserRolesReturn {
     }
 
     try {
+      // Fetch profile (email is now in profiles_private, fetched separately for current user)
       const { data: profile, error } = await supabase
         .from("profiles")
         .select(`
@@ -72,7 +73,6 @@ export function useCurrentUserRoles(): UseCurrentUserRolesReturn {
           is_moderator,
           is_support,
           is_super_admin,
-          email,
           active_role
         `)
         .eq("id", user.id)
@@ -81,6 +81,13 @@ export function useCurrentUserRoles(): UseCurrentUserRolesReturn {
       if (error) {
         console.error("[useCurrentUserRoles] Error loading profile:", error);
       }
+
+      // Fetch email from profiles_private (user can read own email via RLS)
+      const { data: privateData } = await supabase
+        .from("profiles_private")
+        .select("email")
+        .eq("profile_id", user.id)
+        .maybeSingle();
 
       if (profile) {
         setFlags({
@@ -91,7 +98,7 @@ export function useCurrentUserRoles(): UseCurrentUserRolesReturn {
           is_moderator: profile.is_moderator,
           is_support: profile.is_support,
           is_super_admin: profile.is_super_admin,
-          email: profile.email,
+          email: privateData?.email ?? user.email,
         });
         setActiveRole(profile.active_role as "rep" | "vendor" | null);
       } else {

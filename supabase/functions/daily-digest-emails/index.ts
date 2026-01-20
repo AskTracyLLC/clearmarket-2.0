@@ -126,32 +126,39 @@ serve(async (req) => {
     }
 
     // Fetch users with digest preferences enabled
+    // Join profiles_private for email (service role can access)
     const { data: usersWithDigest, error: usersError } = await supabase
       .from("profiles")
       .select(`
         id,
-        email,
         full_name,
         notification_preferences:notification_preferences(
           digest_messages,
           digest_connections,
           digest_reviews,
           digest_system
-        )
+        ),
+        profiles_private(email)
       `)
-      .not("email", "is", null);
+      .not("profiles_private.email", "is", null);
 
     if (usersError) {
       console.error("Error fetching users:", usersError);
       throw usersError;
     }
 
-    console.log(`Found ${usersWithDigest.length} users with email addresses`);
+    console.log(`Found ${usersWithDigest?.length || 0} users with email addresses`);
 
     let sentCount = 0;
     let skippedCount = 0;
 
-    for (const user of usersWithDigest) {
+    for (const user of usersWithDigest || []) {
+      const userEmail = (user as any).profiles_private?.email;
+      if (!userEmail) {
+        skippedCount++;
+        continue;
+      }
+      
       const prefs = user.notification_preferences?.[0] as NotificationPreferences | undefined;
       
       if (!prefs) {
@@ -204,7 +211,7 @@ serve(async (req) => {
         continue;
       }
 
-      console.log(`Processing ${filteredNotifications.length} notifications for user ${user.email}`);
+      console.log(`Processing ${filteredNotifications.length} notifications for user ${userEmail}`);
 
       // Group notifications by category
       const notificationsByCategory: Record<string, Notification[]> = {
@@ -227,7 +234,7 @@ serve(async (req) => {
       // Send email using template-based approach
       const { error: emailError } = await supabase.functions.invoke("send-notification-email", {
         body: {
-          to: user.email,
+          to: userEmail,
           templateKey: "digest.daily",
           placeholders: {
             user_first_name: firstName,
@@ -242,7 +249,7 @@ serve(async (req) => {
       });
 
       if (emailError) {
-        console.error(`Failed to send digest to ${user.email}:`, emailError);
+        console.error(`Failed to send digest to ${userEmail}:`, emailError);
         continue;
       }
 
@@ -258,7 +265,7 @@ serve(async (req) => {
         continue;
       }
 
-      console.log(`✓ Sent digest to ${user.email} with ${filteredNotifications.length} notifications`);
+      console.log(`✓ Sent digest to ${userEmail} with ${filteredNotifications.length} notifications`);
       sentCount++;
     }
 

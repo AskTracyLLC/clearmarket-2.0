@@ -38,7 +38,7 @@ export function useStaffPermissions(): UseStaffPermissionsReturn {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("email, is_admin, is_moderator, is_support, is_super_admin")
+        .select("is_admin, is_moderator, is_support, is_super_admin")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -46,7 +46,7 @@ export function useStaffPermissions(): UseStaffPermissionsReturn {
         console.error("Error loading profile for staff permissions:", error);
       }
 
-      const effectiveProfile: ProfileForRoleCheck = profile || { email: user.email };
+      const effectiveProfile: ProfileForRoleCheck = profile || {};
       const r = getRoleFromProfile(effectiveProfile);
       setRole(r);
       setPermissions(getPermissionsForProfile(effectiveProfile));

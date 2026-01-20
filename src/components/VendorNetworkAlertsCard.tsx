@@ -84,17 +84,17 @@ export function VendorNetworkAlertsCard({ vendorId }: Props) {
 
       const connectedRepIds = connections?.map(c => c.field_rep_id) || [];
       
-      // Fetch emails for connected reps for deduplication
+      // Fetch emails for connected reps for deduplication via profiles_private
       let connectedEmails: Set<string> = new Set();
       let connectedPhones: Set<string> = new Set();
       
       if (connectedRepIds.length > 0) {
-        const { data: repProfiles } = await supabase
-          .from("profiles")
-          .select("id, email")
-          .in("id", connectedRepIds);
+        const { data: repEmails } = await supabase
+          .from("profiles_private")
+          .select("profile_id, email")
+          .in("profile_id", connectedRepIds);
         
-        repProfiles?.forEach(p => {
+        repEmails?.forEach(p => {
           if (p.email) connectedEmails.add(p.email.toLowerCase().trim());
         });
       }
