@@ -41,7 +41,6 @@ type DualRoleRequest = Database["public"]["Tables"]["dual_role_access_requests"]
 type DualRoleRequestWithProfile = DualRoleRequest & {
   profiles?: {
     full_name: string | null;
-    email: string | null;
   } | null;
 };
 
@@ -165,10 +164,6 @@ export function AdminDualRoleRequestDrawer({
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Name:</span>
                 <span>{request.profiles?.full_name || "—"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Account Email:</span>
-                <span>{request.profiles?.email || "—"}</span>
               </div>
               <div className="flex items-center gap-2 text-sm font-mono">
                 <span className="text-muted-foreground">User ID:</span>

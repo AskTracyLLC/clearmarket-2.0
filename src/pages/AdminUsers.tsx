@@ -206,9 +206,9 @@ export default function AdminUsers() {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load profiles from profiles_safe (email column removed for privacy)
+      // Load profiles from profiles table (email column removed for privacy)
       const { data: profiles, error } = await supabase
-        .from("profiles_safe")
+        .from("profiles")
         .select(`
           id,
           full_name,
@@ -216,6 +216,8 @@ export default function AdminUsers() {
           is_vendor_admin,
           is_vendor_staff,
           is_admin,
+          is_moderator,
+          is_support,
           account_status,
           deactivated_at,
           deactivated_reason,

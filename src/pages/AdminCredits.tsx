@@ -102,7 +102,7 @@ const AdminCredits = () => {
         company_name,
         anonymous_id,
         vendor_public_code,
-        profiles!vendor_profile_user_id_fkey(email, full_name)
+        profiles!vendor_profile_user_id_fkey(full_name)
       `)
       .eq("id", vendorId)
       .single();

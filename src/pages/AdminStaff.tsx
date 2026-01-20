@@ -155,7 +155,7 @@ export default function AdminStaff() {
         const roleName = role.replace("is_", "");
         logAdminAction(user.id, {
           actionType: "staff.role_changed",
-          actionSummary: `${!currentValue ? "Added" : "Removed"} ${roleName} role for ${staffUser.email}`,
+          actionSummary: `${!currentValue ? "Added" : "Removed"} ${roleName} role for ${staffUser.full_name || staffUser.staff_anonymous_id || "staff"}`,
           targetUserId: staffId,
           actionDetails: {
             role: roleName,
@@ -248,39 +248,15 @@ export default function AdminStaff() {
 
     setResendingInvite(staff.id);
     try {
-      const response = await supabase.functions.invoke("create-staff-user", {
-        body: {
-          email: staff.email,
-          full_name: staff.full_name || staff.email,
-          role: staff.staff_role || "admin",
-          resend: true,
-        },
+      // Note: Staff invite email is stored securely - fetch from profiles_private if needed
+      const displayName = staff.full_name || staff.staff_anonymous_id || "staff";
+      
+      toast.error("Cannot resend invite", {
+        description: "Email addresses are no longer directly accessible. Please use the backend to resend invites.",
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to resend invite");
-      }
-
-      const data = response.data;
-      if (!data.success) {
-        throw new Error(data.error || "Failed to resend invite");
-      }
-
-      // Log admin action
-      if (user) {
-        logAdminAction(user.id, {
-          actionType: "staff.invite_resent",
-          actionSummary: `Resent staff invite to ${staff.email}`,
-          targetUserId: staff.id,
-          actionDetails: {
-            staff_role: staff.staff_role,
-          },
-          sourcePage: "/admin/staff",
-        });
-      }
-
-      toast.success(`Invite resent to ${staff.email}`);
-      loadStaffUsers();
+      // Resend invite functionality disabled - email no longer accessible
+      return;
     } catch (error: any) {
       toast.error("Failed to resend invite", { description: error.message });
     } finally {
@@ -468,7 +444,7 @@ export default function AdminStaff() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{staff.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{staff.staff_anonymous_id || staff.full_name || "—"}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             {permissions.canEditStaffAdmin && !staff.is_super_admin ? (

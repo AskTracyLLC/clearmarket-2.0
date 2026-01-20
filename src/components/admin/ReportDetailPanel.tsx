@@ -133,7 +133,6 @@ export function ReportDetailPanel({ report, onClose }: ReportDetailPanelProps) {
           <Label className="text-sm font-medium">Reporter</Label>
           <div className="mt-2 space-y-1">
             <p className="text-sm">{report.reporter.full_name || "Unknown"}</p>
-            <p className="text-xs text-muted-foreground">{report.reporter.email}</p>
           </div>
         </div>
 
@@ -142,7 +141,6 @@ export function ReportDetailPanel({ report, onClose }: ReportDetailPanelProps) {
           <Label className="text-sm font-medium">Reported User</Label>
           <div className="mt-2 space-y-1">
             <p className="text-sm">{report.reported.full_name || "Unknown"}</p>
-            <p className="text-xs text-muted-foreground">{report.reported.email}</p>
           </div>
         </div>
 
