@@ -230,9 +230,7 @@ export default function AdminAuditLog() {
       const term = searchTerm.toLowerCase();
       return (
         log.action_summary.toLowerCase().includes(term) ||
-        log.actor?.email?.toLowerCase().includes(term) ||
         log.actor?.full_name?.toLowerCase().includes(term) ||
-        log.target?.email?.toLowerCase().includes(term) ||
         log.target?.full_name?.toLowerCase().includes(term) ||
         log.action_type.toLowerCase().includes(term) ||
         log.actor_code?.toLowerCase().includes(term) ||
@@ -253,9 +251,9 @@ export default function AdminAuditLog() {
     return ACTION_TYPE_COLORS[actionType] || "bg-muted text-muted-foreground border-border";
   };
 
-  const formatUserDisplay = (profile: { full_name: string | null; email: string } | null | undefined) => {
+  const formatUserDisplay = (profile: { full_name: string | null } | null | undefined) => {
     if (!profile) return "Unknown";
-    return profile.full_name || profile.email;
+    return profile.full_name || "Unknown";
   };
 
   if (authLoading || permsLoading || loading) {

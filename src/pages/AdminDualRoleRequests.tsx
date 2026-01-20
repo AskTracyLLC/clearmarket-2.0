@@ -177,8 +177,7 @@ export default function AdminDualRoleRequests() {
       request.business_name?.toLowerCase().includes(searchLower) ||
       request.office_email?.toLowerCase().includes(searchLower) ||
       request.office_phone?.toLowerCase().includes(searchLower) ||
-      request.profiles?.full_name?.toLowerCase().includes(searchLower) ||
-      request.profiles?.email?.toLowerCase().includes(searchLower)
+      request.profiles?.full_name?.toLowerCase().includes(searchLower)
     );
   });
 

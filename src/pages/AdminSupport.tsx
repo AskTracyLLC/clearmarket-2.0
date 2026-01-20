@@ -52,7 +52,7 @@ import { CountBadge } from "@/components/CountBadge";
 
 interface TicketWithUser extends SupportTicket {
   userProfile?: {
-    email: string;
+    id: string;
     full_name: string | null;
     is_fieldrep: boolean;
     is_vendor_admin: boolean;
@@ -254,11 +254,11 @@ export default function AdminSupport() {
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       const matchSubject = t.subject.toLowerCase().includes(search);
-      const matchEmail = t.userProfile?.email?.toLowerCase().includes(search);
+      const matchFullName = t.userProfile?.full_name?.toLowerCase().includes(search);
       const matchAnonRep = t.repProfile?.anonymous_id?.toLowerCase().includes(search);
       const matchAnonVendor = t.vendorProfile?.anonymous_id?.toLowerCase().includes(search);
       const matchCompany = t.vendorProfile?.company_name?.toLowerCase().includes(search);
-      if (!matchSubject && !matchEmail && !matchAnonRep && !matchAnonVendor && !matchCompany) return false;
+      if (!matchSubject && !matchFullName && !matchAnonRep && !matchAnonVendor && !matchCompany) return false;
     }
     return true;
   });
@@ -389,7 +389,7 @@ export default function AdminSupport() {
                                   )}
                                 </div>
                                 <p className="text-xs text-muted-foreground truncate">
-                                  {getAnonId(ticket)} · {ticket.userProfile?.email}
+                                  {getAnonId(ticket)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {format(new Date(ticket.created_at), "MMM d, h:mm a")}
@@ -454,7 +454,6 @@ export default function AdminSupport() {
                       <div>
                         <p className="font-medium text-sm">{getAnonId(selectedTicket)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {selectedTicket.userProfile?.email} ·{" "}
                           {selectedTicket.userProfile?.is_fieldrep
                             ? "Field Rep"
                             : selectedTicket.userProfile?.is_vendor_admin
