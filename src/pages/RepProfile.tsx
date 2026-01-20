@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { useMimic } from "@/hooks/useMimic";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { US_STATES, SYSTEMS_LIST } from "@/lib/constants";
@@ -123,6 +124,7 @@ const RepProfile = () => {
   const hasScrolledToCoverage = useRef(false);
   
   const { user, loading: authLoading } = useAuth();
+  const { effectiveUserId } = useMimic();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [repProfile, setRepProfile] = useState<any>(null);
@@ -234,20 +236,20 @@ const RepProfile = () => {
       return;
     }
 
-    if (user) {
+    if (effectiveUserId) {
       loadProfile();
     }
-  }, [user, authLoading, navigate]);
+  }, [effectiveUserId, authLoading, navigate]);
 
   const loadProfile = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     try {
-      // Load user profile
+      // Load user profile using effectiveUserId (supports mimic mode)
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user.id)
+        .eq("id", effectiveUserId)
         .single();
 
       if (profileError) throw profileError;
@@ -269,7 +271,7 @@ const RepProfile = () => {
       const { data: repData, error: repError } = await supabase
         .from("rep_profile")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .maybeSingle();
 
       if (repError && repError.code !== "PGRST116") throw repError;
@@ -338,7 +340,7 @@ const RepProfile = () => {
         // Create new rep profile
         const { data: newRepProfile, error: createError } = await supabase
           .from("rep_profile")
-          .insert({ user_id: user.id })
+          .insert({ user_id: effectiveUserId })
           .select()
           .single();
 
@@ -350,7 +352,7 @@ const RepProfile = () => {
       await loadCoverageAreas();
       
       // Load background check record from new table
-      const bgCheck = await fetchMyBackgroundCheck(user.id);
+      const bgCheck = await fetchMyBackgroundCheck(effectiveUserId);
       setBackgroundCheckRecord(bgCheck);
       
       // Pre-fill form from background_checks table if exists
@@ -378,11 +380,11 @@ const RepProfile = () => {
 
   // Load coverage areas for this rep
   const loadCoverageAreas = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     const { data, error } = await supabase
       .from("rep_coverage_areas")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .order("state_code", { ascending: true });
 
     if (error) {
@@ -429,7 +431,7 @@ const RepProfile = () => {
     const { error } = await supabase
       .from("rep_profile")
       .update(updateData)
-      .eq("user_id", user!.id);
+      .eq("user_id", effectiveUserId!);
 
     if (error) {
       console.error("Error updating profile:", error);
@@ -445,8 +447,8 @@ const RepProfile = () => {
     // Note: Background check is submitted separately via "Send for Verification" button
 
     // Track profile completion for checklist
-    if (user && data.city && data.state && data.zip_code && data.inspection_types.length > 0) {
-      checklist.profileCompleted(user.id);
+    if (effectiveUserId && data.city && data.state && data.zip_code && data.inspection_types.length > 0) {
+      checklist.profileCompleted(effectiveUserId);
     }
 
     toast({
@@ -1036,7 +1038,7 @@ const RepProfile = () => {
                             setUploadingScreenshot(true);
                             try {
                               // Upload to private bucket
-                              const filePath = `${user.id}/${Date.now()}_${file.name}`;
+                              const filePath = `${effectiveUserId}/${Date.now()}_${file.name}`;
                               const { error: uploadError } = await supabase.storage
                                 .from("background-checks")
                                 .upload(filePath, file);
@@ -1107,7 +1109,7 @@ const RepProfile = () => {
                             : watch("background_check_provider_other_name") || "other";
                           
                           await submitBackgroundCheck(
-                            user!.id,
+                            effectiveUserId!,
                             providerName,
                             watch("background_check_id") || "",
                             backgroundCheckScreenshot,
@@ -1115,7 +1117,7 @@ const RepProfile = () => {
                           );
 
                           // Reload background check record
-                          const bgCheck = await fetchMyBackgroundCheck(user!.id);
+                          const bgCheck = await fetchMyBackgroundCheck(effectiveUserId!);
                           setBackgroundCheckRecord(bgCheck);
 
                           toast({
