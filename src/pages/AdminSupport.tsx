@@ -128,7 +128,7 @@ export default function AdminSupport() {
     const userIds = [...new Set(rawTickets.map((t) => t.user_id))];
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, email, full_name, is_fieldrep, is_vendor_admin")
+      .select("id, full_name, is_fieldrep, is_vendor_admin")
       .in("id", userIds);
 
     const { data: repProfiles } = await supabase

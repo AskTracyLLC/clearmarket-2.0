@@ -42,7 +42,6 @@ import { logAdminAction } from "@/lib/adminAudit";
 
 interface StaffUser {
   id: string;
-  email: string;
   full_name: string | null;
   is_admin: boolean;
   is_moderator: boolean;
@@ -54,6 +53,7 @@ interface StaffUser {
   staff_invited_at: string | null;
   staff_invite_sent_at: string | null;
   staff_invite_note: string | null;
+  staff_anonymous_id: string | null;
 }
 
 export default function AdminStaff() {
@@ -108,7 +108,7 @@ export default function AdminStaff() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, is_admin, is_moderator, is_support, is_super_admin, account_status, last_seen_at, staff_role, staff_invited_at, staff_invite_sent_at, staff_invite_note")
+        .select("id, full_name, is_admin, is_moderator, is_support, is_super_admin, account_status, last_seen_at, staff_role, staff_invited_at, staff_invite_sent_at, staff_invite_note, staff_anonymous_id")
         .or("is_admin.eq.true,is_moderator.eq.true,is_support.eq.true")
         .order("is_super_admin", { ascending: false })
         .order("is_admin", { ascending: false })

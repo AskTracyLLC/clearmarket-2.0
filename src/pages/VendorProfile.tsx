@@ -239,7 +239,7 @@ const VendorProfile = () => {
         setValue("gl_insurance_note", vendorData.gl_insurance_note || "");
         setValue("poc_name", vendorData.poc_name || profileData.full_name || "");
         setValue("poc_title", vendorData.poc_title || "");
-        setValue("poc_email", vendorData.poc_email || profileData.email || "");
+        setValue("poc_email", vendorData.poc_email || "");
         setValue("poc_phone", vendorData.poc_phone || "");
         setValue("company_name", vendorData.company_name || "");
         setValue("company_description", vendorData.company_description || "");
@@ -260,7 +260,7 @@ const VendorProfile = () => {
         
         // Pre-fill POC from user profile
         setValue("poc_name", profileData.full_name || "");
-        setValue("poc_email", profileData.email || "");
+        setValue("poc_email", "");
       }
     } catch (error: any) {
       console.error("Error loading profile:", error);

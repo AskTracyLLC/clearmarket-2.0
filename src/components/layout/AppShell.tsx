@@ -127,7 +127,6 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       is_vendor_admin: profileData?.is_vendor_admin ?? undefined,
       is_fieldrep: profileData?.is_fieldrep ?? undefined,
       full_name: profileData?.full_name ?? undefined,
-      email: profileData?.email ?? undefined,
       anonymous_id: profileData?.anonymous_id ?? undefined,
       rep_anonymous_id: repAnonymousId,
       vendor_anonymous_id: vendorAnonymousId,

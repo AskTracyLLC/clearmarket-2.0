@@ -88,10 +88,10 @@ export function ReportsDataTable({ reports, onReportClick, onViewProfile, onView
                     onClick={() => onViewProfile?.(report.reported_user_id)}
                     className="text-sm font-medium hover:underline text-left"
                   >
-                    {report.reported.full_name || report.reported.email}
+                    {report.reported.full_name || "Unknown"}
                   </button>
                   <p className="text-xs text-muted-foreground">
-                    Reported by: {report.reporter.full_name || report.reporter.email}
+                    Reported by: {report.reporter.full_name || "Unknown"}
                   </p>
                 </div>
               </TableCell>

@@ -47,11 +47,9 @@ interface AuditLogEntry {
   actor_code: string | null;
   actor?: {
     full_name: string | null;
-    email: string;
   } | null;
   target?: {
     full_name: string | null;
-    email: string;
   } | null;
 }
 
@@ -186,17 +184,17 @@ export default function AdminAuditLog() {
       const targetIds = [...new Set(logsData?.filter(l => l.target_user_id).map(l => l.target_user_id!) || [])];
       const allUserIds = [...new Set([...actorIds, ...targetIds])];
 
-      let profilesMap: Record<string, { full_name: string | null; email: string }> = {};
+      let profilesMap: Record<string, { full_name: string | null }> = {};
 
       if (allUserIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name, email")
+          .select("id, full_name")
           .in("id", allUserIds);
 
         if (profiles) {
           profiles.forEach(p => {
-            profilesMap[p.id] = { full_name: p.full_name, email: p.email };
+            profilesMap[p.id] = { full_name: p.full_name };
           });
         }
       }

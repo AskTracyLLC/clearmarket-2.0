@@ -106,11 +106,11 @@ export default function AdminSitePageEditor() {
         if (data.last_updated_by) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("email, staff_anonymous_id")
+            .select("full_name, staff_anonymous_id")
             .eq("id", data.last_updated_by)
             .single();
           if (profile) {
-            setLastUpdatedByEmail(profile.staff_anonymous_id || profile.email);
+            setLastUpdatedByEmail(profile.staff_anonymous_id || profile.full_name || "Unknown");
           }
         }
       }

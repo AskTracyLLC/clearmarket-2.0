@@ -72,7 +72,7 @@ export default function AdminModeration() {
   const loadTargetUserInfo = async (userId: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("email, full_name")
+      .select("full_name")
       .eq("id", userId)
       .maybeSingle();
 
@@ -89,7 +89,7 @@ export default function AdminModeration() {
       .maybeSingle();
 
     const anonId = repProfile?.anonymous_id || vendorProfile?.anonymous_id;
-    const label = anonId || profile?.full_name || profile?.email || userId.slice(0, 8);
+    const label = anonId || profile?.full_name || userId.slice(0, 8);
 
     setTargetUserFilter({ id: userId, label });
   };
@@ -187,8 +187,8 @@ export default function AdminModeration() {
       if (!searchTerm) return true;
       const searchLower = searchTerm.toLowerCase();
       return (
-        report.reporter.email?.toLowerCase().includes(searchLower) ||
-        report.reported.email?.toLowerCase().includes(searchLower) ||
+        report.reporter.full_name?.toLowerCase().includes(searchLower) ||
+        report.reported.full_name?.toLowerCase().includes(searchLower) ||
         report.reason_category?.toLowerCase().includes(searchLower) ||
         report.reason_details?.toLowerCase().includes(searchLower)
       );

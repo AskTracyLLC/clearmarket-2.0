@@ -32,13 +32,12 @@ export function SelectableUserGrid({
   const filteredUsers = useMemo(() => {
     let result = users;
     
-    // Apply search filter
+    // Apply search filter (by name only, email removed for privacy)
     if (search.trim()) {
       const searchLower = search.toLowerCase();
       result = result.filter((u) => {
         const fullName = (u.full_name || "").toLowerCase();
-        const email = (u.email || "").toLowerCase();
-        return fullName.includes(searchLower) || email.includes(searchLower);
+        return fullName.includes(searchLower);
       });
     }
     
@@ -49,8 +48,8 @@ export function SelectableUserGrid({
     
     // Sort alphabetically by name (A-Z)
     result = [...result].sort((a, b) => {
-      const nameA = (a.full_name || a.email || "").toLowerCase();
-      const nameB = (b.full_name || b.email || "").toLowerCase();
+      const nameA = (a.full_name || "").toLowerCase();
+      const nameB = (b.full_name || "").toLowerCase();
       return nameA.localeCompare(nameB);
     });
     
@@ -67,7 +66,7 @@ export function SelectableUserGrid({
     if (user.full_name) {
       return user.full_name;
     }
-    return user.email || "Unknown User";
+    return "Unknown User";
   };
 
   const handleSelectAll = () => {
@@ -138,7 +137,7 @@ export function SelectableUserGrid({
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder={`Search ${title.toLowerCase()}...`}
+            placeholder={`Search ${title.toLowerCase()} by name...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-8 text-sm"
@@ -199,9 +198,6 @@ export function SelectableUserGrid({
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">
                       {formatLabel(user)}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {user.email}
                     </div>
                   </div>
                 </div>

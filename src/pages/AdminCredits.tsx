@@ -36,7 +36,6 @@ interface VendorSearchResult {
   vendor_id: string; // vendor_profile.id
   owner_user_id: string; // vendor_profile.user_id (profiles.id of owner)
   company_name: string | null;
-  owner_email: string;
   owner_full_name: string | null;
   anonymous_id: string | null;
   vendor_public_code: string | null;
@@ -121,13 +120,12 @@ const AdminCredits = () => {
       .eq("vendor_id", vendorId)
       .maybeSingle();
 
-    const ownerProfile = vendorData.profiles as { email: string; full_name: string | null } | null;
+    const ownerProfile = vendorData.profiles as { full_name: string | null } | null;
 
     const vendorResult: VendorSearchResult = {
       vendor_id: vendorData.id,
       owner_user_id: vendorData.user_id,
       company_name: vendorData.company_name,
-      owner_email: ownerProfile?.email || "Unknown",
       owner_full_name: ownerProfile?.full_name || null,
       anonymous_id: vendorData.anonymous_id,
       vendor_public_code: vendorData.vendor_public_code,
@@ -157,7 +155,7 @@ const AdminCredits = () => {
           company_name,
           anonymous_id,
           vendor_public_code,
-          profiles!vendor_profile_user_id_fkey(email, full_name)
+          profiles!vendor_profile_user_id_fkey(full_name)
         `)
         .or(`company_name.ilike.${searchTerm},anonymous_id.ilike.${searchTerm},vendor_public_code.ilike.${searchTerm}`)
         .limit(20);
@@ -168,39 +166,8 @@ const AdminCredits = () => {
         return;
       }
 
-      // Also search by owner email if the pattern looks like an email
-      let additionalVendors: typeof vendorData = [];
-      if (query.includes("@")) {
-        const { data: profileMatches } = await supabase
-          .from("profiles")
-          .select("id")
-          .ilike("email", searchTerm)
-          .limit(10);
-
-        if (profileMatches && profileMatches.length > 0) {
-          const ownerIds = profileMatches.map((p) => p.id);
-          const existingOwnerIds = (vendorData || []).map((v) => v.user_id);
-          const newOwnerIds = ownerIds.filter((id) => !existingOwnerIds.includes(id));
-
-          if (newOwnerIds.length > 0) {
-            const { data: moreVendors } = await supabase
-              .from("vendor_profile")
-              .select(`
-                id,
-                user_id,
-                company_name,
-                anonymous_id,
-                vendor_public_code,
-                profiles!vendor_profile_user_id_fkey(email, full_name)
-              `)
-              .in("user_id", newOwnerIds);
-
-            additionalVendors = moreVendors || [];
-          }
-        }
-      }
-
-      const allVendors = [...(vendorData || []), ...additionalVendors];
+      // Email search removed for privacy - only search by company name, anonymous_id, vendor_public_code
+      const allVendors = vendorData || [];
       const vendorIds = allVendors.map((v) => v.id);
 
       // Get wallet balances for all vendors
@@ -212,12 +179,11 @@ const AdminCredits = () => {
       const walletMap = new Map((wallets || []).map((w) => [w.vendor_id, w.credits_balance]));
 
       const results: VendorSearchResult[] = allVendors.map((v) => {
-        const ownerProfile = v.profiles as { email: string; full_name: string | null } | null;
+        const ownerProfile = v.profiles as { full_name: string | null } | null;
         return {
           vendor_id: v.id,
           owner_user_id: v.user_id,
           company_name: v.company_name,
-          owner_email: ownerProfile?.email || "Unknown",
           owner_full_name: ownerProfile?.full_name || null,
           anonymous_id: v.anonymous_id,
           vendor_public_code: v.vendor_public_code,
@@ -454,7 +420,6 @@ const AdminCredits = () => {
                               </Badge>
                             )}
                             {v.anonymous_id && <span>{v.anonymous_id}</span>}
-                            <span>· {v.owner_email}</span>
                           </div>
                           {v.owner_full_name && (
                             <div className="text-xs text-muted-foreground">
@@ -519,7 +484,6 @@ const AdminCredits = () => {
                             {selectedVendor.anonymous_id}
                           </Badge>
                         )}
-                        <span>{selectedVendor.owner_email}</span>
                       </CardDescription>
                       {selectedVendor.owner_full_name && (
                         <p className="text-xs text-muted-foreground mt-1">
