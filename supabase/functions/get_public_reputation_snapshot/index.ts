@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     // Fetch profile data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name, last_seen_at')
+      .select('full_name, last_seen_at, anonymous_id')
       .eq('id', user_id)
       .single();
 
@@ -231,12 +231,14 @@ Deno.serve(async (req) => {
         : 'Coverage not specified';
 
       // Extract first name + last initial
+      // Use profiles.anonymous_id as canonical source
+      const canonicalAnonId = profile.anonymous_id || repProfile.anonymous_id;
       const displayName = profile.full_name
-        ? `${repProfile.anonymous_id} (${profile.full_name.split(' ')[0]} ${profile.full_name.split(' ').slice(-1)[0]?.charAt(0) || ''}.)`
-        : repProfile.anonymous_id;
+        ? `${canonicalAnonId} (${profile.full_name.split(' ')[0]} ${profile.full_name.split(' ').slice(-1)[0]?.charAt(0) || ''}.)`
+        : canonicalAnonId;
 
       snapshot = {
-        anonymous_id: repProfile.anonymous_id,
+        anonymous_id: canonicalAnonId,
         display_name: displayName,
         location: [repProfile.city, repProfile.state].filter(Boolean).join(', ') || 'Location not specified',
         trust_score: trustScore,

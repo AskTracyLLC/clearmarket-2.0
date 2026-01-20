@@ -1,5 +1,27 @@
 # ClearMarket Changelog
 
+## 2026-01-20 — Canonical Anonymous ID Migration
+- **Database Migration**: Made `profiles.anonymous_id` the single source of truth
+  - Deleted orphaned `rep_profile` row for admin user (Tracy)
+  - Synced all existing `rep_profile.anonymous_id` values to match `profiles.anonymous_id`
+  - Added `trg_sync_rep_profile_anon_id` trigger: unconditionally syncs profiles → rep_profile on update
+  - Added `trg_enforce_rep_profile_anon_id` trigger: prevents rep_profile from inventing different IDs
+  - Both triggers use `SECURITY DEFINER` with explicit `search_path = public`
+- **Frontend Refactoring**: All anonymous ID reads now use `profiles.anonymous_id` directly
+  - `backgroundChecks.ts`: Removed separate rep_profile lookup, query profiles.anonymous_id directly
+  - `AdminBackgroundChecks.tsx`: Updated search filter and display to use profiles.anonymous_id
+  - `VendorInterestedReps.tsx`: Query anonymous_id via rep_profile.profiles join
+  - `VendorSeekingCoverage.tsx`: Query profiles table for filled_by_rep anonymous_id
+  - `VendorWorkingTermsReview.tsx`: Query profiles table for rep name
+  - `AdminSafetyAnalytics.tsx`: Query profiles.anonymous_id for most-reported users display
+  - `reviews.ts`: Query profiles.anonymous_id for reviewee display name
+  - `AppShell.tsx`: Use profiles.anonymous_id directly, removed rep_profile_public lookup
+- **Edge Functions**: Updated to use profiles.anonymous_id as canonical source
+  - `public-profile-share`: Include anonymous_id in profiles query, prefer profile.anonymous_id
+  - `get_public_reputation_snapshot`: Include anonymous_id in profiles query, use as canonical
+  - `stripe-webhook`: Query profiles.anonymous_id directly, removed redundant rep_profile fetch
+- **Result**: Consistent anonymous IDs everywhere, no more FieldRep#11 mismatches, share links work correctly
+
 ## 2026-01-20 — Share Profile Public URL Fix
 - **publicUrl.ts**: New utility for generating public share URLs
   - `getPublicBaseUrl()`: Returns production URL, never preview/dev domains

@@ -111,14 +111,14 @@ const VendorWorkingTermsReview = () => {
 
     setRequest(req);
 
-    // Get rep name
-    const { data: repProfile } = await supabase
-      .from("rep_profile")
+    // Get rep name from profiles (canonical source)
+    const { data: profileData } = await supabase
+      .from("profiles")
       .select("anonymous_id")
-      .eq("user_id", req.rep_id)
+      .eq("id", req.rep_id)
       .single();
 
-    setRepName(repProfile?.anonymous_id || "Field Rep");
+    setRepName(profileData?.anonymous_id || "Field Rep");
 
     // Load existing rows
     const { data: rows } = await supabase

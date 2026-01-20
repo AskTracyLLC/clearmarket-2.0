@@ -98,27 +98,11 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       console.warn("AppShell: Unexpected error fetching profile:", err);
     }
 
-    // Fetch rep anonymous_id from rep_profile_public view (self-only via RLS on underlying table)
-    let repAnonymousId: string | undefined;
-    if (profileData?.is_fieldrep) {
-      try {
-        const { data: repProfile, error } = await supabase
-          .from("rep_profile_public")
-          .select("anonymous_id")
-          .eq("user_id", targetUserId)
-          .maybeSingle();
-        
-        if (error) {
-          console.warn("AppShell: Could not fetch rep_profile_public anonymous_id:", error.message);
-        } else {
-          repAnonymousId = repProfile?.anonymous_id ?? undefined;
-        }
-      } catch (err) {
-        console.warn("AppShell: Unexpected error fetching rep anonymous_id:", err);
-      }
-    }
+    // profiles.anonymous_id is now the canonical source - no need to fetch from rep_profile
+    // The rep_anonymous_id is set to the same value as profiles.anonymous_id
+    const repAnonymousId = profileData?.is_fieldrep ? (profileData?.anonymous_id ?? undefined) : undefined;
 
-    // Fetch vendor_profile anonymous_id if applicable
+    // Fetch vendor_profile anonymous_id if applicable (for vendor-specific display name)
     let vendorAnonymousId: string | undefined;
     if (profileData?.is_vendor_admin) {
       try {

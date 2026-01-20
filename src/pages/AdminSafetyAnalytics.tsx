@@ -208,20 +208,16 @@ export default function AdminSafetyAnalytics() {
       if (topReportedUserIds.length > 0) {
         const userIds = topReportedUserIds.map(([id]) => id);
         
-        // Get anonymous IDs from rep_profile and vendor_profile
-        const { data: repProfiles } = await supabase
-          .from("rep_profile")
-          .select("user_id, anonymous_id")
-          .in("user_id", userIds);
-
-        const { data: vendorProfiles } = await supabase
-          .from("vendor_profile")
-          .select("user_id, anonymous_id")
-          .in("user_id", userIds);
+        // Get anonymous IDs from profiles (canonical source)
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, anonymous_id")
+          .in("id", userIds);
 
         const anonymousIdMap = new Map<string, string>();
-        (repProfiles || []).forEach(p => anonymousIdMap.set(p.user_id, p.anonymous_id || `FieldRep#${p.user_id.substring(0, 6)}`));
-        (vendorProfiles || []).forEach(p => anonymousIdMap.set(p.user_id, p.anonymous_id || `Vendor#${p.user_id.substring(0, 6)}`));
+        (profilesData || []).forEach(p => {
+          anonymousIdMap.set(p.id, p.anonymous_id || `User#${p.id.substring(0, 6)}`);
+        });
 
         const mostReportedData: MostReportedUser[] = topReportedUserIds.map(([userId, count]) => {
           const userReports = thirtyDayReports.filter(r => r.reported_user_id === userId);

@@ -19,13 +19,10 @@ export interface BackgroundCheck {
 }
 
 export interface BackgroundCheckWithRep extends BackgroundCheck {
-  rep_profile?: {
-    anonymous_id: string | null;
-    user_id: string;
-  } | null;
   profiles?: {
     email: string;
     full_name: string | null;
+    anonymous_id: string | null;
   } | null;
   reviewer?: {
     email: string;
@@ -129,7 +126,7 @@ export async function fetchAllBackgroundChecks(
     .from("background_checks")
     .select(`
       *,
-      profiles!background_checks_field_rep_id_fkey(email, full_name),
+      profiles!background_checks_field_rep_id_fkey(email, full_name, anonymous_id),
       reviewer:profiles!background_checks_reviewed_by_user_id_fkey(email, full_name)
     `)
     .order("submitted_at", { ascending: false });
@@ -145,19 +142,7 @@ export async function fetchAllBackgroundChecks(
     return [];
   }
 
-  // Need to manually join rep_profile since the FK goes to profiles, not rep_profile
-  const repIds = data?.map(d => d.field_rep_id) || [];
-  const { data: repProfiles } = await supabase
-    .from("rep_profile")
-    .select("user_id, anonymous_id")
-    .in("user_id", repIds);
-
-  const repProfileMap = new Map(repProfiles?.map(r => [r.user_id, r]) || []);
-
-  return (data || []).map(d => ({
-    ...d,
-    rep_profile: repProfileMap.get(d.field_rep_id) || null,
-  })) as BackgroundCheckWithRep[];
+  return (data || []) as BackgroundCheckWithRep[];
 }
 
 /**
