@@ -739,9 +739,9 @@ export default function AdminChecklists() {
       // Load all users (both reps and vendors)
       const { data: users, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, is_fieldrep, is_vendor_admin, account_status")
+        .select("id, full_name, is_fieldrep, is_vendor_admin, account_status")
         .or("is_fieldrep.eq.true,is_vendor_admin.eq.true")
-        .order("email");
+        .order("full_name");
       
       if (error) throw error;
 
@@ -812,7 +812,7 @@ export default function AdminChecklists() {
         
         return {
           id: u.id,
-          email: u.email,
+          email: null, // Email removed for privacy
           full_name: u.full_name,
           is_fieldrep: u.is_fieldrep,
           is_vendor_admin: u.is_vendor_admin,

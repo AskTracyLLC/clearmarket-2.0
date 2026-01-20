@@ -177,7 +177,7 @@ export default function AdminChecklistLog() {
       // User profiles
       const { data: userProfiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email, is_fieldrep, is_vendor_admin")
+        .select("id, full_name, is_fieldrep, is_vendor_admin")
         .in("id", userIds);
       const userMap = new Map((userProfiles || []).map(u => [u.id, u]));
 
@@ -213,7 +213,7 @@ export default function AdminChecklistLog() {
           ...e,
           template_name: templateMap.get(e.template_id) || null,
           user_name: userProfile?.full_name || null,
-          user_email: userProfile?.email || null,
+          user_email: null, // Email removed for privacy
           user_is_fieldrep: userProfile?.is_fieldrep || false,
           user_is_vendor: userProfile?.is_vendor_admin || false,
           vendor_name: e.vendor_id ? vendorNameMap.get(e.vendor_id) || null : null,

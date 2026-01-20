@@ -219,18 +219,24 @@ export async function createNotification(
   const allowEmail = emailPrefField && prefs ? (prefs[emailPrefField] as boolean) : false;
 
   if (allowEmail && data?.id) {
-    // Fetch user email and name
+    // Fetch user email from profiles_private and name from profiles
+    const { data: privateData } = await supabaseClient
+      .from("profiles_private")
+      .select("email")
+      .eq("profile_id", userId)
+      .maybeSingle();
+    
     const { data: profileData } = await supabaseClient
       .from("profiles")
-      .select("email, full_name")
+      .select("full_name")
       .eq("id", userId)
       .maybeSingle();
 
-    if (profileData?.email) {
-      console.log(`Sending email notification to ${profileData.email} for type ${type}`);
+    if (privateData?.email) {
+      console.log(`Sending email notification to ${privateData.email} for type ${type}`);
       
       // Send email asynchronously (don't block on it)
-      sendEmailNotification(profileData.email, type, title, body, refId, actorName)
+      sendEmailNotification(privateData.email, type, title, body, refId, actorName)
         .then(async (result) => {
           if (result.ok) {
             console.log(`Email sent successfully for notification ${data.id}`);

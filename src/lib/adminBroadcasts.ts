@@ -782,10 +782,8 @@ export function sortAudienceUsers(users: AudienceUser[]): AudienceUser[] {
       return aFirst.localeCompare(bFirst);
     }
     
-    // Final fallback: email
-    const aEmail = (a.email || "").toLowerCase();
-    const bEmail = (b.email || "").toLowerCase();
-    return aEmail.localeCompare(bEmail);
+    // Final fallback: compare by id
+    return a.id.localeCompare(b.id);
   });
 }
 
@@ -794,5 +792,5 @@ export function formatAudienceUserLabel(user: AudienceUser): string {
   if (user.full_name) {
     return user.full_name;
   }
-  return user.email || "Unknown User";
+  return "Unknown User";
 }

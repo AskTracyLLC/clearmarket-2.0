@@ -38,7 +38,6 @@ type DualRoleRequest = Database["public"]["Tables"]["dual_role_access_requests"]
 type DualRoleRequestWithProfile = DualRoleRequest & {
   profiles?: {
     full_name: string | null;
-    email: string | null;
   } | null;
 };
 
@@ -89,8 +88,7 @@ export default function AdminDualRoleRequests() {
         .select(`
           *,
           profiles!dual_role_access_requests_user_id_fkey (
-            full_name,
-            email
+            full_name
           )
         `)
         .order("created_at", { ascending: false });

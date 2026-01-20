@@ -392,24 +392,11 @@ export default function AdminUsers() {
   };
 
   const handleSendResetLink = async (userProfile: UserProfile) => {
-    setActionLoading(userProfile.id);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(userProfile.email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-      });
-
-      if (error) throw error;
-
-      toast.success("Reset link sent", {
-        description: "If this user has an active account, a reset link has been sent.",
-      });
-    } catch (error: any) {
-      toast.error("Failed to send reset link", {
-        description: error.message,
-      });
-    } finally {
-      setActionLoading(null);
-    }
+    // Email-based password reset removed for privacy
+    // Admins should use the Supabase Auth dashboard directly
+    toast.error("Password reset", {
+      description: "Please use the backend Auth dashboard to send password reset emails.",
+    });
   };
 
   const handleDeactivate = async () => {
@@ -448,7 +435,7 @@ export default function AdminUsers() {
       // Log admin action
       logAdminAction(user.id, {
         actionType: "user.deactivated",
-        actionSummary: `Deactivated user ${targetUser.email || targetUser.full_name || getAnonymousId(targetUser)}`,
+        actionSummary: `Deactivated user ${targetUser.full_name || getAnonymousId(targetUser)}`,
         targetUserId: targetUser.id,
         actionDetails: {
           previous_status: prevStatus,
@@ -507,7 +494,7 @@ export default function AdminUsers() {
       // Log admin action
       logAdminAction(user.id, {
         actionType: "user.reactivated",
-        actionSummary: `Reactivated user ${userProfile.email || userProfile.full_name || getAnonymousId(userProfile)}`,
+        actionSummary: `Reactivated user ${userProfile.full_name || getAnonymousId(userProfile)}`,
         targetUserId: userProfile.id,
         actionDetails: {
           previous_status: prevStatus,
@@ -619,7 +606,7 @@ export default function AdminUsers() {
       setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
 
       toast.success("User deleted", {
-        description: `${targetUser.email || getAnonymousId(targetUser)} has been permanently deleted.`,
+        description: `${targetUser.full_name || getAnonymousId(targetUser)} has been permanently deleted.`,
       });
       
       setDeleteDialog({ open: false, user: null });
@@ -1321,7 +1308,7 @@ export default function AdminUsers() {
           open={messageDialog.open}
           onOpenChange={(open) => setMessageDialog({ open, user: open ? messageDialog.user : null })}
           targetUserId={messageDialog.user.id}
-          targetUserDisplay={messageDialog.user.email || getAnonymousId(messageDialog.user)}
+          targetUserDisplay={messageDialog.user.full_name || getAnonymousId(messageDialog.user)}
           adminUserId={user.id}
         />
       )}
