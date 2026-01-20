@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Star, MapPin, Calendar, Shield, Key, Wrench, CheckCircle, ExternalLink, Users } from "lucide-react";
+import { Star, MapPin, Calendar, Shield, Key, Wrench, CheckCircle, ExternalLink, Users, Globe } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchPublicProfileShare } from "@/lib/reputationSharing";
+import { getPublicBaseUrl } from "@/lib/publicUrl";
 
 interface RepProfileData {
   role: "rep";
@@ -379,10 +380,23 @@ export default function RepShareProfile() {
           </Card>
         )}
 
-        {/* Branding Footer */}
-        <p className="text-center text-xs text-muted-foreground">
-          Profile hosted by ClearMarket. Information provided by the profile owner.
-        </p>
+        {/* Branding Footer with Website URL */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            <a 
+              href={getPublicBaseUrl()} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="font-medium text-primary hover:underline"
+            >
+              {getPublicBaseUrl().replace(/^https?:\/\//, '')}
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Profile hosted by ClearMarket. Information provided by the profile owner.
+          </p>
+        </div>
       </div>
     </div>
   );
