@@ -10,6 +10,7 @@ interface SectionCounts {
   openSupportTickets: number;
   adminOpenTickets: number;
   adminOpenReports: number;
+  adminPendingBackgroundChecks: number;
   communityUnread: number;
   networkUnread: number;
   // Vendor-specific: posts with interested reps
@@ -26,6 +27,7 @@ export function useSectionCounts(): SectionCounts {
   const [openSupportTickets, setOpenSupportTickets] = useState(0);
   const [adminOpenTickets, setAdminOpenTickets] = useState(0);
   const [adminOpenReports, setAdminOpenReports] = useState(0);
+  const [adminPendingBackgroundChecks, setAdminPendingBackgroundChecks] = useState(0);
   const [communityUnread, setCommunityUnread] = useState(0);
   const [networkUnread, setNetworkUnread] = useState(0);
   const [vendorPostsWithInterest, setVendorPostsWithInterest] = useState(0);
@@ -86,8 +88,17 @@ export function useSectionCounts(): SectionCounts {
           .in("status", ["open", "under_review"]);
 
         setAdminOpenReports(reportCount || 0);
+
+        // Pending background checks (status = 'pending')
+        const { count: bgCheckCount } = await supabase
+          .from("background_checks")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "pending");
+
+        setAdminPendingBackgroundChecks(bgCheckCount || 0);
       } else {
         setAdminOpenReports(0);
+        setAdminPendingBackgroundChecks(0);
       }
 
       // Community-related unread notifications
@@ -160,6 +171,7 @@ export function useSectionCounts(): SectionCounts {
     openSupportTickets,
     adminOpenTickets,
     adminOpenReports,
+    adminPendingBackgroundChecks,
     communityUnread,
     networkUnread,
     vendorPostsWithInterest,
