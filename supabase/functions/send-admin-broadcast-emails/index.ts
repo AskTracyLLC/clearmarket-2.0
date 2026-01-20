@@ -229,6 +229,7 @@ serve(async (req: Request) => {
     }
 
     // Fetch recipients who haven't been emailed yet and have opted in
+    // Join profiles_private for email (service role can access)
     const { data: recipients, error: recipientsError } = await supabase
       .from("admin_broadcast_recipients")
       .select(`
@@ -236,8 +237,10 @@ serve(async (req: Request) => {
         user_id,
         emailed_at,
         profiles!inner (
-          email,
           email_opt_in_admin_updates
+        ),
+        profiles_private:profiles_private!inner (
+          email
         )
       `)
       .eq("broadcast_id", broadcastId)
@@ -253,10 +256,9 @@ serve(async (req: Request) => {
 
     // Filter to only opted-in users with valid emails
     const eligibleRecipients = (recipients || []).filter((r: any) => {
-      const profile = r.profiles;
-      return profile?.email && 
-             profile?.email.trim() !== "" && 
-             profile?.email_opt_in_admin_updates !== false;
+      const email = r.profiles_private?.email;
+      const optedIn = r.profiles?.email_opt_in_admin_updates !== false;
+      return email && email.trim() !== "" && optedIn;
     });
 
     console.log(`Found ${eligibleRecipients.length} eligible recipients out of ${recipients?.length || 0} total`);
@@ -290,10 +292,10 @@ serve(async (req: Request) => {
       
       console.log(`Processing batch ${batchNumber} with ${batch.length} recipients`);
 
-      // Prepare email payloads
+      // Prepare email payloads (email from profiles_private)
       const emailPayloads = batch.map((r: any) => ({
         from: RESEND_FROM,
-        to: r.profiles.email,
+        to: r.profiles_private.email,
         subject,
         html,
         text,

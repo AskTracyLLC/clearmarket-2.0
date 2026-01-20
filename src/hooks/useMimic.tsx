@@ -61,9 +61,10 @@ export function MimicProvider({ children }: { children: ReactNode }) {
   const loadMimickedUser = useCallback(async (userId: string) => {
     setIsLoading(true);
     try {
+      // Fetch profile (email now in profiles_private)
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, is_fieldrep, is_vendor_admin, is_vendor_staff")
+        .select("id, full_name, is_fieldrep, is_vendor_admin, is_vendor_staff")
         .eq("id", userId)
         .single();
 
@@ -72,10 +73,16 @@ export function MimicProvider({ children }: { children: ReactNode }) {
         clearMimicState();
         setMimickedUser(null);
       } else {
+        // Fetch email via admin RPC (mimic is admin-only feature)
+        const { data: emailData } = await supabase.rpc("admin_get_profile_email", {
+          p_target_profile_id: userId,
+          p_reason: "Admin mimic session initiated",
+        });
+
         setMimickedUser({
           id: data.id,
           full_name: data.full_name,
-          email: data.email,
+          email: (emailData as string) || "—",
           is_fieldrep: data.is_fieldrep,
           is_vendor_admin: data.is_vendor_admin,
           is_vendor_staff: data.is_vendor_staff ?? false,

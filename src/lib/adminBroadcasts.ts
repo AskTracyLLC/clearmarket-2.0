@@ -26,7 +26,6 @@ export interface BroadcastAudience {
 export interface AudienceUser {
   id: string;
   full_name: string | null;
-  email: string;
   is_fieldrep: boolean;
   is_vendor_admin: boolean;
 }
@@ -313,7 +312,6 @@ export async function fetchBroadcastRecipients(
       *,
       profiles (
         full_name,
-        email,
         is_fieldrep,
         is_vendor_admin
       )
@@ -356,7 +354,6 @@ export async function fetchBroadcastFeedback(broadcastId: string): Promise<Feedb
       ),
       profiles (
         full_name,
-        email,
         is_fieldrep,
         is_vendor_admin
       )
@@ -728,7 +725,7 @@ export async function fetchAudienceUsers(
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, is_fieldrep, is_vendor_admin")
+    .select("id, full_name, is_fieldrep, is_vendor_admin")
     .eq("account_status", "active")
     .eq("is_admin", false);
 

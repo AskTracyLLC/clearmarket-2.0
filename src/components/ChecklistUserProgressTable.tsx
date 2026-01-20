@@ -132,10 +132,10 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
         return;
       }
 
-      // Get profiles
+      // Get profiles (email removed for privacy)
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email, is_fieldrep, is_vendor_admin")
+        .select("id, full_name, is_fieldrep, is_vendor_admin")
         .in("id", userIds);
 
       // Filter profiles based on template role
@@ -180,7 +180,7 @@ export function ChecklistUserProgressTable({ templateId, vendorId }: ChecklistUs
           return {
             userId: assignment.user_id,
             userName: profile?.full_name || null,
-            userEmail: profile?.email || "Unknown",
+            userEmail: "—", // Email hidden for privacy
             role: profile?.is_fieldrep ? "Field Rep" : "Vendor",
             completedCount,
             totalCount,

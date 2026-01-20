@@ -126,8 +126,8 @@ export async function fetchAllBackgroundChecks(
     .from("background_checks")
     .select(`
       *,
-      profiles!background_checks_field_rep_id_fkey(email, full_name, anonymous_id),
-      reviewer:profiles!background_checks_reviewed_by_user_id_fkey(email, full_name)
+      profiles!background_checks_field_rep_id_fkey(full_name, anonymous_id),
+      reviewer:profiles!background_checks_reviewed_by_user_id_fkey(full_name)
     `)
     .order("submitted_at", { ascending: false });
 

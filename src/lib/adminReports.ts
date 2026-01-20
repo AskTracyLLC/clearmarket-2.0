@@ -17,12 +17,10 @@ export interface ReportWithDetails {
   admin_notes: string | null;
   reporter: {
     id: string;
-    email: string;
     full_name: string | null;
   };
   reported: {
     id: string;
-    email: string;
     full_name: string | null;
   };
 }
@@ -85,8 +83,8 @@ export async function fetchReportsByType(
       .from("user_reports")
       .select(`
         *,
-        reporter:profiles!reporter_user_id(id, email, full_name),
-        reported:profiles!reported_user_id(id, email, full_name)
+        reporter:profiles!reporter_user_id(id, full_name),
+        reported:profiles!reported_user_id(id, full_name)
       `);
 
     if (targetType && targetType !== "all") {

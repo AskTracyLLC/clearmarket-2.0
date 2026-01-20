@@ -77,15 +77,14 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
       is_vendor_admin?: boolean | null;
       is_fieldrep?: boolean | null;
       full_name?: string | null;
-      email?: string | null;
       anonymous_id?: string | null;
     } | null = null;
 
-    // Fetch main profile (self-only RLS)
+    // Fetch main profile (self-only RLS) - email removed for privacy
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("is_admin, is_vendor_admin, is_fieldrep, full_name, email, anonymous_id")
+        .select("is_admin, is_vendor_admin, is_fieldrep, full_name, anonymous_id")
         .eq("id", targetUserId)
         .maybeSingle();
       

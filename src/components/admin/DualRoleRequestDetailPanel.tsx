@@ -250,15 +250,15 @@ export function DualRoleRequestDetailPanel({
         .select(`
           *,
           profiles!dual_role_access_requests_user_id_fkey (
-            full_name,
-            email
+            full_name
           )
         `)
         .eq("id", item.source_id)
         .single();
 
       if (error) throw error;
-      setDualRoleRequest(data);
+      // Add email placeholder since it's no longer in profiles
+      setDualRoleRequest({ ...data, profiles: { ...data.profiles, email: "—" } } as DualRoleRequest);
     } catch (err) {
       console.error("Error loading dual role request:", err);
     } finally {
