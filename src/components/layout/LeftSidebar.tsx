@@ -343,7 +343,7 @@ export function LeftSidebar({
       storageKey: "queue",
       items: [
         { id: "admin-support", label: "Support Queue", path: "/admin/support-queue", icon: <Inbox className="h-5 w-5" />, badge: (sectionCounts.adminOpenReports || 0) + (sectionCounts.adminOpenTickets || 0) },
-        { id: "admin-bgcheck", label: "Background Checks", path: "/admin/background-checks", icon: <FileCheck className="h-5 w-5" /> },
+        { id: "admin-bgcheck", label: "Background Checks", path: "/admin/background-checks", icon: <FileCheck className="h-5 w-5" />, badge: sectionCounts.adminPendingBackgroundChecks || 0 },
       ],
     },
     {
