@@ -1644,9 +1644,11 @@ export type Database = {
           import_batch_id: string | null
           is_open: boolean | null
           job_id: string | null
+          job_name: string | null
           order_instance_key: string
           rep_display_name: string | null
           service: string | null
+          start_date: string | null
           state: string | null
           status: string | null
           street: string | null
@@ -1673,9 +1675,11 @@ export type Database = {
           import_batch_id?: string | null
           is_open?: boolean | null
           job_id?: string | null
+          job_name?: string | null
           order_instance_key: string
           rep_display_name?: string | null
           service?: string | null
+          start_date?: string | null
           state?: string | null
           status?: string | null
           street?: string | null
@@ -1702,9 +1706,11 @@ export type Database = {
           import_batch_id?: string | null
           is_open?: boolean | null
           job_id?: string | null
+          job_name?: string | null
           order_instance_key?: string
           rep_display_name?: string | null
           service?: string | null
+          start_date?: string | null
           state?: string | null
           status?: string | null
           street?: string | null
