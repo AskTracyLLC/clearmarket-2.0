@@ -47,9 +47,9 @@ export function GlobalMessageListener() {
       const token = data.session?.access_token;
       if (token) {
         supabase.realtime.setAuth(token);
-        console.log("[GML] realtime auth set");
+        if (import.meta.env.DEV) console.log("[GML] realtime auth set");
       } else {
-        console.warn("[GML] no session token for realtime");
+        if (import.meta.env.DEV) console.warn("[GML] no session token for realtime");
       }
     };
 
@@ -59,7 +59,7 @@ export function GlobalMessageListener() {
       const token = session?.access_token;
       if (token) {
         supabase.realtime.setAuth(token);
-        console.log("[GML] realtime auth refreshed");
+        if (import.meta.env.DEV) console.log("[GML] realtime auth refreshed");
       }
     });
 
@@ -71,7 +71,7 @@ export function GlobalMessageListener() {
   // Subscribe to messages - only depends on targetUserId
   useEffect(() => {
     if (!targetUserId) {
-      console.log("[GML] No targetUserId, skipping subscription");
+      if (import.meta.env.DEV) console.log("[GML] No targetUserId, skipping subscription");
       return;
     }
 
@@ -82,12 +82,12 @@ export function GlobalMessageListener() {
 
     // Clean up any existing subscription
     if (channelRef.current) {
-      console.log("[GML] Cleaning up existing channel");
+      if (import.meta.env.DEV) console.log("[GML] Cleaning up existing channel");
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
 
-    console.log("[GML] Creating channel for user:", targetUserId);
+    if (import.meta.env.DEV) console.log("[GML] Creating channel for user:", targetUserId);
 
     // Create a new channel with a unique name for this user
     const channel = supabase
@@ -101,8 +101,7 @@ export function GlobalMessageListener() {
           // TEMP: no filter to test if realtime works at all
         },
         (payload) => {
-          // Log FIRST before any conditions
-          console.log("[GML] INSERT payload received:", payload);
+          if (import.meta.env.DEV) console.log("[GML] INSERT payload received:", payload);
           
           const msg = payload.new as {
             id: string;
@@ -110,11 +109,13 @@ export function GlobalMessageListener() {
             recipient_id: string;
           };
 
-          console.log("[GML] message check:", {
-            sender_id: msg.sender_id,
-            recipient_id: msg.recipient_id,
-            currentUserId: targetUserId,
-          });
+          if (import.meta.env.DEV) {
+            console.log("[GML] message check:", {
+              sender_id: msg.sender_id,
+              recipient_id: msg.recipient_id,
+              currentUserId: targetUserId,
+            });
+          }
 
           // Only act if recipient matches current user
           if (msg.recipient_id !== targetUserId) {
@@ -123,26 +124,28 @@ export function GlobalMessageListener() {
 
           // Don't play sound for messages sent by the current user
           if (msg.sender_id === targetUserId) {
-            console.log("[GML] Skipping - sender is self");
+            if (import.meta.env.DEV) console.log("[GML] Skipping - sender is self");
             return;
           }
 
           // Play sound if enabled
           if (soundEnabledRef.current) {
-            console.log("[GML] Playing notification sound");
+            if (import.meta.env.DEV) console.log("[GML] Playing notification sound");
             playRef.current();
           } else {
-            console.log("[GML] Sound disabled, skipping");
+            if (import.meta.env.DEV) console.log("[GML] Sound disabled, skipping");
           }
         }
       )
       .subscribe((status, err) => {
-        if (status === "SUBSCRIBED") {
-          console.log("[GML] Successfully subscribed to messages channel");
-        } else if (status === "CHANNEL_ERROR") {
-          console.error("[GML] Failed to subscribe to messages channel:", err);
-        } else {
-          console.log("[GML] subscribe status:", status);
+        if (import.meta.env.DEV) {
+          if (status === "SUBSCRIBED") {
+            console.log("[GML] Successfully subscribed to messages channel");
+          } else if (status === "CHANNEL_ERROR") {
+            console.error("[GML] Failed to subscribe to messages channel:", err);
+          } else {
+            console.log("[GML] subscribe status:", status);
+          }
         }
       });
 
@@ -151,7 +154,7 @@ export function GlobalMessageListener() {
     // Cleanup on unmount or targetUserId change
     return () => {
       if (channelRef.current) {
-        console.log("[GML] Unmounting - removing channel");
+        if (import.meta.env.DEV) console.log("[GML] Unmounting - removing channel");
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
