@@ -60,11 +60,14 @@ serve(async (req) => {
       );
     }
 
+    // Normalize code to uppercase for case-insensitive matching
+    const normalizedCode = code.toUpperCase().trim();
+
     // Look up the invite code
     const { data: inviteCode, error: lookupError } = await supabase
       .from("beta_invite_codes")
       .select("*")
-      .eq("code", code)
+      .eq("code", normalizedCode)
       .eq("is_active", true)
       .single();
 
@@ -114,10 +117,10 @@ serve(async (req) => {
       );
     }
 
-    // Update user's profile with the used code
+    // Update user's profile with the used code (store normalized version)
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ used_invite_code: code })
+      .update({ used_invite_code: normalizedCode })
       .eq("id", userId);
 
     if (profileError) {
