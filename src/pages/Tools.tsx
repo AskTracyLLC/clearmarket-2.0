@@ -89,7 +89,7 @@ const Tools = () => {
                   <div>
                     <CardTitle className="text-lg">ClearCheck</CardTitle>
                     <CardDescription className="mt-1">
-                      Order status tracking, avg turnaround times, contact chasing
+                      Order status tracking, turnaround trends, and outreach log
                     </CardDescription>
                   </div>
                 </div>
