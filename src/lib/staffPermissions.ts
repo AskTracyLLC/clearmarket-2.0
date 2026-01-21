@@ -137,16 +137,13 @@ export interface ProfileForRoleCheck {
   is_moderator?: boolean;
   is_support?: boolean;
   is_super_admin?: boolean;
-  email?: string | null;
 }
 
 export function getRoleFromProfile(profile: ProfileForRoleCheck | null): StaffRole {
   if (!profile) return "none";
   
-  // Super admin safeguard – Tracy always has full rights
-  if (profile?.email && profile.email.toLowerCase() === "tracy@asktracyllc.com") {
-    return "admin";
-  }
+  // Super admin flag takes precedence
+  if (profile?.is_super_admin) return "admin";
   if (profile?.is_admin) return "admin";
   if (profile?.is_moderator) return "moderator";
   if (profile?.is_support) return "support";
@@ -161,11 +158,5 @@ export function getPermissionsForProfile(profile: ProfileForRoleCheck | null): S
 // Check if user has super admin privileges (for staff management)
 export function isSuperAdminFromProfile(profile: ProfileForRoleCheck | null): boolean {
   if (!profile) return false;
-  
-  // Tracy always has super admin rights
-  if (profile?.email && profile.email.toLowerCase() === "tracy@asktracyllc.com") {
-    return true;
-  }
-  
   return profile?.is_super_admin === true;
 }
