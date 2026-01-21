@@ -2399,6 +2399,42 @@ export type Database = {
           },
         ]
       }
+      counties: {
+        Row: {
+          centroid_lat: number | null
+          centroid_lng: number | null
+          county_fips: string | null
+          county_name: string
+          created_at: string
+          geoid: string
+          state_abbr: string
+          state_fips: string | null
+          updated_at: string
+        }
+        Insert: {
+          centroid_lat?: number | null
+          centroid_lng?: number | null
+          county_fips?: string | null
+          county_name: string
+          created_at?: string
+          geoid: string
+          state_abbr: string
+          state_fips?: string | null
+          updated_at?: string
+        }
+        Update: {
+          centroid_lat?: number | null
+          centroid_lng?: number | null
+          county_fips?: string | null
+          county_name?: string
+          created_at?: string
+          geoid?: string
+          state_abbr?: string
+          state_fips?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           created_at: string
@@ -4494,6 +4530,91 @@ export type Database = {
           {
             foreignKeyName: "rep_coverage_areas_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
+      rep_coverage_counties: {
+        Row: {
+          county_geoid: string
+          created_at: string
+          id: string
+          rep_user_id: string
+        }
+        Insert: {
+          county_geoid: string
+          created_at?: string
+          id?: string
+          rep_user_id: string
+        }
+        Update: {
+          county_geoid?: string
+          created_at?: string
+          id?: string
+          rep_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_coverage_counties_county_geoid_fkey"
+            columns: ["county_geoid"]
+            isOneToOne: false
+            referencedRelation: "counties"
+            referencedColumns: ["geoid"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_county_geoid_fkey"
+            columns: ["county_geoid"]
+            isOneToOne: false
+            referencedRelation: "county_rep_counts"
+            referencedColumns: ["county_geoid"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "rep_coverage_counties_rep_user_id_fkey"
+            columns: ["rep_user_id"]
             isOneToOne: false
             referencedRelation: "rep_profile_pricing_status"
             referencedColumns: ["rep_user_id"]
@@ -11119,6 +11240,15 @@ export type Database = {
             referencedColumns: ["rep_user_id"]
           },
         ]
+      }
+      county_rep_counts: {
+        Row: {
+          county_geoid: string | null
+          county_name: string | null
+          rep_count: number | null
+          state_abbr: string | null
+        }
+        Relationships: []
       }
       profiles_safe: {
         Row: {
