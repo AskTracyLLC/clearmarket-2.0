@@ -1034,15 +1034,12 @@ export default function AdminUsers() {
                                 }`}
                                 title={userProfile.account_status === "active" ? "Active" : userProfile.account_status}
                               />
-                              <div>
-                                <button
-                                  onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
-                                  className="font-medium text-left hover:underline hover:text-primary transition-colors"
-                                >
-                                  {userProfile.full_name || getAnonymousId(userProfile)}
-                                </button>
-                                <p className="text-xs text-muted-foreground font-mono">{userProfile.id.slice(0, 8)}...</p>
-                              </div>
+                              <button
+                                onClick={() => setProfileDialog({ open: true, userId: userProfile.id })}
+                                className="font-medium text-left hover:underline hover:text-primary transition-colors"
+                              >
+                                {userProfile.full_name || getAnonymousId(userProfile)}
+                              </button>
                             </div>
                           </TableCell>
                         )}
