@@ -12036,6 +12036,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      admin_revise_fieldrep_anonymous_id: {
+        Args: { p_profile_id: string }
+        Returns: string
+      }
       admin_send_vendor_verification_message: {
         Args: {
           p_body: string
@@ -12277,6 +12281,7 @@ export type Database = {
             }
             Returns: undefined
           }
+      next_fieldrep_anonymous_id: { Args: never; Returns: string }
       process_order_snapshots: {
         Args: { p_import_batch_id: string; p_orders: Json[] }
         Returns: Json
