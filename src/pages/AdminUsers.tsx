@@ -663,16 +663,15 @@ export default function AdminUsers() {
     }
   };
 
-  const getAnonymousId = (userProfile: UserProfile) => {
-    // Staff get their staff_anonymous_id (MBFS_JP, Admin#1, etc.)
+  const getAnonymousId = (userProfile?: UserProfile | null) => {
+    if (!userProfile) return "—";
+
     if (userProfile.staff_anonymous_id) return userProfile.staff_anonymous_id;
-    // Vendor staff fallback to staff_code from vendor_staff table
     if (vendorStaffCodes[userProfile.id]) return vendorStaffCodes[userProfile.id];
-    // Primary source: profiles.anonymous_id (source of truth)
     if (userProfile.anonymous_id) return userProfile.anonymous_id;
-    // Legacy fallback (can be removed after transition)
     if (repProfiles[userProfile.id]) return repProfiles[userProfile.id];
     if (vendorProfiles[userProfile.id]?.anonymousId) return vendorProfiles[userProfile.id].anonymousId;
+
     return "—";
   };
 
@@ -1265,7 +1264,11 @@ export default function AdminUsers() {
               Deactivate Account
             </DialogTitle>
             <DialogDescription>
-              This will prevent {deactivateDialog.user?.full_name || getAnonymousId(deactivateDialog.user!)} from logging in. Their data will be preserved.
+              This will prevent{" "}
+              {deactivateDialog.user
+                ? (deactivateDialog.user.full_name || getAnonymousId(deactivateDialog.user))
+                : "this user"}{" "}
+              from logging in. Their data will be preserved.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1332,8 +1335,11 @@ export default function AdminUsers() {
               Delete User Permanently
             </DialogTitle>
             <DialogDescription>
-              This will permanently delete {deleteDialog.user?.full_name || getAnonymousId(deleteDialog.user!)} and all their data. 
-              This action cannot be undone.
+              This will permanently delete{" "}
+              {deleteDialog.user
+                ? (deleteDialog.user.full_name || getAnonymousId(deleteDialog.user))
+                : "this user"}{" "}
+              and all their data. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
