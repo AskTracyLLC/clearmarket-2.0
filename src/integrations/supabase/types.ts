@@ -11574,6 +11574,29 @@ export type Database = {
         Args: { p_reason: string; p_target_profile_id: string }
         Returns: string
       }
+      admin_list_users_safe: {
+        Args: { p_limit?: number }
+        Returns: {
+          account_status: string
+          anonymous_id: string
+          community_score: number
+          created_at: string
+          deactivated_at: string
+          deactivated_reason: string
+          full_name: string
+          id: string
+          is_admin: boolean
+          is_fieldrep: boolean
+          is_moderator: boolean
+          is_super_admin: boolean
+          is_support: boolean
+          is_vendor_admin: boolean
+          is_vendor_staff: boolean
+          last_seen_at: string
+          staff_anonymous_id: string
+          updated_at: string
+        }[]
+      }
       admin_send_vendor_verification_message: {
         Args: {
           p_body: string
