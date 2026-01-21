@@ -121,6 +121,10 @@ import DemoRepVendorDirectory from "./pages/demo/DemoRepVendorDirectory";
 import DemoCommunityBoard from "./pages/demo/DemoCommunityBoard";
 import DemoCoverageMap from "./pages/demo/DemoCoverageMap";
 
+import OpsLayout from "./pages/ops/OpsLayout";
+import ClearCheckDashboard from "./pages/ops/ClearCheckDashboard";
+import ImportPage from "./pages/ops/ImportPage";
+
 import { Navigate } from "react-router-dom";
 
 // Redirect component for dual role requests (moved to Support Queue)
@@ -177,14 +181,14 @@ const App = () => (
                 {/* Demo Mode routes - wrapped in DemoAccessGate and DemoProvider */}
                 {/* Demo routes are fully self-contained and NEVER redirect to /signin */}
                 <Route path="/demo" element={<DemoAccessGate><DemoProvider><DemoSelector /></DemoProvider></DemoAccessGate>} />
-                
+
                 {/* Vendor Demo Routes */}
                 <Route path="/demo/vendor" element={<DemoAccessGate><DemoProvider><DemoVendorDashboard /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/search" element={<DemoAccessGate><DemoProvider><DemoVendorRepSearch /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/rep/:repId" element={<DemoAccessGate><DemoProvider><DemoVendorRepProfile /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/community" element={<DemoAccessGate><DemoProvider><DemoCommunityBoard role="vendor" /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/vendor/coverage-map" element={<DemoAccessGate><DemoProvider><DemoCoverageMap role="vendor" /></DemoProvider></DemoAccessGate>} />
-                
+
                 {/* Field Rep Demo Routes */}
                 <Route path="/demo/rep" element={<DemoAccessGate><DemoProvider><DemoRepDashboard /></DemoProvider></DemoAccessGate>} />
                 <Route path="/demo/rep/profile" element={<DemoAccessGate><DemoProvider><DemoRepProfile /></DemoProvider></DemoAccessGate>} />
@@ -222,7 +226,7 @@ const App = () => (
                   <Route path="/rep/credits" element={<RepCredits />} />
                   <Route path="/vendor/staff" element={<VendorStaff />} />
                   <Route path="/vendor/staff-metrics" element={<VendorStaffMetrics />} />
-                  
+
                   <Route path="/vendor/share-profile" element={<VendorShareProfilePage />} />
                   <Route path="/rep/share-profile" element={<RepShareProfilePage />} />
                   <Route path="/vendor/checklists" element={<VendorChecklists />} />
@@ -269,12 +273,20 @@ const App = () => (
                   <Route path="/admin/support-queue" element={<AdminSupportQueue />} />
                   <Route path="/admin/safety-analytics" element={<AdminSafetyAnalytics />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
-                  
+
                   <Route path="/safety" element={<SafetyCenter />} />
                   <Route path="/community" element={<CommunityBoard />} />
                   <Route path="/community/:postId" element={<CommunityPostDetail />} />
                   <Route path="/rep/working-terms-request/:requestId" element={<RepWorkingTermsRequest />} />
                   <Route path="/vendor/working-terms-review/:requestId" element={<VendorWorkingTermsReview />} />
+                  <Route path="/rep/working-terms-request/:requestId" element={<RepWorkingTermsRequest />} />
+                  <Route path="/vendor/working-terms-review/:requestId" element={<VendorWorkingTermsReview />} />
+                </Route>
+
+                {/* ClearCheck Ops Routes - Protected */}
+                <Route path="/ops" element={<AuthenticatedLayout><OpsLayout /></AuthenticatedLayout>}>
+                  <Route path="clearcheck" element={<ClearCheckDashboard />} />
+                  <Route path="imports" element={<ImportPage />} />
                 </Route>
 
                 {/* Catch-all */}
