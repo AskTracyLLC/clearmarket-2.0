@@ -1654,6 +1654,7 @@ export type Database = {
           street: string | null
           subclient: string | null
           submitted_date: string | null
+          system: string | null
           updated_at: string | null
           zip: string | null
         }
@@ -1685,6 +1686,7 @@ export type Database = {
           street?: string | null
           subclient?: string | null
           submitted_date?: string | null
+          system?: string | null
           updated_at?: string | null
           zip?: string | null
         }
@@ -1716,6 +1718,7 @@ export type Database = {
           street?: string | null
           subclient?: string | null
           submitted_date?: string | null
+          system?: string | null
           updated_at?: string | null
           zip?: string | null
         }
