@@ -56,7 +56,7 @@ export default function ImportPage() {
 
             // Step 2: Create batch record
             const system = importType.startsWith('EZ') ? 'EZ' : 'IA';
-            const { data: batch, error: batchError } = await supabase
+            const { data: batch, error: batchError } = await (supabase as any)
                 .from('clearcheck_import_batches')
                 .insert({
                     import_type: importType,
@@ -82,7 +82,7 @@ export default function ImportPage() {
                 error_text: null,
             }));
 
-            const { error: stagingError } = await supabase
+            const { error: stagingError } = await (supabase as any)
                 .from('clearcheck_staging_rows')
                 .insert(stagingRows);
 
@@ -110,7 +110,7 @@ export default function ImportPage() {
                 const orderInstanceKey = keyParts.join('|');
 
                 // Upsert order
-                const { error: upsertError } = await supabase
+                const { error: upsertError } = await (supabase as any)
                     .from('clearcheck_orders')
                     .upsert({
                         order_instance_key: orderInstanceKey,

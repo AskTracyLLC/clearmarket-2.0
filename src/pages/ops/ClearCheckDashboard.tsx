@@ -22,14 +22,14 @@ export default function ClearCheckDashboard() {
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('clearcheck_orders')
                 .select('*')
                 .eq('is_open', true)
                 .order('due_rep', { ascending: true, nullsFirst: false });
 
             if (error) throw error;
-            setOrders(data || []);
+            setOrders((data || []) as ClearCheckOrder[]);
         } catch (err) {
             console.error(err);
             toast({
@@ -44,7 +44,7 @@ export default function ClearCheckDashboard() {
 
     const handleUpdateECD = async (orderId: string, newECD: string) => {
         try {
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('clearcheck_orders')
                 .update({ current_ecd: newECD })
                 .eq('id', orderId);
@@ -75,7 +75,7 @@ export default function ClearCheckDashboard() {
                 method: action,
             }));
 
-            const { error } = await supabase
+            const { error } = await (supabase as any)
                 .from('clearcheck_contact_attempts')
                 .insert(contactAttempts);
 
