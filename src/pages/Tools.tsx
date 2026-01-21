@@ -4,13 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign, ClipboardList } from "lucide-react";
+import { Calendar, DollarSign, ClipboardList, FileSearch } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCurrentUserRoles } from "@/hooks/useCurrentUserRoles";
 
 type ToolModule = "clearbooking" | "cleartrack" | "clearqueue" | null;
 
 const Tools = () => {
   const [openModal, setOpenModal] = useState<ToolModule>(null);
+  const { flags } = useCurrentUserRoles();
+  const isSuperAdmin = flags?.is_super_admin === true;
 
   const modules = [
     {
@@ -73,6 +76,38 @@ const Tools = () => {
             </Card>
           ))}
         </div>
+
+        {/* ClearCheck - Super Admin Only (Development) */}
+        {isSuperAdmin && (
+          <Card className="mt-6 border-primary/30 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <FileSearch className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">ClearCheck</CardTitle>
+                    <CardDescription className="mt-1">
+                      Order status tracking, avg turnaround times, contact chasing
+                    </CardDescription>
+                  </div>
+                </div>
+                <Badge variant="outline" className="shrink-0 border-primary/50 text-primary">
+                  Dev Only
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="flex gap-3">
+              <Button asChild size="sm">
+                <Link to="/ops/clearcheck">Dashboard</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link to="/ops/import">Import</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <p className="text-sm text-muted-foreground mt-6 text-center">
           Have an idea for a helpful tool?{" "}
