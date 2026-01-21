@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal, RefreshCw } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal, RefreshCw, Hash } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -675,6 +675,68 @@ export default function AdminUsers() {
     return "—";
   };
 
+  // Handler for revising FieldRep anonymous ID to sequential format
+  const handleReviseFieldRepAnonId = async (userProfile: UserProfile) => {
+    if (!userProfile.is_fieldrep) {
+      toast.error("Not a Field Rep", {
+        description: "This action is only available for Field Reps.",
+      });
+      return;
+    }
+
+    setActionLoading(userProfile.id);
+
+    try {
+      const { data, error } = await supabase.rpc("admin_revise_fieldrep_anonymous_id", {
+        p_profile_id: userProfile.id,
+      });
+
+      if (error) {
+        if (error.message?.includes("Not authorized")) {
+          toast.error("Not authorized", {
+            description: "Only admins can revise anonymous IDs.",
+          });
+        } else {
+          toast.error("Failed to revise anonymous ID", {
+            description: error.message,
+          });
+        }
+        return;
+      }
+
+      // Log the admin action
+      if (user?.id) {
+        await logAdminAction(user.id, {
+          actionType: "user.role_updated",
+          actionSummary: `Revised FieldRep anonymous ID to ${data}`,
+          targetUserId: userProfile.id,
+          actionDetails: {
+            old_anonymous_id: userProfile.anonymous_id,
+            new_anonymous_id: data,
+          },
+        });
+      }
+
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userProfile.id ? { ...u, anonymous_id: data } : u
+        )
+      );
+
+      toast.success(`Updated anonymous ID to ${data}`, {
+        description: `${userProfile.full_name || "User"} is now ${data}.`,
+      });
+    } catch (err: any) {
+      console.error("Revise FieldRep anonymous ID error:", err);
+      toast.error("Failed to revise anonymous ID", {
+        description: err?.message || "Unknown error",
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const getCompanyName = (userProfile: UserProfile) => {
     return vendorProfiles[userProfile.id]?.companyName || null;
   };
@@ -1218,6 +1280,15 @@ export default function AdminUsers() {
                                     >
                                       <UserCheck className="h-4 w-4 mr-2" />
                                       Reactivate account
+                                    </DropdownMenuItem>
+                                  )}
+                                  {userProfile.is_fieldrep && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleReviseFieldRepAnonId(userProfile)}
+                                      disabled={actionLoading === userProfile.id}
+                                    >
+                                      <Hash className="h-4 w-4 mr-2" />
+                                      Revise FieldRep#
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuItem
