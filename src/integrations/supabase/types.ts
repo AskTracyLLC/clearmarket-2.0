@@ -1638,6 +1638,7 @@ export type Database = {
           current_ecd: string | null
           due_client: string | null
           due_rep: string | null
+          ect: string | null
           id: string
           import_batch_id: string | null
           is_open: boolean | null
@@ -1665,6 +1666,7 @@ export type Database = {
           current_ecd?: string | null
           due_client?: string | null
           due_rep?: string | null
+          ect?: string | null
           id?: string
           import_batch_id?: string | null
           is_open?: boolean | null
@@ -1692,6 +1694,7 @@ export type Database = {
           current_ecd?: string | null
           due_client?: string | null
           due_rep?: string | null
+          ect?: string | null
           id?: string
           import_batch_id?: string | null
           is_open?: boolean | null
