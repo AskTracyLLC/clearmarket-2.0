@@ -27,7 +27,6 @@ interface UserProfile {
   is_vendor_admin?: boolean;
   is_fieldrep?: boolean;
   full_name?: string;
-  email?: string;
   anonymous_id?: string;
   rep_anonymous_id?: string;
   vendor_anonymous_id?: string;
