@@ -137,9 +137,12 @@ export function GlobalMessageListener() {
         }
       )
       .subscribe((status, err) => {
-        console.log("[GML] subscribe status:", status, err);
-        if (status === "CHANNEL_ERROR") {
+        if (status === "SUBSCRIBED") {
+          console.log("[GML] Successfully subscribed to messages channel");
+        } else if (status === "CHANNEL_ERROR") {
           console.error("[GML] Failed to subscribe to messages channel:", err);
+        } else {
+          console.log("[GML] subscribe status:", status);
         }
       });
 
