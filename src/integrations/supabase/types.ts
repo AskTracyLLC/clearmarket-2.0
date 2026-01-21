@@ -1331,6 +1331,430 @@ export type Database = {
           },
         ]
       }
+      clearcheck_contact_attempts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          method: string | null
+          notes: string | null
+          order_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          order_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          method?: string | null
+          notes?: string | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_contact_attempts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_flag_definitions: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string | null
+          description: string | null
+          is_active: boolean | null
+          label: string
+          severity: string | null
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          is_active?: boolean | null
+          label: string
+          severity?: string | null
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          is_active?: boolean | null
+          label?: string
+          severity?: string | null
+        }
+        Relationships: []
+      }
+      clearcheck_flag_events: {
+        Row: {
+          created_at: string | null
+          event_type: string | null
+          flag_code: string
+          id: string
+          order_id: string
+          snapshot_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type?: string | null
+          flag_code: string
+          id?: string
+          order_id: string
+          snapshot_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string | null
+          flag_code?: string
+          id?: string
+          order_id?: string
+          snapshot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_flag_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clearcheck_flag_events_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_order_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_flagged_orders: {
+        Row: {
+          flag_code: string
+          id: string
+          metadata: Json | null
+          order_id: string
+          triggered_at: string | null
+        }
+        Insert: {
+          flag_code: string
+          id?: string
+          metadata?: Json | null
+          order_id: string
+          triggered_at?: string | null
+        }
+        Update: {
+          flag_code?: string
+          id?: string
+          metadata?: Json | null
+          order_id?: string
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_flagged_orders_flag_code_fkey"
+            columns: ["flag_code"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_flag_definitions"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "clearcheck_flagged_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_import_batches: {
+        Row: {
+          created_at: string | null
+          errors: string[] | null
+          filename: string | null
+          id: string
+          import_type: string
+          row_count: number | null
+          system: string
+          warnings: string[] | null
+        }
+        Insert: {
+          created_at?: string | null
+          errors?: string[] | null
+          filename?: string | null
+          id?: string
+          import_type: string
+          row_count?: number | null
+          system: string
+          warnings?: string[] | null
+        }
+        Update: {
+          created_at?: string | null
+          errors?: string[] | null
+          filename?: string | null
+          id?: string
+          import_type?: string
+          row_count?: number | null
+          system?: string
+          warnings?: string[] | null
+        }
+        Relationships: []
+      }
+      clearcheck_order_changes: {
+        Row: {
+          change_type: string | null
+          created_at: string | null
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          order_id: string
+          previous_snapshot_id: string | null
+          snapshot_id: string
+        }
+        Insert: {
+          change_type?: string | null
+          created_at?: string | null
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id: string
+          previous_snapshot_id?: string | null
+          snapshot_id: string
+        }
+        Update: {
+          change_type?: string | null
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          order_id?: string
+          previous_snapshot_id?: string | null
+          snapshot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_order_changes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clearcheck_order_changes_previous_snapshot_id_fkey"
+            columns: ["previous_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_order_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clearcheck_order_changes_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_order_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_order_snapshots: {
+        Row: {
+          created_at: string | null
+          current_ecd: string | null
+          due_client: string | null
+          due_rep: string | null
+          id: string
+          import_batch_id: string
+          job_id: string | null
+          order_id: string
+          raw_data: Json | null
+          snapshot_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_ecd?: string | null
+          due_client?: string | null
+          due_rep?: string | null
+          id?: string
+          import_batch_id: string
+          job_id?: string | null
+          order_id: string
+          raw_data?: Json | null
+          snapshot_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_ecd?: string | null
+          due_client?: string | null
+          due_rep?: string | null
+          id?: string
+          import_batch_id?: string
+          job_id?: string | null
+          order_id?: string
+          raw_data?: Json | null
+          snapshot_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_order_snapshots_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clearcheck_order_snapshots_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_orders: {
+        Row: {
+          city: string | null
+          client_primary: string | null
+          completed_date: string | null
+          county: string | null
+          created_at: string | null
+          created_date: string | null
+          current_delay_reason_code: string | null
+          current_delay_reason_label: string | null
+          current_ecd: string | null
+          due_client: string | null
+          due_rep: string | null
+          id: string
+          import_batch_id: string | null
+          is_open: boolean | null
+          job_id: string | null
+          order_instance_key: string
+          rep_display_name: string | null
+          service: string | null
+          state: string | null
+          status: string | null
+          street: string | null
+          subclient: string | null
+          submitted_date: string | null
+          updated_at: string | null
+          zip: string | null
+        }
+        Insert: {
+          city?: string | null
+          client_primary?: string | null
+          completed_date?: string | null
+          county?: string | null
+          created_at?: string | null
+          created_date?: string | null
+          current_delay_reason_code?: string | null
+          current_delay_reason_label?: string | null
+          current_ecd?: string | null
+          due_client?: string | null
+          due_rep?: string | null
+          id?: string
+          import_batch_id?: string | null
+          is_open?: boolean | null
+          job_id?: string | null
+          order_instance_key: string
+          rep_display_name?: string | null
+          service?: string | null
+          state?: string | null
+          status?: string | null
+          street?: string | null
+          subclient?: string | null
+          submitted_date?: string | null
+          updated_at?: string | null
+          zip?: string | null
+        }
+        Update: {
+          city?: string | null
+          client_primary?: string | null
+          completed_date?: string | null
+          county?: string | null
+          created_at?: string | null
+          created_date?: string | null
+          current_delay_reason_code?: string | null
+          current_delay_reason_label?: string | null
+          current_ecd?: string | null
+          due_client?: string | null
+          due_rep?: string | null
+          id?: string
+          import_batch_id?: string | null
+          is_open?: boolean | null
+          job_id?: string | null
+          order_instance_key?: string
+          rep_display_name?: string | null
+          service?: string | null
+          state?: string | null
+          status?: string | null
+          street?: string | null
+          subclient?: string | null
+          submitted_date?: string | null
+          updated_at?: string | null
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_orders_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_staging_rows: {
+        Row: {
+          batch_id: string | null
+          created_at: string | null
+          error_text: string | null
+          id: string
+          is_valid: boolean | null
+          parsed: Json | null
+          raw: Json | null
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string | null
+          error_text?: string | null
+          id?: string
+          is_valid?: boolean | null
+          parsed?: Json | null
+          raw?: Json | null
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string | null
+          error_text?: string | null
+          id?: string
+          is_valid?: boolean | null
+          parsed?: Json | null
+          raw?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_staging_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_comments: {
         Row: {
           author_id: string
@@ -11622,6 +12046,10 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      business_days_diff: {
+        Args: { end_date: string; start_date: string }
+        Returns: number
+      }
       calculate_community_score: {
         Args: { p_user_id: string }
         Returns: number
@@ -11745,6 +12173,7 @@ export type Database = {
       }
       is_admin_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_admin_user: { Args: { user_id: string }; Returns: boolean }
+      is_business_day: { Args: { check_date: string }; Returns: boolean }
       is_platform_admin: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_allowlisted: { Args: { p_user_id: string }; Returns: boolean }
       is_staff_user: { Args: { user_id: string }; Returns: boolean }
@@ -11833,6 +12262,10 @@ export type Database = {
             }
             Returns: undefined
           }
+      process_order_snapshots: {
+        Args: { p_import_batch_id: string; p_orders: Json[] }
+        Returns: Json
+      }
       process_waiting_automation: { Args: never; Returns: Json }
       purchase_rep_boost: {
         Args: { p_cost?: number; p_hours?: number }
@@ -11861,6 +12294,15 @@ export type Database = {
           p_metadata?: Json
           p_txn_type: string
           p_vendor_id: string
+        }
+        Returns: undefined
+      }
+      toggle_flag: {
+        Args: {
+          p_flag_code: string
+          p_order_id: string
+          p_should_flag: boolean
+          p_snapshot_id: string
         }
         Returns: undefined
       }
