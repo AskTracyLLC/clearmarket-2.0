@@ -4,7 +4,7 @@ import {
   Geographies,
   Geography,
   Annotation,
-} from "react-simple-maps";
+} from "@vnedyalk0v/react19-simple-maps";
 import {
   Tooltip,
   TooltipContent,
@@ -152,7 +152,7 @@ export function USChoroplethMap({
                           return (
                             <Annotation
                               key={`label-${stateCode}`}
-                              subject={centroid}
+                              subject={centroid as any}
                               dx={annotation.dx}
                               dy={annotation.dy}
                               connectorProps={{
@@ -178,7 +178,7 @@ export function USChoroplethMap({
                         return (
                           <Annotation
                             key={`label-${stateCode}`}
-                            subject={centroid}
+                            subject={centroid as any}
                             dx={0}
                             dy={0}
                             connectorProps={{}}
