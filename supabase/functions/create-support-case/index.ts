@@ -262,11 +262,6 @@ Deno.serve(async (req) => {
         updated_at: nowIso,
       };
 
-      // Store attachments in conversation metadata if any
-      if (attachments.length > 0) {
-        (conversationInsert as Record<string, unknown>).metadata = { attachments };
-      }
-
       const { data: conv, error: convErr } = await admin
         .from("conversations")
         .insert(conversationInsert)
