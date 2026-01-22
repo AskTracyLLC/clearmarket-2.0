@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,17 +183,14 @@ export default function AdminSitePageEditor() {
 
   if (loading || authLoading || permLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container max-w-4xl py-6 space-y-6">
+    <div className="container max-w-4xl py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin/legal")}>
             <ArrowLeft className="h-4 w-4" />
@@ -285,7 +281,6 @@ export default function AdminSitePageEditor() {
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
-      </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
