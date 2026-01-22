@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useStaffPermissions } from "@/hooks/useStaffPermissions";
-import { AuthenticatedLayout } from "@/components/AuthenticatedLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Shield, HelpCircle, BookOpen, ChevronRight } from "lucide-react";
@@ -14,21 +13,21 @@ const legalItems = [
     title: "Terms of Service",
     description: "Manage the platform Terms of Service agreement",
     icon: FileText,
-    route: "/admin/legal/tos",
+    route: "/admin/legal-help/tos",
   },
   {
     id: "privacy",
     title: "Privacy Policy",
     description: "Manage the Privacy Policy page",
     icon: Shield,
-    route: "/admin/legal/privacy",
+    route: "/admin/legal-help/privacy",
   },
   {
     id: "support",
     title: "Support Page",
     description: "Manage the Support page content",
     icon: HelpCircle,
-    route: "/admin/legal/support",
+    route: "/admin/legal-help/support",
   },
   {
     id: "help-articles",
@@ -67,47 +66,43 @@ export default function AdminLegalHelpCenter() {
 
   if (loading || authLoading || permLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container max-w-4xl py-6 space-y-6">
-        <PageHeader
-          title="Legal & Help Center"
-          subtitle="Manage Terms of Service, Privacy Policy, Support page, and Help Center articles"
-        />
+    <div className="container max-w-4xl py-6 space-y-6">
+      <PageHeader
+        title="Legal & Help Center"
+        subtitle="Manage Terms of Service, Privacy Policy, Support page, and Help Center articles"
+      />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {legalItems.map((item) => (
-            <Card
-              key={item.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors group"
-              onClick={() => navigate(item.route)}
-            >
-              <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <item.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    {item.title}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>{item.description}</CardDescription>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {legalItems.map((item) => (
+          <Card
+            key={item.id}
+            className="cursor-pointer hover:bg-accent/50 transition-colors group"
+            onClick={() => navigate(item.route)}
+          >
+            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <item.icon className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  {item.title}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>{item.description}</CardDescription>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
