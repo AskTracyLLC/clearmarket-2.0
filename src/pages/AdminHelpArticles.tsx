@@ -162,17 +162,14 @@ export default function AdminHelpArticles() {
 
   if (loading || authLoading || permLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
-      <div className="container max-w-6xl py-6 space-y-6">
+    <div className="container max-w-6xl py-6 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin/legal")}>
             <ArrowLeft className="h-4 w-4" />
@@ -282,7 +279,6 @@ export default function AdminHelpArticles() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
-    </AuthenticatedLayout>
+    </div>
   );
 }
