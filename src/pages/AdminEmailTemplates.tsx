@@ -295,16 +295,14 @@ export default function AdminEmailTemplates() {
 
   if (authLoading || permLoading || loading) {
     return (
-      <AuthenticatedLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </AuthenticatedLayout>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <>
       <div className="container max-w-6xl py-8 space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
@@ -543,6 +541,6 @@ export default function AdminEmailTemplates() {
           </DialogContent>
         </Dialog>
       </div>
-    </AuthenticatedLayout>
+    </>
   );
 }

@@ -252,8 +252,8 @@ const App = () => (
                   <Route path="/admin/inspection-types" element={<AdminInspectionTypes />} />
                   <Route path="/admin/systems-used" element={<AdminSystemsUsed />} />
                   <Route path="/admin/background-checks" element={<AdminBackgroundChecks />} />
-                  <Route path="/admin/legal" element={<AdminLegalHelpCenter />} />
-                  <Route path="/admin/legal/:pageType" element={<AdminSitePageEditor />} />
+                  <Route path="/admin/legal-help" element={<AdminLegalHelpCenter />} />
+                  <Route path="/admin/legal-help/:pageType" element={<AdminSitePageEditor />} />
                   <Route path="/admin/help-articles" element={<AdminHelpArticles />} />
                   <Route path="/admin/help-articles/:articleId" element={<AdminHelpArticleEditor />} />
                   <Route path="/admin/features" element={<AdminFeatureFlags />} />
