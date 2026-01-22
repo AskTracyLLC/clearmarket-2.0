@@ -57,16 +57,15 @@ serve(async (req) => {
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("is_admin, is_moderator, is_support, is_super_admin, email")
+      .select("is_admin, is_moderator, is_support, is_super_admin")
       .eq("id", userData.user.id)
       .single();
 
     // Admin-only endpoint (allow super-admins too)
-    const isSuperAdminEmail = profile?.email?.toLowerCase() === "tracy@asktracyllc.com";
     const isAdmin = profile?.is_admin === true;
     const isSuperAdminFlag = profile?.is_super_admin === true;
 
-    if (profileError || !(isAdmin || isSuperAdminFlag || isSuperAdminEmail)) {
+    if (profileError || !(isAdmin || isSuperAdminFlag)) {
       logStep("Access denied - not admin", {
         userId: userData.user.id,
         hasProfile: !!profile,
