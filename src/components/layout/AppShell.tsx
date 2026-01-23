@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMimic } from "@/hooks/useMimic";
@@ -228,7 +228,14 @@ export function AppShell({ children, className = "", hideTopNav = false }: AppSh
                   <LeftSidebar {...sidebarProps} />
                 </SheetContent>
               </Sheet>
-              <span className="font-semibold text-foreground">ClearMarket</span>
+              <Link to="/" className="flex items-center gap-2">
+                <img
+                  src="/images/clearmarket-logo.jpg"
+                  alt="ClearMarket"
+                  className="h-7 w-7 rounded"
+                />
+                <span className="font-semibold text-foreground">ClearMarket</span>
+              </Link>
             </header>
           )}
 

@@ -579,6 +579,11 @@ export function LeftSidebar({
         <div className="flex items-center justify-between p-4 border-b border-border">
           {!collapsed && (
             <Link to={isDemo ? "/demo" : "/dashboard"} className="flex items-center gap-2">
+              <img
+                src="/images/clearmarket-logo.jpg"
+                alt="ClearMarket"
+                className="h-8 w-8 rounded"
+              />
               <span className="text-lg font-bold text-foreground">ClearMarket</span>
               {isDemo && (
                 <span className="text-xs bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-2 py-0.5 rounded">
