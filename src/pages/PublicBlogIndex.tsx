@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { Search, Calendar, Tag, FolderOpen, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ interface BlogPost {
 }
 
 export default function PublicBlogIndex() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -316,7 +318,7 @@ export default function PublicBlogIndex() {
           </div>
         </main>
 
-        <SiteFooter />
+        {!user && <SiteFooter />}
       </div>
     </>
   );

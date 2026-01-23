@@ -4,6 +4,7 @@ import { Helmet } from "react-helmet-async";
 import ReactMarkdown from "react-markdown";
 import { ArrowLeft, Calendar, Tag, FolderOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -28,6 +29,7 @@ interface BlogPost {
 }
 
 export default function PublicBlogPost() {
+  const { user } = useAuth();
   const { slug } = useParams<{ slug: string }>();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export default function PublicBlogPost() {
         <main className="flex-1 flex items-center justify-center">
           <p className="text-muted-foreground">Loading...</p>
         </main>
-        <SiteFooter />
+        {!user && <SiteFooter />}
       </div>
     );
   }
@@ -153,7 +155,7 @@ export default function PublicBlogPost() {
             </Link>
           </Button>
         </main>
-        <SiteFooter />
+        {!user && <SiteFooter />}
       </div>
     );
   }
@@ -352,7 +354,7 @@ export default function PublicBlogPost() {
           </article>
         </main>
 
-        <SiteFooter />
+        {!user && <SiteFooter />}
       </div>
     </>
   );
