@@ -389,6 +389,7 @@ export function LeftSidebar({
       storageKey: "broadcasts",
       items: [
         { id: "admin-broadcasts", label: "Broadcasts", path: "/admin/broadcasts", icon: <Megaphone className="h-5 w-5" /> },
+        { id: "admin-blog", label: "Blog Posts", path: "/admin/blog", icon: <FileText className="h-5 w-5" /> },
       ],
     },
   ];

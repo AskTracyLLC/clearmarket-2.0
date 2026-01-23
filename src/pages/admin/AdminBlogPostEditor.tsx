@@ -4,7 +4,6 @@ import { ArrowLeft, Save, Eye, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,40 +217,33 @@ export default function AdminBlogPostEditor() {
 
   if (checkingAuth) {
     return (
-      <AppShell>
-        <div className="p-6">
-          <p className="text-muted-foreground">Checking permissions...</p>
-        </div>
-      </AppShell>
+      <div className="p-6">
+        <p className="text-muted-foreground">Checking permissions...</p>
+      </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <AppShell>
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-foreground mb-2">Not Authorized</h1>
-          <p className="text-muted-foreground">
-            You do not have permission to access this page.
-          </p>
-        </div>
-      </AppShell>
+      <div className="p-6">
+        <h1 className="text-xl font-bold text-foreground mb-2">Not Authorized</h1>
+        <p className="text-muted-foreground">
+          You do not have permission to access this page.
+        </p>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <AppShell>
-        <div className="p-6">
-          <p className="text-muted-foreground">Loading post...</p>
-        </div>
-      </AppShell>
+      <div className="p-6">
+        <p className="text-muted-foreground">Loading post...</p>
+      </div>
     );
   }
 
   return (
-    <AppShell>
-      <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
         <Button
           variant="ghost"
           size="sm"
@@ -441,7 +433,6 @@ export default function AdminBlogPostEditor() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-    </AppShell>
+    </div>
   );
 }
