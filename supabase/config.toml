@@ -62,3 +62,9 @@ verify_jwt = true
 
 [functions.create-support-case]
 verify_jwt = false
+
+[functions.sitemap]
+verify_jwt = false
+
+[functions.robots]
+verify_jwt = false
