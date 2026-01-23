@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.robots]
 verify_jwt = false
+
+[functions.blog-share]
+verify_jwt = false
