@@ -8,7 +8,14 @@ const Index = () => {
       {/* Navigation/Header - simplified for landing */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
-          <span className="text-xl font-bold text-primary">ClearMarket</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src="/images/clearmarket-logo.jpg"
+              alt="ClearMarket"
+              className="h-8 w-8 rounded"
+            />
+            <span className="text-xl font-bold text-primary">ClearMarket</span>
+          </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link to="/demo">
