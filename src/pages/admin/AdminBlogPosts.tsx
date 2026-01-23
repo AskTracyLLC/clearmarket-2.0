@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Plus, Edit, Eye, EyeOff, Archive, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,30 +128,25 @@ export default function AdminBlogPosts() {
 
   if (checkingAuth) {
     return (
-      <AppShell>
-        <div className="p-6">
-          <p className="text-muted-foreground">Checking permissions...</p>
-        </div>
-      </AppShell>
+      <div className="p-6">
+        <p className="text-muted-foreground">Checking permissions...</p>
+      </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <AppShell>
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-foreground mb-2">Not Authorized</h1>
-          <p className="text-muted-foreground">
-            You do not have permission to access this page.
-          </p>
-        </div>
-      </AppShell>
+      <div className="p-6">
+        <h1 className="text-xl font-bold text-foreground mb-2">Not Authorized</h1>
+        <p className="text-muted-foreground">
+          You do not have permission to access this page.
+        </p>
+      </div>
     );
   }
 
   return (
-    <AppShell>
-      <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
         <PageHeader
           title="Blog Posts"
           subtitle="Manage public blog content for SEO and marketing."
@@ -281,7 +275,6 @@ export default function AdminBlogPosts() {
             </Table>
           </div>
         )}
-      </div>
-    </AppShell>
+    </div>
   );
 }
