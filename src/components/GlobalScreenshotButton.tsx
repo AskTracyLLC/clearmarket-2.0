@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { isMarketingRoute } from "@/lib/marketingRoutes";
 
 type DialogState = "none" | "success" | "clipboard-failed";
 
@@ -185,12 +186,12 @@ export function GlobalScreenshotButton() {
     uploadScreenshotAndOpenSupport();
   }, [uploadScreenshotAndOpenSupport]);
 
-  // Only show the button when user is authenticated AND not on auth/public pages
-  const hiddenPrefixes = ["/signin", "/signup", "/forgot-password", "/update-password", "/"]; // hide on landing too
-  const isPublicOrAuthPage =
-    pathname === "/" || hiddenPrefixes.some((p) => p !== "/" && pathname.startsWith(p));
+  // Only show the button when user is authenticated AND not on auth/public/marketing pages
+  const hiddenPrefixes = ["/signin", "/signup", "/forgot-password", "/update-password"];
+  const isAuthPage = hiddenPrefixes.some((p) => pathname.startsWith(p));
 
-  if (!userId || isPublicOrAuthPage) {
+  // Hide on marketing routes (blog, landing, terms, privacy)
+  if (!userId || isAuthPage || isMarketingRoute(pathname)) {
     return null;
   }
 
