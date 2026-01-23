@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowLeft, Save, Eye, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/integrations/supabase/client";
@@ -244,6 +245,9 @@ export default function AdminBlogPostEditor() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <Button
           variant="ghost"
           size="sm"
