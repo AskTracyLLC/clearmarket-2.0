@@ -9,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { SiteFooter } from "@/components/SiteFooter";
 import { format } from "date-fns";
 
+// SEO Constants
+const SITE_URL = "https://useclearmarket.io";
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+const LOGO_URL = `${SITE_URL}/images/clearmarket-logo.jpg`;
+
 interface BlogPost {
   id: string;
   title: string;
@@ -19,6 +24,7 @@ interface BlogPost {
   category: string | null;
   tags: string[];
   published_at: string | null;
+  updated_at?: string;
 }
 
 export default function PublicBlogPost() {
@@ -62,7 +68,37 @@ export default function PublicBlogPost() {
     ? post.content_markdown.slice(0, 160).replace(/[#*_`\n]/g, "") + "..."
     : "Read this article on ClearMarket Blog.";
 
-  const canonicalUrl = `https://useclearmarket.io/blog/${slug}`;
+  const canonicalUrl = `${SITE_URL}/blog/${slug}`;
+  
+  // OG Image with fallback
+  const ogImage = post?.cover_image_url || DEFAULT_OG_IMAGE;
+
+  // JSON-LD BlogPosting structured data
+  const jsonLd = post ? {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.title,
+    "description": metaDescription,
+    "image": ogImage,
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": canonicalUrl
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "ClearMarket"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "ClearMarket",
+      "logo": {
+        "@type": "ImageObject",
+        "url": LOGO_URL
+      }
+    },
+    ...(post.published_at && { "datePublished": post.published_at }),
+    ...(post.updated_at && { "dateModified": post.updated_at })
+  } : null;
 
   if (loading) {
     return (
@@ -134,19 +170,20 @@ export default function PublicBlogPost() {
         <meta property="og:description" content={metaDescription} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="article" />
-        {post.cover_image_url && (
-          <meta property="og:image" content={post.cover_image_url} />
-        )}
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:site_name" content="ClearMarket" />
 
         {/* Twitter Card */}
-        <meta
-          name="twitter:card"
-          content={post.cover_image_url ? "summary_large_image" : "summary"}
-        />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={post.title} />
         <meta name="twitter:description" content={metaDescription} />
-        {post.cover_image_url && (
-          <meta name="twitter:image" content={post.cover_image_url} />
+        <meta name="twitter:image" content={ogImage} />
+
+        {/* JSON-LD Structured Data */}
+        {jsonLd && (
+          <script type="application/ld+json">
+            {JSON.stringify(jsonLd)}
+          </script>
         )}
       </Helmet>
 

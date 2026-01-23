@@ -1,3 +1,6 @@
+# ClearMarket Robots.txt
+# https://useclearmarket.io
+
 User-agent: Googlebot
 Allow: /
 
@@ -12,3 +15,35 @@ Allow: /
 
 User-agent: *
 Allow: /
+Allow: /blog
+Allow: /blog/*
+Allow: /help
+Allow: /help/*
+Allow: /terms
+Allow: /privacy
+
+# Block private/admin routes
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /auth/
+Disallow: /auth/*
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /settings
+Disallow: /settings/*
+Disallow: /messages
+Disallow: /messages/*
+Disallow: /notifications
+Disallow: /notifications/*
+Disallow: /rep/
+Disallow: /vendor/
+Disallow: /ops/
+Disallow: /work-setup
+Disallow: /community
+Disallow: /coverage-map
+Disallow: /safety
+Disallow: /support
+Disallow: /tools
+
+# Sitemap location
+Sitemap: https://useclearmarket.io/sitemap.xml
