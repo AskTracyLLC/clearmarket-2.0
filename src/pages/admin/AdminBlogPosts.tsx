@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Plus, Edit, Eye, EyeOff, Archive, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -147,6 +148,9 @@ export default function AdminBlogPosts() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+        <Helmet>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <PageHeader
           title="Blog Posts"
           subtitle="Manage public blog content for SEO and marketing."

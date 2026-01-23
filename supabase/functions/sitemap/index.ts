@@ -43,8 +43,8 @@ Deno.serve(async (req) => {
     <url>
       <loc>${SITE_URL}/blog</loc>
       <lastmod>${today}</lastmod>
-      <changefreq>daily</changefreq>
-      <priority>0.9</priority>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
     </url>`;
 
     // Add blog post URLs
@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
     <url>
       <loc>${SITE_URL}/blog/${post.slug}</loc>
       <lastmod>${lastmod}</lastmod>
-      <changefreq>weekly</changefreq>
-      <priority>0.8</priority>
+      <changefreq>monthly</changefreq>
+      <priority>0.6</priority>
     </url>`;
       }
     }
@@ -72,19 +72,19 @@ Deno.serve(async (req) => {
       <loc>${SITE_URL}/help</loc>
       <lastmod>${today}</lastmod>
       <changefreq>monthly</changefreq>
-      <priority>0.6</priority>
+      <priority>0.5</priority>
     </url>
     <url>
       <loc>${SITE_URL}/terms</loc>
       <lastmod>${today}</lastmod>
       <changefreq>monthly</changefreq>
-      <priority>0.4</priority>
+      <priority>0.3</priority>
     </url>
     <url>
       <loc>${SITE_URL}/privacy</loc>
       <lastmod>${today}</lastmod>
       <changefreq>monthly</changefreq>
-      <priority>0.4</priority>
+      <priority>0.3</priority>
     </url>`;
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
