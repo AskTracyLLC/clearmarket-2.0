@@ -106,6 +106,10 @@ import AdminLaunchReadiness from "./pages/AdminLaunchReadiness";
 import AdminAbuseFlags from "./pages/AdminAbuseFlags";
 import AdminSupportQueue from "./pages/AdminSupportQueue";
 import AdminSafetyAnalytics from "./pages/AdminSafetyAnalytics";
+import PublicBlogIndex from "./pages/PublicBlogIndex";
+import PublicBlogPost from "./pages/PublicBlogPost";
+import AdminBlogPosts from "./pages/admin/AdminBlogPosts";
+import AdminBlogPostEditor from "./pages/admin/AdminBlogPostEditor";
 
 // Demo Mode imports
 import { DemoProvider } from "@/demo/DemoContext";
@@ -174,6 +178,10 @@ const App = () => (
                 <Route path="/help" element={<PublicHelpCenter />} />
                 <Route path="/help/:articleSlug" element={<PublicHelpCenter />} />
                 <Route path="/help/:sectionSlug/:articleSlug" element={<PublicHelpCenter />} />
+
+                {/* Public Blog (SEO) */}
+                <Route path="/blog" element={<PublicBlogIndex />} />
+                <Route path="/blog/:slug" element={<PublicBlogPost />} />
 
                 {/* Back-compat */}
                 <Route path="/public-help" element={<Navigate to="/help" replace />} />
@@ -272,6 +280,9 @@ const App = () => (
                   <Route path="/admin/abuse-flags" element={<AdminAbuseFlags />} />
                   <Route path="/admin/support-queue" element={<AdminSupportQueue />} />
                   <Route path="/admin/safety-analytics" element={<AdminSafetyAnalytics />} />
+                  <Route path="/admin/blog" element={<AdminBlogPosts />} />
+                  <Route path="/admin/blog/new" element={<AdminBlogPostEditor />} />
+                  <Route path="/admin/blog/:id/edit" element={<AdminBlogPostEditor />} />
                   <Route path="/feedback/broadcast/:id" element={<BroadcastFeedbackPage />} />
 
                   <Route path="/safety" element={<SafetyCenter />} />
