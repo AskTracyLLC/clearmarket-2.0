@@ -606,6 +606,45 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_recovery_email_attempts: {
+        Row: {
+          created_at: string
+          email: string
+          email_normalized: string | null
+          error_text: string | null
+          id: string
+          provider: string
+          provider_message_id: string | null
+          request_ip_hash: string | null
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          email_normalized?: string | null
+          error_text?: string | null
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          request_ip_hash?: string | null
+          status: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          email_normalized?: string | null
+          error_text?: string | null
+          id?: string
+          provider?: string
+          provider_message_id?: string | null
+          request_ip_hash?: string | null
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       background_checks: {
         Row: {
           check_id: string

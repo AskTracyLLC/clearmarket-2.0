@@ -133,7 +133,7 @@ const UpdatePassword = () => {
               This password reset link is invalid or has expired. Please request a new one.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex flex-col gap-2">
               <Link to="/auth/forgot-password">
                 <Button className="w-full">Request new reset link</Button>
@@ -144,6 +144,17 @@ const UpdatePassword = () => {
                   Back to Sign In
                 </Button>
               </Link>
+            </div>
+            <div className="text-center pt-2 border-t">
+              <p className="text-sm text-muted-foreground">
+                Need help?{" "}
+                <a 
+                  href="mailto:hello@useclearmarket.io" 
+                  className="text-primary hover:underline"
+                >
+                  Contact support
+                </a>
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -164,10 +175,21 @@ const UpdatePassword = () => {
               Your password has been successfully updated. Redirecting to sign in...
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <Link to="/signin">
               <Button className="w-full">Go to Sign In</Button>
             </Link>
+            <div className="text-center pt-2 border-t">
+              <p className="text-sm text-muted-foreground">
+                Need help?{" "}
+                <a 
+                  href="mailto:hello@useclearmarket.io" 
+                  className="text-primary hover:underline"
+                >
+                  Contact support
+                </a>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -218,6 +240,18 @@ const UpdatePassword = () => {
               {loading ? "Updating..." : "Update password"}
             </Button>
           </form>
+
+          <div className="mt-6 text-center pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              Having trouble?{" "}
+              <a 
+                href="mailto:hello@useclearmarket.io" 
+                className="text-primary hover:underline"
+              >
+                Contact support
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
