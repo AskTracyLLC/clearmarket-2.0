@@ -32,6 +32,11 @@ export const gettingStartedChecklistCopy = {
     // Total earned
     totalEarned: "{count} of 5 credits earned",
     maxEarned: "All 5 credits earned!",
+    // Applied state (credits awarded before checklist complete)
+    appliedBadge: "Applied",
+    milestoneApplied: "2 credits already applied to your wallet.",
+    fullApplied: "3 credits already applied. {stepsRemaining} required steps remaining.",
+    totalApplied: "5 credits already applied",
   },
 
   itemRow: {
