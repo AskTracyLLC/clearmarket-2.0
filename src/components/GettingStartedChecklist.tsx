@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { CheckCircle2, Circle, ChevronDown, ChevronUp, Zap, ExternalLink, MessageSquareWarning, Gift, Coins } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronUp, Zap, ExternalLink, MessageSquareWarning, Gift, Coins, RefreshCw, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ChecklistProgress, CHECKLIST_ITEM_CTAS } from "@/lib/checklists";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOnboardingReward } from "@/hooks/useOnboardingReward";
 import { useActiveRole } from "@/hooks/useActiveRole";
 import { gettingStartedChecklistCopy } from "@/copy/gettingStartedChecklistCopy";
+
 interface GettingStartedChecklistProps {
   checklist: ChecklistProgress;
   onMarkComplete?: (userItemId: string) => Promise<boolean>;
@@ -22,6 +23,10 @@ interface GettingStartedChecklistProps {
   className?: string;
   /** Show the onboarding reward card (only for primary system checklists) */
   showReward?: boolean;
+  /** Callback to trigger a resync of auto-tracked items */
+  onResync?: () => Promise<void>;
+  /** Whether a resync is currently in progress */
+  isSyncing?: boolean;
 }
 
 export function GettingStartedChecklist({
@@ -31,6 +36,8 @@ export function GettingStartedChecklist({
   defaultExpanded = true,
   className,
   showReward = false,
+  onResync,
+  isSyncing = false,
 }: GettingStartedChecklistProps) {
   const { user } = useAuth();
   const { effectiveRole } = useActiveRole();

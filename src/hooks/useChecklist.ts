@@ -23,8 +23,10 @@ export function useChecklist() {
   const { effectiveRole } = useActiveRole();
   const [checklists, setChecklists] = useState<ChecklistProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const hasSyncedRef = useRef(false);
   const resolvedOwnerIdRef = useRef<string | null>(null);
+  const isSyncingRef = useRef(false);
 
   const loadChecklists = useCallback(async () => {
     if (!effectiveUserId) {
@@ -118,6 +120,30 @@ export function useChecklist() {
     await loadChecklists();
   }, [effectiveUserId, loadChecklists]);
 
+  // Manual resync function - re-evaluates all auto-tracked items
+  const resync = useCallback(async () => {
+    // Guard against concurrent runs
+    if (isSyncingRef.current || !effectiveUserId) return;
+    
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+    
+    try {
+      const resolvedOwnerId = resolvedOwnerIdRef.current || effectiveUserId;
+      await syncAutoTrackedItems(supabase, resolvedOwnerId);
+      
+      // Reload checklists to reflect updated state
+      const updatedData = await loadUserChecklistsForVendorOnboarding(supabase, effectiveUserId, resolvedOwnerId);
+      setChecklists(updatedData);
+    } catch (error) {
+      console.error("Error during checklist resync:", error);
+      // Keep existing state on error - will be handled by UI toast if needed
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
+    }
+  }, [effectiveUserId]);
+
   // Get the primary checklist for the current role
   const primaryChecklist = checklists.find(c => {
     if (effectiveRole === "rep") {
@@ -136,8 +162,10 @@ export function useChecklist() {
     primaryChecklist,
     vendorChecklists,
     loading,
+    isSyncing,
     reload: loadChecklists,
     markComplete,
     trackEvent,
+    resync,
   };
 }
