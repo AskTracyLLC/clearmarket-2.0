@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Share2 } from "lucide-react";
 import { ProfileSharePanel } from "@/components/ProfileSharePanel";
+import { SeekingCoverageToggle } from "@/components/SeekingCoverageToggle";
+import { Separator } from "@/components/ui/separator";
 
 export default function VendorShareProfilePage() {
   return (
@@ -26,6 +28,14 @@ export default function VendorShareProfilePage() {
       </div>
 
       <ProfileSharePanel roleType="vendor" />
+
+      <Separator className="my-6" />
+
+      {/* Seeking Coverage Areas Toggle */}
+      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+        <h3 className="font-semibold mb-3">Public Profile Options</h3>
+        <SeekingCoverageToggle />
+      </div>
 
       <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
         <h3 className="font-semibold mb-2">How to use your share link</h3>

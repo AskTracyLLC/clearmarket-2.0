@@ -1,5 +1,20 @@
 # ClearMarket Changelog
 
+## 2026-01-27 — Public Vendor Profile: Seeking Coverage Areas Display
+- **Database Migration**: Added vendor setting to show/hide active seeking coverage posts on public profile
+  - Added `show_seeking_coverage_on_public_profile` column to `vendor_profile` (boolean, default false)
+  - Added `get_vendor_open_seeking_coverage_areas(uuid)` RPC that returns state_code + county_name for active, non-expired posts
+  - RPC is SECURITY DEFINER with proper search_path, callable by anon/authenticated
+- **UI - VendorShareProfilePage**: Added "Public Profile Options" section
+  - Toggle: "Show 'Seeking Coverage' areas on my public profile"
+  - Help text explains what is/isn't shown (no rates/details)
+- **UI - VendorShareProfile (public page)**: Displays seeking coverage areas when enabled
+  - Format: "Currently seeking field reps in…" header with state/county lines
+  - Example: `IL - Champaign, Clay, DuPage, Lake`
+  - States sorted alphabetically, counties sorted alphabetically within each state
+  - Section hidden if toggle off or no active posts
+- **Edge Function**: `public-profile-share` updated to include `seeking_coverage_areas` in vendor response
+
 ## 2026-01-20 — Background Checks Consolidated to Dedicated Page
 - **Migration**: Removed background checks from the Support Queue
   - Dropped `sync_background_check_to_queue_trigger` (no longer creates queue items)

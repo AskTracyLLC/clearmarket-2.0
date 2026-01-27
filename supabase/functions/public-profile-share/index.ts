@@ -265,6 +265,30 @@ Deno.serve(async (req) => {
         return s.state_name;
       });
 
+      // Fetch seeking coverage areas if toggle is enabled
+      let seekingCoverageAreas: { state_code: string; counties: string[] }[] = [];
+      if (vendorProfile.show_seeking_coverage_on_public_profile) {
+        const { data: seekingAreas } = await supabase
+          .rpc('get_vendor_open_seeking_coverage_areas', { p_vendor_id: userId });
+        
+        if (seekingAreas && seekingAreas.length > 0) {
+          // Group by state, sort counties alphabetically
+          const stateMap = new Map<string, string[]>();
+          for (const row of seekingAreas) {
+            if (!stateMap.has(row.state_code)) {
+              stateMap.set(row.state_code, []);
+            }
+            stateMap.get(row.state_code)!.push(row.county_name);
+          }
+          // Sort states alphabetically, then counties within each state
+          const sortedStates = Array.from(stateMap.keys()).sort();
+          seekingCoverageAreas = sortedStates.map(stateCode => ({
+            state_code: stateCode,
+            counties: stateMap.get(stateCode)!.sort()
+          }));
+        }
+      }
+
       // Extract display name
       const fullName = profile.full_name || '';
       const nameParts = fullName.trim().split(' ');
@@ -290,6 +314,7 @@ Deno.serve(async (req) => {
         coverage_summary: coverageSummary,
         coverage_states: Array.from(coverageByState.keys()),
         is_accepting_new_reps: vendorProfile.is_accepting_new_reps,
+        seeking_coverage_areas: seekingCoverageAreas,
         last_active: profile.last_seen_at,
         recent_reviews: recentReviews
       };

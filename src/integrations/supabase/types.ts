@@ -10509,6 +10509,7 @@ export type Database = {
           poc_title: string | null
           primary_inspection_types: string[] | null
           regions_covered: string[] | null
+          show_seeking_coverage_on_public_profile: boolean
           state: string | null
           systems_used: string[] | null
           updated_at: string
@@ -10545,6 +10546,7 @@ export type Database = {
           poc_title?: string | null
           primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
+          show_seeking_coverage_on_public_profile?: boolean
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
@@ -10581,6 +10583,7 @@ export type Database = {
           poc_title?: string | null
           primary_inspection_types?: string[] | null
           regions_covered?: string[] | null
+          show_seeking_coverage_on_public_profile?: boolean
           state?: string | null
           systems_used?: string[] | null
           updated_at?: string
@@ -12646,6 +12649,13 @@ export type Database = {
       get_user_vendor_profile_id: {
         Args: { p_user_id: string }
         Returns: string
+      }
+      get_vendor_open_seeking_coverage_areas: {
+        Args: { p_vendor_id: string }
+        Returns: {
+          county_name: string
+          state_code: string
+        }[]
       }
       get_vendor_reward_summary: {
         Args: { p_vendor_id: string }
