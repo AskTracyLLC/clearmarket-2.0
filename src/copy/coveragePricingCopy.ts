@@ -39,7 +39,7 @@ export const coveragePricingCopy = {
   vendor: {
     header: "Rep Coverage & Rates",
     subtitle:
-      "Set your standard pay rates for reps in each area and work type.",
+      "Define where you place work. Set pay when creating Seeking Coverage posts.",
     tableTitle: "Configured rep rates",
     addFirstCoverage:
       "Add at least one coverage area to define your standard pay structure.",
