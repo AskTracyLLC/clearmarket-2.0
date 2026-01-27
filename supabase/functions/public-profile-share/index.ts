@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       let seekingCoverageAreas: { state_code: string; counties: string[] }[] = [];
       if (vendorProfile.show_seeking_coverage_on_public_profile) {
         const { data: seekingAreas } = await supabase
-          .rpc('get_vendor_open_seeking_coverage_areas', { p_vendor_id: userId });
+          .rpc('get_vendor_open_seeking_coverage_areas', { p_vendor_id: vendorProfile.id });
         
         if (seekingAreas && seekingAreas.length > 0) {
           // Group by state, sort counties alphabetically
