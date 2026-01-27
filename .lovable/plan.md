@@ -1,183 +1,174 @@
 
-IMPLEMENT WITHOUT CHECK-INS. If anything is unclear, choose the safest default and proceed. Only return final file contents + migrations + a short manual checklist. Do NOT ask me questions.
+# Vendor Onboarding Rewards v2 - Implementation Plan
 
-GOAL
-Fix “Forgot Password” emails not being delivered (ex: tracy@asktracyllc.com) by replacing Supabase’s default reset email flow with a CUSTOM public Edge Function that:
-- generates a Supabase recovery link via Admin API
-- sends the email via Resend (verified domain)
-- logs every attempt for audit + troubleshooting
-- rate-limits requests to prevent abuse
-- never reveals whether an email exists (no user enumeration)
+## Overview
+Implement a two-tier vendor onboarding reward system that aligns with the 10-item checklist UI, awarding 2 credits for the milestone (profile + verification) and 3 credits for completing all onboarding items.
 
-WHY CURRENT FLOW IS FAILING
-ForgotPassword.tsx currently calls supabase.auth.resetPasswordForEmail(), which relies on Supabase’s built-in email provider settings. Our transactional email delivery should go through Resend, and the current setup is not reliably delivering (emails not arriving and not showing in Resend logs).
+## Pre-Implementation Fix Required
+One bug in the existing codebase must be fixed as part of this implementation:
 
-SCOPE
-- Add a server-only audit table
-- Add edge function: auth-send-recovery (public endpoint)
-- Update ForgotPassword.tsx to invoke the edge function
-- Update UpdatePassword.tsx (existing page) with a support link only
-- Keep routes as-is:
-  - /auth/forgot-password -> ForgotPassword.tsx
-  - /auth/update-password -> UpdatePassword.tsx
-NO unrelated refactors.
+The `vendor_pricing_saved` evaluation in `checklistTracking.ts` queries a non-existent table (`vendor_coverage_focus`). This will be fixed to check `seeking_coverage_posts` for posts with pricing set.
 
-DATABASE CHANGES (NEW MIGRATION)
-Create:
-supabase/migrations/20260126_auth_recovery_email.sql
+## Reward Tiers
 
-Requirements:
-- Create table public.auth_recovery_email_attempts (idempotent)
-Columns:
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid()
-  email text NOT NULL
-  email_normalized text GENERATED ALWAYS AS (lower(trim(email))) STORED
-  request_ip_hash text NULL
-  user_agent text NULL
-  status text NOT NULL CHECK (status IN ('queued','sent','failed','rate_limited'))
-  provider text NOT NULL DEFAULT 'resend'
-  provider_message_id text NULL
-  error_text text NULL
-  created_at timestamptz NOT NULL DEFAULT now()
+| Tier | Reward Key | Credits | Requirements |
+|------|------------|---------|--------------|
+| Milestone | `vendor_profile_verification_v1` | 2 | Profile complete + Verification submitted |
+| Full Onboarding | `vendor_onboarding_complete_v1` | 3 (remainder) | All 10 checklist items complete |
+| **Total Cap** | - | **5** | - |
 
-Security:
-- Enable RLS
-- NO client policies (no anon/authenticated access). This table is written only by the Edge Function using Service Role.
+## Database Changes
 
-EDGE FUNCTION (THE FIX)
-Create:
-supabase/functions/auth-send-recovery/index.ts
+### Migration: `20260127_vendor_onboarding_rewards_v2.sql`
 
-Also update:
-supabase/config.toml
+**1. New View: `vendor_profile_verification_status`**
+Validates milestone requirements (2 credits):
+- company_name exists
+- city AND state exist  
+- primary_inspection_types has at least 1 item
+- At least 1 vendor_coverage_areas entry (using `vp.user_id`)
+- vendor_verification_status IS NOT NULL AND vendor_verification_status <> 'draft' (NULL-safe)
 
-Config MUST be:
-[functions.auth-send-recovery]
-verify_jwt = false
+**2. Updated View: `vendor_onboarding_status`**
+Expands to all 10 items using correct ID mappings:
+- All 5 milestone items above, PLUS:
+- first_seeking_coverage_post (seeking_coverage_posts.vendor_id = vp.user_id)
+- first_rep_message_sent (via user_checklist_items)
+- vendor_pricing_saved (seeking_coverage_posts with pay_max IS NOT NULL)
+- first_agreement_created (vendor_connections.vendor_id = vp.user_id)
+- first_rep_review_submitted (reviews.reviewer_id = vp.user_id, direction = 'vendor_to_rep')
+- first_route_alert_acknowledged (via user_checklist_items)
+- vendor_calendar_updated (vendor_office_hours OR vendor_calendar_events)
 
-Reason: users aren’t logged in when resetting password; endpoint must be public. Rate limiting + logging provide abuse control.
+**3. New RPC: `award_vendor_profile_verification_credits(p_vendor_id)`**
+- Validates caller has vendor access via `has_vendor_access_by_profile(p_vendor_id)`
+- Checks `vendor_profile_verification_status.is_complete`
+- Awards 2 credits if not already awarded
+- Uses `reward_key = 'vendor_profile_verification_v1'`
+- Logs to `vendor_wallet_transactions` with `txn_type = 'reward_profile_verification'`
+- Uses `ON CONFLICT DO NOTHING` + `GET DIAGNOSTICS` for idempotency
 
-ENV / SECRETS (EDGE FUNCTION)
-Use these (support both base URL keys to avoid back-and-forth):
-- SUPABASE_URL (required)
-- SUPABASE_SERVICE_ROLE_KEY (required)
-- RESEND_API_KEY (required)
-- SITE_URL (preferred)
-- APP_BASE_URL (fallback if SITE_URL not set)
+**4. Updated RPC: `award_vendor_onboarding_credits(p_vendor_id)`**
+- Checks `vendor_onboarding_status.is_complete` (validates all 10 items)
+- Calculates: `already_awarded = sum of profile_verification + any previous onboarding`
+- Awards: `remaining = GREATEST(5 - already_awarded, 0)`
+- Skips insert if remaining = 0 (no clutter)
+- Uses `reward_key = 'vendor_onboarding_complete_v1'`
+- Logs with `txn_type = 'reward_onboarding'`
 
-BASE URL RESOLUTION LOGIC
-In the edge function:
-const baseUrl = Deno.env.get('SITE_URL') ?? Deno.env.get('APP_BASE_URL');
-If neither exists, hard-fail internally, but STILL return generic success to client and log failed.
+**5. New RPC: `get_vendor_reward_summary(p_vendor_id)`**
+Returns JSON:
+- milestone_complete, milestone_missing, milestone_earned, milestone_credits
+- onboarding_complete, onboarding_missing, onboarding_earned, onboarding_credits
+- total_earned, total_possible (5), remaining
 
-EDGE FUNCTION INPUT
-POST JSON:
-{
-  "email": "user@example.com",
-  "redirectTo": "https://useclearmarket.io/auth/update-password" // optional
+### Idempotency Safeguards (Already in Place)
+- UNIQUE constraint: `UNIQUE(subject_type, subject_id, reward_key)` on `onboarding_rewards`
+- `ON CONFLICT DO NOTHING` in all RPCs
+- `GET DIAGNOSTICS` to check if insert succeeded before crediting
+
+## Frontend Changes
+
+### 1. Fix: `src/lib/checklistTracking.ts`
+Update `vendor_pricing_saved` evaluation:
+
+```typescript
+case "vendor_pricing_saved": {
+  // Vendor has at least one seeking coverage post with pricing
+  const { count } = await client
+    .from("seeking_coverage_posts")
+    .select("*", { count: "exact", head: true })
+    .eq("vendor_id", userId)
+    .not("pay_max", "is", null);
+  
+  return (count ?? 0) > 0;
 }
+```
 
-DEFAULT redirectTo MUST be:
-${baseUrl}/auth/update-password
+### 2. Update: `src/hooks/useOnboardingReward.ts`
+Add tiered vendor reward support:
+- Fetch both `vendor_profile_verification_status` and `vendor_onboarding_status`
+- Check for both reward keys: `vendor_profile_verification_v1`, `vendor_onboarding_complete_v1`
+- Add `claimMilestoneReward()` function for 2-credit milestone
+- Auto-claim milestone first when complete, then full onboarding
 
-EDGE FUNCTION BEHAVIOR (step-by-step)
-1) Parse JSON and validate email (basic format). If invalid:
-   - Log attempt as failed (error_text="invalid_email")
-   - Return 200 with generic success message (no enumeration).
+### 3. Update: `src/components/GettingStartedChecklist.tsx`
+Update reward banner to show tiered progress:
+- "Earn 2 credits: Complete profile basics and submit verification"
+- "Earn 3 more credits: Complete all onboarding steps"
+- Show which tier is earned/claimable
+- Different states for: pending, milestone earned, full earned
 
-2) Normalize email: normalizedEmail = lower(trim(email))
+### 4. Update: `src/copy/gettingStartedChecklistCopy.ts`
+Add vendor-specific tiered copy:
+```typescript
+vendorReward: {
+  milestoneTitle: "Complete profile + verification -> Earn 2 credits",
+  milestonePending: "Finish your profile and submit verification to claim.",
+  milestoneEarned: "2 credits earned!",
+  fullTitle: "Complete all onboarding -> Earn 3 more credits",
+  fullPending: "Finish the remaining steps to claim your bonus.",
+  fullEarned: "3 credits earned!",
+}
+```
 
-3) Rate limiting (IMPORTANT TWEAK)
-Count ALL attempts (any status) for email_normalized in last 10 minutes:
-- If count >= 3:
-  - Insert log row with status='rate_limited'
-  - Return 200 with generic success message
+## Edge Cases Handled
 
-4) Insert a log row with status='queued' (provider='resend')
+1. **Vendor#9 (already awarded 5 credits)**: 
+   - Has `onboarding_complete_v1` with 5 credits
+   - New `vendor_profile_verification_v1` won't be awarded (total would exceed cap)
+   - Remaining calculation: `5 - 5 = 0`, so no new rewards
 
-5) Generate recovery link via Supabase Admin API:
-   Use supabase.auth.admin.generateLink({
-     type: 'recovery',
-     email: normalizedEmail,
-     options: { redirectTo }
-   })
-   Extract recovery URL from returned data:
-   data.properties?.action_link (use the correct returned field; must work with supabase-js v2)
+2. **Staff users**: 
+   - Share vendor owner's progress via `has_vendor_access_by_profile`
+   - Cannot claim rewards themselves (mimic check in hook)
 
-6) Send email via Resend:
-   - From: "ClearMarket <hello@useclearmarket.io>"
-   - To: original email (NOT normalized string if it changes casing; but either is fine)
-   - Subject: "Reset your ClearMarket password"
-   - HTML: dark theme matching ClearMarket styling, orange CTA button
-   - Plain text fallback includes the link
-   - Include ClearMarket logo if available (use a public URL if one exists in project; if not, omit logo rather than breaking email)
+3. **Concurrent requests**: 
+   - UNIQUE constraint prevents duplicate receipts
+   - `ON CONFLICT DO NOTHING` + `GET DIAGNOSTICS` ensures atomicity
 
-Branding guidance:
-- Background: #24282D
-- CTA: #D1532C
-- Text: light/white
+4. **remaining = 0**: 
+   - Skip insert entirely (no clutter, no "earned 0 credits" receipts)
 
-7) Update the queued log row:
-   - On success: status='sent', provider_message_id set to Resend message id
-   - On failure: status='failed', error_text includes safe error string (no secrets)
+5. **NULL verification status**: 
+   - Properly handled with `IS NULL` check (not `NOT IN`)
 
-8) RESPONSE (NO ENUMERATION)
-Always return HTTP 200:
-{ "ok": true, "message": "If an account exists for this email, you’ll receive a reset link shortly." }
-Even on internal errors.
+## Files Changed
 
-OPTIONAL PRIVACY
-If request IP is available, store a hashed value (not raw IP):
-- request_ip_hash = sha256(ip + serverSalt) if feasible; if not, omit IP logging rather than store raw.
-User agent: read from headers and store.
+| File | Change |
+|------|--------|
+| `supabase/migrations/20260127_vendor_onboarding_rewards_v2.sql` | New migration with views and RPCs |
+| `src/lib/checklistTracking.ts` | Fix vendor_pricing_saved evaluation |
+| `src/hooks/useOnboardingReward.ts` | Tiered vendor reward support |
+| `src/components/GettingStartedChecklist.tsx` | Tiered UI display |
+| `src/copy/gettingStartedChecklistCopy.ts` | Vendor tiered copy |
 
-FRONTEND CHANGES
+## Technical Notes
 
-A) ForgotPassword.tsx
-Replace supabase.auth.resetPasswordForEmail() with:
-supabase.functions.invoke('auth-send-recovery', { body: { email, redirectTo } })
+### ID Mapping Reference
+| Table | Key Column | References |
+|-------|------------|------------|
+| seeking_coverage_posts | vendor_id | profiles.id (user_id) |
+| vendor_connections | vendor_id | profiles.id (user_id) |
+| vendor_calendar_events | vendor_id | profiles.id (user_id) |
+| vendor_office_hours | vendor_id | profiles.id (user_id) |
+| vendor_coverage_areas | user_id | profiles.id |
+| reviews | reviewer_id | profiles.id |
+| vendor_wallet | vendor_id | vendor_profile.id |
+| onboarding_rewards | subject_id | vendor_profile.id |
 
-Rules:
-- Always show the same success message after submit (no enumeration)
-- Add helper text: check spam/promotions, wait 1–2 minutes, verify spelling
-- Add “Contact support” link: mailto:hello@useclearmarket.io
-- Add 60-second client-side cooldown to disable re-send / submit button after a request
-- Keep styling consistent with existing ClearMarket dark UI and shadcn components
-
-B) UpdatePassword.tsx
-This route already exists and handles PASSWORD_RECOVERY.
-Only add:
-- A support link mailto:hello@useclearmarket.io on the page for issues
-Do NOT rework the flow unless it is broken.
-
-ROUTE ALIGNMENT
-Do NOT create new reset routes.
-Use existing:
-- /auth/forgot-password
-- /auth/update-password
-
-MANUAL CHECKLIST (Lovable must include this at end)
-Supabase Dashboard → Auth → URL Configuration
-- Site URL: https://useclearmarket.io
-- Add Redirect URLs:
-  - https://useclearmarket.io/auth/update-password
-  - http://localhost:5173/auth/update-password
-  - http://localhost:8081/auth/update-password (only if used for local dev)
-
-DEFINITION OF DONE
-- Forgot password submit shows success message every time (no enumeration)
-- Resend logs show the email was sent when the user exists
-- DB table logs attempts with statuses: queued/sent/failed/rate_limited
-- 4th attempt within 10 minutes is rate_limited (still returns success)
-- Recovery link opens /auth/update-password and allows setting a new password
-- User can log in with the new password
-
-OUTPUT REQUIREMENTS
-Return full contents of:
-- supabase/migrations/20260126_auth_recovery_email.sql
-- supabase/functions/auth-send-recovery/index.ts
-- supabase/config.toml (only the relevant updated section if file is large; but do not break existing config)
-- src/pages/ForgotPassword.tsx (full file)
-- src/pages/UpdatePassword.tsx (full file)
-
-No TODOs. No placeholders. No unrelated changes.
+### Checklist Items Validation Reference
+| Item | Validation Method |
+|------|-------------------|
+| company_name | `vp.company_name IS NOT NULL` |
+| location | `vp.city IS NOT NULL AND vp.state IS NOT NULL` |
+| inspection_types | `array_length(vp.primary_inspection_types, 1) > 0` |
+| coverage_area | `EXISTS (vendor_coverage_areas WHERE user_id = vp.user_id)` |
+| verification_submitted | `vp.vendor_verification_status IS NOT NULL AND <> 'draft'` |
+| first_seeking_coverage_post | `EXISTS (seeking_coverage_posts WHERE vendor_id = vp.user_id)` |
+| vendor_pricing_saved | `EXISTS (seeking_coverage_posts WHERE vendor_id = vp.user_id AND pay_max IS NOT NULL)` |
+| first_agreement_created | `EXISTS (vendor_connections WHERE vendor_id = vp.user_id)` |
+| first_rep_review_submitted | `EXISTS (reviews WHERE reviewer_id = vp.user_id AND direction = 'vendor_to_rep')` |
+| first_rep_message_sent | Via `user_checklist_items` completion |
+| first_route_alert_acknowledged | Via `user_checklist_items` completion |
+| vendor_calendar_updated | `EXISTS (vendor_office_hours OR vendor_calendar_events WHERE vendor_id = vp.user_id)` |
