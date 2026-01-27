@@ -285,126 +285,164 @@ export function GettingStartedChecklist({
               <>
                 {isVendor ? (
                   // Vendor tiered reward display
-                  <div className="mt-4 space-y-2">
-                    {/* Milestone tier (2 credits) */}
-                    <div className={cn(
-                      "p-3 rounded-lg border flex items-center gap-3",
-                      reward.milestoneEarned 
-                        ? "bg-green-500/10 border-green-500/30" 
-                        : reward.milestoneComplete 
-                          ? "bg-primary/10 border-primary/30" 
-                          : "bg-muted/30 border-border/50"
-                    )}>
-                      <div className={cn(
-                        "flex-shrink-0 p-2 rounded-full",
-                        reward.milestoneEarned 
-                          ? "bg-green-500/20" 
-                          : reward.milestoneComplete 
-                            ? "bg-primary/20" 
-                            : "bg-muted"
-                      )}>
-                        {reward.milestoneEarned ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <Gift className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm text-foreground">
-                            {copy.vendorReward.milestoneTitle}
-                          </span>
-                          {reward.milestoneEarned && (
-                            <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
-                              {copy.reward.earnedBadge}
-                            </Badge>
+                  (() => {
+                    // Compute remaining steps for accurate messaging
+                    const stepsRemaining = requiredCount - completedRequiredCount;
+                    const checklistComplete = stepsRemaining === 0;
+                    
+                    // Determine if credits were applied but checklist not finished
+                    const milestoneAppliedNotComplete = reward.milestoneEarned && !checklistComplete;
+                    const fullAppliedNotComplete = reward.onboardingEarned && !checklistComplete;
+                    
+                    return (
+                      <div className="mt-4 space-y-2">
+                        {/* Milestone tier (2 credits) */}
+                        <div className={cn(
+                          "p-3 rounded-lg border flex items-center gap-3",
+                          reward.milestoneEarned && checklistComplete
+                            ? "bg-green-500/10 border-green-500/30"
+                            : reward.milestoneEarned
+                              ? "bg-muted/50 border-border/50"
+                              : reward.milestoneComplete 
+                                ? "bg-primary/10 border-primary/30" 
+                                : "bg-muted/30 border-border/50"
+                        )}>
+                          <div className={cn(
+                            "flex-shrink-0 p-2 rounded-full",
+                            reward.milestoneEarned && checklistComplete
+                              ? "bg-green-500/20"
+                              : reward.milestoneEarned
+                                ? "bg-muted"
+                                : reward.milestoneComplete 
+                                  ? "bg-primary/20" 
+                                  : "bg-muted"
+                          )}>
+                            {reward.milestoneEarned && checklistComplete ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : reward.milestoneEarned ? (
+                              <Coins className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              <Gift className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-foreground">
+                                {copy.vendorReward.milestoneTitle}
+                              </span>
+                              {reward.milestoneEarned && checklistComplete && (
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
+                                  {copy.reward.earnedBadge}
+                                </Badge>
+                              )}
+                              {milestoneAppliedNotComplete && (
+                                <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+                                  {copy.vendorReward.appliedBadge}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {reward.milestoneEarned && checklistComplete
+                                ? copy.vendorReward.milestoneEarned
+                                : milestoneAppliedNotComplete
+                                  ? copy.vendorReward.milestoneApplied
+                                  : copy.vendorReward.milestonePending}
+                            </p>
+                          </div>
+                          {reward.milestoneComplete && !reward.milestoneEarned && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => reward.claimMilestoneReward()}
+                              disabled={reward.claiming}
+                              className="flex-shrink-0"
+                            >
+                              <Coins className="h-4 w-4 mr-1" />
+                              {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.milestoneClaimButton}
+                            </Button>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {reward.milestoneEarned 
-                            ? copy.vendorReward.milestoneEarned 
-                            : copy.vendorReward.milestonePending}
-                        </p>
-                      </div>
-                      {reward.milestoneComplete && !reward.milestoneEarned && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => reward.claimMilestoneReward()}
-                          disabled={reward.claiming}
-                          className="flex-shrink-0"
-                        >
-                          <Coins className="h-4 w-4 mr-1" />
-                          {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.milestoneClaimButton}
-                        </Button>
-                      )}
-                    </div>
 
-                    {/* Full onboarding tier (3 more credits) */}
-                    <div className={cn(
-                      "p-3 rounded-lg border flex items-center gap-3",
-                      reward.onboardingEarned 
-                        ? "bg-green-500/10 border-green-500/30" 
-                        : reward.onboardingComplete && (reward.remaining ?? 0) > 0
-                          ? "bg-primary/10 border-primary/30" 
-                          : "bg-muted/30 border-border/50"
-                    )}>
-                      <div className={cn(
-                        "flex-shrink-0 p-2 rounded-full",
-                        reward.onboardingEarned 
-                          ? "bg-green-500/20" 
-                          : reward.onboardingComplete && (reward.remaining ?? 0) > 0
-                            ? "bg-primary/20" 
-                            : "bg-muted"
-                      )}>
-                        {reward.onboardingEarned ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        ) : (
-                          <Gift className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm text-foreground">
-                            {copy.vendorReward.fullTitle}
-                          </span>
-                          {reward.onboardingEarned && (
-                            <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
-                              {copy.reward.earnedBadge}
-                            </Badge>
+                        {/* Full onboarding tier (3 more credits) */}
+                        <div className={cn(
+                          "p-3 rounded-lg border flex items-center gap-3",
+                          reward.onboardingEarned && checklistComplete
+                            ? "bg-green-500/10 border-green-500/30"
+                            : reward.onboardingEarned
+                              ? "bg-muted/50 border-border/50"
+                              : reward.onboardingComplete && (reward.remaining ?? 0) > 0
+                                ? "bg-primary/10 border-primary/30" 
+                                : "bg-muted/30 border-border/50"
+                        )}>
+                          <div className={cn(
+                            "flex-shrink-0 p-2 rounded-full",
+                            reward.onboardingEarned && checklistComplete
+                              ? "bg-green-500/20"
+                              : reward.onboardingEarned
+                                ? "bg-muted"
+                                : reward.onboardingComplete && (reward.remaining ?? 0) > 0
+                                  ? "bg-primary/20" 
+                                  : "bg-muted"
+                          )}>
+                            {reward.onboardingEarned && checklistComplete ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            ) : reward.onboardingEarned ? (
+                              <Coins className="h-5 w-5 text-muted-foreground" />
+                            ) : (
+                              <Gift className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-foreground">
+                                {copy.vendorReward.fullTitle}
+                              </span>
+                              {reward.onboardingEarned && checklistComplete && (
+                                <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
+                                  {copy.reward.earnedBadge}
+                                </Badge>
+                              )}
+                              {fullAppliedNotComplete && (
+                                <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+                                  {copy.vendorReward.appliedBadge}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {reward.onboardingEarned && checklistComplete
+                                ? copy.vendorReward.fullEarned
+                                : fullAppliedNotComplete
+                                  ? copy.vendorReward.fullApplied.replace("{stepsRemaining}", String(stepsRemaining))
+                                  : copy.vendorReward.fullPending}
+                            </p>
+                          </div>
+                          {reward.onboardingComplete && (reward.remaining ?? 0) > 0 && !reward.onboardingEarned && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => reward.claimReward()}
+                              disabled={reward.claiming}
+                              className="flex-shrink-0"
+                            >
+                              <Coins className="h-4 w-4 mr-1" />
+                              {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.fullClaimButton}
+                            </Button>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {reward.onboardingEarned 
-                            ? copy.vendorReward.fullEarned 
-                            : copy.vendorReward.fullPending}
-                        </p>
-                      </div>
-                      {reward.onboardingComplete && (reward.remaining ?? 0) > 0 && !reward.onboardingEarned && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => reward.claimReward()}
-                          disabled={reward.claiming}
-                          className="flex-shrink-0"
-                        >
-                          <Coins className="h-4 w-4 mr-1" />
-                          {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.fullClaimButton}
-                        </Button>
-                      )}
-                    </div>
 
-                    {/* Total earned summary */}
-                    {(reward.totalEarned ?? 0) > 0 && (
-                      <div className="text-center">
-                        <Badge variant="outline" className="text-xs">
-                          {(reward.totalEarned ?? 0) >= 5 
-                            ? copy.vendorReward.maxEarned 
-                            : copy.vendorReward.totalEarned.replace("{count}", String(reward.totalEarned ?? 0))}
-                        </Badge>
+                        {/* Total earned summary */}
+                        {(reward.totalEarned ?? 0) > 0 && (
+                          <div className="text-center">
+                            <Badge variant="outline" className="text-xs">
+                              {(reward.totalEarned ?? 0) >= 5 
+                                ? (checklistComplete ? copy.vendorReward.maxEarned : copy.vendorReward.totalApplied)
+                                : copy.vendorReward.totalEarned.replace("{count}", String(reward.totalEarned ?? 0))}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()
                 ) : (
                   // Rep single-tier reward display
                   <div className={cn(
