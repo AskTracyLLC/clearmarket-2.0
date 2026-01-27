@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 import { ChecklistFeedbackDialog } from "./ChecklistFeedbackDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnboardingReward } from "@/hooks/useOnboardingReward";
+import { useActiveRole } from "@/hooks/useActiveRole";
 import { gettingStartedChecklistCopy } from "@/copy/gettingStartedChecklistCopy";
-
 interface GettingStartedChecklistProps {
   checklist: ChecklistProgress;
   onMarkComplete?: (userItemId: string) => Promise<boolean>;
@@ -33,6 +33,7 @@ export function GettingStartedChecklist({
   showReward = false,
 }: GettingStartedChecklistProps) {
   const { user } = useAuth();
+  const { effectiveRole } = useActiveRole();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [completing, setCompleting] = useState<string | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
@@ -46,9 +47,9 @@ export function GettingStartedChecklist({
   // Only fetch reward status if showReward is true
   const rewardHook = useOnboardingReward();
   const reward = showReward ? rewardHook : null;
+  const isVendor = effectiveRole === "vendor";
 
   const copy = gettingStartedChecklistCopy;
-
   const handleComplete = async (userItemId: string) => {
     if (!onMarkComplete) return;
     setCompleting(userItemId);
@@ -244,58 +245,185 @@ export function GettingStartedChecklist({
 
             {/* Onboarding Reward Banner */}
             {showReward && reward && !reward.loading && (
-              <div className={cn(
-                "mt-4 p-3 rounded-lg border flex items-center gap-3",
-                reward.alreadyAwarded 
-                  ? "bg-green-500/10 border-green-500/30" 
-                  : reward.isComplete 
-                    ? "bg-primary/10 border-primary/30" 
-                    : "bg-muted/30 border-border/50"
-              )}>
-                <div className={cn(
-                  "flex-shrink-0 p-2 rounded-full",
-                  reward.alreadyAwarded 
-                    ? "bg-green-500/20" 
-                    : reward.isComplete 
-                      ? "bg-primary/20" 
-                      : "bg-muted"
-                )}>
-                  {reward.alreadyAwarded ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <Gift className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm text-foreground">
-                      {copy.reward.title}
-                    </span>
-                    {reward.alreadyAwarded && (
-                      <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
-                        {copy.reward.earnedBadge}
-                      </Badge>
+              <>
+                {isVendor ? (
+                  // Vendor tiered reward display
+                  <div className="mt-4 space-y-2">
+                    {/* Milestone tier (2 credits) */}
+                    <div className={cn(
+                      "p-3 rounded-lg border flex items-center gap-3",
+                      reward.milestoneEarned 
+                        ? "bg-green-500/10 border-green-500/30" 
+                        : reward.milestoneComplete 
+                          ? "bg-primary/10 border-primary/30" 
+                          : "bg-muted/30 border-border/50"
+                    )}>
+                      <div className={cn(
+                        "flex-shrink-0 p-2 rounded-full",
+                        reward.milestoneEarned 
+                          ? "bg-green-500/20" 
+                          : reward.milestoneComplete 
+                            ? "bg-primary/20" 
+                            : "bg-muted"
+                      )}>
+                        {reward.milestoneEarned ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Gift className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-foreground">
+                            {copy.vendorReward.milestoneTitle}
+                          </span>
+                          {reward.milestoneEarned && (
+                            <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
+                              {copy.reward.earnedBadge}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {reward.milestoneEarned 
+                            ? copy.vendorReward.milestoneEarned 
+                            : copy.vendorReward.milestonePending}
+                        </p>
+                      </div>
+                      {reward.milestoneComplete && !reward.milestoneEarned && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => reward.claimMilestoneReward()}
+                          disabled={reward.claiming}
+                          className="flex-shrink-0"
+                        >
+                          <Coins className="h-4 w-4 mr-1" />
+                          {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.milestoneClaimButton}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Full onboarding tier (3 more credits) */}
+                    <div className={cn(
+                      "p-3 rounded-lg border flex items-center gap-3",
+                      reward.onboardingEarned 
+                        ? "bg-green-500/10 border-green-500/30" 
+                        : reward.onboardingComplete && (reward.remaining ?? 0) > 0
+                          ? "bg-primary/10 border-primary/30" 
+                          : "bg-muted/30 border-border/50"
+                    )}>
+                      <div className={cn(
+                        "flex-shrink-0 p-2 rounded-full",
+                        reward.onboardingEarned 
+                          ? "bg-green-500/20" 
+                          : reward.onboardingComplete && (reward.remaining ?? 0) > 0
+                            ? "bg-primary/20" 
+                            : "bg-muted"
+                      )}>
+                        {reward.onboardingEarned ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Gift className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm text-foreground">
+                            {copy.vendorReward.fullTitle}
+                          </span>
+                          {reward.onboardingEarned && (
+                            <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
+                              {copy.reward.earnedBadge}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {reward.onboardingEarned 
+                            ? copy.vendorReward.fullEarned 
+                            : copy.vendorReward.fullPending}
+                        </p>
+                      </div>
+                      {reward.onboardingComplete && (reward.remaining ?? 0) > 0 && !reward.onboardingEarned && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => reward.claimReward()}
+                          disabled={reward.claiming}
+                          className="flex-shrink-0"
+                        >
+                          <Coins className="h-4 w-4 mr-1" />
+                          {reward.claiming ? copy.reward.claimingButton : copy.vendorReward.fullClaimButton}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Total earned summary */}
+                    {(reward.totalEarned ?? 0) > 0 && (
+                      <div className="text-center">
+                        <Badge variant="outline" className="text-xs">
+                          {(reward.totalEarned ?? 0) >= 5 
+                            ? copy.vendorReward.maxEarned 
+                            : copy.vendorReward.totalEarned.replace("{count}", String(reward.totalEarned ?? 0))}
+                        </Badge>
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {reward.alreadyAwarded 
-                      ? copy.reward.earnedDescription 
-                      : copy.reward.pendingDescription}
-                  </p>
-                </div>
-                {reward.isComplete && !reward.alreadyAwarded && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => reward.claimReward()}
-                    disabled={reward.claiming}
-                    className="flex-shrink-0"
-                  >
-                    <Coins className="h-4 w-4 mr-1" />
-                    {reward.claiming ? copy.reward.claimingButton : copy.reward.claimButton}
-                  </Button>
+                ) : (
+                  // Rep single-tier reward display
+                  <div className={cn(
+                    "mt-4 p-3 rounded-lg border flex items-center gap-3",
+                    reward.alreadyAwarded 
+                      ? "bg-green-500/10 border-green-500/30" 
+                      : reward.isComplete 
+                        ? "bg-primary/10 border-primary/30" 
+                        : "bg-muted/30 border-border/50"
+                  )}>
+                    <div className={cn(
+                      "flex-shrink-0 p-2 rounded-full",
+                      reward.alreadyAwarded 
+                        ? "bg-green-500/20" 
+                        : reward.isComplete 
+                          ? "bg-primary/20" 
+                          : "bg-muted"
+                    )}>
+                      {reward.alreadyAwarded ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <Gift className="h-5 w-5 text-primary" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm text-foreground">
+                          {copy.reward.title}
+                        </span>
+                        {reward.alreadyAwarded && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-500 text-xs">
+                            {copy.reward.earnedBadge}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {reward.alreadyAwarded 
+                          ? copy.reward.earnedDescription 
+                          : copy.reward.pendingDescription}
+                      </p>
+                    </div>
+                    {reward.isComplete && !reward.alreadyAwarded && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => reward.claimReward()}
+                        disabled={reward.claiming}
+                        className="flex-shrink-0"
+                      >
+                        <Coins className="h-4 w-4 mr-1" />
+                        {reward.claiming ? copy.reward.claimingButton : copy.reward.claimButton}
+                      </Button>
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </CardContent>
         </CollapsibleContent>

@@ -9,12 +9,29 @@ export const gettingStartedChecklistCopy = {
   },
 
   reward: {
+    // Generic (rep) reward copy
     title: "Complete required onboarding → Earn 5 credits",
     pendingDescription: "Finish the required steps above to claim your reward.",
     earnedBadge: "Earned",
     earnedDescription: "5 credits added to your wallet!",
     claimButton: "Claim Reward",
     claimingButton: "Claiming...",
+  },
+
+  vendorReward: {
+    // Milestone tier (2 credits)
+    milestoneTitle: "Complete profile + verification → Earn 2 credits",
+    milestonePending: "Finish your profile and submit verification to claim.",
+    milestoneEarned: "2 credits earned!",
+    milestoneClaimButton: "Claim 2 Credits",
+    // Full onboarding tier (3 more credits)
+    fullTitle: "Complete all onboarding → Earn 3 more credits",
+    fullPending: "Finish the remaining steps to claim your bonus.",
+    fullEarned: "3 credits earned!",
+    fullClaimButton: "Claim 3 Credits",
+    // Total earned
+    totalEarned: "{count} of 5 credits earned",
+    maxEarned: "All 5 credits earned!",
   },
 
   itemRow: {
