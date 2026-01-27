@@ -85,7 +85,7 @@ const Dashboard = () => {
   const [showRouteDialog, setShowRouteDialog] = useState(false);
   
   // Getting Started Checklist
-  const { primaryChecklist, vendorChecklists, markComplete, loading: checklistLoading } = useChecklist();
+  const { primaryChecklist, vendorChecklists, markComplete, resync, isSyncing, loading: checklistLoading } = useChecklist();
   
   // Admin Overview Counts
   const { counts: adminCounts, loading: adminCountsLoading, refresh: refreshAdminCounts } = useAdminOverview();
@@ -667,6 +667,8 @@ const Dashboard = () => {
                       }}
                       defaultExpanded={primaryChecklist.percent < 50}
                       showReward={true}
+                      onResync={resync}
+                      isSyncing={isSyncing}
                     />
                   </div>
                 )}

@@ -97,6 +97,36 @@ export function GettingStartedChecklist({
                 </CardDescription>
               </div>
               <div className="flex items-center gap-3">
+                {/* Refresh Progress Button */}
+                {onResync && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                          disabled={isSyncing}
+                          aria-label="Refresh Progress"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onResync();
+                          }}
+                        >
+                          {isSyncing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refresh Progress</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
                 <div className="text-right">
                   <span className="text-2xl font-bold text-foreground">{percent}%</span>
                 </div>
