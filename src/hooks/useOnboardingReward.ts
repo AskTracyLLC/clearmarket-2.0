@@ -110,6 +110,21 @@ export function useOnboardingReward() {
           return;
         }
 
+        // Check onboarding_rewards using vendor_id as subject_id (NOT user_id)
+        const { data: existingRewards } = await supabase
+          .from("onboarding_rewards")
+          .select("reward_key, credits_awarded")
+          .eq("subject_type", "vendor")
+          .eq("subject_id", vendorId);
+
+        const milestoneReward = existingRewards?.find(r => r.reward_key === "vendor_profile_verification_v1");
+        const onboardingReward = existingRewards?.find(r => r.reward_key === "vendor_onboarding_complete_v1");
+        
+        // If full onboarding was earned, both tiers are complete
+        const fullOnboardingEarned = !!onboardingReward;
+        const milestoneAlreadyEarned = !!milestoneReward || fullOnboardingEarned;
+        const totalAlreadyEarned = (milestoneReward?.credits_awarded ?? 0) + (onboardingReward?.credits_awarded ?? 0);
+
         // Use the get_vendor_reward_summary RPC for tiered status
         const { data: summary, error: summaryError } = await supabase.rpc(
           "get_vendor_reward_summary",
@@ -125,24 +140,30 @@ export function useOnboardingReward() {
         // Handle both direct return and wrapped return
         const s = summary as Record<string, unknown>;
 
+        // Override earned flags with actual onboarding_rewards truth
+        const computedMilestoneEarned = milestoneAlreadyEarned;
+        const computedOnboardingEarned = fullOnboardingEarned;
+        const computedTotalEarned = Math.max(totalAlreadyEarned, (s.total_earned as number) ?? 0);
+        const computedRemaining = Math.max(0, 5 - computedTotalEarned);
+
         setStatus({
           // Legacy fields for compatibility
           isComplete: (s.onboarding_complete as boolean) ?? false,
           missingRequired: (s.onboarding_missing as string[]) ?? [],
-          alreadyAwarded: ((s.total_earned as number) ?? 0) >= 5,
+          alreadyAwarded: computedTotalEarned >= 5,
           loading: false,
-          // Vendor tiered fields
+          // Vendor tiered fields - use DB truth for earned flags
           milestoneComplete: (s.milestone_complete as boolean) ?? false,
           milestoneMissing: (s.milestone_missing as string[]) ?? [],
-          milestoneEarned: (s.milestone_earned as boolean) ?? false,
-          milestoneCredits: (s.milestone_credits as number) ?? 0,
+          milestoneEarned: computedMilestoneEarned,
+          milestoneCredits: milestoneReward?.credits_awarded ?? (s.milestone_credits as number) ?? 0,
           onboardingComplete: (s.onboarding_complete as boolean) ?? false,
           onboardingMissing: (s.onboarding_missing as string[]) ?? [],
-          onboardingEarned: (s.onboarding_earned as boolean) ?? false,
-          onboardingCredits: (s.onboarding_credits as number) ?? 0,
-          totalEarned: (s.total_earned as number) ?? 0,
+          onboardingEarned: computedOnboardingEarned,
+          onboardingCredits: onboardingReward?.credits_awarded ?? (s.onboarding_credits as number) ?? 0,
+          totalEarned: computedTotalEarned,
           totalPossible: (s.total_possible as number) ?? 5,
-          remaining: (s.remaining as number) ?? 5,
+          remaining: computedRemaining,
         });
       } else {
         setStatus({ isComplete: false, missingRequired: [], alreadyAwarded: false, loading: false });
@@ -170,6 +191,16 @@ export function useOnboardingReward() {
       return { awarded: false, credits_awarded: 0, message: "Could not resolve vendor account" };
     }
 
+    // Check if already earned before attempting claim
+    if (status.milestoneEarned) {
+      toast({
+        title: "Credits already claimed",
+        description: "You've already earned the milestone reward.",
+        variant: "default",
+      });
+      return { awarded: false, credits_awarded: 0, message: "Credits already claimed" };
+    }
+
     setClaiming(true);
 
     try {
@@ -179,6 +210,11 @@ export function useOnboardingReward() {
 
       if (error) {
         console.error("Error claiming vendor milestone reward:", error);
+        toast({
+          title: "Failed to claim reward",
+          description: error.message,
+          variant: "destructive",
+        });
         return { awarded: false, credits_awarded: 0, message: error.message };
       }
 
@@ -190,16 +226,28 @@ export function useOnboardingReward() {
           description: `${result.credits_awarded} credits added to your company wallet.`,
         });
         await checkStatus();
+      } else {
+        // RPC returned not awarded (likely already claimed)
+        toast({
+          title: "Credits already claimed",
+          description: result.message || "You've already earned this reward.",
+          variant: "default",
+        });
       }
 
       return result;
     } catch (error) {
       console.error("Error claiming milestone reward:", error);
+      toast({
+        title: "Failed to claim reward",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
       return { awarded: false, credits_awarded: 0, message: "An error occurred" };
     } finally {
       setClaiming(false);
     }
-  }, [effectiveUserId, user?.id, toast, checkStatus]);
+  }, [effectiveUserId, user?.id, toast, checkStatus, status.milestoneEarned]);
 
   /**
    * Claim the full onboarding reward (rep: 5 credits, vendor: remainder up to 5)
@@ -213,6 +261,16 @@ export function useOnboardingReward() {
       return { awarded: false, credits_awarded: 0, message: "Cannot claim rewards while viewing as another user" };
     }
 
+    // Check if already fully earned before attempting claim
+    if (status.alreadyAwarded || (effectiveRole === "vendor" && status.onboardingEarned)) {
+      toast({
+        title: "Credits already claimed",
+        description: "You've already earned the full onboarding reward.",
+        variant: "default",
+      });
+      return { awarded: false, credits_awarded: 0, message: "Credits already claimed" };
+    }
+
     setClaiming(true);
 
     try {
@@ -221,6 +279,11 @@ export function useOnboardingReward() {
 
         if (error) {
           console.error("Error claiming rep onboarding reward:", error);
+          toast({
+            title: "Failed to claim reward",
+            description: error.message,
+            variant: "destructive",
+          });
           return { awarded: false, credits_awarded: 0, message: error.message };
         }
 
@@ -232,6 +295,12 @@ export function useOnboardingReward() {
             description: `${result.credits_awarded} credits added to your wallet.`,
           });
           await checkStatus();
+        } else {
+          toast({
+            title: "Credits already claimed",
+            description: result.message || "You've already earned this reward.",
+            variant: "default",
+          });
         }
 
         return result;
@@ -248,6 +317,11 @@ export function useOnboardingReward() {
 
         if (error) {
           console.error("Error claiming vendor onboarding reward:", error);
+          toast({
+            title: "Failed to claim reward",
+            description: error.message,
+            variant: "destructive",
+          });
           return { awarded: false, credits_awarded: 0, message: error.message };
         }
 
@@ -259,6 +333,12 @@ export function useOnboardingReward() {
             description: `${result.credits_awarded} credits added to your company wallet.`,
           });
           await checkStatus();
+        } else {
+          toast({
+            title: "Credits already claimed",
+            description: result.message || "You've already earned this reward.",
+            variant: "default",
+          });
         }
 
         return result;
@@ -267,11 +347,16 @@ export function useOnboardingReward() {
       return { awarded: false, credits_awarded: 0, message: "Unknown role" };
     } catch (error) {
       console.error("Error claiming onboarding reward:", error);
+      toast({
+        title: "Failed to claim reward",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
       return { awarded: false, credits_awarded: 0, message: "An error occurred" };
     } finally {
       setClaiming(false);
     }
-  }, [effectiveUserId, effectiveRole, user?.id, toast, checkStatus]);
+  }, [effectiveUserId, effectiveRole, user?.id, toast, checkStatus, status.alreadyAwarded, status.onboardingEarned]);
 
   // Initial load
   useEffect(() => {
