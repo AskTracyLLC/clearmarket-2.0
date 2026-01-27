@@ -62,6 +62,11 @@ function parseCoverageSummary(summaryList: string[]): ParsedCoverage[] {
   return parsed.sort((a, b) => a.stateCode.localeCompare(b.stateCode));
 }
 
+interface SeekingCoverageArea {
+  state_code: string;
+  counties: string[];
+}
+
 interface VendorProfileData {
   role: "vendor";
   anonymous_id: string;
@@ -80,6 +85,7 @@ interface VendorProfileData {
   coverage_summary: string[];
   coverage_states: string[];
   is_accepting_new_reps: boolean;
+  seeking_coverage_areas?: SeekingCoverageArea[];
   last_active: string | null;
   recent_reviews: any[];
 }
@@ -413,6 +419,28 @@ export default function VendorShareProfile() {
                 {profile.is_accepting_new_reps ? 'Accepting new field reps' : 'Not currently accepting new field reps'}
               </span>
             </div>
+
+            {/* Seeking Coverage Areas */}
+            {profile.seeking_coverage_areas && profile.seeking_coverage_areas.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Currently seeking field reps in…
+                  </h3>
+                  <div className="space-y-1.5">
+                    {profile.seeking_coverage_areas.map((area) => (
+                      <p key={area.state_code} className="text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{area.state_code}</span>
+                        {" - "}
+                        {area.counties.join(", ")}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Recent Reviews */}
             {profile.recent_reviews.length > 0 && (
