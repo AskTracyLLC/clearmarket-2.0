@@ -56,11 +56,12 @@ export async function evaluateAutoTrackKeyForUser(
       }
 
       case "vendor_pricing_saved": {
-        // Vendor has at least one coverage focus area
+        // Vendor has at least one seeking coverage post with pricing set
         const { count } = await client
-          .from("vendor_coverage_focus")
+          .from("seeking_coverage_posts")
           .select("*", { count: "exact", head: true })
-          .eq("vendor_id", userId);
+          .eq("vendor_id", userId)
+          .not("pay_max", "is", null);
         
         return (count ?? 0) > 0;
       }

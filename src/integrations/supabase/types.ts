@@ -4454,6 +4454,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pending_credit_purchases_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       platform_systems_used: {
@@ -9664,6 +9671,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendor_code_reservations_reserved_for_vendor_id_fkey"
+            columns: ["reserved_for_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       vendor_connections: {
@@ -10964,6 +10978,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendor_rep_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       vendor_score_summary: {
@@ -11107,6 +11128,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendor_staff_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       vendor_staff_emails: {
@@ -11164,6 +11192,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendor_staff_emails_vendor_profile_id_fkey"
+            columns: ["vendor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       vendor_staff_notes: {
@@ -11214,6 +11249,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_staff_notes_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
           },
         ]
       }
@@ -11277,6 +11319,13 @@ export type Database = {
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendor_wallet_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: true
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
+          },
         ]
       }
       vendor_wallet_transactions: {
@@ -11321,6 +11370,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vendor_profile"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_wallet_transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_profile_verification_status"
+            referencedColumns: ["vendor_id"]
           },
         ]
       }
@@ -12267,9 +12323,119 @@ export type Database = {
         Row: {
           is_complete: boolean | null
           missing_required: string[] | null
+          user_id: string | null
           vendor_id: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
+      vendor_profile_verification_status: {
+        Row: {
+          is_complete: boolean | null
+          missing_required: string[] | null
+          user_id: string | null
+          vendor_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
       }
     }
     Functions: {
@@ -12342,6 +12508,10 @@ export type Database = {
       award_rep_onboarding_credits: { Args: never; Returns: Json }
       award_rep_profile_pricing_credits: { Args: never; Returns: Json }
       award_vendor_onboarding_credits: {
+        Args: { p_vendor_id: string }
+        Returns: Json
+      }
+      award_vendor_profile_verification_credits: {
         Args: { p_vendor_id: string }
         Returns: Json
       }
@@ -12476,6 +12646,10 @@ export type Database = {
       get_user_vendor_profile_id: {
         Args: { p_user_id: string }
         Returns: string
+      }
+      get_vendor_reward_summary: {
+        Args: { p_vendor_id: string }
+        Returns: Json
       }
       has_vendor_access_by_owner: {
         Args: { p_owner_user_id: string }

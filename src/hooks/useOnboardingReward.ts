@@ -1,7 +1,12 @@
 /**
  * useOnboardingReward Hook
  * 
- * Manages the onboarding completion reward (5 credits) for reps and vendors.
+ * Manages the onboarding completion reward for reps and vendors.
+ * 
+ * Reps: Single tier - 5 credits for completing all required items.
+ * Vendors: Two tiers - 2 credits for milestone (profile + verification),
+ *          then 3 more for completing all onboarding items (5 total).
+ * 
  * Uses server-side views and RPCs to ensure idempotent, auditable credit awards.
  */
 
@@ -14,10 +19,24 @@ import { useToast } from "@/hooks/use-toast";
 import { resolveCurrentVendorId } from "@/lib/vendorWallet";
 
 export interface OnboardingRewardStatus {
+  // Rep fields (single tier)
   isComplete: boolean;
   missingRequired: string[];
   alreadyAwarded: boolean;
   loading: boolean;
+  
+  // Vendor tiered fields
+  milestoneComplete?: boolean;
+  milestoneMissing?: string[];
+  milestoneEarned?: boolean;
+  milestoneCredits?: number;
+  onboardingComplete?: boolean;
+  onboardingMissing?: string[];
+  onboardingEarned?: boolean;
+  onboardingCredits?: number;
+  totalEarned?: number;
+  totalPossible?: number;
+  remaining?: number;
 }
 
 export interface OnboardingRewardResult {
@@ -40,11 +59,12 @@ export function useOnboardingReward() {
     loading: true,
   });
   const [claiming, setClaiming] = useState(false);
-  const hasAttemptedAutoClaimRef = useRef(false);
+  const hasAttemptedMilestoneClaimRef = useRef(false);
+  const hasAttemptedFullClaimRef = useRef(false);
   const vendorIdRef = useRef<string | null>(null);
 
   /**
-   * Check current onboarding status and whether reward was already claimed
+   * Check current onboarding status and whether rewards were already claimed
    */
   const checkStatus = useCallback(async () => {
     if (!effectiveUserId) {
@@ -90,31 +110,39 @@ export function useOnboardingReward() {
           return;
         }
 
-        // Check vendor onboarding status from server view
-        const { data: vendorStatus, error: statusError } = await supabase
-          .from("vendor_onboarding_status")
-          .select("is_complete, missing_required")
-          .eq("vendor_id", vendorId)
-          .maybeSingle();
+        // Use the get_vendor_reward_summary RPC for tiered status
+        const { data: summary, error: summaryError } = await supabase.rpc(
+          "get_vendor_reward_summary",
+          { p_vendor_id: vendorId }
+        );
 
-        if (statusError) {
-          console.error("Error checking vendor onboarding status:", statusError);
+        if (summaryError) {
+          console.error("Error fetching vendor reward summary:", summaryError);
+          setStatus({ isComplete: false, missingRequired: [], alreadyAwarded: false, loading: false });
+          return;
         }
 
-        // Check if reward was already claimed
-        const { data: reward } = await supabase
-          .from("onboarding_rewards")
-          .select("id")
-          .eq("subject_type", "vendor")
-          .eq("subject_id", vendorId)
-          .eq("reward_key", "onboarding_complete_v1")
-          .maybeSingle();
+        // Handle both direct return and wrapped return
+        const s = summary as Record<string, unknown>;
 
         setStatus({
-          isComplete: vendorStatus?.is_complete ?? false,
-          missingRequired: vendorStatus?.missing_required ?? [],
-          alreadyAwarded: !!reward,
+          // Legacy fields for compatibility
+          isComplete: (s.onboarding_complete as boolean) ?? false,
+          missingRequired: (s.onboarding_missing as string[]) ?? [],
+          alreadyAwarded: ((s.total_earned as number) ?? 0) >= 5,
           loading: false,
+          // Vendor tiered fields
+          milestoneComplete: (s.milestone_complete as boolean) ?? false,
+          milestoneMissing: (s.milestone_missing as string[]) ?? [],
+          milestoneEarned: (s.milestone_earned as boolean) ?? false,
+          milestoneCredits: (s.milestone_credits as number) ?? 0,
+          onboardingComplete: (s.onboarding_complete as boolean) ?? false,
+          onboardingMissing: (s.onboarding_missing as string[]) ?? [],
+          onboardingEarned: (s.onboarding_earned as boolean) ?? false,
+          onboardingCredits: (s.onboarding_credits as number) ?? 0,
+          totalEarned: (s.total_earned as number) ?? 0,
+          totalPossible: (s.total_possible as number) ?? 5,
+          remaining: (s.remaining as number) ?? 5,
         });
       } else {
         setStatus({ isComplete: false, missingRequired: [], alreadyAwarded: false, loading: false });
@@ -126,14 +154,61 @@ export function useOnboardingReward() {
   }, [effectiveUserId, effectiveRole]);
 
   /**
-   * Claim the onboarding reward credits
+   * Claim the vendor milestone reward (2 credits)
+   */
+  const claimMilestoneReward = useCallback(async (): Promise<OnboardingRewardResult> => {
+    if (!effectiveUserId || !user?.id) {
+      return { awarded: false, credits_awarded: 0, message: "Not authenticated" };
+    }
+
+    if (effectiveUserId !== user.id) {
+      return { awarded: false, credits_awarded: 0, message: "Cannot claim rewards while viewing as another user" };
+    }
+
+    const vendorId = vendorIdRef.current || await resolveCurrentVendorId(effectiveUserId);
+    if (!vendorId) {
+      return { awarded: false, credits_awarded: 0, message: "Could not resolve vendor account" };
+    }
+
+    setClaiming(true);
+
+    try {
+      const { data, error } = await supabase.rpc("award_vendor_profile_verification_credits", {
+        p_vendor_id: vendorId,
+      });
+
+      if (error) {
+        console.error("Error claiming vendor milestone reward:", error);
+        return { awarded: false, credits_awarded: 0, message: error.message };
+      }
+
+      const result = data as unknown as OnboardingRewardResult;
+
+      if (result.awarded) {
+        toast({
+          title: "🎉 Milestone Complete!",
+          description: `${result.credits_awarded} credits added to your company wallet.`,
+        });
+        await checkStatus();
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error claiming milestone reward:", error);
+      return { awarded: false, credits_awarded: 0, message: "An error occurred" };
+    } finally {
+      setClaiming(false);
+    }
+  }, [effectiveUserId, user?.id, toast, checkStatus]);
+
+  /**
+   * Claim the full onboarding reward (rep: 5 credits, vendor: remainder up to 5)
    */
   const claimReward = useCallback(async (): Promise<OnboardingRewardResult> => {
     if (!effectiveUserId || !user?.id) {
       return { awarded: false, credits_awarded: 0, message: "Not authenticated" };
     }
 
-    // Prevent claiming during mimic
     if (effectiveUserId !== user.id) {
       return { awarded: false, credits_awarded: 0, message: "Cannot claim rewards while viewing as another user" };
     }
@@ -154,9 +229,8 @@ export function useOnboardingReward() {
         if (result.awarded) {
           toast({
             title: "🎉 Onboarding Complete!",
-            description: `5 credits added to your wallet.`,
+            description: `${result.credits_awarded} credits added to your wallet.`,
           });
-          // Refresh status
           await checkStatus();
         }
 
@@ -182,9 +256,8 @@ export function useOnboardingReward() {
         if (result.awarded) {
           toast({
             title: "🎉 Onboarding Complete!",
-            description: `5 credits added to your company wallet.`,
+            description: `${result.credits_awarded} credits added to your company wallet.`,
           });
-          // Refresh status
           await checkStatus();
         }
 
@@ -205,30 +278,61 @@ export function useOnboardingReward() {
     checkStatus();
   }, [checkStatus]);
 
-  // Reset auto-claim flag when user changes
+  // Reset auto-claim flags when user changes
   useEffect(() => {
-    hasAttemptedAutoClaimRef.current = false;
+    hasAttemptedMilestoneClaimRef.current = false;
+    hasAttemptedFullClaimRef.current = false;
     vendorIdRef.current = null;
   }, [effectiveUserId]);
 
-  // Auto-claim when requirements are met (only once)
+  // Auto-claim for reps (single tier)
   useEffect(() => {
     if (
+      effectiveRole === "rep" &&
       !status.loading &&
       status.isComplete &&
       !status.alreadyAwarded &&
-      !hasAttemptedAutoClaimRef.current &&
-      effectiveUserId === user?.id // Only auto-claim for real user, not mimic
+      !hasAttemptedFullClaimRef.current &&
+      effectiveUserId === user?.id
     ) {
-      hasAttemptedAutoClaimRef.current = true;
+      hasAttemptedFullClaimRef.current = true;
       claimReward();
     }
-  }, [status, effectiveUserId, user?.id, claimReward]);
+  }, [status, effectiveRole, effectiveUserId, user?.id, claimReward]);
+
+  // Auto-claim for vendors (tiered: milestone first, then full)
+  useEffect(() => {
+    if (
+      effectiveRole === "vendor" &&
+      !status.loading &&
+      effectiveUserId === user?.id
+    ) {
+      // Auto-claim milestone if ready and not yet claimed
+      if (
+        status.milestoneComplete &&
+        !status.milestoneEarned &&
+        !hasAttemptedMilestoneClaimRef.current
+      ) {
+        hasAttemptedMilestoneClaimRef.current = true;
+        claimMilestoneReward();
+      }
+      // Auto-claim full onboarding if ready and not yet at max
+      else if (
+        status.onboardingComplete &&
+        (status.remaining ?? 0) > 0 &&
+        !hasAttemptedFullClaimRef.current
+      ) {
+        hasAttemptedFullClaimRef.current = true;
+        claimReward();
+      }
+    }
+  }, [status, effectiveRole, effectiveUserId, user?.id, claimMilestoneReward, claimReward]);
 
   return {
     ...status,
     claiming,
     claimReward,
+    claimMilestoneReward,
     refresh: checkStatus,
   };
 }
