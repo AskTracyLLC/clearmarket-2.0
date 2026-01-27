@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { ConfirmCreditSpendDialog } from "@/components/ConfirmCreditSpendDialog";
-import { getVendorCredits } from "@/lib/credits";
+import { resolveCurrentVendorId, getVendorWalletBalance } from "@/lib/vendorWallet";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ConfirmCreditSpendOptions {
@@ -25,8 +25,11 @@ export function useCreditConfirm() {
     async (options: ConfirmCreditSpendOptions): Promise<boolean> => {
       if (!user) return false;
 
-      // Fetch current balance
-      const balance = await getVendorCredits(user.id);
+      // Resolve vendor ID and fetch from vendor_wallet
+      const vendorId = await resolveCurrentVendorId(user.id);
+      if (!vendorId) return false;
+      
+      const balance = await getVendorWalletBalance(vendorId);
       const currentBalance = balance ?? 0;
 
       return new Promise((resolve) => {
