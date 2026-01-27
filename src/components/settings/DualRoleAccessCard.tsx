@@ -7,9 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Briefcase, Building2, Users, Clock, CheckCircle2, XCircle, Shield, RefreshCw, AlertTriangle } from "lucide-react";
+import { Briefcase, Building2, Users, Clock, CheckCircle2, XCircle, Shield, RefreshCw, AlertTriangle, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { DualRoleRequestModal } from "./DualRoleRequestModal";
+
+// Feature is disabled until further notice
+const DUAL_ROLE_REQUESTS_ENABLED = false;
 
 interface DualRoleRequest {
   id: string;
@@ -324,12 +327,31 @@ export function DualRoleAccessCard() {
                 </p>
               </div>
 
-              <Button 
-                onClick={() => setModalOpen(true)}
-                disabled={isInMimicMode}
-              >
-                Request Dual Role Access
-              </Button>
+              {/* Coming Soon state when feature is disabled */}
+              {!DUAL_ROLE_REQUESTS_ENABLED ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg border border-border">
+                    <Lock className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">Coming Soon</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Dual Role requests are temporarily disabled while we finalize this feature. Check back soon!
+                      </p>
+                    </div>
+                  </div>
+                  <Button disabled className="opacity-50 cursor-not-allowed">
+                    <Lock className="h-4 w-4 mr-2" />
+                    Request Dual Role Access
+                  </Button>
+                </div>
+              ) : (
+                <Button 
+                  onClick={() => setModalOpen(true)}
+                  disabled={isInMimicMode}
+                >
+                  Request Dual Role Access
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
