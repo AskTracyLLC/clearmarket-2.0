@@ -17,6 +17,7 @@ import { useActiveRole } from "@/hooks/useActiveRole";
 import { useMimic } from "@/hooks/useMimic";
 import { useToast } from "@/hooks/use-toast";
 import { resolveCurrentVendorId } from "@/lib/vendorWallet";
+import { VENDOR_BETA_ONBOARDING_TEMPLATE_ID } from "@/lib/checklistOwnerResolver";
 
 export interface OnboardingRewardStatus {
   // Rep fields (single tier)
@@ -44,6 +45,57 @@ export interface OnboardingRewardResult {
   credits_awarded: number;
   new_balance?: number;
   message: string;
+}
+
+/**
+ * Verify vendor checklist completion by checking actual checklist items
+ * Returns true if all required items are completed
+ */
+async function verifyVendorChecklistComplete(ownerUserId: string): Promise<{ complete: boolean; stepsRemaining: number }> {
+  try {
+    // Get the vendor onboarding assignment for the owner
+    const { data: assignment } = await supabase
+      .from("user_checklist_assignments")
+      .select("id")
+      .eq("user_id", ownerUserId)
+      .eq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID)
+      .maybeSingle();
+
+    if (!assignment) {
+      return { complete: false, stepsRemaining: -1 };
+    }
+
+    // Get all required checklist items for this template
+    const { data: requiredItems } = await supabase
+      .from("checklist_items")
+      .select("id")
+      .eq("template_id", VENDOR_BETA_ONBOARDING_TEMPLATE_ID)
+      .eq("is_required", true);
+
+    if (!requiredItems || requiredItems.length === 0) {
+      return { complete: true, stepsRemaining: 0 };
+    }
+
+    const requiredItemIds = requiredItems.map(i => i.id);
+
+    // Get user's completion status for required items
+    const { data: userItems } = await supabase
+      .from("user_checklist_items")
+      .select("item_id, status")
+      .eq("assignment_id", assignment.id)
+      .in("item_id", requiredItemIds);
+
+    const completedCount = (userItems || []).filter(ui => ui.status === "completed").length;
+    const stepsRemaining = requiredItems.length - completedCount;
+
+    return {
+      complete: completedCount === requiredItems.length,
+      stepsRemaining,
+    };
+  } catch (error) {
+    console.error("Error verifying vendor checklist completion:", error);
+    return { complete: false, stepsRemaining: -1 };
+  }
 }
 
 export function useOnboardingReward() {
@@ -318,6 +370,23 @@ export function useOnboardingReward() {
           return { awarded: false, credits_awarded: 0, message: "Could not resolve vendor account" };
         }
 
+        // GATING: Verify actual checklist completion before awarding
+        const checklistVerification = await verifyVendorChecklistComplete(effectiveUserId);
+        
+        if (!checklistVerification.complete) {
+          const message = checklistVerification.stepsRemaining > 0
+            ? `Finish all required onboarding steps to claim this bonus. (${checklistVerification.stepsRemaining} remaining)`
+            : "Finish all required onboarding steps to claim this bonus.";
+          
+          toast({
+            title: "Cannot claim yet",
+            description: message,
+            variant: "destructive",
+          });
+          setClaiming(false);
+          return { awarded: false, credits_awarded: 0, message };
+        }
+
         const { data, error } = await supabase.rpc("award_vendor_onboarding_credits", {
           p_vendor_id: vendorId,
         });
@@ -393,6 +462,7 @@ export function useOnboardingReward() {
   }, [status, effectiveRole, effectiveUserId, user?.id, claimReward]);
 
   // Auto-claim for vendors (tiered: milestone first, then full)
+  // NOTE: Full onboarding auto-claim now gated by verifyVendorChecklistComplete in claimReward
   useEffect(() => {
     if (
       effectiveRole === "vendor" &&
@@ -409,6 +479,7 @@ export function useOnboardingReward() {
         claimMilestoneReward();
       }
       // Auto-claim full onboarding if ready and not yet at max
+      // The actual checklist verification happens inside claimReward
       else if (
         status.onboardingComplete &&
         (status.remaining ?? 0) > 0 &&
