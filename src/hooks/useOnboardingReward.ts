@@ -117,8 +117,15 @@ export function useOnboardingReward() {
           .eq("subject_type", "vendor")
           .eq("subject_id", vendorId);
 
+        // Check for milestone reward
         const milestoneReward = existingRewards?.find(r => r.reward_key === "vendor_profile_verification_v1");
-        const onboardingReward = existingRewards?.find(r => r.reward_key === "vendor_onboarding_complete_v1");
+        
+        // Check for full onboarding reward - support both legacy and current keys
+        // DB currently uses "onboarding_complete_v1", but also support "vendor_onboarding_complete_v1" as alias
+        const onboardingReward = existingRewards?.find(r => 
+          r.reward_key === "onboarding_complete_v1" || 
+          r.reward_key === "vendor_onboarding_complete_v1"
+        );
         
         // If full onboarding was earned, both tiers are complete
         const fullOnboardingEarned = !!onboardingReward;
