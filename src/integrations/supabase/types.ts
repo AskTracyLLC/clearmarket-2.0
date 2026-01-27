@@ -1468,8 +1468,69 @@ export type Database = {
           },
         ]
       }
+      clearcheck_client_aliases: {
+        Row: {
+          client_code: string
+          created_at: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          match_text: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          client_code: string
+          created_at?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          match_text: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          client_code?: string
+          created_at?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          match_text?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      clearcheck_client_reason_policy: {
+        Row: {
+          client_code: string
+          created_at: string | null
+          list_label: string | null
+          mode: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          client_code: string
+          created_at?: string | null
+          list_label?: string | null
+          mode: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          client_code?: string
+          created_at?: string | null
+          list_label?: string | null
+          mode?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       clearcheck_contact_attempts: {
         Row: {
+          bulk_batch_id: string | null
           created_at: string | null
           created_by: string | null
           id: string
@@ -1478,6 +1539,7 @@ export type Database = {
           order_id: string | null
         }
         Insert: {
+          bulk_batch_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -1486,6 +1548,7 @@ export type Database = {
           order_id?: string | null
         }
         Update: {
+          bulk_batch_id?: string | null
           created_at?: string | null
           created_by?: string | null
           id?: string
@@ -1502,6 +1565,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      clearcheck_delay_reasons: {
+        Row: {
+          client_code: string | null
+          code: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          label: string
+          scope: string
+          sort_order: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          client_code?: string | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          label: string
+          scope: string
+          sort_order: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          client_code?: string | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          scope?: string
+          sort_order?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       clearcheck_flag_definitions: {
         Row: {
@@ -1765,6 +1867,7 @@ export type Database = {
       clearcheck_orders: {
         Row: {
           city: string | null
+          client_code: string | null
           client_primary: string | null
           completed_date: string | null
           county: string | null
@@ -1797,6 +1900,7 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          client_code?: string | null
           client_primary?: string | null
           completed_date?: string | null
           county?: string | null
@@ -1829,6 +1933,7 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          client_code?: string | null
           client_primary?: string | null
           completed_date?: string | null
           county?: string | null
@@ -1865,6 +1970,50 @@ export type Database = {
             columns: ["import_batch_id"]
             isOneToOne: false
             referencedRelation: "clearcheck_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clearcheck_responses: {
+        Row: {
+          created_at: string | null
+          delay_reason_code: string | null
+          delay_reason_label: string | null
+          ecd: string | null
+          id: string
+          logged_by: string | null
+          order_id: string
+          received_via: string | null
+          response_logged_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delay_reason_code?: string | null
+          delay_reason_label?: string | null
+          ecd?: string | null
+          id?: string
+          logged_by?: string | null
+          order_id: string
+          received_via?: string | null
+          response_logged_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delay_reason_code?: string | null
+          delay_reason_label?: string | null
+          ecd?: string | null
+          id?: string
+          logged_by?: string | null
+          order_id?: string
+          received_via?: string | null
+          response_logged_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clearcheck_responses_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clearcheck_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -12281,6 +12430,15 @@ export type Database = {
           on_delete: string
           schema_name: string
           table_name: string
+        }[]
+      }
+      get_reasons_by_client: {
+        Args: { p_client_code: string }
+        Returns: {
+          code: string
+          id: string
+          label: string
+          sort_order: number
         }[]
       }
       get_rep_contact_access_metrics: {

@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     // Look up the profile by share_profile_slug
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, full_name, email, last_seen_at, is_fieldrep, is_vendor_admin, share_profile_enabled, community_score, anonymous_id')
+      .select('id, full_name, last_seen_at, is_fieldrep, is_vendor_admin, share_profile_enabled, community_score, anonymous_id')
       .eq('share_profile_slug', slug)
       .eq('share_profile_enabled', true)
       .maybeSingle();
