@@ -4,11 +4,63 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Star, MapPin, Calendar, CheckCircle, ExternalLink, Users, Globe } from "lucide-react";
+import { Star, MapPin, Calendar, CheckCircle, ExternalLink, Users, Globe, ChevronDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchPublicProfileShare } from "@/lib/reputationSharing";
 import { getPublicBaseUrl } from "@/lib/publicUrl";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { US_STATES } from "@/lib/constants";
+
+// Helper to get state name from code
+function getStateName(code: string): string {
+  const state = US_STATES.find(s => s.value === code);
+  return state?.label || code;
+}
+
+// Parse coverage summary into structured data
+interface ParsedCoverage {
+  stateCode: string;
+  stateName: string;
+  isFullCoverage: boolean;
+  counties: string[];
+}
+
+function parseCoverageSummary(summaryList: string[]): ParsedCoverage[] {
+  const parsed: ParsedCoverage[] = [];
+  
+  for (const summary of summaryList) {
+    // Format: "StateName: All counties" or "StateName: County1, County2... (+N more)"
+    const colonIndex = summary.indexOf(":");
+    if (colonIndex === -1) continue;
+    
+    const statePart = summary.substring(0, colonIndex).trim();
+    const countyPart = summary.substring(colonIndex + 1).trim();
+    
+    // Find state code from name
+    const stateEntry = US_STATES.find(s => s.label === statePart);
+    const stateCode = stateEntry?.value || statePart.substring(0, 2).toUpperCase();
+    const stateName = stateEntry?.label || statePart;
+    
+    // Determine if full coverage
+    const isFullCoverage = countyPart.toLowerCase() === "all counties" || 
+                           countyPart.toLowerCase() === "most counties" ||
+                           countyPart.trim() === "";
+    
+    // Parse counties if partial
+    let counties: string[] = [];
+    if (!isFullCoverage && countyPart) {
+      // Remove the "(+N more)" part if present and parse
+      const cleanPart = countyPart.replace(/\s*\(\+\d+\s+more\)$/, "").replace(/\.{3}$/, "").trim();
+      counties = cleanPart.split(",").map(c => c.trim()).filter(Boolean);
+    }
+    
+    parsed.push({ stateCode, stateName, isFullCoverage, counties });
+  }
+  
+  // Sort by state code
+  return parsed.sort((a, b) => a.stateCode.localeCompare(b.stateCode));
+}
 
 interface VendorProfileData {
   role: "vendor";
@@ -266,19 +318,91 @@ export default function VendorShareProfile() {
 
             <Separator />
 
-            {/* Coverage */}
-            <div className="space-y-3">
-              <h3 className="font-semibold">Coverage & Focus Areas</h3>
-              {profile.coverage_summary.length > 0 ? (
-                <div className="space-y-2">
-                  {profile.coverage_summary.map((summary, idx) => (
-                    <div key={idx} className="text-muted-foreground">{summary}</div>
-                  ))}
+            {/* Coverage - Condensed Format */}
+            {(() => {
+              const parsed = parseCoverageSummary(profile.coverage_summary);
+              const fullCoverage = parsed.filter(p => p.isFullCoverage);
+              const partialCoverage = parsed.filter(p => !p.isFullCoverage);
+              
+              if (parsed.length === 0) {
+                return (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Coverage & Focus Areas</h3>
+                    <p className="text-muted-foreground">Coverage areas not specified</p>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Coverage & Focus Areas</h3>
+                  
+                  {/* All Counties Covered - Condensed paragraph */}
+                  {fullCoverage.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">All Counties Covered</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {fullCoverage.length} {fullCoverage.length === 1 ? "state" : "states"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {fullCoverage.map(s => `${s.stateCode} — ${s.stateName}`).join(", ")}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Partial Coverage - Expandable groups */}
+                  {partialCoverage.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">Partial Coverage (Selected Counties)</span>
+                        <Badge variant="outline" className="text-xs">
+                          {partialCoverage.length} {partialCoverage.length === 1 ? "state" : "states"}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        {partialCoverage.map((state) => {
+                          // If 1-2 counties, show inline without expansion
+                          if (state.counties.length <= 2) {
+                            return (
+                              <div key={state.stateCode} className="text-sm text-muted-foreground py-1">
+                                <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                {state.counties.length > 0 && (
+                                  <span className="ml-2">({state.counties.join(", ")})</span>
+                                )}
+                              </div>
+                            );
+                          }
+                          
+                          // Expandable for 3+ counties
+                          return (
+                            <Collapsible key={state.stateCode}>
+                              <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors group">
+                                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                                <span className="text-sm font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                <Badge variant="outline" className="text-xs ml-auto">
+                                  {state.counties.length} counties
+                                </Badge>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pl-6 pt-1 pb-2">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {state.counties.map((county) => (
+                                    <Badge key={county} variant="secondary" className="text-xs font-normal">
+                                      {county}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-muted-foreground">Coverage areas not specified</p>
-              )}
-            </div>
+              );
+            })()}
 
             <Separator />
 
