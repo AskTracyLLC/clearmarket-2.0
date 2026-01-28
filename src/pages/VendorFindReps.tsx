@@ -14,6 +14,7 @@ import { Search, MapPin, CheckCircle2, XCircle, Shield, Key, Users, HelpCircle, 
 import { US_STATES, SYSTEMS_LIST, INSPECTION_TYPES_LIST } from "@/lib/constants";
 import { isBackgroundCheckActive } from "@/lib/backgroundCheckUtils";
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
+import { fetchLocalFitScoresForUsers, LOCAL_FIT_MIN_REVIEWS } from "@/lib/reviewContext";
 import { ReviewsDetailDialog } from "@/components/ReviewsDetailDialog";
 // Contact unlock feature has been removed - access is now based on connection status only
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
@@ -98,6 +99,9 @@ interface RepResult {
   isBoosted?: boolean;
   boostEndsAt?: string | null;
   boostStartsAt?: string | null;
+  // Local Fit Score (only populated when state filter is active)
+  localFitScore?: number | null;
+  localFitReviewCount?: number;
 }
 
 export default function VendorFindReps() {
@@ -416,6 +420,19 @@ export default function VendorFindReps() {
       const repUserIds = filtered.map(r => r.user_id);
       const trustScores = await fetchTrustScoresForUsers(repUserIds);
 
+      // Fetch local fit scores when a state is selected (batch fetch for efficiency)
+      let localFitScoresMap: Record<string, { localAvgOverall: number; localReviewCount: number }> = {};
+      if (selectedState !== "all" && repUserIds.length > 0) {
+        const localScores = await fetchLocalFitScoresForUsers({
+          userIds: repUserIds,
+          stateCode: selectedState,
+          // Note: county filter not available in this view currently
+          countyName: null,
+          inspectionCategory: null,
+        });
+        localFitScoresMap = localScores;
+      }
+
       // Fetch community scores for all reps
       const { data: communityScoreData } = await supabase
         .from("profiles")
@@ -458,7 +475,7 @@ export default function VendorFindReps() {
       // Fetch blocked user IDs
       const blockedUserIds = await fetchBlockedUserIds();
 
-      // Enhance results with trust scores, community scores, connection data, and filter blocked users
+      // Enhance results with trust scores, community scores, local fit scores, connection data, and filter blocked users
       let enhancedResults = filtered
         .filter(rep => !blockedUserIds.includes(rep.user_id)) // Filter out blocked users
         .map(rep => {
@@ -483,6 +500,9 @@ export default function VendorFindReps() {
           // Get boost status for this rep
           const boostInfo = boostMap.get(rep.user_id);
 
+          // Get local fit score for this rep (only populated when state is selected)
+          const localFit = localFitScoresMap[rep.user_id];
+
           return {
             ...rep,
             trustScore: trustScores[rep.user_id]?.average ?? null,
@@ -493,6 +513,9 @@ export default function VendorFindReps() {
             isBoosted: boostInfo?.isBoosted ?? false,
             boostEndsAt: boostInfo?.endsAt ?? null,
             boostStartsAt: boostInfo?.startsAt ?? null,
+            // Local Fit Score - only populated when state filter is active
+            localFitScore: localFit?.localAvgOverall ?? null,
+            localFitReviewCount: localFit?.localReviewCount ?? 0,
           };
         });
 
@@ -627,6 +650,33 @@ export default function VendorFindReps() {
           const scoreA = a.communityScore ?? 0;
           const scoreB = b.communityScore ?? 0;
           if (scoreA !== scoreB) return scoreB - scoreA;
+          return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+        });
+      
+      case "local-fit":
+        // Sort by Local Fit Score (only meaningful when state is selected)
+        // Reps with enough local reviews (>=3) come first, sorted by local score
+        // Then reps without enough local reviews, sorted by overall trust score
+        return sorted.sort((a, b) => {
+          const aHasLocal = (a.localFitReviewCount ?? 0) >= LOCAL_FIT_MIN_REVIEWS;
+          const bHasLocal = (b.localFitReviewCount ?? 0) >= LOCAL_FIT_MIN_REVIEWS;
+          
+          // Both have enough local reviews - sort by local score
+          if (aHasLocal && bHasLocal) {
+            const scoreA = a.localFitScore ?? 0;
+            const scoreB = b.localFitScore ?? 0;
+            if (scoreA !== scoreB) return scoreB - scoreA;
+            return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
+          }
+          
+          // Only one has enough local reviews - prioritize them
+          if (aHasLocal && !bHasLocal) return -1;
+          if (!aHasLocal && bHasLocal) return 1;
+          
+          // Neither has enough local reviews - fall back to trust score
+          const trustA = a.trustScore ?? 3.0;
+          const trustB = b.trustScore ?? 3.0;
+          if (trustA !== trustB) return trustB - trustA;
           return (a.anonymous_id || "").localeCompare(b.anonymous_id || "");
         });
       
@@ -1003,6 +1053,9 @@ export default function VendorFindReps() {
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="best-match">Best match (recommended)</SelectItem>
                       <SelectItem value="trust-score">Highest Trust Score</SelectItem>
+                      {selectedState !== "all" && (
+                        <SelectItem value="local-fit">Local Fit Score ({selectedState})</SelectItem>
+                      )}
                       <SelectItem value="community-score">Community Score (High to Low)</SelectItem>
                       <SelectItem value="most-reviews">Most reviews</SelectItem>
                       <SelectItem value="newest">Newest profiles</SelectItem>
@@ -1109,6 +1162,60 @@ export default function VendorFindReps() {
                             </span>
                           )}
                         </button>
+
+                        {/* Local Fit Score - only show when state filter is active */}
+                        {selectedState !== "all" && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Local Fit ({selectedState})
+                              </p>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button className="inline-flex" onClick={(e) => e.stopPropagation()}>
+                                      <HelpCircle className="h-3 w-3 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-xs">Local Fit Score</p>
+                                      <p className="text-xs">Based on reviews for work in this specific area. Requires at least {LOCAL_FIT_MIN_REVIEWS} local reviews. Does not include kudos boost.</p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            {(rep.localFitReviewCount ?? 0) >= LOCAL_FIT_MIN_REVIEWS ? (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="h-2 w-12 rounded-full bg-gradient-to-r from-blue-500/20 via-primary/30 to-green-500/40">
+                                    <div 
+                                      className="h-full rounded-full bg-gradient-to-r from-blue-500 via-primary to-green-500"
+                                      style={{ width: `${((rep.localFitScore ?? 0) / 5) * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-sm font-semibold text-foreground">
+                                    {rep.localFitScore?.toFixed(1) ?? '—'}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  ({rep.localFitReviewCount} local review{rep.localFitReviewCount !== 1 ? 's' : ''})
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                  {(rep.localFitReviewCount ?? 0) === 0 
+                                    ? "No local reviews yet"
+                                    : `${rep.localFitReviewCount}/${LOCAL_FIT_MIN_REVIEWS} local reviews`
+                                  }
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">– showing overall</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Community Score */}

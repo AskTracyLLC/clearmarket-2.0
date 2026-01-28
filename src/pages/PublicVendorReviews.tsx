@@ -68,12 +68,13 @@ export default function PublicVendorReviews() {
       const communityScores = await fetchCommunityScoresForUsers([id]);
       setCommunityScore(communityScores[id]?.communityScore ?? 0);
 
-      // Fetch last 5 reviews (rep_to_vendor direction)
+      // Fetch last 5 ACCEPTED reviews (rep_to_vendor direction) with proper exclusion filters
       const { data: reviewsData } = await supabase
         .from("reviews")
         .select("*")
         .eq("reviewee_id", id)
         .eq("direction", "rep_to_vendor")
+        .eq("workflow_status", "accepted")
         .eq("is_hidden", false)
         .order("created_at", { ascending: false })
         .limit(5);
