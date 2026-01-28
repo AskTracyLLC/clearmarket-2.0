@@ -249,7 +249,7 @@ export interface LocalFitScore {
 export interface LocalFitScoreParams {
   userIds: string[];
   stateCode: string;
-  countyName?: string | null;
+  countyName: string; // REQUIRED - Local Fit Score requires both state AND county
   inspectionCategory?: string | null;
 }
 
@@ -272,12 +272,30 @@ export const LOCAL_FIT_MIN_REVIEWS = 3;
  * 
  * NOTE: Does NOT include vendor_alert_kudos boost (local score is review-only)
  */
+/**
+ * Fetch Local Fit Scores for multiple users in a specific location.
+ * 
+ * IMPORTANT: Local Fit Score requires BOTH state_code AND county_name.
+ * This is intentional - "local" means a specific county, not just a state.
+ * 
+ * Uses the same exclusion filters as Trust Score:
+ * - workflow_status = 'accepted'
+ * - exclude_from_trust_score = false
+ * - is_hidden = false
+ * - is_feedback = false
+ * - status != 'coaching'
+ * 
+ * PLUS location filters (state_code AND county_name)
+ * 
+ * NOTE: Does NOT include vendor_alert_kudos boost (local score is review-only)
+ */
 export async function fetchLocalFitScoresForUsers(
   params: LocalFitScoreParams
 ): Promise<Record<string, LocalFitScore>> {
   const { userIds, stateCode, countyName, inspectionCategory } = params;
   
-  if (userIds.length === 0 || !stateCode) return {};
+  // Local Fit Score requires BOTH state AND county
+  if (userIds.length === 0 || !stateCode || !countyName) return {};
 
   // Build query with Trust Score exclusion filters
   let query = supabase
@@ -294,13 +312,9 @@ export async function fetchLocalFitScoresForUsers(
     .eq("is_hidden", false)
     .eq("is_feedback", false)
     .neq("status", "coaching")
-    // Location filters
-    .eq("state_code", stateCode);
-
-  // Add county filter if provided
-  if (countyName) {
-    query = query.eq("county_name", countyName);
-  }
+    // Location filters - BOTH required for Local Fit
+    .eq("state_code", stateCode)
+    .eq("county_name", countyName);
 
   // Add inspection category filter if provided
   if (inspectionCategory) {
