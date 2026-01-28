@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Send, Eye, CheckCircle2, MoreVertical, ClipboardCheck, Clock, Ban, Headphones } from "lucide-react";
+import { MessageBodyRenderer } from "@/components/MessageBodyRenderer";
 import { getUserDisplayName, batchGetUserDisplayNames } from "@/lib/conversations";
 import { 
   isSupportCategory, 
@@ -1068,7 +1069,7 @@ export default function MessageThread() {
                             : "bg-secondary"
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                        <MessageBodyRenderer body={msg.body} isOutgoing={isOutgoing} />
                       </div>
                     </div>
                   );

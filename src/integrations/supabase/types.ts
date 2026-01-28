@@ -3965,22 +3965,28 @@ export type Database = {
       mimic_audit: {
         Row: {
           admin_id: string
+          created_at: string
           ended_at: string | null
           id: string
+          reason: string | null
           started_at: string
           target_user_id: string
         }
         Insert: {
           admin_id: string
+          created_at?: string
           ended_at?: string | null
           id?: string
+          reason?: string | null
           started_at?: string
           target_user_id: string
         }
         Update: {
           admin_id?: string
+          created_at?: string
           ended_at?: string | null
           id?: string
+          reason?: string | null
           started_at?: string
           target_user_id?: string
         }
@@ -4084,6 +4090,27 @@ export type Database = {
             referencedColumns: ["rep_user_id"]
           },
         ]
+      }
+      mimic_probe_log: {
+        Row: {
+          context: string | null
+          created_at: string
+          id: string
+          uid: string | null
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          uid?: string | null
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          uid?: string | null
+        }
+        Relationships: []
       }
       notification_preferences: {
         Row: {
@@ -12760,6 +12787,7 @@ export type Database = {
             }
             Returns: undefined
           }
+      mimic_probe: { Args: { context?: string }; Returns: string }
       next_fieldrep_anonymous_id: { Args: never; Returns: string }
       process_order_snapshots: {
         Args: { p_import_batch_id: string; p_orders: Json[] }
