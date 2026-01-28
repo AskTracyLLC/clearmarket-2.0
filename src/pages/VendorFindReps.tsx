@@ -116,6 +116,8 @@ export default function VendorFindReps() {
 
   // Filter state
   const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+  const [countyOptions, setCountyOptions] = useState<string[]>([]);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [selectedInspectionTypes, setSelectedInspectionTypes] = useState<string[]>([]);
   const [onlyAccepting, setOnlyAccepting] = useState(false);
@@ -160,6 +162,42 @@ export default function VendorFindReps() {
     };
     loadInspectionTypes();
   }, []);
+
+  // Load county options when state changes
+  useEffect(() => {
+    const loadCountiesForState = async () => {
+      if (selectedState === "all") {
+        setCountyOptions([]);
+        setSelectedCounty(null);
+        return;
+      }
+      
+      // Fetch distinct counties from rep_coverage_areas for this state
+      const { data } = await supabase
+        .from("rep_coverage_areas")
+        .select("county_name")
+        .eq("state_code", selectedState)
+        .not("county_name", "is", null);
+      
+      if (data) {
+        const uniqueCounties = [...new Set(data.map(d => d.county_name).filter(Boolean))] as string[];
+        uniqueCounties.sort();
+        setCountyOptions(uniqueCounties);
+      } else {
+        setCountyOptions([]);
+      }
+      // Reset county selection when state changes
+      setSelectedCounty(null);
+    };
+    loadCountiesForState();
+  }, [selectedState]);
+
+  // Reset sort to best-match if local-fit is selected but county is deselected
+  useEffect(() => {
+    if (sortBy === "local-fit" && (!selectedCounty || selectedState === "all")) {
+      setSortBy("best-match");
+    }
+  }, [selectedCounty, selectedState, sortBy]);
 
   // Public profile dialog
   const [showProfileDialog, setShowProfileDialog] = useState(false);
@@ -420,14 +458,14 @@ export default function VendorFindReps() {
       const repUserIds = filtered.map(r => r.user_id);
       const trustScores = await fetchTrustScoresForUsers(repUserIds);
 
-      // Fetch local fit scores when a state is selected (batch fetch for efficiency)
+      // Fetch local fit scores ONLY when BOTH state AND county are selected (batch fetch for efficiency)
+      // Local Fit Score requires a specific county - state-only filtering is too broad to be "local"
       let localFitScoresMap: Record<string, { localAvgOverall: number; localReviewCount: number }> = {};
-      if (selectedState !== "all" && repUserIds.length > 0) {
+      if (selectedState !== "all" && selectedCounty && repUserIds.length > 0) {
         const localScores = await fetchLocalFitScoresForUsers({
           userIds: repUserIds,
           stateCode: selectedState,
-          // Note: county filter not available in this view currently
-          countyName: null,
+          countyName: selectedCounty,
           inspectionCategory: null,
         });
         localFitScoresMap = localScores;
@@ -513,7 +551,7 @@ export default function VendorFindReps() {
             isBoosted: boostInfo?.isBoosted ?? false,
             boostEndsAt: boostInfo?.endsAt ?? null,
             boostStartsAt: boostInfo?.startsAt ?? null,
-            // Local Fit Score - only populated when state filter is active
+            // Local Fit Score - only populated when BOTH state AND county filters are active
             localFitScore: localFit?.localAvgOverall ?? null,
             localFitReviewCount: localFit?.localReviewCount ?? 0,
           };
@@ -793,6 +831,32 @@ export default function VendorFindReps() {
               </Select>
             </div>
 
+            {/* County Filter - only show when a state is selected */}
+            {selectedState !== "all" && (
+              <div>
+                <Label htmlFor="county-filter">County (for Local Fit Score)</Label>
+                <Select 
+                  value={selectedCounty || "all"} 
+                  onValueChange={(val) => setSelectedCounty(val === "all" ? null : val)}
+                >
+                  <SelectTrigger id="county-filter" className="mt-2">
+                    <SelectValue placeholder="All counties" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border border-border z-50 max-h-60">
+                    <SelectItem value="all">All counties (no local score)</SelectItem>
+                    {countyOptions.map((county) => (
+                      <SelectItem key={county} value={county}>
+                        {county}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select a county to see Local Fit Scores for reps in that area
+                </p>
+              </div>
+            )}
+
             {/* Systems Used Filter */}
             <div>
               <Label>Systems Used</Label>
@@ -1046,16 +1110,28 @@ export default function VendorFindReps() {
                   <Label htmlFor="sort-by" className="text-sm text-muted-foreground">
                     Sort by:
                   </Label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger id="sort-by" className="w-[200px]">
+                  <Select 
+                    value={sortBy} 
+                    onValueChange={(val) => {
+                      // Don't allow local-fit sort if county not selected
+                      if (val === "local-fit" && !selectedCounty) return;
+                      setSortBy(val);
+                    }}
+                  >
+                    <SelectTrigger id="sort-by" className="w-[220px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="best-match">Best match (recommended)</SelectItem>
                       <SelectItem value="trust-score">Highest Trust Score</SelectItem>
-                      {selectedState !== "all" && (
-                        <SelectItem value="local-fit">Local Fit Score ({selectedState})</SelectItem>
-                      )}
+                      {/* Local Fit Sort - only available when BOTH state AND county are selected */}
+                      {selectedState !== "all" && selectedCounty ? (
+                        <SelectItem value="local-fit">Local Fit Score ({selectedCounty}, {selectedState})</SelectItem>
+                      ) : selectedState !== "all" ? (
+                        <SelectItem value="local-fit-disabled" disabled>
+                          Local Fit Score (select county)
+                        </SelectItem>
+                      ) : null}
                       <SelectItem value="community-score">Community Score (High to Low)</SelectItem>
                       <SelectItem value="most-reviews">Most reviews</SelectItem>
                       <SelectItem value="newest">Newest profiles</SelectItem>
@@ -1163,12 +1239,12 @@ export default function VendorFindReps() {
                           )}
                         </button>
 
-                        {/* Local Fit Score - only show when state filter is active */}
-                        {selectedState !== "all" && (
+                        {/* Local Fit Score - only show when BOTH state AND county filters are active */}
+                        {selectedState !== "all" && selectedCounty && (
                           <div className="mt-2 pt-2 border-t border-border/50">
                             <div className="flex items-center gap-1.5 mb-1">
                               <p className="text-xs font-medium text-muted-foreground">
-                                Local Fit ({selectedState})
+                                Local Fit ({selectedCounty}, {selectedState})
                               </p>
                               <TooltipProvider>
                                 <Tooltip>
@@ -1180,7 +1256,7 @@ export default function VendorFindReps() {
                                   <TooltipContent className="max-w-xs">
                                     <div className="space-y-1">
                                       <p className="font-semibold text-xs">Local Fit Score</p>
-                                      <p className="text-xs">Based on reviews for work in this specific area. Requires at least {LOCAL_FIT_MIN_REVIEWS} local reviews. Does not include kudos boost.</p>
+                                      <p className="text-xs">Based on reviews for work in {selectedCounty}, {selectedState}. Requires at least {LOCAL_FIT_MIN_REVIEWS} local reviews. Does not include kudos boost.</p>
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>
@@ -1207,8 +1283,8 @@ export default function VendorFindReps() {
                               <div className="flex items-center gap-1">
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                                   {(rep.localFitReviewCount ?? 0) === 0 
-                                    ? "No local reviews yet"
-                                    : `${rep.localFitReviewCount}/${LOCAL_FIT_MIN_REVIEWS} local reviews`
+                                    ? `No local reviews yet in ${selectedCounty}, ${selectedState}`
+                                    : `${rep.localFitReviewCount}/${LOCAL_FIT_MIN_REVIEWS} local reviews in ${selectedCounty}, ${selectedState}`
                                   }
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground">– showing overall</span>
