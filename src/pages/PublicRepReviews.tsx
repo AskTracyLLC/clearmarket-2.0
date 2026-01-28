@@ -8,6 +8,7 @@ import { ArrowLeft, Star, TrendingUp, TrendingDown, Minus, Users } from "lucide-
 import { fetchTrustScoresForUsers } from "@/lib/reviews";
 import { fetchCommunityScoresForUsers, formatCommunityScore } from "@/lib/communityScore";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ReviewBreakdownTabs } from "@/components/ReviewBreakdownTabs";
 
 interface ReviewData {
   id: string;
@@ -32,6 +33,9 @@ export default function PublicRepReviews() {
   const [reviewCount, setReviewCount] = useState(0);
   const [communityScore, setCommunityScore] = useState<number>(0);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
+  const [avgOnTime, setAvgOnTime] = useState<number>(0);
+  const [avgQuality, setAvgQuality] = useState<number>(0);
+  const [avgCommunication, setAvgCommunication] = useState<number>(0);
 
   useEffect(() => {
     if (id) {
@@ -68,12 +72,35 @@ export default function PublicRepReviews() {
       const communityScores = await fetchCommunityScoresForUsers([id]);
       setCommunityScore(communityScores[id]?.communityScore ?? 0);
 
-      // Fetch last 5 reviews (vendor_to_rep direction)
+      // Fetch ACCEPTED reviews to calculate category averages (matching Trust Score filters)
+      const { data: acceptedReviewsData } = await supabase
+        .from("reviews")
+        .select("rating_on_time, rating_quality, rating_communication")
+        .eq("reviewee_id", id)
+        .eq("direction", "vendor_to_rep")
+        .eq("workflow_status", "accepted")
+        .eq("exclude_from_trust_score", false)
+        .eq("is_hidden", false)
+        .eq("is_feedback", false)
+        .neq("status", "coaching");
+
+      if (acceptedReviewsData && acceptedReviewsData.length > 0) {
+        const onTimeRatings = acceptedReviewsData.map(r => r.rating_on_time).filter((r): r is number => typeof r === "number");
+        const qualityRatings = acceptedReviewsData.map(r => r.rating_quality).filter((r): r is number => typeof r === "number");
+        const commRatings = acceptedReviewsData.map(r => r.rating_communication).filter((r): r is number => typeof r === "number");
+
+        setAvgOnTime(onTimeRatings.length > 0 ? onTimeRatings.reduce((a, b) => a + b, 0) / onTimeRatings.length : 0);
+        setAvgQuality(qualityRatings.length > 0 ? qualityRatings.reduce((a, b) => a + b, 0) / qualityRatings.length : 0);
+        setAvgCommunication(commRatings.length > 0 ? commRatings.reduce((a, b) => a + b, 0) / commRatings.length : 0);
+      }
+
+      // Fetch last 5 reviews for display (only accepted)
       const { data: reviewsData } = await supabase
         .from("reviews")
         .select("*")
         .eq("reviewee_id", id)
         .eq("direction", "vendor_to_rep")
+        .eq("workflow_status", "accepted")
         .eq("is_hidden", false)
         .order("created_at", { ascending: false })
         .limit(5);
@@ -202,6 +229,21 @@ export default function PublicRepReviews() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Score Breakdown by Area/Type */}
+        {id && (
+          <div className="mb-6">
+            <ReviewBreakdownTabs
+              userId={id}
+              overallStats={{
+                avgOnTime,
+                avgQuality,
+                avgCommunication,
+                reviewCount,
+              }}
+            />
+          </div>
+        )}
 
         {/* Recent Reviews */}
         <Card>

@@ -234,8 +234,162 @@ export async function autoFillReviewContext(
   };
 }
 
+// ============================================
+// LOCAL FIT SCORE TYPES & FUNCTIONS
+// ============================================
+
+export interface LocalFitScore {
+  localAvgOverall: number;
+  localAvgOnTime: number;
+  localAvgQuality: number;
+  localAvgCommunication: number;
+  localReviewCount: number;
+}
+
+export interface LocalFitScoreParams {
+  userIds: string[];
+  stateCode: string;
+  countyName?: string | null;
+  inspectionCategory?: string | null;
+}
+
+/**
+ * Minimum number of reviews required to display a Local Fit Score
+ */
+export const LOCAL_FIT_MIN_REVIEWS = 3;
+
+/**
+ * Fetch Local Fit Scores for multiple users in a specific location.
+ * 
+ * IMPORTANT: Uses the same exclusion filters as Trust Score:
+ * - workflow_status = 'accepted'
+ * - exclude_from_trust_score = false
+ * - is_hidden = false
+ * - is_feedback = false
+ * - status != 'coaching'
+ * 
+ * PLUS location filters (state_code, county_name, inspection_category)
+ * 
+ * NOTE: Does NOT include vendor_alert_kudos boost (local score is review-only)
+ */
+export async function fetchLocalFitScoresForUsers(
+  params: LocalFitScoreParams
+): Promise<Record<string, LocalFitScore>> {
+  const { userIds, stateCode, countyName, inspectionCategory } = params;
+  
+  if (userIds.length === 0 || !stateCode) return {};
+
+  // Build query with Trust Score exclusion filters
+  let query = supabase
+    .from("reviews")
+    .select(`
+      reviewee_id,
+      rating_on_time,
+      rating_quality,
+      rating_communication
+    `)
+    .in("reviewee_id", userIds)
+    .eq("workflow_status", "accepted")
+    .eq("exclude_from_trust_score", false)
+    .eq("is_hidden", false)
+    .eq("is_feedback", false)
+    .neq("status", "coaching")
+    // Location filters
+    .eq("state_code", stateCode);
+
+  // Add county filter if provided
+  if (countyName) {
+    query = query.eq("county_name", countyName);
+  }
+
+  // Add inspection category filter if provided
+  if (inspectionCategory) {
+    query = query.eq("inspection_category", inspectionCategory);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching local fit scores:", error);
+    return {};
+  }
+
+  // Aggregate scores by user
+  const aggregates: Record<string, {
+    onTimeSum: number;
+    onTimeCount: number;
+    qualitySum: number;
+    qualityCount: number;
+    commSum: number;
+    commCount: number;
+    totalReviews: number;
+  }> = {};
+
+  for (const row of data || []) {
+    const key = row.reviewee_id;
+    
+    if (!aggregates[key]) {
+      aggregates[key] = {
+        onTimeSum: 0,
+        onTimeCount: 0,
+        qualitySum: 0,
+        qualityCount: 0,
+        commSum: 0,
+        commCount: 0,
+        totalReviews: 0,
+      };
+    }
+
+    aggregates[key].totalReviews += 1;
+
+    if (typeof row.rating_on_time === "number") {
+      aggregates[key].onTimeSum += row.rating_on_time;
+      aggregates[key].onTimeCount += 1;
+    }
+    if (typeof row.rating_quality === "number") {
+      aggregates[key].qualitySum += row.rating_quality;
+      aggregates[key].qualityCount += 1;
+    }
+    if (typeof row.rating_communication === "number") {
+      aggregates[key].commSum += row.rating_communication;
+      aggregates[key].commCount += 1;
+    }
+  }
+
+  // Convert to final scores
+  const result: Record<string, LocalFitScore> = {};
+  
+  for (const [userId, agg] of Object.entries(aggregates)) {
+    const avgOnTime = agg.onTimeCount > 0 ? agg.onTimeSum / agg.onTimeCount : 0;
+    const avgQuality = agg.qualityCount > 0 ? agg.qualitySum / agg.qualityCount : 0;
+    const avgComm = agg.commCount > 0 ? agg.commSum / agg.commCount : 0;
+    
+    // Overall is average of the three dimensions that have data
+    const validScores = [avgOnTime, avgQuality, avgComm].filter(s => s > 0);
+    const avgOverall = validScores.length > 0
+      ? validScores.reduce((a, b) => a + b, 0) / validScores.length
+      : 0;
+
+    result[userId] = {
+      localAvgOverall: avgOverall,
+      localAvgOnTime: avgOnTime,
+      localAvgQuality: avgQuality,
+      localAvgCommunication: avgComm,
+      localReviewCount: agg.totalReviews,
+    };
+  }
+
+  return result;
+}
+
+// ============================================
+// AREA & INSPECTION TYPE AGGREGATION
+// ============================================
+
 /**
  * Aggregate reviews by area for display
+ * 
+ * IMPORTANT: Uses the same exclusion filters as Trust Score
  */
 export interface AreaReviewAggregate {
   stateCode: string;
@@ -245,18 +399,24 @@ export interface AreaReviewAggregate {
   avgOnTime: number;
   avgQuality: number;
   avgCommunication: number;
+  avgOverall: number;
+  meetsMinimum: boolean; // true if reviewCount >= LOCAL_FIT_MIN_REVIEWS
 }
 
 export async function aggregateReviewsByArea(
   userId: string
 ): Promise<AreaReviewAggregate[]> {
+  // Apply Trust Score exclusion filters
   const { data: reviews, error } = await supabase
     .from("reviews")
     .select("state_code, county_name, rating_on_time, rating_quality, rating_communication")
     .eq("reviewee_id", userId)
     .eq("direction", "vendor_to_rep")
-    .eq("is_feedback", false)
+    .eq("workflow_status", "accepted")
+    .eq("exclude_from_trust_score", false)
     .eq("is_hidden", false)
+    .eq("is_feedback", false)
+    .neq("status", "coaching")
     .not("state_code", "is", null);
 
   if (error || !reviews?.length) {
@@ -268,8 +428,11 @@ export async function aggregateReviewsByArea(
     stateCode: string;
     countyName: string | null;
     onTimeSum: number;
+    onTimeCount: number;
     qualitySum: number;
+    qualityCount: number;
     commSum: number;
+    commCount: number;
     count: number;
   }>();
 
@@ -278,38 +441,65 @@ export async function aggregateReviewsByArea(
     const existing = groups.get(key);
     
     if (existing) {
-      existing.onTimeSum += r.rating_on_time || 0;
-      existing.qualitySum += r.rating_quality || 0;
-      existing.commSum += r.rating_communication || 0;
       existing.count += 1;
+      if (typeof r.rating_on_time === "number") {
+        existing.onTimeSum += r.rating_on_time;
+        existing.onTimeCount += 1;
+      }
+      if (typeof r.rating_quality === "number") {
+        existing.qualitySum += r.rating_quality;
+        existing.qualityCount += 1;
+      }
+      if (typeof r.rating_communication === "number") {
+        existing.commSum += r.rating_communication;
+        existing.commCount += 1;
+      }
     } else {
       groups.set(key, {
         stateCode: r.state_code!,
         countyName: r.county_name || null,
-        onTimeSum: r.rating_on_time || 0,
-        qualitySum: r.rating_quality || 0,
-        commSum: r.rating_communication || 0,
+        onTimeSum: typeof r.rating_on_time === "number" ? r.rating_on_time : 0,
+        onTimeCount: typeof r.rating_on_time === "number" ? 1 : 0,
+        qualitySum: typeof r.rating_quality === "number" ? r.rating_quality : 0,
+        qualityCount: typeof r.rating_quality === "number" ? 1 : 0,
+        commSum: typeof r.rating_communication === "number" ? r.rating_communication : 0,
+        commCount: typeof r.rating_communication === "number" ? 1 : 0,
         count: 1,
       });
     }
   }
 
   // Convert to array with averages
-  return Array.from(groups.values()).map((g) => ({
-    stateCode: g.stateCode,
-    countyName: g.countyName,
-    locationLabel: g.countyName 
-      ? `${g.countyName}, ${g.stateCode}` 
-      : g.stateCode,
-    reviewCount: g.count,
-    avgOnTime: g.onTimeSum / g.count,
-    avgQuality: g.qualitySum / g.count,
-    avgCommunication: g.commSum / g.count,
-  })).sort((a, b) => b.reviewCount - a.reviewCount);
+  return Array.from(groups.values()).map((g) => {
+    const avgOnTime = g.onTimeCount > 0 ? g.onTimeSum / g.onTimeCount : 0;
+    const avgQuality = g.qualityCount > 0 ? g.qualitySum / g.qualityCount : 0;
+    const avgComm = g.commCount > 0 ? g.commSum / g.commCount : 0;
+    
+    const validScores = [avgOnTime, avgQuality, avgComm].filter(s => s > 0);
+    const avgOverall = validScores.length > 0
+      ? validScores.reduce((a, b) => a + b, 0) / validScores.length
+      : 0;
+
+    return {
+      stateCode: g.stateCode,
+      countyName: g.countyName,
+      locationLabel: g.countyName 
+        ? `${g.countyName}, ${g.stateCode}` 
+        : g.stateCode,
+      reviewCount: g.count,
+      avgOnTime,
+      avgQuality,
+      avgCommunication: avgComm,
+      avgOverall,
+      meetsMinimum: g.count >= LOCAL_FIT_MIN_REVIEWS,
+    };
+  }).sort((a, b) => b.reviewCount - a.reviewCount);
 }
 
 /**
  * Aggregate reviews by inspection type for display
+ * 
+ * IMPORTANT: Uses the same exclusion filters as Trust Score
  */
 export interface InspectionTypeReviewAggregate {
   inspectionTypeId: string | null;
@@ -320,12 +510,14 @@ export interface InspectionTypeReviewAggregate {
   avgOnTime: number;
   avgQuality: number;
   avgCommunication: number;
+  avgOverall: number;
+  meetsMinimum: boolean;
 }
 
 export async function aggregateReviewsByInspectionType(
   userId: string
 ): Promise<InspectionTypeReviewAggregate[]> {
-  // Get reviews with context
+  // Apply Trust Score exclusion filters
   const { data: reviews, error } = await supabase
     .from("reviews")
     .select(`
@@ -337,8 +529,11 @@ export async function aggregateReviewsByInspectionType(
     `)
     .eq("reviewee_id", userId)
     .eq("direction", "vendor_to_rep")
-    .eq("is_feedback", false)
+    .eq("workflow_status", "accepted")
+    .eq("exclude_from_trust_score", false)
     .eq("is_hidden", false)
+    .eq("is_feedback", false)
+    .neq("status", "coaching")
     .or("inspection_type_id.not.is.null,inspection_category.not.is.null");
 
   if (error || !reviews?.length) {
@@ -365,8 +560,11 @@ export async function aggregateReviewsByInspectionType(
     inspectionTypeId: string | null;
     inspectionCategory: string | null;
     onTimeSum: number;
+    onTimeCount: number;
     qualitySum: number;
+    qualityCount: number;
     commSum: number;
+    commCount: number;
     count: number;
   }>();
 
@@ -375,33 +573,58 @@ export async function aggregateReviewsByInspectionType(
     const existing = groups.get(key);
     
     if (existing) {
-      existing.onTimeSum += r.rating_on_time || 0;
-      existing.qualitySum += r.rating_quality || 0;
-      existing.commSum += r.rating_communication || 0;
       existing.count += 1;
+      if (typeof r.rating_on_time === "number") {
+        existing.onTimeSum += r.rating_on_time;
+        existing.onTimeCount += 1;
+      }
+      if (typeof r.rating_quality === "number") {
+        existing.qualitySum += r.rating_quality;
+        existing.qualityCount += 1;
+      }
+      if (typeof r.rating_communication === "number") {
+        existing.commSum += r.rating_communication;
+        existing.commCount += 1;
+      }
     } else {
       groups.set(key, {
         inspectionTypeId: r.inspection_type_id || null,
         inspectionCategory: r.inspection_category || null,
-        onTimeSum: r.rating_on_time || 0,
-        qualitySum: r.rating_quality || 0,
-        commSum: r.rating_communication || 0,
+        onTimeSum: typeof r.rating_on_time === "number" ? r.rating_on_time : 0,
+        onTimeCount: typeof r.rating_on_time === "number" ? 1 : 0,
+        qualitySum: typeof r.rating_quality === "number" ? r.rating_quality : 0,
+        qualityCount: typeof r.rating_quality === "number" ? 1 : 0,
+        commSum: typeof r.rating_communication === "number" ? r.rating_communication : 0,
+        commCount: typeof r.rating_communication === "number" ? 1 : 0,
         count: 1,
       });
     }
   }
 
   // Convert to array with averages
-  return Array.from(groups.values()).map((g) => ({
-    inspectionTypeId: g.inspectionTypeId,
-    inspectionCategory: g.inspectionCategory,
-    typeLabel: g.inspectionTypeId 
-      ? typeLabels.get(g.inspectionTypeId) || "Unknown Type"
-      : "",
-    categoryLabel: g.inspectionCategory || "Not specified",
-    reviewCount: g.count,
-    avgOnTime: g.onTimeSum / g.count,
-    avgQuality: g.qualitySum / g.count,
-    avgCommunication: g.commSum / g.count,
-  })).sort((a, b) => b.reviewCount - a.reviewCount);
+  return Array.from(groups.values()).map((g) => {
+    const avgOnTime = g.onTimeCount > 0 ? g.onTimeSum / g.onTimeCount : 0;
+    const avgQuality = g.qualityCount > 0 ? g.qualitySum / g.qualityCount : 0;
+    const avgComm = g.commCount > 0 ? g.commSum / g.commCount : 0;
+    
+    const validScores = [avgOnTime, avgQuality, avgComm].filter(s => s > 0);
+    const avgOverall = validScores.length > 0
+      ? validScores.reduce((a, b) => a + b, 0) / validScores.length
+      : 0;
+
+    return {
+      inspectionTypeId: g.inspectionTypeId,
+      inspectionCategory: g.inspectionCategory,
+      typeLabel: g.inspectionTypeId 
+        ? typeLabels.get(g.inspectionTypeId) || "Unknown Type"
+        : "",
+      categoryLabel: g.inspectionCategory || "Not specified",
+      reviewCount: g.count,
+      avgOnTime,
+      avgQuality,
+      avgCommunication: avgComm,
+      avgOverall,
+      meetsMinimum: g.count >= LOCAL_FIT_MIN_REVIEWS,
+    };
+  }).sort((a, b) => b.reviewCount - a.reviewCount);
 }

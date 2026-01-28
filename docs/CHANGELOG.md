@@ -1,5 +1,23 @@
 # ClearMarket Changelog
 
+## 2026-01-28 — Local Fit Score Implementation
+- **New Feature**: Location-specific reviews (Local Fit Scores) for field reps
+  - Added `fetchLocalFitScoresForUsers()` function in `src/lib/reviewContext.ts`
+  - Uses same exclusion filters as Trust Score (accepted, not hidden, not feedback, not coaching)
+  - Does NOT include kudos boost (local score is review-only)
+  - Requires minimum 3 local reviews to display score
+- **Updated ReviewBreakdownTabs**: Now shows Local Fit Score column with proper minimum threshold
+  - Areas with <3 reviews show "Need X more" message
+  - Uses proper Trust Score exclusion filters for aggregation
+- **Updated VendorFindReps**: Shows Local Fit Score when filtering by state
+  - Displays local score if rep has 3+ reviews in that state
+  - Shows "No local reviews yet" or "X/3 local reviews – showing overall" otherwise
+  - Added "Local Fit Score" sort option (only visible when state filter active)
+- **Updated PublicRepReviews**: Added ReviewBreakdownTabs for public profile view
+  - Shows "By Area" and "By Inspection Type" breakdowns
+  - Only shows accepted reviews with proper exclusion filters
+- **Updated PublicVendorReviews**: Added workflow_status filter for accepted reviews only
+
 ## 2026-01-27 — Public Vendor Profile: Seeking Coverage Areas Display
 - **Database Migration**: Added vendor setting to show/hide active seeking coverage posts on public profile
   - Added `show_seeking_coverage_on_public_profile` column to `vendor_profile` (boolean, default false)
