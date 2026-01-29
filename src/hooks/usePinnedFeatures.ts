@@ -21,82 +21,92 @@ interface UsePinnedFeaturesResult {
 
 /**
  * Hook to manage pinned feature items with DB persistence (user_ui_preferences) and localStorage fallback.
- * Max 6 pinned items allowed.
+ * Max 6 pinned items allowed. DB is source of truth; localStorage is a cache for instant display.
  */
 export function usePinnedFeatures(): UsePinnedFeaturesResult {
   const { effectiveRole } = useActiveRole();
   const { user } = useAuth();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const initialLoadDone = useRef(false);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
+  const [isHydrated, setIsHydrated] = useState(false);
   
-  const [pinnedIds, setPinnedIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
+  // Track which user+role combo we've loaded from DB to avoid duplicate loads
+  const loadedKeyRef = useRef<string | null>(null);
+
+  // Load pins from DB on auth or role change - DB is source of truth
+  useEffect(() => {
     const key = getStorageKey(effectiveRole);
-    if (!key) return [];
+    const loadKey = user?.id && key ? `${user.id}_${key}` : null;
+    
+    // If no user or no role, reset state
+    if (!loadKey || !key) {
+      setPinnedIds([]);
+      setIsHydrated(false);
+      loadedKeyRef.current = null;
+      return;
+    }
+    
+    // If we've already loaded this exact user+role combo, skip
+    if (loadedKeyRef.current === loadKey) {
+      return;
+    }
+    
+    // First, try to load from localStorage for immediate display (cache)
     try {
       const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : [];
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setPinnedIds(parsed);
+        }
+      }
     } catch {
-      return [];
+      // Ignore localStorage errors
     }
-  });
-
-  // Load pins from DB on auth
-  useEffect(() => {
-    if (!user?.id || initialLoadDone.current) return;
     
+    // Then load from DB (source of truth) - this will override localStorage data
     const loadFromDB = async () => {
       try {
         const { data, error } = await supabase
           .from("user_ui_preferences")
           .select("pinned_sidebar")
-          .eq("user_id", user.id)
+          .eq("user_id", user!.id)
           .maybeSingle();
 
         if (error) {
           console.error("Error loading pinned sidebar preferences:", error);
-          return;
-        }
-
-        if (data?.pinned_sidebar) {
+        } else if (data?.pinned_sidebar) {
           const dbPins = data.pinned_sidebar as Record<string, string[]>;
-          const key = getStorageKey(effectiveRole);
-          if (key && dbPins[key]) {
-            setPinnedIds(dbPins[key]);
-            // Also update localStorage cache
-            localStorage.setItem(key, JSON.stringify(dbPins[key]));
-          }
+          const pinsForRole = dbPins[key] || [];
+          setPinnedIds(pinsForRole);
+          // Update localStorage cache to match DB
+          localStorage.setItem(key, JSON.stringify(pinsForRole));
+        } else {
+          // No DB record exists yet - keep localStorage data (if any) or empty
+          // This handles first-time users
         }
-        initialLoadDone.current = true;
+        
+        loadedKeyRef.current = loadKey;
+        setIsHydrated(true);
       } catch (err) {
         console.error("Error loading pins from DB:", err);
+        loadedKeyRef.current = loadKey;
+        setIsHydrated(true);
       }
     };
 
     loadFromDB();
   }, [user?.id, effectiveRole]);
 
-  // Reload pins when role changes
+  // Persist pins to localStorage and DB (debounced) - only after hydration
   useEffect(() => {
-    const key = getStorageKey(effectiveRole);
-    if (!key) {
-      setPinnedIds([]);
-      return;
-    }
-    try {
-      const stored = localStorage.getItem(key);
-      setPinnedIds(stored ? JSON.parse(stored) : []);
-    } catch {
-      setPinnedIds([]);
-    }
-  }, [effectiveRole]);
-
-  // Persist pins to localStorage and DB (debounced)
-  useEffect(() => {
+    // Don't persist until we've hydrated from DB to avoid overwriting with stale data
+    if (!isHydrated) return;
+    
     const key = getStorageKey(effectiveRole);
     if (!key) return;
     
-    // Always update localStorage immediately
+    // Always update localStorage immediately for instant feedback
     localStorage.setItem(key, JSON.stringify(pinnedIds));
     
     // Debounce DB update
@@ -108,7 +118,7 @@ export function usePinnedFeatures(): UsePinnedFeaturesResult {
     
     debounceRef.current = setTimeout(async () => {
       try {
-        // Get current DB state
+        // Get current DB state to preserve other role's pins
         const { data: existing } = await supabase
           .from("user_ui_preferences")
           .select("pinned_sidebar")
@@ -138,7 +148,7 @@ export function usePinnedFeatures(): UsePinnedFeaturesResult {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [pinnedIds, effectiveRole, user?.id]);
+  }, [pinnedIds, effectiveRole, user?.id, isHydrated]);
 
   const isPinned = useCallback((id: string) => pinnedIds.includes(id), [pinnedIds]);
 
