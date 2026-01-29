@@ -7989,6 +7989,8 @@ export type Database = {
       }
       territory_assignments: {
         Row: {
+          accepted_at: string | null
+          accepted_by: string | null
           agreed_rate: number
           conversation_id: string | null
           county_id: string | null
@@ -7996,6 +7998,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           decline_reason: string | null
+          declined_at: string | null
+          declined_by: string | null
           effective_date: string
           id: string
           inspection_types: string[] | null
@@ -8017,6 +8021,8 @@ export type Database = {
           vendor_id: string
         }
         Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           agreed_rate: number
           conversation_id?: string | null
           county_id?: string | null
@@ -8024,6 +8030,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
           effective_date?: string
           id?: string
           inspection_types?: string[] | null
@@ -8045,6 +8053,8 @@ export type Database = {
           vendor_id: string
         }
         Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
           agreed_rate?: number
           conversation_id?: string | null
           county_id?: string | null
@@ -8052,6 +8062,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decline_reason?: string | null
+          declined_at?: string | null
+          declined_by?: string | null
           effective_date?: string
           id?: string
           inspection_types?: string[] | null
