@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { MapPin, Send, Loader2 } from "lucide-react";
+import { MapPin, Send, Loader2, AlertTriangle, User } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { getOrCreateConversation } from "@/lib/conversations";
 import { createNotification } from "@/lib/notifications";
 import { checklist } from "@/lib/checklistTracking";
@@ -50,7 +52,7 @@ interface ExpressInterestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   post: PostInfo;
-  repProfile: RepProfileInfo;
+  repProfile: RepProfileInfo | null;
   coverageAreas: CoverageArea[];
   onInterestExpressed: (postId: string) => void;
 }
@@ -63,6 +65,7 @@ export function ExpressInterestDialog({
   coverageAreas,
   onInterestExpressed,
 }: ExpressInterestDialogProps) {
+  const { user } = useAuth();
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,6 +75,45 @@ export function ExpressInterestDialog({
       setNote("");
     }
   }, [open]);
+
+  // If no rep profile, show a message to complete profile
+  if (!repProfile) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Complete Your Profile First
+            </DialogTitle>
+            <DialogDescription>
+              You need to complete your Rep Profile before you can respond to Seeking Coverage posts.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-muted/50 rounded-lg p-4 text-center space-y-4">
+              <User className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Your profile helps vendors understand your coverage areas, systems experience, and rates.
+              </p>
+              <Button asChild className="w-full">
+                <Link to="/rep/profile">
+                  Complete Your Profile
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Find matching coverage for this post
   const matchingCoverage = coverageAreas.find((coverage) => {
@@ -130,7 +172,12 @@ export function ExpressInterestDialog({
   };
 
   const handleSubmit = async () => {
-    if (!repProfile?.id || !repProfile?.user_id) {
+    if (!user?.id) {
+      toast.error("You must be logged in");
+      return;
+    }
+
+    if (!repProfile?.user_id) {
       toast.error("Rep profile not found");
       return;
     }
@@ -138,19 +185,20 @@ export function ExpressInterestDialog({
     setSubmitting(true);
 
     try {
-      // 1. Mark interest (upsert to avoid duplicates)
+      // 1. Mark interest (upsert to avoid duplicates) - use user_id (auth.uid()), not repProfile.id
       const { error: interestError } = await supabase
         .from("rep_interest")
         .upsert(
           {
             post_id: post.id,
-            rep_id: repProfile.id,
+            rep_id: user.id, // Use auth user id, not rep_profile.id
             status: "interested",
           },
           { onConflict: "post_id,rep_id" }
         );
 
       if (interestError) {
+        console.error("Error saving interest:", interestError);
         throw interestError;
       }
 

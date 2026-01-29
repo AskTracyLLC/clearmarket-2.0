@@ -116,17 +116,15 @@ export default function RepSeekingCoveragePost() {
 
         setCoverageAreas(coverageData || []);
 
-        // Check if already expressed interest
-        if (repData) {
-          const { data: interestData } = await supabase
-            .from("rep_interest")
-            .select("id")
-            .eq("post_id", postId)
-            .eq("rep_id", repData.id)
-            .maybeSingle();
+        // Check if already expressed interest (use user.id, not repData.id)
+        const { data: interestData } = await supabase
+          .from("rep_interest")
+          .select("id")
+          .eq("post_id", postId)
+          .eq("rep_id", user.id)
+          .maybeSingle();
 
-          setHasExpressedInterest(!!interestData);
-        }
+        setHasExpressedInterest(!!interestData);
       } catch (error) {
         console.error("Error loading post:", error);
         toast.error("Failed to load opportunity");
@@ -343,23 +341,21 @@ export default function RepSeekingCoveragePost() {
           </CardContent>
         </Card>
 
-        {/* Express Interest Dialog */}
-        {repProfile && (
-          <ExpressInterestDialog
-            open={interestDialogOpen}
-            onOpenChange={setInterestDialogOpen}
-            post={{
-              id: post.id,
-              title: post.title,
-              state_code: post.state_code,
-              county: post.us_counties || null,
-              vendor_id: post.vendor_id,
-            }}
-            repProfile={repProfile}
-            coverageAreas={coverageAreas}
-            onInterestExpressed={handleInterestExpressed}
-          />
-        )}
+        {/* Express Interest Dialog - always render, handle missing profile inside */}
+        <ExpressInterestDialog
+          open={interestDialogOpen}
+          onOpenChange={setInterestDialogOpen}
+          post={{
+            id: post.id,
+            title: post.title,
+            state_code: post.state_code,
+            county: post.us_counties || null,
+            vendor_id: post.vendor_id,
+          }}
+          repProfile={repProfile}
+          coverageAreas={coverageAreas}
+          onInterestExpressed={handleInterestExpressed}
+        />
       </div>
     </>
   );
