@@ -177,30 +177,35 @@ export function ExpressInterestDialog({
       return;
     }
 
-    if (!repProfile?.user_id) {
-      toast.error("Rep profile not found");
+    if (!repProfile?.id || !repProfile?.user_id) {
+      toast.error("Rep profile not found - please complete your profile first");
       return;
     }
 
     setSubmitting(true);
 
+    console.log("[DEBUG] Expressing interest - repProfile.id:", repProfile.id, "repProfile.user_id:", repProfile.user_id);
+
     try {
-      // 1. Mark interest (upsert to avoid duplicates) - use user_id (auth.uid()), not repProfile.id
+      // 1. Mark interest (upsert to avoid duplicates) - use repProfile.id (profile PK), NOT user.id
       const { error: interestError } = await supabase
         .from("rep_interest")
         .upsert(
           {
             post_id: post.id,
-            rep_id: user.id, // Use auth user id, not rep_profile.id
+            rep_id: repProfile.id, // Use rep_profile.id (profile PK), NOT auth.uid()
             status: "interested",
           },
           { onConflict: "post_id,rep_id" }
         );
 
       if (interestError) {
-        console.error("Error saving interest:", interestError);
+        console.error("[DEBUG] Error saving interest:", interestError);
+        toast.error(`Failed to save interest: ${interestError.message}`);
         throw interestError;
       }
+
+      console.log("[DEBUG] Interest saved successfully for rep_id:", repProfile.id);
 
       // 2. Create or get existing conversation
       const { id: conversationId, error: convError } = await getOrCreateConversation(

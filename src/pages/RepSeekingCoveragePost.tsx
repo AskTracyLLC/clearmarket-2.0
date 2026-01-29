@@ -99,12 +99,24 @@ export default function RepSeekingCoveragePost() {
 
         setVendor(vendorData || { anonymous_id: null, company_name: "Unknown Vendor" });
 
-        // Load rep profile
-        const { data: repData } = await supabase
+        // Load rep profile by user_id = auth.uid()
+        console.log("[DEBUG] Loading rep_profile for user_id:", user.id);
+        const { data: repData, error: repError } = await supabase
           .from("rep_profile")
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle();
+
+        if (repError) {
+          console.error("[DEBUG] Error loading rep_profile:", repError);
+          toast.error(`Cannot load rep profile: ${repError.message}`);
+        }
+
+        console.log("[DEBUG] Loaded repProfile:", repData ? { id: repData.id, user_id: repData.user_id } : null);
+        
+        if (!repData) {
+          toast.error("Cannot express interest: no rep_profile found for your user_id.");
+        }
 
         setRepProfile(repData);
 
@@ -116,15 +128,20 @@ export default function RepSeekingCoveragePost() {
 
         setCoverageAreas(coverageData || []);
 
-        // Check if already expressed interest (use user.id, not repData.id)
-        const { data: interestData } = await supabase
-          .from("rep_interest")
-          .select("id")
-          .eq("post_id", postId)
-          .eq("rep_id", user.id)
-          .maybeSingle();
+        // Check if already expressed interest using repProfile.id (the profile PK), NOT user.id
+        if (repData?.id) {
+          const { data: interestData } = await supabase
+            .from("rep_interest")
+            .select("id")
+            .eq("post_id", postId)
+            .eq("rep_id", repData.id)
+            .maybeSingle();
 
-        setHasExpressedInterest(!!interestData);
+          setHasExpressedInterest(!!interestData);
+          console.log("[DEBUG] Already interested check - rep_id:", repData.id, "result:", !!interestData);
+        } else {
+          setHasExpressedInterest(false);
+        }
       } catch (error) {
         console.error("Error loading post:", error);
         toast.error("Failed to load opportunity");
