@@ -42,6 +42,11 @@ export function TerritoryAssignmentBanner({
 
   async function handleAccept() {
     setAccepting(true);
+    console.debug("[TerritoryAssignmentBanner] Accept clicked:", {
+      assignmentId: assignment.id,
+      repUserId,
+      assignmentStatus: assignment.status,
+    });
     try {
       const { error, connectionCreated } = await acceptTerritoryAssignment(assignment.id, repUserId);
       if (error) {
@@ -59,8 +64,9 @@ export function TerritoryAssignmentBanner({
 
       onUpdate();
     } catch (error: any) {
+      console.error("[TerritoryAssignmentBanner] Accept error:", error);
       toast({
-        title: "Error",
+        title: "Error accepting assignment",
         description: error.message || "Failed to accept assignment.",
         variant: "destructive",
       });
@@ -71,6 +77,12 @@ export function TerritoryAssignmentBanner({
 
   async function handleDecline() {
     setDeclining(true);
+    console.debug("[TerritoryAssignmentBanner] Decline clicked:", {
+      assignmentId: assignment.id,
+      repUserId,
+      assignmentStatus: assignment.status,
+      declineReason,
+    });
     try {
       const { error } = await declineTerritoryAssignment(
         assignment.id,
@@ -89,8 +101,9 @@ export function TerritoryAssignmentBanner({
       setShowDeclineDialog(false);
       onUpdate();
     } catch (error: any) {
+      console.error("[TerritoryAssignmentBanner] Decline error:", error);
       toast({
-        title: "Error",
+        title: "Error declining assignment",
         description: error.message || "Failed to decline assignment.",
         variant: "destructive",
       });

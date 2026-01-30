@@ -224,6 +224,11 @@ export async function acceptTerritoryAssignment(
   assignmentId: string,
   repUserId: string
 ): Promise<{ error: string | null; connectionCreated?: boolean }> {
+  console.debug("[territory] Accepting assignment:", {
+    assignmentId,
+    repUserId,
+  });
+
   // Use the database function that handles all updates atomically with proper permissions
   const { data, error } = await supabase.rpc("accept_territory_assignment", {
     p_assignment_id: assignmentId,
@@ -231,8 +236,13 @@ export async function acceptTerritoryAssignment(
   });
 
   if (error) {
-    console.error("Error accepting territory assignment:", error);
-    return { error: error.message };
+    console.error("[territory] Accept RPC error:", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return { error: `${error.code || "ERROR"}: ${error.message}` };
   }
 
   const result = data as { success: boolean; error?: string; connection_created?: boolean };
@@ -300,6 +310,12 @@ export async function declineTerritoryAssignment(
   repUserId: string,
   reason?: string
 ): Promise<{ error: string | null }> {
+  console.debug("[territory] Declining assignment:", {
+    assignmentId,
+    repUserId,
+    reason,
+  });
+
   // Get assignment details
   const { data: assignment, error: fetchError } = await supabase
     .from("territory_assignments")
@@ -307,13 +323,27 @@ export async function declineTerritoryAssignment(
     .eq("id", assignmentId)
     .single();
 
-  if (fetchError || !assignment) {
+  if (fetchError) {
+    console.error("[territory] Fetch error:", {
+      code: fetchError.code,
+      message: fetchError.message,
+    });
+    return { error: `Fetch failed: ${fetchError.code || "ERROR"}: ${fetchError.message}` };
+  }
+
+  if (!assignment) {
     return { error: "Assignment not found" };
   }
 
   if (assignment.status !== "pending_rep") {
-    return { error: "Assignment is not pending" };
+    return { error: `Assignment is not pending (current status: ${assignment.status})` };
   }
+
+  console.debug("[territory] Updating status to declined:", {
+    assignmentId,
+    currentStatus: assignment.status,
+    newStatus: "declined",
+  });
 
   // Update assignment to declined
   const { error: updateError } = await supabase
@@ -325,7 +355,13 @@ export async function declineTerritoryAssignment(
     .eq("id", assignmentId);
 
   if (updateError) {
-    return { error: updateError.message };
+    console.error("[territory] Update error:", {
+      code: updateError.code,
+      message: updateError.message,
+      details: updateError.details,
+      hint: updateError.hint,
+    });
+    return { error: `${updateError.code || "ERROR"}: ${updateError.message}` };
   }
 
   // Check if there are other pending assignments for this post
