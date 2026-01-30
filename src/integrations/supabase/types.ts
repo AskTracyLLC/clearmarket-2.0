@@ -12594,6 +12594,7 @@ export type Database = {
         }
         Returns: Json
       }
+      current_rep_profile_id: { Args: never; Returns: string }
       deduct_credit_for_post: {
         Args: { p_amount?: number; p_user_id: string }
         Returns: boolean

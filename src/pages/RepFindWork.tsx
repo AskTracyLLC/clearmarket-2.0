@@ -203,11 +203,16 @@ export default function RepFindWork() {
         }
 
         // Load rep profile
-        const { data: repData } = await supabase
+        const { data: repData, error: repError } = await supabase
           .from("rep_profile")
           .select("*")
           .eq("user_id", user.id)
           .maybeSingle();
+
+        if (repError) {
+          console.error("[DEBUG] Error loading rep_profile (possible RLS issue):", repError);
+          toast.error(`Unable to load your rep profile. Please contact support. (${repError.code})`);
+        }
 
         setRepProfile(repData);
 

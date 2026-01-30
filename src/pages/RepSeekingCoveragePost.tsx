@@ -90,17 +90,20 @@ export default function RepSeekingCoveragePost() {
 
         setPost(postData);
 
-        // Load vendor info
-        const { data: vendorData } = await supabase
+        // Load vendor info using vendor_id which is the vendor user_id
+        const { data: vendorData, error: vendorError } = await supabase
           .from("vendor_profile")
           .select("anonymous_id, company_name")
           .eq("user_id", postData.vendor_id)
-          .single();
+          .maybeSingle();
 
+        if (vendorError) {
+          console.error("[DEBUG] Error loading vendor_profile:", vendorError);
+        }
+        
         setVendor(vendorData || { anonymous_id: null, company_name: "Unknown Vendor" });
 
         // Load rep profile by user_id = auth.uid()
-        console.log("[DEBUG] Loading rep_profile for user_id:", user.id);
         const { data: repData, error: repError } = await supabase
           .from("rep_profile")
           .select("*")
@@ -108,14 +111,9 @@ export default function RepSeekingCoveragePost() {
           .maybeSingle();
 
         if (repError) {
-          console.error("[DEBUG] Error loading rep_profile:", repError);
-          toast.error(`Cannot load rep profile: ${repError.message}`);
-        }
-
-        console.log("[DEBUG] Loaded repProfile:", repData ? { id: repData.id, user_id: repData.user_id } : null);
-        
-        if (!repData) {
-          toast.error("Cannot express interest: no rep_profile found for your user_id.");
+          console.error("[DEBUG] Error loading rep_profile (possible RLS issue):", repError);
+          toast.error(`Unable to load your rep profile. This may be a permissions issue. Please contact support. (${repError.code})`);
+          // Continue loading - let UI handle gracefully
         }
 
         setRepProfile(repData);
