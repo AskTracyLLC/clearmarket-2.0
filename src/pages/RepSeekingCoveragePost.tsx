@@ -110,13 +110,20 @@ export default function RepSeekingCoveragePost() {
           .eq("user_id", user.id)
           .maybeSingle();
 
+        // CASE A: RLS/server error - show specific error and DO NOT treat as "missing profile"
         if (repError) {
-          console.error("[DEBUG] Error loading rep_profile (possible RLS issue):", repError);
-          toast.error(`Unable to load your rep profile. This may be a permissions issue. Please contact support. (${repError.code})`);
-          // Continue loading - let UI handle gracefully
+          console.error("[DEBUG] Error loading rep_profile (RLS/server issue):", repError);
+          toast.error(`Rep profile load failed: ${repError.code ?? ""} ${repError.message}. Please contact support.`);
+          setRepProfile(undefined); // Mark as errored, not missing
+          // Don't return - continue loading other data, but the Interest button will show error state
+        } else if (!repData) {
+          // CASE B: No error but no data = truly missing profile
+          console.warn("[DEBUG] No rep_profile found for user:", user.id);
+          setRepProfile(null); // Explicitly null = missing
+        } else {
+          // CASE C: Profile exists
+          setRepProfile(repData);
         }
-
-        setRepProfile(repData);
 
         // Load coverage areas
         const { data: coverageData } = await supabase
