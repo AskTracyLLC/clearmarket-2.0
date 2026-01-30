@@ -2479,6 +2479,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "connection_agreement_areas_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_rep_connections"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "connection_agreement_areas_inspection_type_id_fkey"
             columns: ["inspection_type_id"]
             isOneToOne: false
@@ -6472,6 +6479,13 @@ export type Database = {
             columns: ["connection_id"]
             isOneToOne: false
             referencedRelation: "vendor_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_rep_connections"
             referencedColumns: ["id"]
           },
           {
@@ -12474,6 +12488,161 @@ export type Database = {
             foreignKeyName: "vendor_profile_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+        ]
+      }
+      vendor_rep_connections: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          field_rep_id: string | null
+          id: string | null
+          requested_at: string | null
+          requested_by:
+            | Database["public"]["Enums"]["vendor_connection_initiator"]
+            | null
+          responded_at: string | null
+          status: Database["public"]["Enums"]["vendor_connection_status"] | null
+          updated_at: string | null
+          vendor_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          field_rep_id?: string | null
+          id?: string | null
+          requested_at?: string | null
+          requested_by?:
+            | Database["public"]["Enums"]["vendor_connection_initiator"]
+            | null
+          responded_at?: string | null
+          status?:
+            | Database["public"]["Enums"]["vendor_connection_status"]
+            | null
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          field_rep_id?: string | null
+          id?: string | null
+          requested_at?: string | null
+          requested_by?:
+            | Database["public"]["Enums"]["vendor_connection_initiator"]
+            | null
+          responded_at?: string | null
+          status?:
+            | Database["public"]["Enums"]["vendor_connection_status"]
+            | null
+          updated_at?: string | null
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_connections_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_field_rep_id_fkey"
+            columns: ["field_rep_id"]
+            isOneToOne: false
+            referencedRelation: "rep_profile_pricing_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_staff_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "public_vendor_gl_badges"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_alert_sent_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "rep_onboarding_status"
+            referencedColumns: ["rep_user_id"]
+          },
+          {
+            foreignKeyName: "vendor_connections_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
             referencedRelation: "rep_profile_pricing_status"
             referencedColumns: ["rep_user_id"]
           },
