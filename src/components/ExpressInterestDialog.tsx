@@ -76,8 +76,52 @@ export function ExpressInterestDialog({
     }
   }, [open]);
 
-  // If no rep profile, show a message to complete profile
-  if (!repProfile) {
+  // Helper: check if profile is complete (has required fields)
+  const isRepProfileComplete = (rp: RepProfileInfo | null): boolean => {
+    if (!rp) return false;
+    // Required fields for a "complete" profile - adjust based on your actual requirements
+    return !!rp.user_id && !!rp.id;
+  };
+
+  // Case 1: repProfile is undefined = RLS/server error occurred (not just missing)
+  if (repProfile === undefined) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Unable to Load Profile
+            </DialogTitle>
+            <DialogDescription>
+              There was an error loading your rep profile. This may be a permissions issue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-destructive/10 rounded-lg p-4 text-center space-y-4">
+              <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
+              <p className="text-sm text-muted-foreground">
+                Please try refreshing the page. If the issue persists, contact support.
+              </p>
+              <Button variant="outline" onClick={() => window.location.reload()} className="w-full">
+                Refresh Page
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Case 2: repProfile is null = truly missing profile (no error, just doesn't exist)
+  if (repProfile === null) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
@@ -96,6 +140,45 @@ export function ExpressInterestDialog({
               <User className="h-12 w-12 mx-auto text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
                 Your profile helps vendors understand your coverage areas, systems experience, and rates.
+              </p>
+              <Button asChild className="w-full">
+                <Link to="/rep/profile">
+                  Complete Your Profile
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Case 3: repProfile exists but is incomplete
+  if (!isRepProfileComplete(repProfile)) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Complete Your Profile
+            </DialogTitle>
+            <DialogDescription>
+              Your profile is missing some required information.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="bg-muted/50 rounded-lg p-4 text-center space-y-4">
+              <User className="h-12 w-12 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Please complete all required fields in your profile to express interest.
               </p>
               <Button asChild className="w-full">
                 <Link to="/rep/profile">
@@ -178,13 +261,19 @@ export function ExpressInterestDialog({
     }
 
     if (!repProfile?.id || !repProfile?.user_id) {
-      toast.error("Rep profile not found - please complete your profile first");
+      toast.error("Rep profile data is missing. This may be due to a permissions error. Please refresh and try again.");
       return;
     }
 
     setSubmitting(true);
 
-    console.log("[DEBUG] Expressing interest - repProfile.id:", repProfile.id, "repProfile.user_id:", repProfile.user_id);
+    // Debug log BEFORE insert - helps diagnose issues
+    console.debug(
+      "[interest] rep_profile.id:", repProfile.id,
+      "rep_profile.user_id:", repProfile.user_id,
+      "auth user.id:", user.id,
+      "postId:", post.id
+    );
 
     try {
       // 1. Mark interest (upsert to avoid duplicates) - use repProfile.id (profile PK), NOT user.id
@@ -201,7 +290,8 @@ export function ExpressInterestDialog({
 
       if (interestError) {
         console.error("[DEBUG] Error saving interest:", interestError);
-        toast.error(`Failed to save interest: ${interestError.message}`);
+        // Show exact Supabase error code and message
+        toast.error(`Failed to save interest: ${interestError.code ?? ""} ${interestError.message}`);
         throw interestError;
       }
 
