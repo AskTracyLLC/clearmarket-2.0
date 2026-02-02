@@ -471,12 +471,13 @@ export function PublicProfileDialog({
           .maybeSingle();
 
         // Determine display name (first name + last initial)
-        const fullName = profile?.full_name || "";
-        const nameParts = fullName.trim().split(" ");
+        // NEVER fall back to "User" - use empty string, then the dialog header will use anonymousId
+        const fullName = profile?.full_name?.trim() || "";
+        const nameParts = fullName.split(" ").filter(Boolean);
         const displayName =
           nameParts.length > 1
             ? `${nameParts[0]} ${nameParts[nameParts.length - 1].charAt(0)}.`
-            : nameParts[0] || "User";
+            : nameParts[0] || "";
 
         // Load rep profile
         const { data: repProfile } = await supabase
@@ -698,8 +699,8 @@ export function PublicProfileDialog({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              {/* For connected reps (or admins viewing), show real name as primary */}
-              {(isConnectedRep || viewerIsAdmin) && profileData.role === "rep" ? (
+              {/* For connected reps (or admins viewing), show real name as primary if available */}
+              {(isConnectedRep || viewerIsAdmin) && profileData.role === "rep" && profileData.displayName ? (
                 <>
                   <DialogTitle className="text-2xl font-bold text-primary">
                     {profileData.displayName}
@@ -711,7 +712,9 @@ export function PublicProfileDialog({
                   <DialogTitle className="text-2xl font-bold text-primary">
                     {profileData.anonymousId}
                   </DialogTitle>
-                  <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+                  {profileData.displayName && (
+                    <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+                  )}
                 </>
               )}
               {/* Dual Role user badge and helper text */}
