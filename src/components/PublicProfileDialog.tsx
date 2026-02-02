@@ -370,11 +370,20 @@ export function PublicProfileDialog({
           "x-anon-session-id": anonSessionId,
         },
       });
+      
+      // Handle Supabase function errors (CORS, network, etc.)
       if (error) {
-        // Supabase functions returns error objects; also handle 429 style errors via data payload
+        console.error("guard_contact_access Supabase error:", error);
+        // Check if this is a CORS or network error vs actual rate limit
+        const errorMsg = error.message?.toLowerCase() || "";
+        if (errorMsg.includes("cors") || errorMsg.includes("network") || errorMsg.includes("fetch")) {
+          return { allowed: false as const, reason: "CORS_ERROR" };
+        }
         return { allowed: false as const, reason: "FUNCTION_ERROR" };
       }
+      
       if (!data?.allowed) {
+        // Return the specific reason from the API (RATE_LIMIT, NO_ACCESS, etc.)
         return { allowed: false as const, reason: data?.reason || "BLOCKED" };
       }
       return { allowed: true as const, contact: data?.contact || null };
@@ -403,9 +412,19 @@ export function PublicProfileDialog({
       if (!res.allowed) {
         setContactAllowed(false);
         setRepEmail(null);
-        toast.error("Slow down — too many contact views.", {
-          description: "Please try again later.",
-        });
+        
+        // Show different error messages based on the failure reason
+        if (res.reason === "RATE_LIMIT") {
+          toast.error("Slow down — too many contact views.", {
+            description: "Please try again later.",
+          });
+        } else if (res.reason === "CORS_ERROR" || res.reason === "NETWORK_ERROR" || res.reason === "FUNCTION_ERROR") {
+          toast.error("Couldn't load contact details. Please try again.", {
+            description: "If this continues, refresh the page.",
+          });
+        }
+        // For NO_ACCESS, NOT_AUTHENTICATED, etc. - no toast, just don't show contact
+        
         setContactLoading(false);
         return;
       }
@@ -679,10 +698,22 @@ export function PublicProfileDialog({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="text-2xl font-bold text-primary">
-                {profileData.anonymousId}
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+              {/* For connected reps (or admins viewing), show real name as primary */}
+              {(isConnectedRep || viewerIsAdmin) && profileData.role === "rep" ? (
+                <>
+                  <DialogTitle className="text-2xl font-bold text-primary">
+                    {profileData.displayName}
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground">{profileData.anonymousId}</p>
+                </>
+              ) : (
+                <>
+                  <DialogTitle className="text-2xl font-bold text-primary">
+                    {profileData.anonymousId}
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
+                </>
+              )}
               {/* Dual Role user badge and helper text */}
               {profileData.isDualRoleUser && (
                 <div className="mt-2">
