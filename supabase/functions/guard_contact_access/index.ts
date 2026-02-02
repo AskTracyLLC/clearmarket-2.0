@@ -4,10 +4,11 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 const ALLOWED_ORIGINS = [
   "https://useclearmarket.io",
   "https://www.useclearmarket.io",
+  "https://useclearmarketio.lovable.app",
 ];
 
-// Allow Lovable preview domains during development
-const LOVABLE_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/;
+// Allow Lovable preview domains during development (matches id-preview--<guid>.lovable.app)
+const LOVABLE_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+\.lovable\.app$/;
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowedOrigin =
@@ -17,7 +18,7 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-anon-session-id",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-anon-session-id, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
   };
