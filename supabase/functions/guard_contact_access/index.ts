@@ -7,14 +7,21 @@ const ALLOWED_ORIGINS = [
   "https://useclearmarketio.lovable.app",
 ];
 
-// Allow Lovable preview domains during development (matches id-preview--<guid>.lovable.app)
-const LOVABLE_PREVIEW_PATTERN = /^https:\/\/[a-z0-9-]+\.lovable\.app$/;
+// Allow Lovable preview domains during development
+// Matches: *.lovable.app and *.lovableproject.com
+const LOVABLE_PREVIEW_PATTERNS = [
+  /^https:\/\/[a-z0-9-]+\.lovable\.app$/,
+  /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/,
+];
+
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  return LOVABLE_PREVIEW_PATTERNS.some((pattern) => pattern.test(origin));
+}
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
-  const allowedOrigin =
-    origin && (ALLOWED_ORIGINS.includes(origin) || LOVABLE_PREVIEW_PATTERN.test(origin))
-      ? origin
-      : ALLOWED_ORIGINS[0];
+  // Echo back the origin if it's allowed, otherwise use default
+  const allowedOrigin = origin && isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
