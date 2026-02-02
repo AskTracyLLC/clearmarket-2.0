@@ -11972,7 +11972,7 @@ export type Database = {
         Row: {
           rep_anonymous_label: string | null
           rep_city: string | null
-          rep_display_name: string | null
+          rep_full_name: string | null
           rep_id: string | null
           rep_state: string | null
           vendor_id: string | null

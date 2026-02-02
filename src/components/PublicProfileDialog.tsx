@@ -470,14 +470,14 @@ export function PublicProfileDialog({
           .eq("id", targetUserId)
           .maybeSingle();
 
-        // Determine display name (first name + last initial)
-        // NEVER fall back to "User" - use empty string, then the dialog header will use anonymousId
+        // Determine display name:
+        // 1. If viewerContext provides a displayName (from connected_rep_display_info), use it
+        // 2. Otherwise use full_name from profiles
+        // 3. NEVER fall back to "User"
+        const contextDisplayName = viewerContext?.rep?.displayName || "";
         const fullName = profile?.full_name?.trim() || "";
-        const nameParts = fullName.split(" ").filter(Boolean);
-        const displayName =
-          nameParts.length > 1
-            ? `${nameParts[0]} ${nameParts[nameParts.length - 1].charAt(0)}.`
-            : nameParts[0] || "";
+        // For connected reps, prefer the full name from the database
+        const displayName = contextDisplayName || fullName || "";
 
         // Load rep profile
         const { data: repProfile } = await supabase

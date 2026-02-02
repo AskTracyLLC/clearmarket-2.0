@@ -509,7 +509,7 @@ const AdminLaunchReadiness: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from("connected_rep_display_info")
-        .select("vendor_id, rep_id, rep_display_name, rep_anonymous_label")
+        .select("vendor_id, rep_id, rep_full_name, rep_anonymous_label")
         .limit(5);
 
       if (error) {
@@ -532,18 +532,18 @@ const AdminLaunchReadiness: React.FC = () => {
         // Check if display names work
         if (data && data.length > 0) {
           const hasValidName = data.some(
-            (row) => row.rep_display_name && row.rep_display_name.trim() !== ""
+            (row) => row.rep_full_name && row.rep_full_name.trim() !== ""
           );
           if (hasValidName) {
             updateCheck("rls", "connected_display_data", {
               status: "pass",
-              message: "rep_display_name populated correctly",
-              details: `Sample: "${data[0].rep_display_name}" (fallback: ${data[0].rep_anonymous_label})`,
+              message: "rep_full_name populated correctly",
+              details: `Sample: "${data[0].rep_full_name}" (fallback: ${data[0].rep_anonymous_label})`,
             });
           } else {
             updateCheck("rls", "connected_display_data", {
               status: "warn",
-              message: "rep_display_name is blank (using anonymous fallback)",
+              message: "rep_full_name is blank (using anonymous fallback)",
               details: `Anonymous labels: ${data.map((r) => r.rep_anonymous_label).join(", ")}`,
             });
           }

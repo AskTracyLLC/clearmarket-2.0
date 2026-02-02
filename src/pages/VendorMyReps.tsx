@@ -213,45 +213,20 @@ const VendorMyReps = () => {
       // Fetch display names from secure view (only returns data for connected pairs)
       const { data: displayInfoData } = await supabase
         .from("connected_rep_display_info")
-        .select("rep_id, rep_display_name, rep_anonymous_label")
+        .select("rep_id, rep_full_name, rep_anonymous_label")
         .in("rep_id", repUserIds);
 
       // Create a map of rep_id -> display info
       const displayInfoMap = new Map<string, { displayName: string; anonymousLabel: string }>();
       (displayInfoData || []).forEach(info => {
         displayInfoMap.set(info.rep_id, {
-          displayName: info.rep_display_name,
-          anonymousLabel: info.rep_anonymous_label,
+          displayName: info.rep_full_name || "",
+          anonymousLabel: info.rep_anonymous_label || "",
         });
       });
 
-      // Fallback: If view returned empty, fetch profile names directly (for connected reps)
-      // This handles cases where the view RLS might not return data as expected
-      if ((displayInfoData || []).length === 0 && repUserIds.length > 0) {
-        const { data: profileNames } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", repUserIds);
-        
-        if (profileNames) {
-          const repProfileMap = new Map(repProfiles?.map(rp => [rp.user_id, rp]) || []);
-          profileNames.forEach(p => {
-            const repProfile = repProfileMap.get(p.id);
-            if (repProfile && p.full_name) {
-              // Generate display name (first name + last initial)
-              const nameParts = p.full_name.trim().split(" ");
-              const displayName = nameParts.length > 1
-                ? `${nameParts[0]} ${nameParts[nameParts.length - 1].charAt(0)}.`
-                : nameParts[0] || "";
-              
-              displayInfoMap.set(p.id, {
-                displayName: displayName,
-                anonymousLabel: repProfile.anonymous_id || `FieldRep#${p.id.substring(0, 6)}`,
-              });
-            }
-          });
-        }
-      }
+      // Note: If the view returns empty, displayName will be null and anonymousId will be used
+      // This is the expected behavior for non-connected or RLS-protected scenarios
 
       const repsArray: ConnectedRep[] = [];
 
