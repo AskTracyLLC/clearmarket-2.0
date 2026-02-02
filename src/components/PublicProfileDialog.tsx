@@ -700,23 +700,30 @@ export function PublicProfileDialog({
           <div className="flex items-center justify-between">
             <div>
               {/* For connected reps (or admins viewing), show real name as primary if available */}
-              {(isConnectedRep || viewerIsAdmin) && profileData.role === "rep" && profileData.displayName ? (
-                <>
-                  <DialogTitle className="text-2xl font-bold text-primary">
-                    {profileData.displayName}
-                  </DialogTitle>
-                  <p className="text-sm text-muted-foreground">{profileData.anonymousId}</p>
-                </>
-              ) : (
-                <>
-                  <DialogTitle className="text-2xl font-bold text-primary">
-                    {profileData.anonymousId}
-                  </DialogTitle>
-                  {profileData.displayName && (
-                    <p className="text-sm text-muted-foreground">{profileData.displayName}</p>
-                  )}
-                </>
-              )}
+              {(() => {
+                // Prioritize viewerContext.rep.displayName (source of truth from connected_rep_display_info)
+                // Fall back to profileData.displayName if available
+                const realName = viewerContext?.rep?.displayName || profileData.displayName || "";
+                const showRealName = (isConnectedRep || viewerIsAdmin) && profileData.role === "rep" && realName;
+                
+                return showRealName ? (
+                  <>
+                    <DialogTitle className="text-2xl font-bold text-primary">
+                      {realName}
+                    </DialogTitle>
+                    <p className="text-sm text-muted-foreground">{profileData.anonymousId}</p>
+                  </>
+                ) : (
+                  <>
+                    <DialogTitle className="text-2xl font-bold text-primary">
+                      {profileData.anonymousId}
+                    </DialogTitle>
+                    {realName && (
+                      <p className="text-sm text-muted-foreground">{realName}</p>
+                    )}
+                  </>
+                );
+              })()}
               {/* Dual Role user badge and helper text */}
               {profileData.isDualRoleUser && (
                 <div className="mt-2">
