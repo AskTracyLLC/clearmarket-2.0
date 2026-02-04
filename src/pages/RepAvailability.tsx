@@ -460,7 +460,7 @@ export default function RepAvailability() {
     }
   }
 
-  async function handleSendAlert() {
+  async function handleSendAlert(routeAction?: "send_now" | "schedule") {
     if (!user) return;
 
     // Validation
@@ -526,6 +526,7 @@ export default function RepAvailability() {
         const formattedDate = format(routeDate!, "MMMM do, yyyy");
         const countiesList = routeCounties.join(", ");
         const isRouteToday = isToday(routeDate!);
+        const resolvedRouteAction = routeAction ?? (isRouteToday ? "send_now" : "schedule");
 
         // Substitute placeholders so we store the final message, not the raw template
         let finalMessage = alertMessage
@@ -533,7 +534,7 @@ export default function RepAvailability() {
           .replace(/\{STATE\}/g, stateName)
           .replace(/\{COUNTIES\}/g, countiesList);
 
-        if (isRouteToday) {
+        if (resolvedRouteAction === "send_now") {
           // Send immediately for today's date
           const alertData = {
             rep_user_id: user.id,
@@ -1200,13 +1201,16 @@ export default function RepAvailability() {
                   </div>
 
                   {/* Info alert explaining send-now vs scheduled behavior */}
-                  <Alert variant="info">
-                    <Info className="w-4 h-4" />
-                    <AlertTitle>Today sends immediately</AlertTitle>
-                    <AlertDescription>
-                      If you select today's date, your planned route alert will send now. Future dates will be saved and sent after confirmation on that day.
-                    </AlertDescription>
-                  </Alert>
+                  {routeDate && (
+                    <Alert variant="default" className="bg-muted/50">
+                      <Info className="w-4 h-4" />
+                      <AlertDescription>
+                        {isToday(routeDate)
+                          ? "This alert will be sent immediately."
+                          : `This alert will be saved and you'll be asked to confirm it on ${format(routeDate, "MMMM do")} before it sends.`}
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1268,26 +1272,55 @@ export default function RepAvailability() {
                 </p>
               </div>
 
-              <Button onClick={handleSendAlert} disabled={sendingAlert} className="w-full">
-                {alertType === "route" ? (
-                  <>
-                    <MapPin className="w-4 h-4 mr-2" />
-                    {sendingAlert 
-                      ? (routeDate && isToday(routeDate) ? "Sending..." : "Scheduling...") 
-                      : routeDate && isToday(routeDate) 
-                        ? "Send Planned Route Now" 
-                        : editingRouteId 
-                          ? "Update Planned Route" 
-                          : "Schedule Planned Route"
+              {alertType === "route" ? (
+                <div className="flex justify-end gap-3">
+                  {/* For future route dates, give reps a clear choice */}
+                  {routeDate && !isToday(routeDate) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSendAlert("send_now")}
+                      disabled={
+                        sendingAlert ||
+                        !alertMessage.trim() ||
+                        !routeDate ||
+                        !routeState ||
+                        routeCounties.length === 0
+                      }
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Now
+                    </Button>
+                  )}
+
+                  {/* Primary action */}
+                  <Button
+                    onClick={() =>
+                      handleSendAlert(routeDate && !isToday(routeDate) ? "schedule" : "send_now")
                     }
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    {sendingAlert ? "Sending..." : "Send to My Vendors"}
-                  </>
-                )}
-              </Button>
+                    disabled={
+                      sendingAlert ||
+                      !alertMessage.trim() ||
+                      !routeDate ||
+                      !routeState ||
+                      routeCounties.length === 0
+                    }
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {sendingAlert
+                      ? (routeDate && !isToday(routeDate) ? "Scheduling..." : "Sending...")
+                      : routeDate && !isToday(routeDate)
+                        ? `Schedule for ${format(routeDate, "PPP")}`
+                        : editingRouteId
+                          ? "Update & Send Today"
+                          : "Send Today"}
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={() => handleSendAlert()} disabled={sendingAlert} className="w-full">
+                  <Send className="w-4 h-4 mr-2" />
+                  {sendingAlert ? "Sending..." : "Send to My Vendors"}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
