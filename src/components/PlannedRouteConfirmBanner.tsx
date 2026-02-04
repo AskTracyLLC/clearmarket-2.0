@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { MapPin, Send, Edit, X } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MapPin, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PlannedRoute {
   id: string;
@@ -29,11 +38,13 @@ export function PlannedRouteConfirmBanner({
 }: PlannedRouteConfirmBannerProps) {
   const [sending, setSending] = useState<string | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
+  const [confirmingRoute, setConfirmingRoute] = useState<PlannedRoute | null>(null);
 
   if (routes.length === 0) return null;
 
   async function handleSendNow(route: PlannedRoute) {
     setSending(route.id);
+    setConfirmingRoute(null);
     try {
       // Replace placeholders in message if present; otherwise use message as-is
       let finalMessage = route.message;
@@ -99,6 +110,7 @@ export function PlannedRouteConfirmBanner({
 
   async function handleCancel(routeId: string) {
     setCanceling(routeId);
+    setConfirmingRoute(null);
     try {
       const { error } = await supabase
         .from("vendor_alerts")
@@ -126,63 +138,79 @@ export function PlannedRouteConfirmBanner({
   }
 
   return (
-    <div className="space-y-3 mb-6">
-      {routes.map((route) => (
-        <Alert key={route.id} className="border-primary/50 bg-primary/5">
-          <MapPin className="h-4 w-4 text-primary" />
-          <AlertDescription>
-            <div className="flex flex-col gap-3">
-            <div>
-              <p className="font-medium text-foreground mb-1">
-                Planned route today
-              </p>
-              <p className="text-sm text-primary font-medium mb-1">
-                Scheduled for {format(parseISO(route.route_date), "MMMM do, yyyy")}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                You told us you'd be working in{" "}
-                <span className="font-medium text-foreground">
-                  {route.route_counties.join(", ")}
-                </span>
-                {", "}
-                <span className="font-medium text-foreground">
-                  {route.route_state}
-                </span>{" "}
-                today. Do you still want to send this update to your vendors?
-              </p>
-            </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleSendNow(route)}
-                  disabled={sending === route.id || canceling === route.id}
-                >
-                  <Send className="w-4 h-4 mr-2" />
-                  {sending === route.id ? "Sending..." : "Send Alert Now"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onEdit(route)}
-                  disabled={sending === route.id || canceling === route.id}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleCancel(route.id)}
-                  disabled={sending === route.id || canceling === route.id}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  {canceling === route.id ? "Canceling..." : "Cancel"}
-                </Button>
+    <>
+      {/* Confirmation Modal */}
+      <AlertDialog open={!!confirmingRoute} onOpenChange={(open) => !open && setConfirmingRoute(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              Still working this route today?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              {confirmingRoute && (
+                <>
+                  <p>
+                    You scheduled a route for{" "}
+                    <span className="font-medium text-foreground">
+                      {confirmingRoute.route_counties.join(", ")}, {confirmingRoute.route_state}
+                    </span>{" "}
+                    today.
+                  </p>
+                  <p>
+                    Would you like to send the alert to your vendors now?
+                  </p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => confirmingRoute && handleCancel(confirmingRoute.id)}
+              disabled={canceling === confirmingRoute?.id}
+            >
+              <X className="w-4 h-4 mr-2" />
+              {canceling === confirmingRoute?.id ? "Canceling..." : "Not Today"}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => confirmingRoute && handleSendNow(confirmingRoute)}
+              disabled={sending === confirmingRoute?.id}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {sending === confirmingRoute?.id ? "Sending..." : "Yes, Send Alert"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Banner Cards */}
+      <div className="space-y-3 mb-6">
+        {routes.map((route) => (
+          <div 
+            key={route.id} 
+            className="flex items-center justify-between gap-4 p-4 rounded-lg border border-primary/50 bg-primary/5"
+          >
+            <div className="flex items-start gap-3">
+              <MapPin className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-foreground">
+                  Scheduled route for today
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {route.route_counties.join(", ")}, {route.route_state}
+                </p>
               </div>
             </div>
-          </AlertDescription>
-        </Alert>
-      ))}
-    </div>
+            <Button
+              size="sm"
+              onClick={() => setConfirmingRoute(route)}
+              disabled={sending === route.id || canceling === route.id}
+            >
+              {sending === route.id ? "Sending..." : "Confirm & Send"}
+            </Button>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
