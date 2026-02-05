@@ -13,7 +13,7 @@ export type QueueCategory =
 const MAX_SUMMARY_FIELDS = 2;
 const MAX_PRIMARY_ACTIONS = 5;
 
-export type QueueStatus = "open" | "in_progress" | "waiting" | "resolved";
+export type QueueStatus = "open" | "in_progress" | "waiting" | "resolved" | "declined";
 export type QueuePriority = "normal" | "urgent";
 
 export interface CategoryField {
@@ -47,6 +47,7 @@ export const STATUS_OPTIONS: { value: QueueStatus; label: string }[] = [
   { value: "in_progress", label: "In Progress" },
   { value: "waiting", label: "Waiting" },
   { value: "resolved", label: "Resolved" },
+  { value: "declined", label: "Declined" },
 ];
 
 export const STATUS_VARIANTS: Record<QueueStatus, "default" | "secondary" | "outline" | "destructive"> = {
@@ -54,6 +55,7 @@ export const STATUS_VARIANTS: Record<QueueStatus, "default" | "secondary" | "out
   in_progress: "default",
   waiting: "secondary",
   resolved: "outline",
+  declined: "secondary",
 };
 
 export const SUPPORT_QUEUE_CATEGORIES: CategoryConfig[] = [
