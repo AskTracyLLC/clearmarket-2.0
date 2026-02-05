@@ -96,6 +96,7 @@ const STATUS_OPTIONS: { value: QueueStatus; label: string }[] = [
   { value: "in_progress", label: "Under Review" },
   { value: "waiting", label: "Waiting" },
   { value: "resolved", label: "Approved" },
+  { value: "declined", label: "Declined" },
 ];
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -103,6 +104,7 @@ const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline" | "des
   in_progress: "default",
   waiting: "secondary",
   resolved: "outline",
+  declined: "secondary",
 };
 
 const getStatusLabel = (status: string) => {
@@ -150,6 +152,10 @@ export function VendorVerificationDetailPanel({
   const [showSecondLookDialog, setShowSecondLookDialog] = useState(false);
   const [secondLookMessage, setSecondLookMessage] = useState("");
   const [requestingSecondLook, setRequestingSecondLook] = useState(false);
+
+  // Decline confirmation modal state
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [declining, setDeclining] = useState(false);
 
   // Extract metadata
   const metadata = (item.metadata || {}) as Record<string, unknown>;
@@ -539,9 +545,41 @@ export function VendorVerificationDetailPanel({
   const handleStatusSelect = async (status: QueueStatus) => {
     if (status === "resolved") {
       handleApprove();
+    } else if (status === "declined") {
+      setShowDeclineDialog(true);
     } else {
       await onStatusChange(item.id, status);
       onRefresh();
+    }
+  };
+
+  // Handle decline confirmation
+  const handleDeclineConfirm = async () => {
+    if (!user) return;
+
+    setDeclining(true);
+    try {
+      // Update queue item status to declined
+      await onStatusChange(item.id, "declined");
+
+      // Log action
+      await supabase.from("support_queue_actions").insert({
+        queue_item_id: item.id,
+        action_type: "declined",
+        channel: "in_app",
+        body: "Vendor verification declined (ticket closed; resubmission allowed).",
+        created_by: user.id,
+      });
+
+      setShowDeclineDialog(false);
+      loadActions();
+      onRefresh();
+      toast({ title: "Verification declined", description: "The vendor can resubmit for verification." });
+    } catch (err) {
+      console.error("Error declining:", err);
+      toast({ title: "Failed to decline", variant: "destructive" });
+    } finally {
+      setDeclining(false);
     }
   };
 
@@ -967,6 +1005,35 @@ export function VendorVerificationDetailPanel({
             >
               {requestingSecondLook ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Request Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline Confirmation Dialog */}
+      <Dialog open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              Decline Verification
+            </DialogTitle>
+            <DialogDescription>
+              This will close this verification ticket without approving the vendor.
+              The vendor will still be able to resubmit for verification in the future.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeclineDialog(false)} disabled={declining}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeclineConfirm}
+              disabled={declining}
+            >
+              {declining ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Decline
             </Button>
           </DialogFooter>
         </DialogContent>

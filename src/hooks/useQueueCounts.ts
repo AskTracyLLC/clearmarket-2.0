@@ -44,11 +44,11 @@ export function useQueueCounts(): UseQueueCountsReturn {
     if (!user) return;
 
     try {
-      // Fetch counts by category for non-resolved items
+      // Fetch counts by category for non-resolved and non-declined items
       const { data: categoryData, error: categoryError } = await supabase
         .from("support_queue_items")
         .select("category, priority")
-        .neq("status", "resolved");
+        .not("status", "in", '("resolved","declined")');
 
       if (categoryError) throw categoryError;
 

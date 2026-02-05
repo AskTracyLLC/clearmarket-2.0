@@ -13,7 +13,7 @@ export type QueueCategory =
   | "other";
 
 export type QueuePriority = "normal" | "urgent";
-export type QueueStatus = "open" | "in_progress" | "waiting" | "resolved";
+export type QueueStatus = "open" | "in_progress" | "waiting" | "resolved" | "declined";
 
 export interface QueueItem {
   id: string;
@@ -86,8 +86,8 @@ export function useQueueItems(filters: QueueFilters = {}): UseQueueItemsReturn {
       if (filters.status) {
         query = query.eq("status", filters.status);
       } else {
-        // Default: exclude resolved items
-        query = query.neq("status", "resolved");
+        // Default: exclude resolved and declined items
+        query = query.not("status", "in", '("resolved","declined")');
       }
       if (filters.priority) {
         query = query.eq("priority", filters.priority);
