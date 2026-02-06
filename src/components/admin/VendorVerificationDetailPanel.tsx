@@ -560,9 +560,14 @@ export function VendorVerificationDetailPanel({
     setDeclining(true);
     try {
       // Update queue item status to declined
-      await onStatusChange(item.id, "declined");
+      const success = await onStatusChange(item.id, "declined");
 
-      // Log action
+      if (!success) {
+        toast({ title: "Failed to decline", description: "Status update failed. Please try again.", variant: "destructive" });
+        return;
+      }
+
+      // Log action only after successful status update
       await supabase.from("support_queue_actions").insert({
         queue_item_id: item.id,
         action_type: "declined",

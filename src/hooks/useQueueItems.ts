@@ -129,7 +129,8 @@ export function useQueueItems(filters: QueueFilters = {}): UseQueueItemsReturn {
         updated_at: new Date().toISOString(),
       };
 
-      if (status === "resolved") {
+      // Both resolved and declined are terminal states
+      if (status === "resolved" || status === "declined") {
         updateData.resolved_at = new Date().toISOString();
         updateData.resolved_by = user.id;
       }

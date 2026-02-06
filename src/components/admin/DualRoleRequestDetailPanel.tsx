@@ -294,17 +294,20 @@ export function DualRoleRequestDetailPanel({
   // Handle status change
   const handleStatusSelect = async (status: QueueStatus) => {
     const success = await onStatusChange(item.id, status);
-    if (success) {
-      await supabase.from("support_queue_actions").insert({
-        queue_item_id: item.id,
-        action_type: `status_${status}`,
-        channel: "in_app",
-        body: `Status changed to ${getStatusLabel(status)}`,
-        created_by: user?.id,
-      });
-      loadActions();
-      onRefresh();
+    if (!success) {
+      toast({ title: "Failed to update status", variant: "destructive" });
+      return;
     }
+    // Log action only after successful update
+    await supabase.from("support_queue_actions").insert({
+      queue_item_id: item.id,
+      action_type: `status_${status}`,
+      channel: "in_app",
+      body: `Status changed to ${getStatusLabel(status)}`,
+      created_by: user?.id,
+    });
+    loadActions();
+    onRefresh();
   };
 
   // Handle assignment change
@@ -332,7 +335,14 @@ export function DualRoleRequestDetailPanel({
         return;
       }
 
-      // Log action
+      // Update queue item status to resolved
+      const statusSuccess = await onStatusChange(item.id, "resolved");
+      if (!statusSuccess) {
+        toast({ title: "Failed to update queue status", variant: "destructive" });
+        return;
+      }
+
+      // Log action only after successful status change
       await supabase.from("support_queue_actions").insert({
         queue_item_id: item.id,
         action_type: decision === "approved" ? "dual_role_approved" : "dual_role_denied",
@@ -340,9 +350,6 @@ export function DualRoleRequestDetailPanel({
         body: `Request ${decision}${decisionNote ? `: ${decisionNote}` : ""}`,
         created_by: user.id,
       });
-
-      // Update queue item status to resolved
-      await onStatusChange(item.id, "resolved");
 
       toast({
         title: decision === "approved" ? "Request approved" : "Request denied",
