@@ -282,18 +282,20 @@ export function SupportQueueItemDetail({
   // Handle status change
   const handleStatusSelect = async (status: QueueStatus) => {
     const success = await onStatusChange(item.id, status);
-    if (success) {
-      // Log action
-      await supabase.from("support_queue_actions").insert({
-        queue_item_id: item.id,
-        action_type: `status_${status}`,
-        channel: "in_app",
-        body: `Status changed to ${getStatusLabel(status)}`,
-        created_by: user?.id,
-      });
-      loadActions();
-      onRefresh();
+    if (!success) {
+      toast({ title: "Failed to update status", variant: "destructive" });
+      return;
     }
+    // Log action only after successful update
+    await supabase.from("support_queue_actions").insert({
+      queue_item_id: item.id,
+      action_type: `status_${status}`,
+      channel: "in_app",
+      body: `Status changed to ${getStatusLabel(status)}`,
+      created_by: user?.id,
+    });
+    loadActions();
+    onRefresh();
   };
 
   // Handle category change (for support cases only)
