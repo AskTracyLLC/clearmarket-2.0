@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { fetchPublicProfileShare } from "@/lib/reputationSharing";
 import { getPublicBaseUrl } from "@/lib/publicUrl";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { US_STATES } from "@/lib/constants";
+
+type ProfileView = 'client' | 'recruiting';
 
 // Helper to get state name from code
 function getStateName(code: string): string {
@@ -92,11 +94,20 @@ interface VendorProfileData {
 
 export default function VendorShareProfile() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<VendorProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Determine view mode from query param. Default to "recruiting" (shows everything).
+  const viewMode: ProfileView = useMemo(() => {
+    const v = searchParams.get('view');
+    return v === 'client' ? 'client' : 'recruiting';
+  }, [searchParams]);
+
+  const isClientView = viewMode === 'client';
 
   useEffect(() => {
     if (!slug) {
@@ -412,16 +423,18 @@ export default function VendorShareProfile() {
 
             <Separator />
 
-            {/* Availability */}
-            <div className="flex items-center gap-2">
-              <CheckCircle className={`h-5 w-5 ${profile.is_accepting_new_reps ? 'text-green-500' : 'text-muted-foreground'}`} />
-              <span>
-                {profile.is_accepting_new_reps ? 'Accepting new field reps' : 'Not currently accepting new field reps'}
-              </span>
-            </div>
+            {/* Availability - hidden in client view */}
+            {!isClientView && (
+              <div className="flex items-center gap-2">
+                <CheckCircle className={`h-5 w-5 ${profile.is_accepting_new_reps ? 'text-green-500' : 'text-muted-foreground'}`} />
+                <span>
+                  {profile.is_accepting_new_reps ? 'Accepting new field reps' : 'Not currently accepting new field reps'}
+                </span>
+              </div>
+            )}
 
-            {/* Seeking Coverage Areas */}
-            {profile.seeking_coverage_areas && profile.seeking_coverage_areas.length > 0 && (
+            {/* Seeking Coverage Areas - hidden in client view */}
+            {!isClientView && profile.seeking_coverage_areas && profile.seeking_coverage_areas.length > 0 && (
               <>
                 <Separator />
                 <div className="space-y-3">

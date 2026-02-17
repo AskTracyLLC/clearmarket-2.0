@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Navigate, Link } from "react-router-dom";
+import { useParams, Navigate, Link, useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw } from "lucide-react";
@@ -13,6 +13,7 @@ type ErrorType = "not_found" | "expired" | "invalid" | "server_error" | "invalid
  */
 export default function ShortShareRedirect() {
   const { slug } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<"rep" | "vendor" | null>(null);
   const [error, setError] = useState<ErrorType>(null);
@@ -191,5 +192,9 @@ export default function ShortShareRedirect() {
     return <Navigate to="/" replace />;
   }
 
-  return <Navigate to={`/share/${role}/${slug}`} replace />;
+  // Preserve query params (e.g. ?view=client) during redirect
+  const queryString = searchParams.toString();
+  const redirectPath = `/share/${role}/${slug}${queryString ? `?${queryString}` : ''}`;
+
+  return <Navigate to={redirectPath} replace />;
 }
