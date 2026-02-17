@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     // Look up the profile by share_profile_slug
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, full_name, last_seen_at, is_fieldrep, is_vendor_admin, share_profile_enabled, community_score, anonymous_id')
+      .select('id, full_name, last_seen_at, is_fieldrep, is_vendor_admin, share_profile_enabled, community_score, anonymous_id, hide_trust_score_override, hide_community_score_override')
       .eq('share_profile_slug', slug)
       .eq('share_profile_enabled', true)
       .maybeSingle();
@@ -200,6 +200,8 @@ Deno.serve(async (req) => {
         trust_score: trustScore,
         review_count: reviewCount,
         community_score: profile.community_score || 0,
+        hide_trust_score_override: profile.hide_trust_score_override ?? false,
+        hide_community_score_override: profile.hide_community_score_override ?? false,
         dimensions,
         systems_used: repProfile.systems_used || [],
         inspection_types: repProfile.inspection_types || [],
@@ -308,6 +310,8 @@ Deno.serve(async (req) => {
         trust_score: trustScore,
         review_count: reviewCount,
         community_score: profile.community_score || 0,
+        hide_trust_score_override: profile.hide_trust_score_override ?? false,
+        hide_community_score_override: profile.hide_community_score_override ?? false,
         dimensions,
         systems_used: vendorProfile.systems_used || [],
         inspection_types: vendorProfile.primary_inspection_types || [],

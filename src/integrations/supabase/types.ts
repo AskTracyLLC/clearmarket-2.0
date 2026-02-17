@@ -4622,6 +4622,8 @@ export type Database = {
           first_dashboard_accessed_at: string | null
           full_name: string | null
           has_signed_terms: boolean
+          hide_community_score_override: boolean
+          hide_trust_score_override: boolean
           id: string
           is_admin: boolean
           is_fieldrep: boolean
@@ -4657,6 +4659,8 @@ export type Database = {
           first_dashboard_accessed_at?: string | null
           full_name?: string | null
           has_signed_terms?: boolean
+          hide_community_score_override?: boolean
+          hide_trust_score_override?: boolean
           id: string
           is_admin?: boolean
           is_fieldrep?: boolean
@@ -4692,6 +4696,8 @@ export type Database = {
           first_dashboard_accessed_at?: string | null
           full_name?: string | null
           has_signed_terms?: boolean
+          hide_community_score_override?: boolean
+          hide_trust_score_override?: boolean
           id?: string
           is_admin?: boolean
           is_fieldrep?: boolean
@@ -12711,6 +12717,14 @@ export type Database = {
           p_vendor_reply_required?: boolean
         }
         Returns: string
+      }
+      admin_set_profile_score_overrides: {
+        Args: {
+          p_hide_community: boolean
+          p_hide_trust: boolean
+          p_profile_id: string
+        }
+        Returns: undefined
       }
       assign_default_checklists: {
         Args: { p_role: string; p_user_id: string }

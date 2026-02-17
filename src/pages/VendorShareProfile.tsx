@@ -81,6 +81,8 @@ interface VendorProfileData {
   trust_score: number;
   review_count: number;
   community_score: number;
+  hide_trust_score_override: boolean;
+  hide_community_score_override: boolean;
   dimensions: { on_time: number; quality: number; communication: number };
   systems_used: string[];
   inspection_types: string[];
@@ -255,33 +257,50 @@ export default function VendorShareProfile() {
             )}
 
             {/* Trust & Community Score */}
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <h3 className="font-semibold">Trust Score</h3>
-                <div className="flex items-center gap-4">
-                  <div className="text-4xl font-bold text-primary">
-                    {profile.trust_score.toFixed(1)}
+            {(() => {
+              const trustVisible = profile.review_count >= 3 && !profile.hide_trust_score_override;
+              const communityVisible = (profile.community_score >= 10) && !profile.hide_community_score_override;
+              return (
+                <div className="grid sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Trust Score</h3>
+                    {trustVisible ? (
+                      <div className="flex items-center gap-4">
+                        <div className="text-4xl font-bold text-primary">
+                          {profile.trust_score.toFixed(1)}
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-sm text-muted-foreground">
+                            Based on {profile.review_count} {profile.review_count === 1 ? 'review' : 'reviews'}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        Building reputation — Trust Score appears after 3 verified reviews.
+                      </p>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground">
-                      Based on {profile.review_count} {profile.review_count === 1 ? 'review' : 'reviews'}
-                    </div>
-                    {profile.review_count === 0 && (
-                      <Badge variant="outline" className="text-xs">New – building reputation</Badge>
+                  <div className="space-y-3">
+                    <h3 className="font-semibold">Community Score</h3>
+                    {communityVisible ? (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-5 w-5 text-muted-foreground" />
+                          <span className="text-2xl font-semibold">{profile.community_score}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        Building activity — Community Score appears after 10 helpful actions.
+                      </p>
                     )}
                   </div>
                 </div>
-              </div>
-              <div className="space-y-3">
-                <h3 className="font-semibold">Community Score</h3>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-2xl font-semibold">{profile.community_score}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
+
+
 
             {/* Performance Ratings */}
             {profile.review_count > 0 && (
