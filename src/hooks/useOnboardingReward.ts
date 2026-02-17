@@ -236,7 +236,7 @@ export function useOnboardingReward() {
   /**
    * Claim the vendor milestone reward (2 credits)
    */
-  const claimMilestoneReward = useCallback(async (): Promise<OnboardingRewardResult> => {
+  const claimMilestoneReward = useCallback(async (options?: { silent?: boolean }): Promise<OnboardingRewardResult> => {
     if (!effectiveUserId || !user?.id) {
       return { awarded: false, credits_awarded: 0, message: "Not authenticated" };
     }
@@ -252,11 +252,13 @@ export function useOnboardingReward() {
 
     // Check if already earned before attempting claim
     if (status.milestoneEarned) {
-      toast({
-        title: "Credits already claimed",
-        description: "You've already earned the milestone reward.",
-        variant: "default",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Credits already claimed",
+          description: "You've already earned the milestone reward.",
+          variant: "default",
+        });
+      }
       return { awarded: false, credits_awarded: 0, message: "Credits already claimed" };
     }
 
@@ -285,8 +287,7 @@ export function useOnboardingReward() {
           description: `${result.credits_awarded} credits added to your company wallet.`,
         });
         await checkStatus();
-      } else {
-        // RPC returned not awarded (likely already claimed)
+      } else if (!options?.silent) {
         toast({
           title: "Credits already claimed",
           description: result.message || "You've already earned this reward.",
@@ -311,7 +312,7 @@ export function useOnboardingReward() {
   /**
    * Claim the full onboarding reward (rep: 5 credits, vendor: remainder up to 5)
    */
-  const claimReward = useCallback(async (): Promise<OnboardingRewardResult> => {
+  const claimReward = useCallback(async (options?: { silent?: boolean }): Promise<OnboardingRewardResult> => {
     if (!effectiveUserId || !user?.id) {
       return { awarded: false, credits_awarded: 0, message: "Not authenticated" };
     }
@@ -322,11 +323,13 @@ export function useOnboardingReward() {
 
     // Check if already fully earned before attempting claim
     if (status.alreadyAwarded || (effectiveRole === "vendor" && status.onboardingEarned)) {
-      toast({
-        title: "Credits already claimed",
-        description: "You've already earned the full onboarding reward.",
-        variant: "default",
-      });
+      if (!options?.silent) {
+        toast({
+          title: "Credits already claimed",
+          description: "You've already earned the full onboarding reward.",
+          variant: "default",
+        });
+      }
       return { awarded: false, credits_awarded: 0, message: "Credits already claimed" };
     }
 
@@ -354,7 +357,7 @@ export function useOnboardingReward() {
             description: `${result.credits_awarded} credits added to your wallet.`,
           });
           await checkStatus();
-        } else {
+        } else if (!options?.silent) {
           toast({
             title: "Credits already claimed",
             description: result.message || "You've already earned this reward.",
@@ -409,7 +412,7 @@ export function useOnboardingReward() {
             description: `${result.credits_awarded} credits added to your company wallet.`,
           });
           await checkStatus();
-        } else {
+        } else if (!options?.silent) {
           toast({
             title: "Credits already claimed",
             description: result.message || "You've already earned this reward.",
@@ -457,7 +460,7 @@ export function useOnboardingReward() {
       effectiveUserId === user?.id
     ) {
       hasAttemptedFullClaimRef.current = true;
-      claimReward();
+      claimReward({ silent: true });
     }
   }, [status, effectiveRole, effectiveUserId, user?.id, claimReward]);
 
@@ -476,7 +479,7 @@ export function useOnboardingReward() {
         !hasAttemptedMilestoneClaimRef.current
       ) {
         hasAttemptedMilestoneClaimRef.current = true;
-        claimMilestoneReward();
+        claimMilestoneReward({ silent: true });
       }
       // Auto-claim full onboarding if ready and not yet at max
       // The actual checklist verification happens inside claimReward
@@ -486,7 +489,7 @@ export function useOnboardingReward() {
         !hasAttemptedFullClaimRef.current
       ) {
         hasAttemptedFullClaimRef.current = true;
-        claimReward();
+        claimReward({ silent: true });
       }
     }
   }, [status, effectiveRole, effectiveUserId, user?.id, claimMilestoneReward, claimReward]);
