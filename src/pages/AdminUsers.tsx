@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal, RefreshCw, Hash } from "lucide-react";
+import { Search, Mail, UserX, UserCheck, Users, Eye, Gavel, AlertTriangle, SearchX, ArrowUpDown, ArrowUp, ArrowDown, MessageSquare, Trash2, MoreHorizontal, RefreshCw, Hash, ShieldAlert } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +51,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { PublicProfileDialog } from "@/components/PublicProfileDialog";
 import { AdminMessageUserDialog } from "@/components/admin/AdminMessageUserDialog";
@@ -94,6 +95,8 @@ interface UserProfile {
   last_seen_at: string | null;
   staff_anonymous_id: string | null;
   anonymous_id: string | null;
+  hide_trust_score_override: boolean;
+  hide_community_score_override: boolean;
 }
 
 interface RepProfile {
@@ -147,6 +150,13 @@ export default function AdminUsers() {
     user: null,
   });
   const [deleteReason, setDeleteReason] = useState("");
+  const [scoreOverrideDialog, setScoreOverrideDialog] = useState<{
+    open: boolean;
+    user: UserProfile | null;
+    hideTrust: boolean;
+    hideCommunity: boolean;
+  }>({ open: false, user: null, hideTrust: false, hideCommunity: false });
+  const [scoreOverrideSaving, setScoreOverrideSaving] = useState(false);
 
   // Column visibility
   const {
@@ -224,7 +234,9 @@ export default function AdminUsers() {
           community_score,
           last_seen_at,
           staff_anonymous_id,
-          anonymous_id
+          anonymous_id,
+          hide_trust_score_override,
+          hide_community_score_override
         `)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -248,6 +260,8 @@ export default function AdminUsers() {
         last_seen_at: p.last_seen_at ?? null,
         staff_anonymous_id: p.staff_anonymous_id ?? null,
         anonymous_id: p.anonymous_id ?? null,
+        hide_trust_score_override: p.hide_trust_score_override ?? false,
+        hide_community_score_override: p.hide_community_score_override ?? false,
       }));
       setUsers(mappedProfiles);
 
@@ -1292,6 +1306,17 @@ export default function AdminUsers() {
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuItem
+                                    onClick={() => setScoreOverrideDialog({
+                                      open: true,
+                                      user: userProfile,
+                                      hideTrust: userProfile.hide_trust_score_override,
+                                      hideCommunity: userProfile.hide_community_score_override,
+                                    })}
+                                  >
+                                    <ShieldAlert className="h-4 w-4 mr-2" />
+                                    Score visibility…
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
                                     onClick={() => setDeleteDialog({ open: true, user: userProfile })}
                                     disabled={userProfile.is_admin}
                                     className="text-destructive focus:text-destructive"
@@ -1438,6 +1463,112 @@ export default function AdminUsers() {
               disabled={actionLoading === deleteDialog.user?.id}
             >
               {actionLoading === deleteDialog.user?.id ? "Deleting..." : "Delete User Permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Score Visibility Override Dialog */}
+      <Dialog
+        open={scoreOverrideDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setScoreOverrideDialog({ open: false, user: null, hideTrust: false, hideCommunity: false });
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-primary" />
+              Score visibility overrides
+            </DialogTitle>
+            <DialogDescription>
+              Use for disputes or temporary issues. Overrides hide scores publicly even if thresholds are met.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Hide Trust Score (override)</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Hides Trust Score on public share profiles</p>
+              </div>
+              <Switch
+                checked={scoreOverrideDialog.hideTrust}
+                onCheckedChange={(checked) =>
+                  setScoreOverrideDialog((prev) => ({ ...prev, hideTrust: checked }))
+                }
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Hide Community Score (override)</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Hides Community Score on public share profiles</p>
+              </div>
+              <Switch
+                checked={scoreOverrideDialog.hideCommunity}
+                onCheckedChange={(checked) =>
+                  setScoreOverrideDialog((prev) => ({ ...prev, hideCommunity: checked }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setScoreOverrideDialog({ open: false, user: null, hideTrust: false, hideCommunity: false })}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={scoreOverrideSaving}
+              onClick={async () => {
+                if (!scoreOverrideDialog.user || !user) return;
+                setScoreOverrideSaving(true);
+                try {
+                  const { error } = await supabase.rpc("admin_set_profile_score_overrides", {
+                    p_profile_id: scoreOverrideDialog.user.id,
+                    p_hide_trust: scoreOverrideDialog.hideTrust,
+                    p_hide_community: scoreOverrideDialog.hideCommunity,
+                  });
+                  if (error) throw error;
+
+                  // Update local state
+                  setUsers((prev) =>
+                    prev.map((u) =>
+                      u.id === scoreOverrideDialog.user!.id
+                        ? {
+                            ...u,
+                            hide_trust_score_override: scoreOverrideDialog.hideTrust,
+                            hide_community_score_override: scoreOverrideDialog.hideCommunity,
+                          }
+                        : u
+                    )
+                  );
+
+                  await logAdminAction(user.id, {
+                    actionType: "user.score_override_updated",
+                    actionSummary: `Updated score visibility overrides for ${scoreOverrideDialog.user.full_name || getAnonymousId(scoreOverrideDialog.user)}`,
+                    targetUserId: scoreOverrideDialog.user.id,
+                    actionDetails: {
+                      hide_trust_score_override: scoreOverrideDialog.hideTrust,
+                      hide_community_score_override: scoreOverrideDialog.hideCommunity,
+                    },
+                    sourcePage: "/admin/users",
+                  });
+
+                  toast.success("Score visibility updated");
+                  setScoreOverrideDialog({ open: false, user: null, hideTrust: false, hideCommunity: false });
+                } catch (err: any) {
+                  toast.error("Failed to update score overrides", {
+                    description: err.message,
+                  });
+                } finally {
+                  setScoreOverrideSaving(false);
+                }
+              }}
+            >
+              {scoreOverrideSaving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -20,7 +20,8 @@ export type AdminActionType =
   | "vendor_staff.invited"
   | "vendor_staff.role_changed"
   | "vendor_staff.disabled"
-  | "vendor_staff.enabled";
+  | "vendor_staff.enabled"
+  | "user.score_override_updated";
 
 export interface AdminAuditPayload {
   actionType: AdminActionType;
