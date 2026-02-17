@@ -29,6 +29,7 @@ export function getPublicBaseUrl(): string {
       'id-preview--',
       'lovable.app',
       'lovable.dev',
+      'lovableproject.com',
       'localhost',
       '127.0.0.1',
     ];
@@ -64,6 +65,7 @@ export function isPreviewEnvironment(): boolean {
     origin.includes('id-preview--') ||
     origin.includes('lovable.app') ||
     origin.includes('lovable.dev') ||
+    origin.includes('lovableproject.com') ||
     origin.includes('localhost') ||
     origin.includes('127.0.0.1')
   );
