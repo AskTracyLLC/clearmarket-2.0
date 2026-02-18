@@ -14,12 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { fetchSystemsUsed, SystemUsed } from "@/lib/systemsUsed";
 import { InspectionTypeMultiSelect } from "@/components/InspectionTypeMultiSelect";
-import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2, ChevronDown } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, MapPin, Edit, Trash2, ChevronDown, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 import { CoverageAreaDialog, CoverageArea, CoverageMode } from "@/components/CoverageAreaDialog";
+import { BulkCoverageImportDialog } from "@/components/BulkCoverageImportDialog";
 import { RepCoverageTable } from "@/components/RepCoverageTable";
 import { VendorCoverageDialog } from "@/components/VendorCoverageDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -62,6 +63,7 @@ const WorkSetup = () => {
   const [vendorProfile, setVendorProfile] = useState<any>(null);
   const [coverageAreas, setCoverageAreas] = useState<any[]>([]);
   const [coverageDialogOpen, setCoverageDialogOpen] = useState(false);
+  const [bulkImportDialogOpen, setBulkImportDialogOpen] = useState(false);
   const [editingCoverage, setEditingCoverage] = useState<any>(null);
   const [countyNameMap, setCountyNameMap] = useState<Map<string, string>>(new Map());
   
@@ -679,15 +681,28 @@ const WorkSetup = () => {
                             : "No coverage areas added yet. Reps won't see your footprint until you add at least one state."
                           }
                         </p>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            setEditingCoverage(null);
-                            setCoverageDialogOpen(true);
-                          }}
-                        >
-                          Add Coverage Area
-                        </Button>
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              setEditingCoverage(null);
+                              setCoverageDialogOpen(true);
+                            }}
+                          >
+                            Add Coverage Area
+                          </Button>
+                          {isVendor && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setBulkImportDialogOpen(true)}
+                              className="gap-2"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Import Coverage (CSV)
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -880,18 +895,29 @@ const WorkSetup = () => {
                           </div>
                         )}
                         
-                        {/* Add button for vendors (reps have it in the table header now) */}
+                        {/* Add button + import for vendors */}
                         {isVendor && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingCoverage(null);
-                              setCoverageDialogOpen(true);
-                            }}
-                          >
-                            Add Another Coverage Area
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingCoverage(null);
+                                setCoverageDialogOpen(true);
+                              }}
+                            >
+                              Add Another Coverage Area
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setBulkImportDialogOpen(true)}
+                              className="gap-2"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Import Coverage (CSV)
+                            </Button>
+                          </div>
                         )}
                       </>
                     )}
@@ -1159,6 +1185,14 @@ const WorkSetup = () => {
                 }
               }
             }}
+          />
+        )}
+        {isVendor && (
+          <BulkCoverageImportDialog
+            open={bulkImportDialogOpen}
+            onOpenChange={setBulkImportDialogOpen}
+            userId={effectiveUserId!}
+            onImportComplete={() => loadVendorCoverageAreas()}
           />
         )}
       </div>
