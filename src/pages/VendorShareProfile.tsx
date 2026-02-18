@@ -83,13 +83,16 @@ export default function VendorShareProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine view mode from query param. Default to "recruiting" (shows everything).
+  // Determine view mode from query param
   const viewMode: ProfileView = useMemo(() => {
     const v = searchParams.get('view');
     return v === 'client' ? 'client' : 'recruiting';
   }, [searchParams]);
 
   const isClientView = viewMode === 'client';
+
+  // County detail toggle: counties=1 shows details, default is OFF
+  const showCountyDetails = searchParams.get('counties') === '1';
 
   useEffect(() => {
     if (!slug) {
@@ -377,58 +380,67 @@ export default function VendorShareProfile() {
                           {partialCoverage.length} {partialCoverage.length === 1 ? "state" : "states"}
                         </Badge>
                       </div>
-                      <div className="space-y-2">
-                        {partialCoverage.map((state) => {
-                          const modeLabel = state.coverageMode === 'entire_state_except'
-                            ? 'Entire state covered except:'
-                            : 'Covered counties (only):';
 
-                          // No counties to list — show state only
-                          if (state.counties.length === 0) {
-                            return (
-                              <div key={state.stateCode} className="text-sm text-muted-foreground py-1">
-                                <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
-                              </div>
-                            );
-                          }
+                      {!showCountyDetails ? (
+                        /* counties=0 => state abbreviations only */
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {partialCoverage.map(s => `${s.stateCode} — ${s.stateName}`).join(", ")}
+                        </p>
+                      ) : (
+                        /* counties=1 => mode-aware county details */
+                        <div className="space-y-2">
+                          {partialCoverage.map((state) => {
+                            const modeLabel = state.coverageMode === 'entire_state_except'
+                              ? 'Entire state covered except:'
+                              : 'Covered counties (only):';
 
-                          // Inline for 1-2 counties
-                          if (state.counties.length <= 2) {
+                            // No counties to list — show state only
+                            if (state.counties.length === 0) {
+                              return (
+                                <div key={state.stateCode} className="text-sm text-muted-foreground py-1">
+                                  <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                </div>
+                              );
+                            }
+
+                            // Inline for 1-2 counties
+                            if (state.counties.length <= 2) {
+                              return (
+                                <div key={state.stateCode} className="text-sm py-1 space-y-0.5">
+                                  <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                  <div className="text-muted-foreground pl-1">
+                                    <span className="font-semibold text-foreground text-xs">{modeLabel}</span>{" "}
+                                    {state.counties.join(", ")}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            
+                            // Expandable for 3+ counties
                             return (
-                              <div key={state.stateCode} className="text-sm py-1 space-y-0.5">
-                                <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
-                                <div className="text-muted-foreground pl-1">
-                                  <span className="font-semibold text-foreground text-xs">{modeLabel}</span>{" "}
-                                  {state.counties.join(", ")}
-                                </div>
-                              </div>
+                              <Collapsible key={state.stateCode}>
+                                <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors group">
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                                  <span className="text-sm font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                  <Badge variant="outline" className="text-xs ml-auto">
+                                    {state.counties.length} counties
+                                  </Badge>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pl-6 pt-1 pb-2 space-y-1">
+                                  <span className="text-xs font-semibold text-foreground">{modeLabel}</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {state.counties.map((county) => (
+                                      <Badge key={county} variant="secondary" className="text-xs font-normal">
+                                        {county}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
                             );
-                          }
-                          
-                          // Expandable for 3+ counties
-                          return (
-                            <Collapsible key={state.stateCode}>
-                              <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors group">
-                                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                                <span className="text-sm font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
-                                <Badge variant="outline" className="text-xs ml-auto">
-                                  {state.counties.length} counties
-                                </Badge>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="pl-6 pt-1 pb-2 space-y-1">
-                                <span className="text-xs font-semibold text-foreground">{modeLabel}</span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {state.counties.map((county) => (
-                                    <Badge key={county} variant="secondary" className="text-xs font-normal">
-                                      {county}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </CollapsibleContent>
-                            </Collapsible>
-                          );
-                        })}
-                      </div>
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

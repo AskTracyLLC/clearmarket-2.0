@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Share2, Copy, ExternalLink, RefreshCw, AlertCircle, Briefcase, Megaphone } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { SeekingCoverageToggle } from "@/components/SeekingCoverageToggle";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,7 @@ export default function VendorShareProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [showCountyDetails, setShowCountyDetails] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,16 +116,25 @@ export default function VendorShareProfilePage() {
     }
   }
 
+  function buildUrl(viewParam: 'client' | 'recruiting') {
+    if (!profile?.share_profile_slug) return '';
+    let url = getPublicShareUrl(profile.share_profile_slug) + `?view=${viewParam}`;
+    if (showCountyDetails) url += '&counties=1';
+    return url;
+  }
+
   function copyUrl(viewParam: 'client' | 'recruiting') {
-    if (!profile?.share_profile_slug) return;
-    const url = getPublicShareUrl(profile.share_profile_slug) + `?view=${viewParam}`;
+    const url = buildUrl(viewParam);
+    if (!url) return;
     navigator.clipboard.writeText(url);
     toast({ title: "Link copied", description: `${viewParam === 'client' ? 'Client' : 'Recruiting'} share link copied to clipboard.` });
   }
 
   function previewUrl(viewParam: 'client' | 'recruiting') {
     if (!profile?.share_profile_slug) return;
-    window.open(`/share/vendor/${profile.share_profile_slug}?view=${viewParam}`, '_blank');
+    let url = `/share/vendor/${profile.share_profile_slug}?view=${viewParam}`;
+    if (showCountyDetails) url += '&counties=1';
+    window.open(url, '_blank');
   }
 
   const showPreviewWarning = isPreviewEnvironment();
@@ -198,7 +209,7 @@ export default function VendorShareProfilePage() {
                     icon={<Briefcase className="h-5 w-5 text-primary" />}
                     label="Client Share Link"
                     description="Best for clients and partners. Highlights your coverage footprint and company profile."
-                    url={getPublicShareUrl(profile.share_profile_slug) + "?view=client"}
+                    url={buildUrl('client')}
                     onCopy={() => copyUrl('client')}
                     onPreview={() => previewUrl('client')}
                     tips={["Add to proposals, RFPs, and client emails", "Include in your company website or email signature"]}
@@ -209,7 +220,7 @@ export default function VendorShareProfilePage() {
                     icon={<Megaphone className="h-5 w-5 text-primary" />}
                     label="Recruiting Share Link"
                     description="Best for field reps. Includes your 'Seeking Coverage' areas and recruiting callouts."
-                    url={getPublicShareUrl(profile.share_profile_slug) + "?view=recruiting"}
+                    url={buildUrl('recruiting')}
                     onCopy={() => copyUrl('recruiting')}
                     onPreview={() => previewUrl('recruiting')}
                     tips={["Share on LinkedIn, forums, or rep outreach", "Use in recruiting materials to attract new reps"]}
@@ -246,8 +257,18 @@ export default function VendorShareProfilePage() {
       <Separator className="my-6" />
 
       {/* Seeking Coverage Areas Toggle */}
-      <div className="p-4 bg-muted/30 rounded-lg border border-border">
+      <div className="p-4 bg-muted/30 rounded-lg border border-border space-y-4">
         <h3 className="font-semibold mb-3">Public Profile Options</h3>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="show-county-details"
+            checked={showCountyDetails}
+            onCheckedChange={(checked) => setShowCountyDetails(!!checked)}
+          />
+          <Label htmlFor="show-county-details" className="text-sm font-normal cursor-pointer">
+            Show county details for partial coverage states
+          </Label>
+        </div>
         <SeekingCoverageToggle />
       </div>
     </div>
