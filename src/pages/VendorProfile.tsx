@@ -230,7 +230,9 @@ const VendorProfile = () => {
         setVendorProfile(vendorData);
         // Populate form
         setValue("vendor_public_code_requested", vendorData.vendor_public_code_requested || vendorData.vendor_public_code || "");
-        setValue("business_bio", vendorData.business_bio || "");
+        // Use business_bio as source of truth, fallback to company_description
+        const bioValue = vendorData.business_bio || vendorData.company_description || "";
+        setValue("business_bio", bioValue);
         setValue("business_established_year", vendorData.business_established_year || undefined);
         setValue("website_url", vendorData.website_url || "");
         setValue("linkedin_url", vendorData.linkedin_url || "");
@@ -242,7 +244,7 @@ const VendorProfile = () => {
         setValue("poc_email", vendorData.poc_email || "");
         setValue("poc_phone", vendorData.poc_phone || "");
         setValue("company_name", vendorData.company_name || "");
-        setValue("company_description", vendorData.company_description || "");
+        setValue("company_description", bioValue);
         setValue("website", vendorData.website || "");
         setValue("city", vendorData.city || "");
         setValue("state", vendorData.state || "");
@@ -510,20 +512,25 @@ const VendorProfile = () => {
                   </p>
                 </div>
 
-                {/* Business Bio */}
-                <div>
-                  <Label htmlFor="business_bio">Business Bio</Label>
-                  <Textarea
-                    id="business_bio"
-                    {...register("business_bio")}
-                    placeholder="Brief description of your business..."
-                    rows={3}
-                    maxLength={500}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {(watch("business_bio") || "").length} / 500 characters
-                  </p>
-                </div>
+                {/* Business Bio — read-only preview, editable in Company Info section */}
+                {watch("business_bio") ? (
+                  <div>
+                    <Label className="text-muted-foreground">Business Bio</Label>
+                    <p className="text-sm text-muted-foreground mt-1 italic border border-border rounded-md p-3 bg-muted/20 line-clamp-3">
+                      {watch("business_bio")}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Edit this in the <strong>Company Info (Rep-Facing)</strong> section below.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-muted-foreground">Business Bio</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Add your business bio in the <strong>Company Info (Rep-Facing)</strong> section below.
+                    </p>
+                  </div>
+                )}
 
                 {/* Established Year */}
                 <div>
@@ -751,13 +758,17 @@ const VendorProfile = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="company_description">Company Description <span className="text-muted-foreground text-sm">(Optional)</span></Label>
+                  <Label htmlFor="company_description">Company Description / Bio <span className="text-muted-foreground text-sm">(Optional)</span></Label>
                   <Textarea
                     id="company_description"
-                    {...register("company_description")}
                     placeholder="Tell reps about your company..."
                     rows={4}
                     maxLength={1000}
+                    value={watch("company_description") || ""}
+                    onChange={(e) => {
+                      setValue("company_description", e.target.value, { shouldDirty: true });
+                      setValue("business_bio", e.target.value, { shouldDirty: true });
+                    }}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     {(watch("company_description") || "").length} / 1000 characters
