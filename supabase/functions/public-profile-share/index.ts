@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
       // Fetch coverage areas
       const { data: coverage } = await supabase
         .from('vendor_coverage_areas')
-        .select('state_code, state_name, coverage_mode, region_note')
+        .select('state_code, state_name, coverage_mode, region_note, excluded_county_ids, included_county_ids')
         .eq('user_id', userId)
         .order('state_code');
 
@@ -247,7 +247,9 @@ Deno.serve(async (req) => {
           coverageByState.set(c.state_code, {
             state_code: c.state_code,
             state_name: c.state_name,
-            coverage_mode: c.coverage_mode,
+            coverage_mode: c.coverage_mode || 'selected_counties',
+            excluded_county_ids: c.excluded_county_ids || [],
+            included_county_ids: c.included_county_ids || [],
             notes: []
           });
         }
@@ -255,6 +257,43 @@ Deno.serve(async (req) => {
         if (c.region_note && !state.notes.includes(c.region_note)) {
           state.notes.push(c.region_note);
         }
+      });
+
+      // Resolve county names for partial-coverage states
+      const allCountyIds: string[] = [];
+      for (const s of coverageByState.values()) {
+        if (s.coverage_mode === 'entire_state_except' && s.excluded_county_ids?.length) {
+          allCountyIds.push(...s.excluded_county_ids);
+        }
+        if (s.coverage_mode === 'selected_counties' && s.included_county_ids?.length) {
+          allCountyIds.push(...s.included_county_ids);
+        }
+      }
+
+      let countyNameMap = new Map<string, string>();
+      if (allCountyIds.length > 0) {
+        const uniqueIds = [...new Set(allCountyIds)];
+        const { data: countyRows } = await supabase
+          .from('us_counties')
+          .select('id, county_name')
+          .in('id', uniqueIds);
+        (countyRows || []).forEach((r: any) => countyNameMap.set(r.id, r.county_name));
+      }
+
+      // Build structured coverage details
+      const coverageDetails = Array.from(coverageByState.values()).map(s => {
+        let counties: string[] = [];
+        if (s.coverage_mode === 'entire_state_except' && s.excluded_county_ids?.length) {
+          counties = s.excluded_county_ids.map((id: string) => countyNameMap.get(id) || id).sort();
+        } else if (s.coverage_mode === 'selected_counties' && s.included_county_ids?.length) {
+          counties = s.included_county_ids.map((id: string) => countyNameMap.get(id) || id).sort();
+        }
+        return {
+          state_code: s.state_code,
+          state_name: s.state_name,
+          coverage_mode: s.coverage_mode,
+          counties,
+        };
       });
 
       const coverageSummary = Array.from(coverageByState.values()).map(s => {
@@ -316,7 +355,7 @@ Deno.serve(async (req) => {
         systems_used: vendorProfile.systems_used || [],
         inspection_types: vendorProfile.primary_inspection_types || [],
         coverage_summary: coverageSummary,
-        coverage_states: Array.from(coverageByState.keys()),
+        coverage_details: coverageDetails,
         is_accepting_new_reps: vendorProfile.is_accepting_new_reps,
         seeking_coverage_areas: seekingCoverageAreas,
         last_active: profile.last_seen_at,

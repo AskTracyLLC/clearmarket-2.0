@@ -20,48 +20,22 @@ function getStateName(code: string): string {
   return state?.label || code;
 }
 
-// Parse coverage summary into structured data
-interface ParsedCoverage {
+// Structured coverage detail from the edge function
+interface CoverageDetail {
   stateCode: string;
   stateName: string;
-  isFullCoverage: boolean;
+  coverageMode: string; // 'entire_state' | 'entire_state_except' | 'selected_counties'
   counties: string[];
 }
 
-function parseCoverageSummary(summaryList: string[]): ParsedCoverage[] {
-  const parsed: ParsedCoverage[] = [];
-  
-  for (const summary of summaryList) {
-    // Format: "StateName: All counties" or "StateName: County1, County2... (+N more)"
-    const colonIndex = summary.indexOf(":");
-    if (colonIndex === -1) continue;
-    
-    const statePart = summary.substring(0, colonIndex).trim();
-    const countyPart = summary.substring(colonIndex + 1).trim();
-    
-    // Find state code from name
-    const stateEntry = US_STATES.find(s => s.label === statePart);
-    const stateCode = stateEntry?.value || statePart.substring(0, 2).toUpperCase();
-    const stateName = stateEntry?.label || statePart;
-    
-    // Determine if full coverage
-    const isFullCoverage = countyPart.toLowerCase() === "all counties" || 
-                           countyPart.toLowerCase() === "most counties" ||
-                           countyPart.trim() === "";
-    
-    // Parse counties if partial
-    let counties: string[] = [];
-    if (!isFullCoverage && countyPart) {
-      // Remove the "(+N more)" part if present and parse
-      const cleanPart = countyPart.replace(/\s*\(\+\d+\s+more\)$/, "").replace(/\.{3}$/, "").trim();
-      counties = cleanPart.split(",").map(c => c.trim()).filter(Boolean);
-    }
-    
-    parsed.push({ stateCode, stateName, isFullCoverage, counties });
-  }
-  
-  // Sort by state code
-  return parsed.sort((a, b) => a.stateCode.localeCompare(b.stateCode));
+// Parse coverage_details from the API response
+function normalizeCoverageDetails(details: any[]): CoverageDetail[] {
+  return (details || []).map(d => ({
+    stateCode: d.state_code,
+    stateName: d.state_name,
+    coverageMode: d.coverage_mode || 'selected_counties',
+    counties: d.counties || [],
+  })).sort((a, b) => a.stateCode.localeCompare(b.stateCode));
 }
 
 interface SeekingCoverageArea {
@@ -87,6 +61,12 @@ interface VendorProfileData {
   systems_used: string[];
   inspection_types: string[];
   coverage_summary: string[];
+  coverage_details?: Array<{
+    state_code: string;
+    state_name: string;
+    coverage_mode: string;
+    counties: string[];
+  }>;
   coverage_states: string[];
   is_accepting_new_reps: boolean;
   seeking_coverage_areas?: SeekingCoverageArea[];
@@ -356,11 +336,11 @@ export default function VendorShareProfile() {
 
             {/* Coverage - Condensed Format */}
             {(() => {
-              const parsed = parseCoverageSummary(profile.coverage_summary);
-              const fullCoverage = parsed.filter(p => p.isFullCoverage);
-              const partialCoverage = parsed.filter(p => !p.isFullCoverage);
+              const details = normalizeCoverageDetails(profile.coverage_details || []);
+              const fullCoverage = details.filter(d => d.coverageMode === 'entire_state');
+              const partialCoverage = details.filter(d => d.coverageMode !== 'entire_state');
               
-              if (parsed.length === 0) {
+              if (details.length === 0) {
                 return (
                   <div className="space-y-3">
                     <h3 className="font-semibold">Coverage & Focus Areas</h3>
@@ -388,25 +368,39 @@ export default function VendorShareProfile() {
                     </div>
                   )}
                   
-                  {/* Partial Coverage - Expandable groups */}
+                  {/* Partial Coverage - mode-aware labels */}
                   {partialCoverage.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">Partial Coverage (Selected Counties)</span>
+                        <span className="text-sm font-medium text-foreground">Partial Coverage</span>
                         <Badge variant="outline" className="text-xs">
                           {partialCoverage.length} {partialCoverage.length === 1 ? "state" : "states"}
                         </Badge>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {partialCoverage.map((state) => {
-                          // If 1-2 counties, show inline without expansion
-                          if (state.counties.length <= 2) {
+                          const modeLabel = state.coverageMode === 'entire_state_except'
+                            ? 'Entire state covered except:'
+                            : 'Covered counties (only):';
+
+                          // No counties to list — show state only
+                          if (state.counties.length === 0) {
                             return (
                               <div key={state.stateCode} className="text-sm text-muted-foreground py-1">
                                 <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
-                                {state.counties.length > 0 && (
-                                  <span className="ml-2">({state.counties.join(", ")})</span>
-                                )}
+                              </div>
+                            );
+                          }
+
+                          // Inline for 1-2 counties
+                          if (state.counties.length <= 2) {
+                            return (
+                              <div key={state.stateCode} className="text-sm py-1 space-y-0.5">
+                                <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
+                                <div className="text-muted-foreground pl-1">
+                                  <span className="font-semibold text-foreground text-xs">{modeLabel}</span>{" "}
+                                  {state.counties.join(", ")}
+                                </div>
                               </div>
                             );
                           }
@@ -421,7 +415,8 @@ export default function VendorShareProfile() {
                                   {state.counties.length} counties
                                 </Badge>
                               </CollapsibleTrigger>
-                              <CollapsibleContent className="pl-6 pt-1 pb-2">
+                              <CollapsibleContent className="pl-6 pt-1 pb-2 space-y-1">
+                                <span className="text-xs font-semibold text-foreground">{modeLabel}</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {state.counties.map((county) => (
                                     <Badge key={county} variant="secondary" className="text-xs font-normal">
