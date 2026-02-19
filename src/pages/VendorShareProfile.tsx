@@ -92,7 +92,8 @@ export default function VendorShareProfile() {
   const isClientView = viewMode === 'client';
 
   // County detail toggle: counties=1 shows details, default is OFF
-  const showCountyDetails = searchParams.get('counties') === '1';
+  const countiesParam = searchParams.get('counties');
+  const showCountyDetails = countiesParam === '1';
 
   useEffect(() => {
     if (!slug) {
@@ -355,6 +356,9 @@ export default function VendorShareProfile() {
               return (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Coverage & Focus Areas</h3>
+                  <p className="text-xs text-muted-foreground font-mono bg-muted/40 px-2 py-1 rounded">
+                    Debug: counties={countiesParam ?? "null"} showCounties={showCountyDetails ? "true" : "false"} coverage_details={details.length}
+                  </p>
                   
                   {/* All Counties Covered - Condensed paragraph */}
                   {fullCoverage.length > 0 && (
@@ -403,20 +407,7 @@ export default function VendorShareProfile() {
                               );
                             }
 
-                            // Inline for 1-2 counties
-                            if (state.counties.length <= 2) {
-                              return (
-                                <div key={state.stateCode} className="text-sm py-1 space-y-0.5">
-                                  <span className="font-medium text-foreground">{state.stateCode} — {state.stateName}</span>
-                                  <div className="text-muted-foreground pl-1">
-                                    <span className="font-semibold text-foreground text-xs">{modeLabel}</span>{" "}
-                                    {state.counties.join(", ")}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            
-                            // Expandable for 3+ counties
+                            // All counties expandable when showCounties is true
                             return (
                               <Collapsible key={state.stateCode}>
                                 <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors group">
