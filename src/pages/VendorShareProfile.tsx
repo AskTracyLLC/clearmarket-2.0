@@ -356,9 +356,6 @@ export default function VendorShareProfile() {
               return (
                 <div className="space-y-4">
                   <h3 className="font-semibold">Coverage & Focus Areas</h3>
-                  <p className="text-xs text-muted-foreground font-mono bg-muted/40 px-2 py-1 rounded">
-                    Debug: counties={countiesParam ?? "null"} showCounties={showCountyDetails ? "true" : "false"} coverage_details={details.length}
-                  </p>
                   
                   {/* All Counties Covered - Condensed paragraph */}
                   {fullCoverage.length > 0 && (
