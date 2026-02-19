@@ -26,8 +26,19 @@ export default function VendorShareProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [showCountyDetails, setShowCountyDetails] = useState(false);
+  const [showCountyDetails, setShowCountyDetails] = useState(() => {
+    try {
+      return localStorage.getItem('cm_share_county_details') === '1';
+    } catch { return false; }
+  });
   const { toast } = useToast();
+
+  // Persist county details toggle
+  useEffect(() => {
+    try {
+      localStorage.setItem('cm_share_county_details', showCountyDetails ? '1' : '0');
+    } catch {}
+  }, [showCountyDetails]);
 
   useEffect(() => {
     if (effectiveUserId) loadProfile();
