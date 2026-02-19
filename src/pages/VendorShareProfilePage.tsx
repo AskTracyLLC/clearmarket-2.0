@@ -130,9 +130,13 @@ export default function VendorShareProfilePage() {
 
   function buildUrl(viewParam: 'client' | 'recruiting') {
     if (!profile?.share_profile_slug) return '';
-    let url = getPublicShareUrl(profile.share_profile_slug) + `?view=${viewParam}`;
-    if (showCountyDetails) url += '&counties=1';
-    return url;
+    const base = getPublicShareUrl(profile.share_profile_slug);
+    const url = new URL(base);
+    url.searchParams.set('view', viewParam);
+    if (showCountyDetails) {
+      url.searchParams.set('counties', '1');
+    }
+    return url.toString();
   }
 
   function copyUrl(viewParam: 'client' | 'recruiting') {
@@ -144,9 +148,12 @@ export default function VendorShareProfilePage() {
 
   function previewUrl(viewParam: 'client' | 'recruiting') {
     if (!profile?.share_profile_slug) return;
-    let url = `/share/vendor/${profile.share_profile_slug}?view=${viewParam}`;
-    if (showCountyDetails) url += '&counties=1';
-    window.open(url, '_blank');
+    const url = new URL(`/share/vendor/${profile.share_profile_slug}`, window.location.origin);
+    url.searchParams.set('view', viewParam);
+    if (showCountyDetails) {
+      url.searchParams.set('counties', '1');
+    }
+    window.open(url.toString(), '_blank');
   }
 
   const showPreviewWarning = isPreviewEnvironment();
