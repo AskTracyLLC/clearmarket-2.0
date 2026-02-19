@@ -13,14 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMimic } from "@/hooks/useMimic";
 import { getPublicShareUrl, isPreviewEnvironment } from "@/lib/publicUrl";
 
-const STORAGE_KEY_SHOW_COUNTIES = "cm_share_county_details";
-
 function generateSlug(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const length = 10 + Math.floor(Math.random() * 3);
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  return Array.from(array, (byte) => chars[byte % chars.length]).join("");
+  return Array.from(array, byte => chars[byte % chars.length]).join('');
 }
 
 export default function VendorShareProfilePage() {
@@ -28,15 +26,19 @@ export default function VendorShareProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [showCountyDetails, setShowCountyDetails] = useState<boolean>(() => {
+  const [showCountyDetails, setShowCountyDetails] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY_SHOW_COUNTIES) === "1";
-    } catch {
-      return false;
-    }
+      return localStorage.getItem('cm_share_county_details') === '1';
+    } catch { return false; }
   });
-
   const { toast } = useToast();
+
+  // Persist county details toggle
+  useEffect(() => {
+    try {
+      localStorage.setItem('cm_share_county_details', showCountyDetails ? '1' : '0');
+    } catch {}
+  }, [showCountyDetails]);
 
   useEffect(() => {
     if (effectiveUserId) loadProfile();
@@ -46,26 +48,18 @@ export default function VendorShareProfilePage() {
     if (!effectiveUserId) return;
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("share_profile_slug, share_profile_enabled, share_profile_last_generated_at")
-        .eq("id", effectiveUserId)
+        .from('profiles')
+        .select('share_profile_slug, share_profile_enabled, share_profile_last_generated_at')
+        .eq('id', effectiveUserId)
         .single();
       if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error("Error loading profile share settings:", error);
+      console.error('Error loading profile share settings:', error);
     } finally {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_SHOW_COUNTIES, showCountyDetails ? "1" : "0");
-    } catch {
-      // ignore (privacy mode / blocked storage)
-    }
-  }, [showCountyDetails]);
 
   async function handleGenerateLink() {
     if (!effectiveUserId) return;
@@ -73,23 +67,18 @@ export default function VendorShareProfilePage() {
     try {
       const newSlug = generateSlug();
       const { error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .update({
           share_profile_slug: newSlug,
           share_profile_enabled: true,
-          share_profile_last_generated_at: new Date().toISOString(),
+          share_profile_last_generated_at: new Date().toISOString()
         })
-        .eq("id", effectiveUserId);
+        .eq('id', effectiveUserId);
       if (error) throw error;
-      setProfile({
-        ...profile,
-        share_profile_slug: newSlug,
-        share_profile_enabled: true,
-        share_profile_last_generated_at: new Date().toISOString(),
-      });
+      setProfile({ ...profile, share_profile_slug: newSlug, share_profile_enabled: true, share_profile_last_generated_at: new Date().toISOString() });
       toast({ title: "Share links created", description: "Your public profile links are now available." });
     } catch (error) {
-      console.error("Error generating share link:", error);
+      console.error('Error generating share link:', error);
       toast({ title: "Failed to create links", description: "Please try again.", variant: "destructive" });
     } finally {
       setUpdating(false);
@@ -102,18 +91,14 @@ export default function VendorShareProfilePage() {
     try {
       const newSlug = generateSlug();
       const { error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .update({ share_profile_slug: newSlug, share_profile_last_generated_at: new Date().toISOString() })
-        .eq("id", effectiveUserId);
+        .eq('id', effectiveUserId);
       if (error) throw error;
-      setProfile({
-        ...profile,
-        share_profile_slug: newSlug,
-        share_profile_last_generated_at: new Date().toISOString(),
-      });
+      setProfile({ ...profile, share_profile_slug: newSlug, share_profile_last_generated_at: new Date().toISOString() });
       toast({ title: "Links regenerated", description: "Old links will no longer work. Share the new ones instead." });
     } catch (error) {
-      console.error("Error regenerating share link:", error);
+      console.error('Error regenerating share link:', error);
       toast({ title: "Failed to regenerate links", description: "Please try again.", variant: "destructive" });
     } finally {
       setUpdating(false);
@@ -125,47 +110,42 @@ export default function VendorShareProfilePage() {
     setUpdating(true);
     try {
       const { error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .update({ share_profile_enabled: enabled })
-        .eq("id", effectiveUserId);
+        .eq('id', effectiveUserId);
       if (error) throw error;
       setProfile({ ...profile, share_profile_enabled: enabled });
       toast({
         title: enabled ? "Profile links enabled" : "Profile links disabled",
-        description: enabled
-          ? "Your public profile is now visible to anyone with the link."
-          : "Your public profile links are now disabled.",
+        description: enabled ? "Your public profile is now visible to anyone with the link." : "Your public profile links are now disabled."
       });
     } catch (error) {
-      console.error("Error toggling share link:", error);
+      console.error('Error toggling share link:', error);
       toast({ title: "Update failed", description: "Please try again.", variant: "destructive" });
     } finally {
       setUpdating(false);
     }
   }
 
-  function buildUrl(viewParam: "client" | "recruiting") {
-    if (!profile?.share_profile_slug) return "";
+  function buildUrl(viewParam: 'client' | 'recruiting') {
+    if (!profile?.share_profile_slug) return '';
     let url = getPublicShareUrl(profile.share_profile_slug) + `?view=${viewParam}`;
-    if (showCountyDetails) url += "&counties=1";
+    if (showCountyDetails) url += '&counties=1';
     return url;
   }
 
-  function copyUrl(viewParam: "client" | "recruiting") {
+  function copyUrl(viewParam: 'client' | 'recruiting') {
     const url = buildUrl(viewParam);
     if (!url) return;
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Link copied",
-      description: `${viewParam === "client" ? "Client" : "Recruiting"} share link copied to clipboard.`,
-    });
+    toast({ title: "Link copied", description: `${viewParam === 'client' ? 'Client' : 'Recruiting'} share link copied to clipboard.` });
   }
 
-  function previewUrl(viewParam: "client" | "recruiting") {
+  function previewUrl(viewParam: 'client' | 'recruiting') {
     if (!profile?.share_profile_slug) return;
     let url = `/share/vendor/${profile.share_profile_slug}?view=${viewParam}`;
-    if (showCountyDetails) url += "&counties=1";
-    window.open(url, "_blank");
+    if (showCountyDetails) url += '&counties=1';
+    window.open(url, '_blank');
   }
 
   const showPreviewWarning = isPreviewEnvironment();
@@ -240,13 +220,10 @@ export default function VendorShareProfilePage() {
                     icon={<Briefcase className="h-5 w-5 text-primary" />}
                     label="Client Share Link"
                     description="Best for clients and partners. Highlights your coverage footprint and company profile."
-                    url={buildUrl("client")}
-                    onCopy={() => copyUrl("client")}
-                    onPreview={() => previewUrl("client")}
-                    tips={[
-                      "Add to proposals, RFPs, and client emails",
-                      "Include in your company website or email signature",
-                    ]}
+                    url={buildUrl('client')}
+                    onCopy={() => copyUrl('client')}
+                    onPreview={() => previewUrl('client')}
+                    tips={["Add to proposals, RFPs, and client emails", "Include in your company website or email signature"]}
                   />
 
                   {/* Recruiting Share Link */}
@@ -254,13 +231,10 @@ export default function VendorShareProfilePage() {
                     icon={<Megaphone className="h-5 w-5 text-primary" />}
                     label="Recruiting Share Link"
                     description="Best for field reps. Includes your 'Seeking Coverage' areas and recruiting callouts."
-                    url={buildUrl("recruiting")}
-                    onCopy={() => copyUrl("recruiting")}
-                    onPreview={() => previewUrl("recruiting")}
-                    tips={[
-                      "Share on LinkedIn, forums, or rep outreach",
-                      "Use in recruiting materials to attract new reps",
-                    ]}
+                    url={buildUrl('recruiting')}
+                    onCopy={() => copyUrl('recruiting')}
+                    onPreview={() => previewUrl('recruiting')}
+                    tips={["Share on LinkedIn, forums, or rep outreach", "Use in recruiting materials to attract new reps"]}
                   />
 
                   <Separator />
@@ -276,7 +250,9 @@ export default function VendorShareProfilePage() {
                       <RefreshCw className="h-4 w-4" />
                       Regenerate Links
                     </Button>
-                    <p className="text-xs text-muted-foreground">Regenerating will invalidate both old links.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Regenerating will invalidate both old links.
+                    </p>
                   </div>
                 </>
               ) : (
