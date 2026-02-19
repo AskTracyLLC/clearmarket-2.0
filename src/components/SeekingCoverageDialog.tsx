@@ -150,6 +150,7 @@ export const SeekingCoverageDialog = ({
       pay_notes: "",
       requires_background_check: false,
       requires_aspen_grove: false,
+      allow_willing_to_obtain_background_check: true,
     },
   });
 
@@ -256,6 +257,7 @@ export const SeekingCoverageDialog = ({
         pay_notes: "",
         requires_background_check: false,
         requires_aspen_grove: false,
+        allow_willing_to_obtain_background_check: true,
       });
       setSelectedDetailedTypes([]);
       setSelectedCountyIds([]);
@@ -970,7 +972,7 @@ export const SeekingCoverageDialog = ({
                 <div className="flex items-center gap-3">
                   <Checkbox
                     id="allow_willing_to_obtain"
-                    checked={watch("allow_willing_to_obtain_background_check") ?? true}
+                    checked={watch("allow_willing_to_obtain_background_check") === true}
                     onCheckedChange={(checked) => setValue("allow_willing_to_obtain_background_check", checked as boolean)}
                   />
                   <Label htmlFor="allow_willing_to_obtain" className="cursor-pointer font-normal">
