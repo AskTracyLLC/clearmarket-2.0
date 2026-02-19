@@ -304,41 +304,36 @@ export const SeekingCoverageDialog = ({
     setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
   };
 
-  /** Sync junction table rows for a post */
+  /** Sync junction table rows for a post (delete-all then insert-all) */
   const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean) => {
-    if (coversState) {
-      // Delete all junction rows
-      await supabase
-        .from("seeking_coverage_post_counties")
-        .delete()
-        .eq("post_id", postId);
+    // Always delete existing rows first
+    const { error: delErr } = await supabase
+      .from("seeking_coverage_post_counties")
+      .delete()
+      .eq("post_id", postId);
+
+    if (delErr) {
+      console.error("[syncPostCounties] delete failed:", delErr);
+    }
+
+    if (coversState || countyIds.length === 0) {
       return;
     }
 
-    // Get current rows
-    const { data: existing } = await supabase
-      .from("seeking_coverage_post_counties")
-      .select("county_id")
-      .eq("post_id", postId);
+    // Build full insert payload
+    const rows = countyIds.map(county_id => ({ post_id: postId, county_id }));
+    console.log(`[syncPostCounties] inserting ${rows.length} county rows for post ${postId}`, rows);
 
-    const existingIds = (existing || []).map((r: any) => r.county_id);
-
-    // Delete removed
-    const toDelete = existingIds.filter((id: string) => !countyIds.includes(id));
-    if (toDelete.length > 0) {
-      await supabase
-        .from("seeking_coverage_post_counties")
-        .delete()
-        .eq("post_id", postId)
-        .in("county_id", toDelete);
+    if (rows.length !== countyIds.length) {
+      console.error("[syncPostCounties] BUG: insert payload length !== selectedCountyIds length", { rows, countyIds });
     }
 
-    // Insert new
-    const toInsert = countyIds.filter(id => !existingIds.includes(id));
-    if (toInsert.length > 0) {
-      await supabase
-        .from("seeking_coverage_post_counties")
-        .insert(toInsert.map(county_id => ({ post_id: postId, county_id })));
+    const { error: insErr } = await supabase
+      .from("seeking_coverage_post_counties")
+      .insert(rows);
+
+    if (insErr) {
+      console.error("[syncPostCounties] insert failed:", insErr);
     }
   };
 
