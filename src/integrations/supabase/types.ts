@@ -6895,6 +6895,42 @@ export type Database = {
           },
         ]
       }
+      seeking_coverage_post_counties: {
+        Row: {
+          county_id: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          county_id: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          county_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeking_coverage_post_counties_county_id_fkey"
+            columns: ["county_id"]
+            isOneToOne: false
+            referencedRelation: "us_counties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeking_coverage_post_counties_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_coverage_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeking_coverage_posts: {
         Row: {
           allow_willing_to_obtain_background_check: boolean | null

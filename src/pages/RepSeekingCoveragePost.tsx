@@ -20,6 +20,7 @@ interface PostData {
   description: string | null;
   state_code: string | null;
   county_id: string | null;
+  covers_entire_state?: boolean;
   inspection_types: string[];
   systems_required_array: string[];
   status: string;
@@ -34,6 +35,7 @@ interface PostData {
   requires_aspen_grove: boolean;
   allow_willing_to_obtain_background_check?: boolean | null;
   us_counties?: { county_name: string; state_code: string } | null;
+  county_names?: string[];
 }
 
 interface VendorInfo {
@@ -88,8 +90,28 @@ export default function RepSeekingCoveragePost() {
           return;
         }
 
-        setPost(postData);
+        // Load multi-county names from junction table
+        const { data: junctionData } = await supabase
+          .from("seeking_coverage_post_counties")
+          .select("county_id")
+          .eq("post_id", postId);
 
+        let countyNames: string[] = [];
+        if (junctionData && junctionData.length > 0) {
+          const countyIds = junctionData.map((j: any) => j.county_id);
+          const { data: countyData } = await supabase
+            .from("us_counties")
+            .select("county_name")
+            .in("id", countyIds);
+          countyNames = (countyData || []).map((c: any) => c.county_name);
+        }
+
+        // Fallback to legacy single county
+        if (countyNames.length === 0 && postData.us_counties?.county_name) {
+          countyNames = [postData.us_counties.county_name];
+        }
+
+        setPost({ ...postData, county_names: countyNames } as PostData);
         // Load vendor info using vendor_id which is the vendor user_id
         const { data: vendorData, error: vendorError } = await supabase
           .from("vendor_profile")
@@ -214,9 +236,17 @@ export default function RepSeekingCoveragePost() {
   // Check if the post's rate matches the rep's base rate
   const rateMatchStatus = getRateMatchStatus(repBaseRate, post.pay_min, post.pay_max);
 
-  const locationText = post.us_counties
-    ? `${post.us_counties.county_name}, ${post.state_code}`
-    : post.state_code || "Location TBD";
+  const locationText = (() => {
+    if (post.covers_entire_state) return `Statewide, ${post.state_code}`;
+    const names = post.county_names || [];
+    if (names.length === 0) {
+      return post.us_counties
+        ? `${post.us_counties.county_name}, ${post.state_code}`
+        : post.state_code || "Location TBD";
+    }
+    if (names.length <= 2) return `${names.join(", ")}, ${post.state_code}`;
+    return `${names.slice(0, 2).join(", ")} +${names.length - 2} more, ${post.state_code}`;
+  })();
 
   const isActive = post.status === "active" && post.is_accepting_responses;
 
