@@ -355,6 +355,9 @@ export const SeekingCoverageDialog = ({
     }
     const filteredSystemsRequired = finalSystemsRequired.filter((s) => s !== "Other");
 
+    // Diagnostic log: confirm selectedCountyIds at save time
+    console.log('[SeekingCoverageDialog] selectedCountyIds on save:', selectedCountyIds, 'length:', selectedCountyIds.length);
+
     // Validation: require at least 1 county when not covering entire state
     if (!data.covers_entire_state && selectedCountyIds.length === 0) {
       toast({
