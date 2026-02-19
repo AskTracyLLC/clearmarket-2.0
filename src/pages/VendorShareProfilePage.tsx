@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMimic } from "@/hooks/useMimic";
 import { getPublicShareUrl, isPreviewEnvironment } from "@/lib/publicUrl";
 
+const STORAGE_KEY_SHOW_COUNTIES = "cm_share_county_details";
+
 function generateSlug(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   const length = 10 + Math.floor(Math.random() * 3);
