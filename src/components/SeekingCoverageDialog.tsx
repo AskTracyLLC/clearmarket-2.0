@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Search } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +47,6 @@ const seekingCoverageSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   state_code: z.string().min(1, "State is required"),
-  county_id: z.string().nullable(),
   covers_entire_state: z.boolean(),
   // Legacy inspection types (broad categories) - still required for backward compatibility
   inspection_types: z.array(z.string()).min(1, "At least one inspection type is required"),
@@ -55,7 +56,6 @@ const seekingCoverageSchema = z.object({
   systems_required_array: z.array(z.string()).min(1, "At least one system is required"),
   systems_required_other: z.string().optional(),
   is_accepting_responses: z.boolean(),
-  county_name: z.string().optional(),
   pay_type: z.enum(["fixed", "range"]),
   pay_min: z.string().min(1, "Minimum pay is required"),
   pay_max: z.string().optional(),
@@ -115,6 +115,10 @@ export const SeekingCoverageDialog = ({
   const [saving, setSaving] = useState(false);
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
   
+  // Multi-county selection state
+  const [selectedCountyIds, setSelectedCountyIds] = useState<string[]>([]);
+  const [countySearchQuery, setCountySearchQuery] = useState("");
+  
   // Detailed inspection types from database
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
   const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
@@ -133,8 +137,6 @@ export const SeekingCoverageDialog = ({
       title: "",
       description: "",
       state_code: "",
-      county_id: null,
-      county_name: "",
       covers_entire_state: false,
       inspection_types: [],
       inspection_types_other: "",
@@ -214,8 +216,6 @@ export const SeekingCoverageDialog = ({
         title: editingPost.title,
         description: editingPost.description || "",
         state_code: editingPost.state_code,
-        county_id: editingPost.county_id,
-        county_name: "", // Will be populated from lookup if needed
         covers_entire_state: editingPost.covers_entire_state,
         inspection_types: editingPost.inspection_types.filter((t: string) => !t.startsWith("Other:")),
         inspection_types_other: inspectionTypesOther || "",
@@ -224,7 +224,6 @@ export const SeekingCoverageDialog = ({
         systems_required_other: systemsOther || "",
         is_accepting_responses: editingPost.is_accepting_responses,
         pay_type: isFixedRate ? "fixed" : "range",
-        // For fixed rate, the value is in pay_max; for range, use pay_min
         pay_min: isFixedRate 
           ? (editingPost.pay_max ? String(editingPost.pay_max) : "")
           : (editingPost.pay_min ? String(editingPost.pay_min) : ""),
@@ -236,13 +235,14 @@ export const SeekingCoverageDialog = ({
       
       // Set detailed types for local state
       setSelectedDetailedTypes(editingPost.inspection_type_ids || []);
+      
+      // Load selected counties from junction table
+      loadSelectedCounties(editingPost.id);
     } else if (!editingPost && open) {
       reset({
         title: "",
         description: "",
         state_code: "",
-        county_id: null,
-        county_name: "",
         covers_entire_state: false,
         inspection_types: [],
         inspection_types_other: "",
@@ -258,8 +258,89 @@ export const SeekingCoverageDialog = ({
         requires_aspen_grove: false,
       });
       setSelectedDetailedTypes([]);
+      setSelectedCountyIds([]);
+      setCountySearchQuery("");
     }
   }, [editingPost, open, reset]);
+
+  const loadSelectedCounties = async (postId: string) => {
+    const { data, error } = await supabase
+      .from("seeking_coverage_post_counties")
+      .select("county_id")
+      .eq("post_id", postId);
+    
+    if (error) {
+      console.error("Error loading post counties:", error);
+      return;
+    }
+    
+    setSelectedCountyIds((data || []).map((r: any) => r.county_id));
+  };
+
+  // Filter counties by search query
+  const filteredCounties = useMemo(() => {
+    if (!countySearchQuery.trim()) return counties;
+    const q = countySearchQuery.toLowerCase();
+    return counties.filter(c => c.county_name.toLowerCase().includes(q));
+  }, [counties, countySearchQuery]);
+
+  // Get county names for selected IDs (for chip display)
+  const selectedCountyNames = useMemo(() => {
+    return selectedCountyIds.map(id => {
+      const c = counties.find(county => county.id === id);
+      return c ? { id, name: c.county_name } : { id, name: "Unknown" };
+    });
+  }, [selectedCountyIds, counties]);
+
+  const toggleCounty = (countyId: string) => {
+    setSelectedCountyIds(prev =>
+      prev.includes(countyId)
+        ? prev.filter(id => id !== countyId)
+        : [...prev, countyId]
+    );
+  };
+
+  const removeCounty = (countyId: string) => {
+    setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
+  };
+
+  /** Sync junction table rows for a post */
+  const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean) => {
+    if (coversState) {
+      // Delete all junction rows
+      await supabase
+        .from("seeking_coverage_post_counties")
+        .delete()
+        .eq("post_id", postId);
+      return;
+    }
+
+    // Get current rows
+    const { data: existing } = await supabase
+      .from("seeking_coverage_post_counties")
+      .select("county_id")
+      .eq("post_id", postId);
+
+    const existingIds = (existing || []).map((r: any) => r.county_id);
+
+    // Delete removed
+    const toDelete = existingIds.filter((id: string) => !countyIds.includes(id));
+    if (toDelete.length > 0) {
+      await supabase
+        .from("seeking_coverage_post_counties")
+        .delete()
+        .eq("post_id", postId)
+        .in("county_id", toDelete);
+    }
+
+    // Insert new
+    const toInsert = countyIds.filter(id => !existingIds.includes(id));
+    if (toInsert.length > 0) {
+      await supabase
+        .from("seeking_coverage_post_counties")
+        .insert(toInsert.map(county_id => ({ post_id: postId, county_id })));
+    }
+  };
 
   const onSubmit = async (data: SeekingCoverageForm) => {
     if (!user) return;
@@ -279,22 +360,15 @@ export const SeekingCoverageDialog = ({
     }
     const filteredSystemsRequired = finalSystemsRequired.filter((s) => s !== "Other");
 
-    // Validation
-    if (!data.covers_entire_state && !data.county_id) {
+    // Validation: require at least 1 county when not covering entire state
+    if (!data.covers_entire_state && selectedCountyIds.length === 0) {
       toast({
         title: "Validation Error",
-        description: "Please select a county or turn on 'Covers entire state'.",
+        description: "Please select at least one county or turn on 'Covers entire state'.",
         variant: "destructive",
       });
       setSaving(false);
       return;
-    }
-
-    // Look up county name if county_id is set
-    let countyName = null;
-    if (data.county_id && !data.covers_entire_state) {
-      const selectedCounty = counties.find(c => c.id === data.county_id);
-      countyName = selectedCounty?.county_name || null;
     }
 
     // For new posts, show credit confirmation before proceeding
@@ -306,16 +380,18 @@ export const SeekingCoverageDialog = ({
         cancelLabel: "Save as Draft",
       });
       if (!confirmed) {
-        // User declined - save as draft instead
         saveAsDraft = true;
       }
     }
+
+    // Keep county_id as the first selected county for backward compat
+    const legacyCountyId = data.covers_entire_state ? null : (selectedCountyIds[0] || null);
 
     const payload = {
       title: data.title,
       description: data.description || null,
       state_code: data.state_code,
-      county_id: data.covers_entire_state ? null : data.county_id,
+      county_id: legacyCountyId,
       covers_entire_state: data.covers_entire_state,
       inspection_types: filteredInspectionTypes,
       inspection_type_ids: selectedDetailedTypes.length > 0 ? selectedDetailedTypes : null,
@@ -324,22 +400,19 @@ export const SeekingCoverageDialog = ({
       status: saveAsDraft ? "draft" : "active",
       auto_expires_at: editingPost
         ? editingPost.auto_expires_at
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       vendor_id: user.id,
       pay_type: data.pay_type,
-      // For fixed rate: store as pay_max only (treat as "up to X" for matching)
-      // For range: store both pay_min and pay_max
       pay_min: data.pay_type === "range" ? parseFloat(data.pay_min) : null,
       pay_max: data.pay_type === "range" 
         ? (data.pay_max ? parseFloat(data.pay_max) : null)
-        : parseFloat(data.pay_min), // Fixed rate stored as pay_max
+        : parseFloat(data.pay_min),
       pay_notes: data.pay_notes || null,
       requires_background_check: data.requires_background_check,
       requires_aspen_grove: data.requires_background_check ? data.requires_aspen_grove : false,
     };
 
     if (editingPost) {
-      // Update existing
       const { error } = await supabase
         .from("seeking_coverage_posts")
         .update(payload)
@@ -353,6 +426,8 @@ export const SeekingCoverageDialog = ({
           variant: "destructive",
         });
       } else {
+        // Sync junction table
+        await syncPostCounties(editingPost.id, selectedCountyIds, data.covers_entire_state);
         toast({
           title: "Post Updated",
           description: seekingCoverageCopy.toasts.saveSuccess,
@@ -361,10 +436,11 @@ export const SeekingCoverageDialog = ({
         navigate("/vendor/seeking-coverage");
       }
     } else if (saveAsDraft) {
-      // Save as draft - no credit charge
-      const { error } = await supabase
+      const { data: newPost, error } = await supabase
         .from("seeking_coverage_posts")
-        .insert([payload]);
+        .insert([payload])
+        .select()
+        .single();
 
       if (error) {
         console.error("Error saving draft:", error);
@@ -374,6 +450,7 @@ export const SeekingCoverageDialog = ({
           variant: "destructive",
         });
       } else {
+        await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
         toast({
           title: "Draft Saved",
           description: "Your post has been saved as a draft. You can publish it later from the Seeking Coverage page.",
@@ -382,7 +459,6 @@ export const SeekingCoverageDialog = ({
         navigate("/vendor/seeking-coverage");
       }
     } else {
-      // Create new active post - deduct credits via vendor wallet
       const vendorId = await resolveCurrentVendorId(user.id);
       if (!vendorId) {
         toast({
@@ -409,7 +485,6 @@ export const SeekingCoverageDialog = ({
         return;
       }
 
-      // Create the post
       const { data: newPost, error } = await supabase
         .from("seeking_coverage_posts")
         .insert([payload])
@@ -418,7 +493,6 @@ export const SeekingCoverageDialog = ({
 
       if (error) {
         console.error("Error creating post:", error);
-        // Note: Credit refund would need an admin action or support ticket since spend_vendor_credits is atomic
         toast({
           title: "Error",
           description: seekingCoverageCopy.toasts.saveError + " Credit was deducted - please contact support for a refund.",
@@ -428,10 +502,11 @@ export const SeekingCoverageDialog = ({
         return;
       }
 
-      // Evaluate match alerts for reps
+      // Sync junction table
+      await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
+
       evaluateMatchAlertsForNewPost(newPost.id).catch((err) => {
         console.error("Error evaluating match alerts:", err);
-        // Don't block post creation on match alert errors
       });
 
       toast({
@@ -441,7 +516,6 @@ export const SeekingCoverageDialog = ({
       onSave();
       navigate("/vendor/seeking-coverage");
       
-      // Track checklist event for first seeking coverage post
       checklist.firstSeekingCoveragePost(user.id);
     }
 
@@ -490,9 +564,9 @@ export const SeekingCoverageDialog = ({
               onValueChange={(value) => {
                 const currentState = watch("state_code");
                 setValue("state_code", value);
-                // Only clear county if the state actually changed (user interaction)
                 if (value !== currentState) {
-                  setValue("county_id", null);
+                  setSelectedCountyIds([]);
+                  setCountySearchQuery("");
                 }
               }}
             >
@@ -518,7 +592,8 @@ export const SeekingCoverageDialog = ({
               onCheckedChange={(checked) => {
                 setValue("covers_entire_state", checked);
                 if (checked) {
-                  setValue("county_id", null);
+                  setSelectedCountyIds([]);
+                  setCountySearchQuery("");
                 }
               }}
             />
@@ -527,38 +602,78 @@ export const SeekingCoverageDialog = ({
             </Label>
           </div>
 
-          {/* County */}
+          {/* Multi-County Selector */}
           {!coversEntireState && (
             <div>
-              <Label htmlFor="county_id">
-                County <span className="text-destructive">*</span>
+              <Label>
+                Counties <span className="text-destructive">*</span>
               </Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select one or more counties. Reps covering any of these counties will see this post.
+              </p>
+              
+              {/* Selected counties as chips */}
+              {selectedCountyNames.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedCountyNames.map(({ id, name }) => (
+                    <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeCounty(id)}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
               {!stateCode ? (
                 <p className="text-sm text-muted-foreground mt-1">Select a state first</p>
               ) : loadingCounties ? (
                 <p className="text-sm text-muted-foreground mt-1">Loading counties...</p>
               ) : (
-                <Select
-                  value={watch("county_id") || ""}
-                  onValueChange={(value) => {
-                    setValue("county_id", value);
-                    const selectedCounty = counties.find(c => c.id === value);
-                    setValue("county_name", selectedCounty?.county_name || "");
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select county" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {counties.map((county) => (
-                      <SelectItem key={county.id} value={county.id}>
-                        {county.county_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="border border-border rounded-md">
+                  {/* Search input */}
+                  <div className="relative border-b border-border">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search counties..."
+                      value={countySearchQuery}
+                      onChange={(e) => setCountySearchQuery(e.target.value)}
+                      className="border-0 pl-8 h-9 rounded-b-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                  </div>
+                  {/* County list with checkboxes */}
+                  <ScrollArea className="h-[180px]">
+                    <div className="p-2 space-y-0.5">
+                      {filteredCounties.length === 0 ? (
+                        <p className="text-sm text-muted-foreground p-2">No counties found</p>
+                      ) : (
+                        filteredCounties.map((county) => (
+                          <div
+                            key={county.id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
+                            onClick={() => toggleCounty(county.id)}
+                          >
+                            <Checkbox
+                              checked={selectedCountyIds.includes(county.id)}
+                              onCheckedChange={() => toggleCounty(county.id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <span className="text-sm">{county.county_name}</span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
               )}
-              {errors.county_id && <p className="text-sm text-destructive mt-1">{String(errors.county_id.message)}</p>}
+              {selectedCountyIds.length === 0 && stateCode && !loadingCounties && (
+                <p className="text-sm text-destructive mt-1">Please select at least one county</p>
+              )}
             </div>
           )}
 

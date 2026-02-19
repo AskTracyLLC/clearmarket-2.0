@@ -91,6 +91,7 @@ interface SeekingCoveragePost {
   description: string | null;
   state_code: string | null;
   county_id: string | null;
+  covers_entire_state?: boolean;
   inspection_types: string[];
   systems_required_array: string[];
   status: string;
@@ -297,8 +298,24 @@ export default function RepFindWork() {
         return;
       }
 
-      // Query seeking_coverage_posts matching rep's coverage areas
-      // Only show "open" posts that are accepting responses, not deleted, and not expired
+      // Step 1: Get rep's covered county_ids
+      const repCountyIds = coverageAreas
+        .filter(c => c.county_id)
+        .map(c => c.county_id as string);
+
+      // Step 2: Get post_ids from junction table that match rep's counties
+      let junctionPostIds: string[] = [];
+      if (repCountyIds.length > 0) {
+        const { data: junctionData } = await supabase
+          .from("seeking_coverage_post_counties")
+          .select("post_id")
+          .in("county_id", repCountyIds);
+        
+        junctionPostIds = [...new Set((junctionData || []).map((r: any) => r.post_id))];
+      }
+
+      // Step 3: Query seeking_coverage_posts matching rep's coverage
+      // Include: statewide posts in rep's states OR posts with junction county matches
       let query = supabase
         .from("seeking_coverage_posts")
         .select(`
@@ -307,8 +324,17 @@ export default function RepFindWork() {
         `)
         .eq("status", "active")
         .eq("is_accepting_responses", true)
-        .is("deleted_at", null)
-        .in("state_code", repStateCodes);
+        .is("deleted_at", null);
+
+      // Build OR filter: (covers_entire_state=true AND state_code in rep states) OR (id in junction matched post ids)
+      if (junctionPostIds.length > 0) {
+        // We need posts that are either statewide in rep's states OR have junction matches
+        query = query.in("state_code", repStateCodes);
+      } else {
+        // No junction matches, only statewide posts
+        query = query.in("state_code", repStateCodes)
+          .eq("covers_entire_state", true);
+      }
 
       // Apply expires_at filter (null or >= now)
       query = query.or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
@@ -377,49 +403,55 @@ export default function RepFindWork() {
             }
           }
 
-          // 1. Coverage match with pricing check
-          const matchingCoverage = coverageAreas.find((coverage) => {
-            if (coverage.state_code !== post.state_code) return false;
+          // 1. Coverage match: statewide posts match any rep in that state;
+          //    county-specific posts match if post_id is in junctionPostIds
+          if (post.covers_entire_state) {
+            // Statewide: rep just needs to be in same state
+            const matchingCoverage = coverageAreas.find(c => c.state_code === post.state_code);
+            if (!matchingCoverage) return false;
             
-            // If rep covers entire state, match
-            if (coverage.covers_entire_state) return true;
+            // Pricing validation for statewide
+            if (matchingCoverage.base_price === null || matchingCoverage.base_price === undefined) {
+              return false;
+            }
             
-            // If post has no specific county, match (state-level post)
-            if (!post.county_id) return true;
+            const vendorPayMax = post.pay_max;
+            if (vendorPayMax === null || vendorPayMax === undefined) return false;
+            if (matchingCoverage.base_price > vendorPayMax) return false;
+            if (post.pay_type === 'range') {
+              const vendorPayMin = post.pay_min ?? 0;
+              if (matchingCoverage.base_price < vendorPayMin) return false;
+            }
+          } else {
+            // County-specific: must be in junction matches
+            if (!junctionPostIds.includes(post.id)) return false;
             
-            // If rep covers entire county or specific county matches
-            if (coverage.county_id === post.county_id) return true;
+            // Find matching coverage for pricing check
+            const matchingCoverage = coverageAreas.find((coverage) => {
+              if (coverage.state_code !== post.state_code) return false;
+              if (coverage.covers_entire_state) return true;
+              // Check if rep's county is one of the post's counties
+              if (coverage.county_id && repCountyIds.includes(coverage.county_id)) return true;
+              return false;
+            });
             
-            return false;
-          });
-
-          if (!matchingCoverage) return false;
-
-          // 2. Pricing validation
-          // Skip posts with incomplete coverage pricing
-          if (matchingCoverage.base_price === null || matchingCoverage.base_price === undefined) {
-            return false;
+            if (!matchingCoverage) return false;
+            
+            if (matchingCoverage.base_price === null || matchingCoverage.base_price === undefined) {
+              return false;
+            }
+            
+            const vendorPayMax = post.pay_max;
+            if (vendorPayMax === null || vendorPayMax === undefined) return false;
+            if (matchingCoverage.base_price > vendorPayMax) return false;
+            if (post.pay_type === 'range') {
+              const vendorPayMin = post.pay_min ?? 0;
+              if (matchingCoverage.base_price < vendorPayMin) return false;
+            }
           }
 
-          // Matching logic:
-          // - For range posts (pay_min and pay_max set): rep must be within range: pay_min <= base_price <= pay_max
-          // - For fixed posts (only pay_max set): rep's base_price must be <= pay_max
-          const vendorPayMin = post.pay_min ?? 0;
-          const vendorPayMax = post.pay_max;
-          
-          if (vendorPayMax === null || vendorPayMax === undefined) {
-            return false; // Exclude posts with no pricing set
-          }
 
-          // Rep's base rate must be <= vendor's max rate
-          if (matchingCoverage.base_price > vendorPayMax) {
-            return false;
-          }
-          
-          // For range posts, rep's base rate must also be >= vendor's min rate
-          if (post.pay_type === 'range' && matchingCoverage.base_price < vendorPayMin) {
-            return false;
-          }
+          // 2. (Pricing already validated in section 1 above)
 
           // 3. Inspection type match (at least one must match)
           // Uses helper function that handles category-to-specific-type matching

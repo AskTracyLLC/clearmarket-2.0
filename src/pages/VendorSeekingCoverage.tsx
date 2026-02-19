@@ -83,6 +83,8 @@ interface SeekingCoveragePost {
   filled_by_rep?: {
     anonymous_id: string | null;
   } | null;
+  // Multi-county support
+  county_names?: string[];
 }
 
 type SortMode = "newest" | "oldest" | "interest";
@@ -256,13 +258,42 @@ const VendorSeekingCoverage = () => {
       return;
     }
 
+    // Load all junction county data for these posts in one query
+    const postIds = (posts || []).map(p => p.id);
+    let junctionCountyMap: Record<string, string[]> = {};
+    
+    if (postIds.length > 0) {
+      const { data: junctionData } = await supabase
+        .from("seeking_coverage_post_counties")
+        .select("post_id, county_id")
+        .in("post_id", postIds);
+      
+      if (junctionData && junctionData.length > 0) {
+        // Get unique county_ids
+        const uniqueCountyIds = [...new Set(junctionData.map((j: any) => j.county_id))];
+        const { data: countyNames } = await supabase
+          .from("us_counties")
+          .select("id, county_name")
+          .in("id", uniqueCountyIds);
+        
+        const countyNameMap = new Map((countyNames || []).map((c: any) => [c.id, c.county_name]));
+        
+        // Build post_id -> county_name[] map
+        for (const j of junctionData as any[]) {
+          if (!junctionCountyMap[j.post_id]) junctionCountyMap[j.post_id] = [];
+          const name = countyNameMap.get(j.county_id);
+          if (name) junctionCountyMap[j.post_id].push(name);
+        }
+      }
+    }
+
     // Fetch county data and rep profile for filled posts separately
     const postsWithDetails = await Promise.all(
       (posts || []).map(async (post) => {
-        let enrichedPost = { ...post, us_counties: null as { county_name: string; state_name: string } | null, filled_by_rep: null as { anonymous_id: string | null } | null };
+        let enrichedPost = { ...post, us_counties: null as { county_name: string; state_name: string } | null, filled_by_rep: null as { anonymous_id: string | null } | null, county_names: junctionCountyMap[post.id] || [] };
         
-        // Fetch county data
-        if (post.county_id) {
+        // Legacy single county fallback (only if junction has no data)
+        if (post.county_id && enrichedPost.county_names.length === 0) {
           const { data: countyData } = await supabase
             .from("us_counties")
             .select("county_name, state_name")
@@ -270,6 +301,9 @@ const VendorSeekingCoverage = () => {
             .maybeSingle();
           
           enrichedPost.us_counties = countyData;
+          if (countyData) {
+            enrichedPost.county_names = [countyData.county_name];
+          }
         }
         
         // Fetch rep anonymous ID for filled posts from profiles (canonical source)
@@ -668,10 +702,17 @@ Thank you again for your interest!`;
 
   const getLocationDisplay = (post: SeekingCoveragePost) => {
     if (post.covers_entire_state) {
-      return `All counties, ${post.state_code}`;
+      return `Statewide, ${post.state_code}`;
     }
-    const countyName = post.us_counties?.county_name || "Unknown County";
-    return `${countyName}, ${post.state_code}`;
+    const names = post.county_names || [];
+    if (names.length === 0) {
+      const countyName = post.us_counties?.county_name || "Unknown County";
+      return `${countyName}, ${post.state_code}`;
+    }
+    if (names.length <= 2) {
+      return `${names.join(", ")}, ${post.state_code}`;
+    }
+    return `${names.slice(0, 2).join(", ")} +${names.length - 2} more, ${post.state_code}`;
   };
 
   const getStatusBadge = (post: SeekingCoveragePost) => {
