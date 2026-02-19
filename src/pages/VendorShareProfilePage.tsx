@@ -27,19 +27,30 @@ export default function VendorShareProfilePage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const STORAGE_KEY_SHOW_COUNTIES = "cm_share_showCountyDetails";
+  const STORAGE_KEY_SHOW_COVERAGE = "cm_share_showCoverageOnRecruiting";
   const [showCountyDetails, setShowCountyDetails] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY_SHOW_COUNTIES) === '1';
     } catch { return false; }
   });
+  const [showCoverageOnRecruiting, setShowCoverageOnRecruiting] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_SHOW_COVERAGE) === '1';
+    } catch { return false; }
+  });
   const { toast } = useToast();
 
-  // Persist county details toggle
+  // Persist toggles
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_SHOW_COUNTIES, showCountyDetails ? '1' : '0');
     } catch {}
   }, [showCountyDetails]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SHOW_COVERAGE, showCoverageOnRecruiting ? '1' : '0');
+    } catch {}
+  }, [showCoverageOnRecruiting]);
 
   useEffect(() => {
     if (effectiveUserId) loadProfile();
@@ -136,6 +147,9 @@ export default function VendorShareProfilePage() {
     if (showCountyDetails) {
       url.searchParams.set('counties', '1');
     }
+    if (viewParam === 'recruiting' && showCoverageOnRecruiting) {
+      url.searchParams.set('showCoverage', '1');
+    }
     return url.toString();
   }
 
@@ -152,6 +166,9 @@ export default function VendorShareProfilePage() {
     url.searchParams.set('view', viewParam);
     if (showCountyDetails) {
       url.searchParams.set('counties', '1');
+    }
+    if (viewParam === 'recruiting' && showCoverageOnRecruiting) {
+      url.searchParams.set('showCoverage', '1');
     }
     window.open(url.toString(), '_blank');
   }
@@ -286,6 +303,16 @@ export default function VendorShareProfilePage() {
           />
           <Label htmlFor="show-county-details" className="text-sm font-normal cursor-pointer">
             Show county details for partial coverage states
+          </Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="show-coverage-recruiting"
+            checked={showCoverageOnRecruiting}
+            onCheckedChange={(checked) => setShowCoverageOnRecruiting(!!checked)}
+          />
+          <Label htmlFor="show-coverage-recruiting" className="text-sm font-normal cursor-pointer">
+            Show coverage footprint on Recruiting link
           </Label>
         </div>
         <SeekingCoverageToggle />

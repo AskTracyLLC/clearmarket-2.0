@@ -95,6 +95,9 @@ export default function VendorShareProfile() {
   const countiesParam = searchParams.get('counties');
   const showCountyDetails = countiesParam === '1';
 
+  // Coverage footprint toggle for recruiting view
+  const showCoverage = searchParams.get('showCoverage') === '1';
+
   useEffect(() => {
     if (!slug) {
       setError("Invalid profile URL");
@@ -336,10 +339,34 @@ export default function VendorShareProfile() {
               )}
             </div>
 
+            {/* Seeking Coverage Areas - recruiting view: show FIRST and emphasized */}
+            {!isClientView && profile.seeking_coverage_areas && profile.seeking_coverage_areas.length > 0 && (
+              <>
+                <Separator />
+                <Card className="border-primary/40 bg-primary/5">
+                  <CardContent className="pt-5 pb-4 space-y-3">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      Currently seeking field reps in…
+                    </h3>
+                    <div className="space-y-1.5">
+                      {profile.seeking_coverage_areas.map((area) => (
+                        <p key={area.state_code} className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{area.state_code}</span>
+                          {" — "}
+                          {area.counties.join(", ")}
+                        </p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
             <Separator />
 
-            {/* Coverage - Condensed Format */}
-            {(() => {
+            {/* Coverage - show always for client, only if showCoverage for recruiting */}
+            {(isClientView || showCoverage) && (() => {
               const details = normalizeCoverageDetails(profile.coverage_details || []);
               const fullCoverage = details.filter(d => d.coverageMode === 'entire_state');
               const partialCoverage = details.filter(d => d.coverageMode !== 'entire_state');
@@ -383,19 +410,16 @@ export default function VendorShareProfile() {
                       </div>
 
                       {!showCountyDetails ? (
-                        /* counties=0 => state abbreviations only */
                         <p className="text-sm text-muted-foreground leading-relaxed">
                           {partialCoverage.map(s => `${s.stateCode} — ${s.stateName}`).join(", ")}
                         </p>
                       ) : (
-                        /* counties=1 => mode-aware county details */
                         <div className="space-y-2">
                           {partialCoverage.map((state) => {
                             const modeLabel = state.coverageMode === 'entire_state_except'
                               ? 'Entire state covered except:'
                               : 'Covered counties (only):';
 
-                            // No counties to list — show state only
                             if (state.counties.length === 0) {
                               return (
                                 <div key={state.stateCode} className="text-sm text-muted-foreground py-1">
@@ -404,7 +428,6 @@ export default function VendorShareProfile() {
                               );
                             }
 
-                            // All counties expandable when showCounties is true
                             return (
                               <Collapsible key={state.stateCode}>
                                 <CollapsibleTrigger className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-muted/50 rounded px-2 -mx-2 transition-colors group">
@@ -435,7 +458,7 @@ export default function VendorShareProfile() {
               );
             })()}
 
-            <Separator />
+            {(isClientView || showCoverage) && <Separator />}
 
             {/* Availability - hidden in client view */}
             {!isClientView && (
@@ -445,28 +468,6 @@ export default function VendorShareProfile() {
                   {profile.is_accepting_new_reps ? 'Accepting new field reps' : 'Not currently accepting new field reps'}
                 </span>
               </div>
-            )}
-
-            {/* Seeking Coverage Areas - hidden in client view */}
-            {!isClientView && profile.seeking_coverage_areas && profile.seeking_coverage_areas.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-3">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    Currently seeking field reps in…
-                  </h3>
-                  <div className="space-y-1.5">
-                    {profile.seeking_coverage_areas.map((area) => (
-                      <p key={area.state_code} className="text-sm text-muted-foreground">
-                        <span className="font-medium text-foreground">{area.state_code}</span>
-                        {" - "}
-                        {area.counties.join(", ")}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              </>
             )}
 
             {/* Recent Reviews */}
