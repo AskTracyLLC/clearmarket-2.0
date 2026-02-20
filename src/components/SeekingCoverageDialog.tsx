@@ -232,6 +232,7 @@ export const SeekingCoverageDialog = ({
         pay_notes: editingPost.pay_notes || "",
         requires_background_check: editingPost.requires_background_check || false,
         requires_aspen_grove: editingPost.requires_aspen_grove || false,
+        allow_willing_to_obtain_background_check: editingPost.allow_willing_to_obtain_background_check ?? true,
       });
       
       // Set detailed types for local state
@@ -560,7 +561,7 @@ export const SeekingCoverageDialog = ({
               State <span className="text-destructive">*</span>
             </Label>
             <Select 
-              value={watch("state_code")} 
+              value={watch("state_code") || ""} 
               onValueChange={(value) => {
                 const currentState = watch("state_code");
                 setValue("state_code", value);
@@ -961,7 +962,7 @@ export const SeekingCoverageDialog = ({
                 <div className="flex items-center gap-3">
                   <Checkbox
                     id="requires_aspen_grove"
-                    checked={watch("requires_aspen_grove")}
+                    checked={watch("requires_aspen_grove") === true}
                     onCheckedChange={(checked) => setValue("requires_aspen_grove", checked as boolean)}
                   />
                   <Label htmlFor="requires_aspen_grove" className="cursor-pointer font-normal">
@@ -996,7 +997,7 @@ export const SeekingCoverageDialog = ({
           <div className="flex items-center gap-3">
             <Switch
               id="is_accepting_responses"
-              checked={watch("is_accepting_responses")}
+              checked={watch("is_accepting_responses") === true}
               onCheckedChange={(checked) => setValue("is_accepting_responses", checked)}
             />
             <Label htmlFor="is_accepting_responses" className="cursor-pointer">
