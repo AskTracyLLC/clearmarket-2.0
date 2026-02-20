@@ -199,10 +199,18 @@ export const SeekingCoverageDialog = ({
     loadCounties();
   }, [stateCode]);
 
-  // Populate form when editing — runs once per dialog open per postId
+  // Populate form when editing — runs once per open+postId
   useEffect(() => {
-    const key = `${open}-${editingPost?.id ?? 'new'}`;
-    if (!open) { initKeyRef.current = null; return; }
+    const postId = editingPost?.id ?? "new";
+    const key = `${open}-${postId}`;
+
+    // reset when closed
+    if (!open) {
+      initKeyRef.current = null;
+      return;
+    }
+
+    // run init ONLY once per open+postId
     if (initKeyRef.current === key) return;
     initKeyRef.current = key;
 
