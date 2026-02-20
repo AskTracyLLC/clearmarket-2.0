@@ -13056,6 +13056,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_seeking_coverage_post_counties: {
+        Args: {
+          p_county_ids: string[]
+          p_covers_entire_state: boolean
+          p_post_id: string
+        }
+        Returns: boolean
+      }
       toggle_flag: {
         Args: {
           p_flag_code: string

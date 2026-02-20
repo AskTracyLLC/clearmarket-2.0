@@ -328,37 +328,19 @@ export const SeekingCoverageDialog = ({
     setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
   };
 
-  /** Sync junction table rows for a post (delete-all then insert-all) */
-  const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean) => {
-    // Always delete existing rows first
-    const { error: delErr } = await supabase
-      .from("seeking_coverage_post_counties")
-      .delete()
-      .eq("post_id", postId);
-
-    if (delErr) {
-      console.error("[syncPostCounties] delete failed:", delErr);
+  /** Sync junction table rows for a post via RPC */
+  const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean): Promise<boolean> => {
+    console.log('[syncPostCounties] calling RPC with', { postId, countyIds, coversState });
+    const { error } = await supabase.rpc("sync_seeking_coverage_post_counties", {
+      p_post_id: postId,
+      p_county_ids: countyIds,
+      p_covers_entire_state: coversState,
+    });
+    if (error) {
+      console.error("[syncPostCounties] RPC failed:", error);
+      return false;
     }
-
-    if (coversState || countyIds.length === 0) {
-      return;
-    }
-
-    // Build full insert payload
-    const rows = countyIds.map(county_id => ({ post_id: postId, county_id }));
-    console.log(`[syncPostCounties] inserting ${rows.length} county rows for post ${postId}`, rows);
-
-    if (rows.length !== countyIds.length) {
-      console.error("[syncPostCounties] BUG: insert payload length !== selectedCountyIds length", { rows, countyIds });
-    }
-
-    const { error: insErr } = await supabase
-      .from("seeking_coverage_post_counties")
-      .insert(rows);
-
-    if (insErr) {
-      console.error("[syncPostCounties] insert failed:", insErr);
-    }
+    return true;
   };
 
   const onSubmit = async (data: SeekingCoverageForm) => {
@@ -450,7 +432,12 @@ export const SeekingCoverageDialog = ({
         });
       } else {
         // Sync junction table
-        await syncPostCounties(editingPost.id, selectedCountyIds, data.covers_entire_state);
+        const synced = await syncPostCounties(editingPost.id, selectedCountyIds, data.covers_entire_state);
+        if (!synced) {
+          toast({ title: "Error", description: "Could not save counties. Please try again.", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
         toast({
           title: "Post Updated",
           description: seekingCoverageCopy.toasts.saveSuccess,
@@ -473,7 +460,12 @@ export const SeekingCoverageDialog = ({
           variant: "destructive",
         });
       } else {
-        await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
+        const synced = await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
+        if (!synced) {
+          toast({ title: "Error", description: "Could not save counties. Please try again.", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
         toast({
           title: "Draft Saved",
           description: "Your post has been saved as a draft. You can publish it later from the Seeking Coverage page.",
@@ -526,7 +518,12 @@ export const SeekingCoverageDialog = ({
       }
 
       // Sync junction table
-      await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
+      const synced = await syncPostCounties(newPost.id, selectedCountyIds, data.covers_entire_state);
+      if (!synced) {
+        toast({ title: "Error", description: "Could not save counties. Please try again.", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
 
       evaluateMatchAlertsForNewPost(newPost.id).catch((err) => {
         console.error("Error evaluating match alerts:", err);
