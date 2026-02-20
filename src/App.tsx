@@ -130,6 +130,7 @@ import ClearCheckDashboard from "./pages/ops/ClearCheckDashboard";
 import ImportPage from "./pages/ops/ImportPage";
 
 import { Navigate } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Redirect component for dual role requests (moved to Support Queue)
 const DualRoleRedirect = () => <Navigate to="/admin/support-queue?category=dual_role_requests" replace />;
@@ -137,6 +138,7 @@ const DualRoleRedirect = () => <Navigate to="/admin/support-queue?category=dual_
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <ThemeProvider
       attribute="class"
@@ -309,6 +311,7 @@ const App = () => (
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
