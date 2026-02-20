@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -93,6 +93,30 @@ interface County {
   id: string;
   county_name: string;
 }
+
+/** Memoized row to prevent Radix Checkbox re-mount on every parent render */
+const CountyCheckboxRow = React.memo(({
+  county,
+  checked,
+  onToggle,
+}: {
+  county: County;
+  checked: boolean;
+  onToggle: (id: string) => void;
+}) => (
+  <div
+    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
+    onClick={() => onToggle(county.id)}
+  >
+    <Checkbox
+      checked={checked}
+      onCheckedChange={() => onToggle(county.id)}
+      onClick={(e) => e.stopPropagation()}
+    />
+    <span className="text-sm">{county.county_name}</span>
+  </div>
+));
+CountyCheckboxRow.displayName = "CountyCheckboxRow";
 
 interface SeekingCoverageDialogProps {
   open: boolean;
@@ -318,17 +342,17 @@ export const SeekingCoverageDialog = ({
     });
   }, [selectedCountyIds, counties]);
 
-  const toggleCounty = (countyId: string) => {
+  const toggleCounty = useCallback((countyId: string) => {
     setSelectedCountyIds(prev =>
       prev.includes(countyId)
         ? prev.filter(id => id !== countyId)
         : [...new Set([...prev, countyId])]
     );
-  };
+  }, []);
 
-  const removeCounty = (countyId: string) => {
+  const removeCounty = useCallback((countyId: string) => {
     setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
-  };
+  }, []);
 
   /** Sync junction table rows for a post via RPC */
   const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean): Promise<boolean> => {
@@ -544,13 +568,13 @@ export const SeekingCoverageDialog = ({
     setSaving(false);
   };
 
-  const handleCheckboxChange = (field: "inspection_types" | "systems_required_array", value: string) => {
+  const handleCheckboxChange = useCallback((field: "inspection_types" | "systems_required_array", value: string) => {
     const current = watch(field);
     const updated = current.includes(value)
       ? current.filter((item) => item !== value)
       : [...current, value];
     setValue(field, updated);
-  };
+  }, [watch, setValue]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -582,14 +606,13 @@ export const SeekingCoverageDialog = ({
               State <span className="text-destructive">*</span>
             </Label>
             <Select 
-              value={watch("state_code") || ""} 
+              value={stateCode || ""} 
               onValueChange={(value) => {
-                const currentState = watch("state_code");
-                setValue("state_code", value);
-                if (value !== currentState) {
+                if (value !== stateCode) {
                   setSelectedCountyIds([]);
                   setCountySearchQuery("");
                 }
+                setValue("state_code", value);
               }}
             >
               <SelectTrigger>
@@ -675,18 +698,12 @@ export const SeekingCoverageDialog = ({
                         <p className="text-sm text-muted-foreground p-2">No counties found</p>
                       ) : (
                         filteredCounties.map((county) => (
-                          <div
+                          <CountyCheckboxRow
                             key={county.id}
-                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
-                            onClick={() => toggleCounty(county.id)}
-                          >
-                            <Checkbox
-                              checked={selectedCountyIds.includes(county.id)}
-                              onCheckedChange={() => toggleCounty(county.id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <span className="text-sm">{county.county_name}</span>
-                          </div>
+                            county={county}
+                            checked={selectedCountyIds.includes(county.id)}
+                            onToggle={toggleCounty}
+                          />
                         ))
                       )}
                     </div>
