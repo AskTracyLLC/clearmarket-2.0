@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -119,6 +119,11 @@ export const SeekingCoverageDialog = ({
   const [selectedCountyIds, setSelectedCountyIds] = useState<string[]>([]);
   const [countySearchQuery, setCountySearchQuery] = useState("");
   
+  // Guard: prevent re-initialization after user has interacted with county selection
+  const userTouchedCounties = useRef(false);
+  // Track which postId we last initialized for, to avoid re-init on same dialog open
+  const initializedForPostId = useRef<string | null>(null);
+  
   // Detailed inspection types from database
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
   const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
@@ -196,9 +201,21 @@ export const SeekingCoverageDialog = ({
     loadCounties();
   }, [stateCode]);
 
-  // Populate form when editing
+  // Populate form when editing — runs once per dialog open per postId
   useEffect(() => {
-    if (editingPost && open) {
+    if (!open) {
+      // Reset guard on close
+      userTouchedCounties.current = false;
+      initializedForPostId.current = null;
+      return;
+    }
+
+    if (editingPost) {
+      // Only initialize once per postId per dialog open
+      if (initializedForPostId.current === editingPost.id) return;
+      initializedForPostId.current = editingPost.id;
+      userTouchedCounties.current = false;
+
       // Parse "Other" values
       const inspectionTypesOther = editingPost.inspection_types
         ?.find((t: string) => t.startsWith("Other:"))
@@ -209,8 +226,6 @@ export const SeekingCoverageDialog = ({
         ?.replace("Other:", "")
         .trim();
 
-      // For fixed rate: pay_max holds the value, pay_min is null
-      // For range: both pay_min and pay_max are set
       const isFixedRate = editingPost.pay_type === "fixed" || (!editingPost.pay_min && editingPost.pay_max);
       
       reset({
@@ -235,12 +250,14 @@ export const SeekingCoverageDialog = ({
         allow_willing_to_obtain_background_check: editingPost.allow_willing_to_obtain_background_check ?? true,
       });
       
-      // Set detailed types for local state
       setSelectedDetailedTypes(editingPost.inspection_type_ids || []);
       
-      // Load selected counties from junction table
+      // Load selected counties from junction table (single source of truth)
       loadSelectedCounties(editingPost.id);
-    } else if (!editingPost && open) {
+    } else {
+      initializedForPostId.current = null;
+      userTouchedCounties.current = false;
+
       reset({
         title: "",
         description: "",
@@ -264,9 +281,13 @@ export const SeekingCoverageDialog = ({
       setSelectedCountyIds([]);
       setCountySearchQuery("");
     }
-  }, [editingPost, open, reset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingPost?.id, open]);
 
   const loadSelectedCounties = async (postId: string) => {
+    // If user already interacted, don't overwrite
+    if (userTouchedCounties.current) return;
+
     const { data, error } = await supabase
       .from("seeking_coverage_post_counties")
       .select("county_id")
@@ -276,8 +297,19 @@ export const SeekingCoverageDialog = ({
       console.error("Error loading post counties:", error);
       return;
     }
+
+    // If user interacted while we were loading, bail out
+    if (userTouchedCounties.current) return;
     
-    setSelectedCountyIds((data || []).map((r: any) => r.county_id));
+    if (data && data.length > 0) {
+      setSelectedCountyIds(data.map((r: any) => r.county_id));
+    } else if (editingPost?.county_id) {
+      // Fallback: use legacy county_id if junction table is empty
+      console.log('[loadSelectedCounties] junction empty, falling back to legacy county_id', editingPost.county_id);
+      setSelectedCountyIds([editingPost.county_id]);
+    } else {
+      setSelectedCountyIds([]);
+    }
   };
 
   // Filter counties by search query
@@ -296,6 +328,7 @@ export const SeekingCoverageDialog = ({
   }, [selectedCountyIds, counties]);
 
   const toggleCounty = (countyId: string) => {
+    userTouchedCounties.current = true;
     setSelectedCountyIds(prev =>
       prev.includes(countyId)
         ? prev.filter(id => id !== countyId)
@@ -304,6 +337,7 @@ export const SeekingCoverageDialog = ({
   };
 
   const removeCounty = (countyId: string) => {
+    userTouchedCounties.current = true;
     setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
   };
 
@@ -359,6 +393,7 @@ export const SeekingCoverageDialog = ({
     const filteredSystemsRequired = finalSystemsRequired.filter((s) => s !== "Other");
 
     // Diagnostic log: confirm selectedCountyIds at save time
+    console.log('[SeekingCoverageDialog] saving post', editingPost?.id ?? 'NEW', 'selectedCountyIds=', selectedCountyIds);
     console.log('[SeekingCoverageDialog] selectedCountyIds on save:', selectedCountyIds, 'length:', selectedCountyIds.length);
 
     // Validation: require at least 1 county when not covering entire state
