@@ -306,27 +306,102 @@ Deno.serve(async (req) => {
         return s.state_name;
       });
 
-      // Fetch seeking coverage areas if toggle is enabled
+      // Build seeking coverage areas from active posts + junction table (source of truth)
       let seekingCoverageAreas: { state_code: string; counties: string[] }[] = [];
       if (vendorProfile.show_seeking_coverage_on_public_profile) {
-        const { data: seekingAreas } = await supabase
-          .rpc('get_vendor_open_seeking_coverage_areas', { p_vendor_id: vendorProfile.id });
-        
-        if (seekingAreas && seekingAreas.length > 0) {
-          // Group by state, sort counties alphabetically
-          const stateMap = new Map<string, string[]>();
-          for (const row of seekingAreas) {
-            if (!stateMap.has(row.state_code)) {
-              stateMap.set(row.state_code, []);
+        // 1. Fetch all active, non-deleted posts for this vendor
+        const { data: scPosts } = await supabase
+          .from('seeking_coverage_posts')
+          .select('id, state_code, covers_entire_state, county_id')
+          .eq('vendor_id', userId)
+          .eq('status', 'active')
+          .is('deleted_at', null)
+          .not('state_code', 'is', null);
+
+        if (scPosts && scPosts.length > 0) {
+          // Track which states are "entire state" vs need county resolution
+          const stateEntire = new Set<string>();
+          const stateCountyIds = new Map<string, Set<string>>();
+
+          for (const post of scPosts) {
+            const sc = post.state_code as string;
+            if (post.covers_entire_state) {
+              stateEntire.add(sc);
+            } else {
+              if (!stateCountyIds.has(sc)) stateCountyIds.set(sc, new Set());
             }
-            stateMap.get(row.state_code)!.push(row.county_name);
           }
-          // Sort states alphabetically, then counties within each state
-          const sortedStates = Array.from(stateMap.keys()).sort();
-          seekingCoverageAreas = sortedStates.map(stateCode => ({
-            state_code: stateCode,
-            counties: stateMap.get(stateCode)!.sort()
-          }));
+
+          // 2. Fetch junction-table county_ids for non-entire-state posts
+          const nonEntirePostIds = scPosts
+            .filter(p => !p.covers_entire_state)
+            .map(p => p.id);
+
+          if (nonEntirePostIds.length > 0) {
+            const { data: junctionRows } = await supabase
+              .from('seeking_coverage_post_counties')
+              .select('post_id, county_id')
+              .in('post_id', nonEntirePostIds);
+
+            // Map junction rows back to their state
+            const postStateMap = new Map<string, string>();
+            for (const p of scPosts) {
+              postStateMap.set(p.id, p.state_code as string);
+            }
+
+            for (const jr of (junctionRows || [])) {
+              const sc = postStateMap.get(jr.post_id);
+              if (sc && !stateEntire.has(sc)) {
+                if (!stateCountyIds.has(sc)) stateCountyIds.set(sc, new Set());
+                stateCountyIds.get(sc)!.add(jr.county_id);
+              }
+            }
+
+            // 3. Also include legacy county_id from posts (fallback)
+            for (const p of scPosts) {
+              if (!p.covers_entire_state && p.county_id) {
+                const sc = p.state_code as string;
+                if (!stateEntire.has(sc)) {
+                  if (!stateCountyIds.has(sc)) stateCountyIds.set(sc, new Set());
+                  stateCountyIds.get(sc)!.add(p.county_id);
+                }
+              }
+            }
+          }
+
+          // 4. Resolve county IDs to names
+          const allIds: string[] = [];
+          for (const ids of stateCountyIds.values()) {
+            for (const id of ids) allIds.push(id);
+          }
+          const uniqueIds = [...new Set(allIds)];
+
+          let scCountyNameMap = new Map<string, string>();
+          if (uniqueIds.length > 0) {
+            const { data: cRows } = await supabase
+              .from('us_counties')
+              .select('id, county_name')
+              .in('id', uniqueIds);
+            for (const r of (cRows || [])) {
+              scCountyNameMap.set(r.id, r.county_name);
+            }
+          }
+
+          // 5. Build final array grouped by state
+          const allStates = new Set([...stateEntire, ...stateCountyIds.keys()]);
+          const sortedStates = [...allStates].sort();
+
+          seekingCoverageAreas = sortedStates.map(sc => {
+            // Entire-state wins if ANY post in that state is entire-state
+            if (stateEntire.has(sc)) {
+              return { state_code: sc, counties: ['All counties'] };
+            }
+            const ids = stateCountyIds.get(sc);
+            const names = ids
+              ? [...ids].map(id => scCountyNameMap.get(id) || id).sort()
+              : [];
+            return { state_code: sc, counties: [...new Set(names)] };
+          });
         }
       }
 
