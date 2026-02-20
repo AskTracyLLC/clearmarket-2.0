@@ -120,9 +120,7 @@ export const SeekingCoverageDialog = ({
   const [countySearchQuery, setCountySearchQuery] = useState("");
   
   // Guard: prevent re-initialization after user has interacted with county selection
-  const userTouchedCounties = useRef(false);
-  // Track which postId we last initialized for, to avoid re-init on same dialog open
-  const initializedForPostId = useRef<string | null>(null);
+  const hasInitialized = useRef(false);
   
   // Detailed inspection types from database
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
@@ -201,21 +199,20 @@ export const SeekingCoverageDialog = ({
     loadCounties();
   }, [stateCode]);
 
-  // Populate form when editing — runs once per dialog open per postId
+  // Reset guard when dialog closes
   useEffect(() => {
     if (!open) {
-      // Reset guard on close
-      userTouchedCounties.current = false;
-      initializedForPostId.current = null;
-      return;
+      hasInitialized.current = false;
     }
+  }, [open]);
+
+  // Populate form when editing — runs once per dialog open
+  useEffect(() => {
+    if (!open) return;
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
 
     if (editingPost) {
-      // Only initialize once per postId per dialog open
-      if (initializedForPostId.current === editingPost.id) return;
-      initializedForPostId.current = editingPost.id;
-      userTouchedCounties.current = false;
-
       // Parse "Other" values
       const inspectionTypesOther = editingPost.inspection_types
         ?.find((t: string) => t.startsWith("Other:"))
@@ -253,11 +250,8 @@ export const SeekingCoverageDialog = ({
       setSelectedDetailedTypes(editingPost.inspection_type_ids || []);
       
       // Load selected counties from junction table (single source of truth)
-      loadSelectedCounties(editingPost.id);
+      loadSelectedCounties(editingPost.id, editingPost.county_id);
     } else {
-      initializedForPostId.current = null;
-      userTouchedCounties.current = false;
-
       reset({
         title: "",
         description: "",
@@ -284,10 +278,7 @@ export const SeekingCoverageDialog = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingPost?.id, open]);
 
-  const loadSelectedCounties = async (postId: string) => {
-    // If user already interacted, don't overwrite
-    if (userTouchedCounties.current) return;
-
+  const loadSelectedCounties = async (postId: string, legacyCountyId?: string | null) => {
     const { data, error } = await supabase
       .from("seeking_coverage_post_counties")
       .select("county_id")
@@ -297,16 +288,14 @@ export const SeekingCoverageDialog = ({
       console.error("Error loading post counties:", error);
       return;
     }
-
-    // If user interacted while we were loading, bail out
-    if (userTouchedCounties.current) return;
     
     if (data && data.length > 0) {
+      console.log('[loadSelectedCounties] loaded', data.length, 'counties from junction table');
       setSelectedCountyIds(data.map((r: any) => r.county_id));
-    } else if (editingPost?.county_id) {
+    } else if (legacyCountyId) {
       // Fallback: use legacy county_id if junction table is empty
-      console.log('[loadSelectedCounties] junction empty, falling back to legacy county_id', editingPost.county_id);
-      setSelectedCountyIds([editingPost.county_id]);
+      console.log('[loadSelectedCounties] junction empty, falling back to legacy county_id', legacyCountyId);
+      setSelectedCountyIds([legacyCountyId]);
     } else {
       setSelectedCountyIds([]);
     }
@@ -328,16 +317,14 @@ export const SeekingCoverageDialog = ({
   }, [selectedCountyIds, counties]);
 
   const toggleCounty = (countyId: string) => {
-    userTouchedCounties.current = true;
     setSelectedCountyIds(prev =>
       prev.includes(countyId)
         ? prev.filter(id => id !== countyId)
-        : [...prev, countyId]
+        : [...new Set([...prev, countyId])]
     );
   };
 
   const removeCounty = (countyId: string) => {
-    userTouchedCounties.current = true;
     setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
   };
 
