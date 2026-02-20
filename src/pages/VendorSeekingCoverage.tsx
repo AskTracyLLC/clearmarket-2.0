@@ -93,14 +93,7 @@ type SortDirection = "asc" | "desc";
 type InterestFilter = "all" | "with_interest" | "no_responses";
 
 const VendorSeekingCoverage = () => {
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  if (renderCount.current <= 20 || renderCount.current % 50 === 0) {
-    console.log(`[VendorSeekingCoverage] render #${renderCount.current}`);
-  }
-  if (renderCount.current > 100) {
-    console.error(`[VendorSeekingCoverage] INFINITE LOOP DETECTED - render #${renderCount.current}`);
-  }
+
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
