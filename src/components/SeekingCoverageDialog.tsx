@@ -4,13 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ChevronDown, ChevronRight, X, Search } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,18 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,49 +27,52 @@ import { checklist } from "@/lib/checklistTracking";
 import { seekingCoverageCopy } from "@/copy/seekingCoverageCopy";
 import { resolveCurrentVendorId, spendVendorCredits } from "@/lib/vendorWallet";
 
-const seekingCoverageSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  state_code: z.string().min(1, "State is required"),
-  covers_entire_state: z.boolean(),
-  // Legacy inspection types (broad categories) - still required for backward compatibility
-  inspection_types: z.array(z.string()).min(1, "At least one inspection type is required"),
-  inspection_types_other: z.string().optional(),
-  // New: detailed inspection type labels for matching (optional)
-  inspection_type_ids: z.array(z.string()).optional(),
-  systems_required_array: z.array(z.string()).min(1, "At least one system is required"),
-  systems_required_other: z.string().optional(),
-  is_accepting_responses: z.boolean(),
-  pay_type: z.enum(["fixed", "range"]),
-  pay_min: z.string().min(1, "Minimum pay is required"),
-  pay_max: z.string().optional(),
-  pay_notes: z.string().optional(),
-  requires_background_check: z.boolean(),
-  requires_aspen_grove: z.boolean(),
-  allow_willing_to_obtain_background_check: z.boolean().optional(),
-}).refine(
-  (data) => {
-    const min = parseFloat(data.pay_min);
-    return !isNaN(min) && min > 0;
-  },
-  {
-    message: "Minimum pay must be a valid number greater than 0",
-    path: ["pay_min"],
-  }
-).refine(
-  (data) => {
-    if (data.pay_type === "range" && data.pay_max) {
+const seekingCoverageSchema = z
+  .object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().optional(),
+    state_code: z.string().min(1, "State is required"),
+    covers_entire_state: z.boolean(),
+    // Legacy inspection types (broad categories) - still required for backward compatibility
+    inspection_types: z.array(z.string()).min(1, "At least one inspection type is required"),
+    inspection_types_other: z.string().optional(),
+    // New: detailed inspection type labels for matching (optional)
+    inspection_type_ids: z.array(z.string()).optional(),
+    systems_required_array: z.array(z.string()).min(1, "At least one system is required"),
+    systems_required_other: z.string().optional(),
+    is_accepting_responses: z.boolean(),
+    pay_type: z.enum(["fixed", "range"]),
+    pay_min: z.string().min(1, "Minimum pay is required"),
+    pay_max: z.string().optional(),
+    pay_notes: z.string().optional(),
+    requires_background_check: z.boolean(),
+    requires_aspen_grove: z.boolean(),
+    allow_willing_to_obtain_background_check: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
       const min = parseFloat(data.pay_min);
-      const max = parseFloat(data.pay_max);
-      return !isNaN(max) && max >= min;
-    }
-    return true;
-  },
-  {
-    message: "Maximum pay must be greater than or equal to minimum pay",
-    path: ["pay_max"],
-  }
-);
+      return !isNaN(min) && min > 0;
+    },
+    {
+      message: "Minimum pay must be a valid number greater than 0",
+      path: ["pay_min"],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.pay_type === "range" && data.pay_max) {
+        const min = parseFloat(data.pay_min);
+        const max = parseFloat(data.pay_max);
+        return !isNaN(max) && max >= min;
+      }
+      return true;
+    },
+    {
+      message: "Maximum pay must be greater than or equal to minimum pay",
+      path: ["pay_max"],
+    },
+  );
 
 type SeekingCoverageForm = z.infer<typeof seekingCoverageSchema>;
 
@@ -101,12 +88,7 @@ interface SeekingCoverageDialogProps {
   onSave: () => void;
 }
 
-export const SeekingCoverageDialog = ({
-  open,
-  onOpenChange,
-  editingPost,
-  onSave,
-}: SeekingCoverageDialogProps) => {
+export const SeekingCoverageDialog = ({ open, onOpenChange, editingPost, onSave }: SeekingCoverageDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -114,16 +96,18 @@ export const SeekingCoverageDialog = ({
   const [loadingCounties, setLoadingCounties] = useState(false);
   const [saving, setSaving] = useState(false);
   const { confirmCreditSpend, CreditConfirmDialog } = useCreditConfirm();
-  
+
   // Multi-county selection state
   const [selectedCountyIds, setSelectedCountyIds] = useState<string[]>([]);
   const [countySearchQuery, setCountySearchQuery] = useState("");
-  
+
   // Guard: prevent re-initialization after user has interacted with county selection
   const initKeyRef = useRef<string | null>(null);
-  
+
   // Detailed inspection types from database
-  const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
+  const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<
+    Record<string, InspectionTypeOption[]>
+  >({});
   const [selectedDetailedTypes, setSelectedDetailedTypes] = useState<string[]>([]);
   const [detailedTypesOpen, setDetailedTypesOpen] = useState(false);
 
@@ -167,7 +151,7 @@ export const SeekingCoverageDialog = ({
   // Load detailed inspection types from database
   useEffect(() => {
     const loadInspectionTypes = async () => {
-      const grouped = await fetchInspectionTypesForRole('vendor');
+      const grouped = await fetchInspectionTypesForRole("vendor");
       setAllInspectionTypesByCategory(grouped);
     };
     loadInspectionTypes();
@@ -226,7 +210,7 @@ export const SeekingCoverageDialog = ({
         .trim();
 
       const isFixedRate = editingPost.pay_type === "fixed" || (!editingPost.pay_min && editingPost.pay_max);
-      
+
       reset({
         title: editingPost.title,
         description: editingPost.description || "",
@@ -239,18 +223,22 @@ export const SeekingCoverageDialog = ({
         systems_required_other: systemsOther || "",
         is_accepting_responses: editingPost.is_accepting_responses,
         pay_type: isFixedRate ? "fixed" : "range",
-        pay_min: isFixedRate 
-          ? (editingPost.pay_max ? String(editingPost.pay_max) : "")
-          : (editingPost.pay_min ? String(editingPost.pay_min) : ""),
-        pay_max: isFixedRate ? "" : (editingPost.pay_max ? String(editingPost.pay_max) : ""),
+        pay_min: isFixedRate
+          ? editingPost.pay_max
+            ? String(editingPost.pay_max)
+            : ""
+          : editingPost.pay_min
+            ? String(editingPost.pay_min)
+            : "",
+        pay_max: isFixedRate ? "" : editingPost.pay_max ? String(editingPost.pay_max) : "",
         pay_notes: editingPost.pay_notes || "",
         requires_background_check: editingPost.requires_background_check || false,
         requires_aspen_grove: editingPost.requires_background_check ? editingPost.requires_aspen_grove : false,
         allow_willing_to_obtain_background_check: editingPost.allow_willing_to_obtain_background_check ?? true,
       });
-      
+
       setSelectedDetailedTypes(editingPost.inspection_type_ids || []);
-      
+
       // Load selected counties from junction table (single source of truth)
       loadSelectedCounties(editingPost.id, editingPost.county_id);
     } else {
@@ -277,7 +265,7 @@ export const SeekingCoverageDialog = ({
       setSelectedCountyIds([]);
       setCountySearchQuery("");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingPost?.id, open]);
 
   const loadSelectedCounties = async (postId: string, legacyCountyId?: string | null) => {
@@ -285,18 +273,18 @@ export const SeekingCoverageDialog = ({
       .from("seeking_coverage_post_counties")
       .select("county_id")
       .eq("post_id", postId);
-    
+
     if (error) {
       console.error("Error loading post counties:", error);
       return;
     }
-    
+
     if (data && data.length > 0) {
-      console.log('[loadSelectedCounties] loaded', data.length, 'counties from junction table');
+      console.log("[loadSelectedCounties] loaded", data.length, "counties from junction table");
       setSelectedCountyIds(data.map((r: any) => r.county_id));
     } else if (legacyCountyId) {
       // Fallback: use legacy county_id if junction table is empty
-      console.log('[loadSelectedCounties] junction empty, falling back to legacy county_id', legacyCountyId);
+      console.log("[loadSelectedCounties] junction empty, falling back to legacy county_id", legacyCountyId);
       setSelectedCountyIds([legacyCountyId]);
     } else {
       setSelectedCountyIds([]);
@@ -307,32 +295,30 @@ export const SeekingCoverageDialog = ({
   const filteredCounties = useMemo(() => {
     if (!countySearchQuery.trim()) return counties;
     const q = countySearchQuery.toLowerCase();
-    return counties.filter(c => c.county_name.toLowerCase().includes(q));
+    return counties.filter((c) => c.county_name.toLowerCase().includes(q));
   }, [counties, countySearchQuery]);
 
   // Get county names for selected IDs (for chip display)
   const selectedCountyNames = useMemo(() => {
-    return selectedCountyIds.map(id => {
-      const c = counties.find(county => county.id === id);
+    return selectedCountyIds.map((id) => {
+      const c = counties.find((county) => county.id === id);
       return c ? { id, name: c.county_name } : { id, name: "Unknown" };
     });
   }, [selectedCountyIds, counties]);
 
   const toggleCounty = (countyId: string) => {
-    setSelectedCountyIds(prev =>
-      prev.includes(countyId)
-        ? prev.filter(id => id !== countyId)
-        : [...new Set([...prev, countyId])]
+    setSelectedCountyIds((prev) =>
+      prev.includes(countyId) ? prev.filter((id) => id !== countyId) : [...new Set([...prev, countyId])],
     );
   };
 
   const removeCounty = (countyId: string) => {
-    setSelectedCountyIds(prev => prev.filter(id => id !== countyId));
+    setSelectedCountyIds((prev) => prev.filter((id) => id !== countyId));
   };
 
   /** Sync junction table rows for a post via RPC */
   const syncPostCounties = async (postId: string, countyIds: string[], coversState: boolean): Promise<boolean> => {
-    console.log('[syncPostCounties] calling RPC with', { postId, countyIds, coversState });
+    console.log("[syncPostCounties] calling RPC with", { postId, countyIds, coversState });
     const { error } = await supabase.rpc("sync_seeking_coverage_post_counties", {
       p_post_id: postId,
       p_county_ids: countyIds,
@@ -364,8 +350,18 @@ export const SeekingCoverageDialog = ({
     const filteredSystemsRequired = finalSystemsRequired.filter((s) => s !== "Other");
 
     // Diagnostic log: confirm selectedCountyIds at save time
-    console.log('[SeekingCoverageDialog] saving post', editingPost?.id ?? 'NEW', 'selectedCountyIds=', selectedCountyIds);
-    console.log('[SeekingCoverageDialog] selectedCountyIds on save:', selectedCountyIds, 'length:', selectedCountyIds.length);
+    console.log(
+      "[SeekingCoverageDialog] saving post",
+      editingPost?.id ?? "NEW",
+      "selectedCountyIds=",
+      selectedCountyIds,
+    );
+    console.log(
+      "[SeekingCoverageDialog] selectedCountyIds on save:",
+      selectedCountyIds,
+      "length:",
+      selectedCountyIds.length,
+    );
 
     // Validation: require at least 1 county when not covering entire state
     if (!data.covers_entire_state && selectedCountyIds.length === 0) {
@@ -392,7 +388,7 @@ export const SeekingCoverageDialog = ({
     }
 
     // Keep county_id as the first selected county for backward compat
-    const legacyCountyId = data.covers_entire_state ? null : (selectedCountyIds[0] || null);
+    const legacyCountyId = data.covers_entire_state ? null : selectedCountyIds[0] || null;
 
     const payload = {
       title: data.title,
@@ -411,19 +407,14 @@ export const SeekingCoverageDialog = ({
       vendor_id: user.id,
       pay_type: data.pay_type,
       pay_min: data.pay_type === "range" ? parseFloat(data.pay_min) : null,
-      pay_max: data.pay_type === "range" 
-        ? (data.pay_max ? parseFloat(data.pay_max) : null)
-        : parseFloat(data.pay_min),
+      pay_max: data.pay_type === "range" ? (data.pay_max ? parseFloat(data.pay_max) : null) : parseFloat(data.pay_min),
       pay_notes: data.pay_notes || null,
       requires_background_check: data.requires_background_check,
       requires_aspen_grove: data.requires_background_check ? data.requires_aspen_grove : false,
     };
 
     if (editingPost) {
-      const { error } = await supabase
-        .from("seeking_coverage_posts")
-        .update(payload)
-        .eq("id", editingPost.id);
+      const { error } = await supabase.from("seeking_coverage_posts").update(payload).eq("id", editingPost.id);
 
       if (error) {
         console.error("Error updating post:", error);
@@ -512,7 +503,8 @@ export const SeekingCoverageDialog = ({
         console.error("Error creating post:", error);
         toast({
           title: "Error",
-          description: seekingCoverageCopy.toasts.saveError + " Credit was deducted - please contact support for a refund.",
+          description:
+            seekingCoverageCopy.toasts.saveError + " Credit was deducted - please contact support for a refund.",
           variant: "destructive",
         });
         setSaving(false);
@@ -537,7 +529,7 @@ export const SeekingCoverageDialog = ({
       });
       onSave();
       navigate("/vendor/seeking-coverage");
-      
+
       checklist.firstSeekingCoveragePost(user.id);
     }
 
@@ -546,9 +538,7 @@ export const SeekingCoverageDialog = ({
 
   const handleCheckboxChange = (field: "inspection_types" | "systems_required_array", value: string) => {
     const current = watch(field);
-    const updated = current.includes(value)
-      ? current.filter((item) => item !== value)
-      : [...current, value];
+    const updated = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
     setValue(field, updated);
   };
 
@@ -556,10 +546,10 @@ export const SeekingCoverageDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>{editingPost ? seekingCoverageCopy.vendor.form.headerEdit : seekingCoverageCopy.vendor.form.headerNew}</DialogTitle>
-          <DialogDescription>
-            Post where you need Field Reps. Fill in the details below.
-          </DialogDescription>
+          <DialogTitle>
+            {editingPost ? seekingCoverageCopy.vendor.form.headerEdit : seekingCoverageCopy.vendor.form.headerNew}
+          </DialogTitle>
+          <DialogDescription>Post where you need Field Reps. Fill in the details below.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -568,11 +558,7 @@ export const SeekingCoverageDialog = ({
             <Label htmlFor="title">
               Short Title <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="title"
-              placeholder="e.g., WI – Milwaukee County – Loss Drafts"
-              {...register("title")}
-            />
+            <Input id="title" placeholder="e.g., WI – Milwaukee County – Loss Drafts" {...register("title")} />
             {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
           </div>
 
@@ -581,8 +567,8 @@ export const SeekingCoverageDialog = ({
             <Label htmlFor="state_code">
               State <span className="text-destructive">*</span>
             </Label>
-            <Select 
-              value={watch("state_code") || ""} 
+            <Select
+              value={watch("state_code") || ""}
               onValueChange={(value) => {
                 const currentState = watch("state_code");
                 setValue("state_code", value);
@@ -633,7 +619,7 @@ export const SeekingCoverageDialog = ({
               <p className="text-xs text-muted-foreground mb-2">
                 Select one or more counties. Reps covering any of these counties will see this post.
               </p>
-              
+
               {/* Selected counties as chips */}
               {selectedCountyNames.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -679,12 +665,15 @@ export const SeekingCoverageDialog = ({
                             key={county.id}
                             className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer"
                             onClick={() => toggleCounty(county.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") toggleCounty(county.id);
+                            }}
                           >
-                            <Checkbox
-                              checked={selectedCountyIds.includes(county.id)}
-                              onCheckedChange={() => toggleCounty(county.id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <div className="pointer-events-none">
+                              <Checkbox checked={selectedCountyIds.includes(county.id)} />
+                            </div>
                             <span className="text-sm">{county.county_name}</span>
                           </div>
                         ))
@@ -705,21 +694,24 @@ export const SeekingCoverageDialog = ({
               Inspection Category <span className="text-destructive">*</span>
             </Label>
             <p className="text-xs text-muted-foreground mb-2">
-              Select the general category of work. Use the detailed types section below if you want more precise matching.
+              Select the general category of work. Use the detailed types section below if you want more precise
+              matching.
             </p>
             <div className="space-y-2 mt-2">
-              {["Property Inspections", "Loss / Insurance Claims (Appointment-based)", "Commercial", "Other"].map((type) => (
-                <div key={type} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`legacy-inspection-${type}`}
-                    checked={inspectionTypes.includes(type)}
-                    onCheckedChange={() => handleCheckboxChange("inspection_types", type)}
-                  />
-                  <Label htmlFor={`legacy-inspection-${type}`} className="cursor-pointer font-normal">
-                    {type}
-                  </Label>
-                </div>
-              ))}
+              {["Property Inspections", "Loss / Insurance Claims (Appointment-based)", "Commercial", "Other"].map(
+                (type) => (
+                  <div key={type} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`legacy-inspection-${type}`}
+                      checked={inspectionTypes.includes(type)}
+                      onCheckedChange={() => handleCheckboxChange("inspection_types", type)}
+                    />
+                    <Label htmlFor={`legacy-inspection-${type}`} className="cursor-pointer font-normal">
+                      {type}
+                    </Label>
+                  </div>
+                ),
+              )}
             </div>
             {inspectionTypes.includes("Other") && (
               <Input
@@ -739,7 +731,8 @@ export const SeekingCoverageDialog = ({
               <div>
                 <Label className="text-base font-semibold">Inspection Types Needed (optional)</Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Choose specific inspection types for this request if you want more precise matches. Leave this blank if any type within your selected category is okay.
+                  Choose specific inspection types for this request if you want more precise matches. Leave this blank
+                  if any type within your selected category is okay.
                 </p>
               </div>
 
@@ -778,14 +771,14 @@ export const SeekingCoverageDialog = ({
                                 checked={selectedDetailedTypes.includes(type.label)}
                                 onCheckedChange={(checked) => {
                                   if (checked) {
-                                    setSelectedDetailedTypes(prev => [...prev, type.label]);
+                                    setSelectedDetailedTypes((prev) => [...prev, type.label]);
                                   } else {
-                                    setSelectedDetailedTypes(prev => prev.filter(t => t !== type.label));
+                                    setSelectedDetailedTypes((prev) => prev.filter((t) => t !== type.label));
                                   }
                                 }}
                               />
-                              <Label 
-                                htmlFor={`detailed-inspection-${type.id}`} 
+                              <Label
+                                htmlFor={`detailed-inspection-${type.id}`}
                                 className="cursor-pointer font-normal text-sm"
                               >
                                 {type.label}
@@ -802,8 +795,8 @@ export const SeekingCoverageDialog = ({
 
                 {selectedDetailedTypes.length > 0 && (
                   <p className="text-xs text-muted-foreground mt-3">
-                    {selectedDetailedTypes.length} type{selectedDetailedTypes.length !== 1 ? 's' : ''} selected. 
-                    Only reps who perform these specific types in this region will see this post.
+                    {selectedDetailedTypes.length} type{selectedDetailedTypes.length !== 1 ? "s" : ""} selected. Only
+                    reps who perform these specific types in this region will see this post.
                   </p>
                 )}
               </CollapsibleContent>
@@ -828,11 +821,7 @@ export const SeekingCoverageDialog = ({
               ))}
             </div>
             {systemsRequired.includes("Other") && (
-              <Input
-                placeholder="Specify other system"
-                className="mt-2"
-                {...register("systems_required_other")}
-              />
+              <Input placeholder="Specify other system" className="mt-2" {...register("systems_required_other")} />
             )}
             {errors.systems_required_array && (
               <p className="text-sm text-destructive mt-1">{errors.systems_required_array.message}</p>
@@ -855,13 +844,17 @@ export const SeekingCoverageDialog = ({
             <div>
               <Label className="text-base font-semibold">Offered Rate (recommended: range)</Label>
               <p className="text-sm text-muted-foreground mt-1">
-                We recommend entering a minimum and maximum rate for this work. Field Reps will not see this range – they'll only see whether the pay matches their base rate in that county. This helps you attract more interest and still control final pricing.
+                We recommend entering a minimum and maximum rate for this work. Field Reps will not see this range –
+                they'll only see whether the pay matches their base rate in that county. This helps you attract more
+                interest and still control final pricing.
               </p>
             </div>
 
             {/* Pay Type Selection */}
             <div>
-              <Label>Payment Structure <span className="text-destructive">*</span></Label>
+              <Label>
+                Payment Structure <span className="text-destructive">*</span>
+              </Label>
               <RadioGroup
                 value={payType}
                 onValueChange={(value) => setValue("pay_type", value as "fixed" | "range")}
@@ -897,9 +890,7 @@ export const SeekingCoverageDialog = ({
                   {...register("pay_min")}
                   className="mt-2"
                 />
-                {errors.pay_min && (
-                  <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>
-                )}
+                {errors.pay_min && <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
@@ -916,9 +907,7 @@ export const SeekingCoverageDialog = ({
                     {...register("pay_min")}
                     className="mt-2"
                   />
-                  {errors.pay_min && (
-                    <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>
-                  )}
+                  {errors.pay_min && <p className="text-sm text-destructive mt-1">{errors.pay_min.message}</p>}
                 </div>
                 <div>
                   <Label htmlFor="pay_max">
@@ -933,9 +922,7 @@ export const SeekingCoverageDialog = ({
                     {...register("pay_max")}
                     className="mt-2"
                   />
-                  {errors.pay_max && (
-                    <p className="text-sm text-destructive mt-1">{errors.pay_max.message}</p>
-                  )}
+                  {errors.pay_max && <p className="text-sm text-destructive mt-1">{errors.pay_max.message}</p>}
                 </div>
               </div>
             )}
@@ -990,26 +977,30 @@ export const SeekingCoverageDialog = ({
                     Require AspenGrove / Shield ID specifically
                   </Label>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <Checkbox
                     id="allow_willing_to_obtain"
                     checked={watch("allow_willing_to_obtain_background_check") === true}
-                    onCheckedChange={(checked) => setValue("allow_willing_to_obtain_background_check", checked as boolean)}
+                    onCheckedChange={(checked) =>
+                      setValue("allow_willing_to_obtain_background_check", checked as boolean)
+                    }
                   />
                   <Label htmlFor="allow_willing_to_obtain" className="cursor-pointer font-normal">
                     Allow reps who don't have one yet but are willing to obtain a background check
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground ml-6">
-                  If checked, you may see reps who don't have a current background check yet but have indicated they're willing to obtain one. You should confirm they complete this before assigning live work.
+                  If checked, you may see reps who don't have a current background check yet but have indicated they're
+                  willing to obtain one. You should confirm they complete this before assigning live work.
                 </p>
               </div>
             )}
 
             {requiresBackgroundCheck && (
               <p className="text-xs text-muted-foreground">
-                Only reps with an active background check that meets this requirement will be able to see or respond to this post.
+                Only reps with an active background check that meets this requirement will be able to see or respond to
+                this post.
               </p>
             )}
           </div>
