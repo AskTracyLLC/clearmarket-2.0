@@ -120,7 +120,7 @@ export const SeekingCoverageDialog = ({
   const [countySearchQuery, setCountySearchQuery] = useState("");
   
   // Guard: prevent re-initialization after user has interacted with county selection
-  const hasInitialized = useRef(false);
+  const initKeyRef = useRef<string | null>(null);
   
   // Detailed inspection types from database
   const [allInspectionTypesByCategory, setAllInspectionTypesByCategory] = useState<Record<string, InspectionTypeOption[]>>({});
@@ -199,18 +199,12 @@ export const SeekingCoverageDialog = ({
     loadCounties();
   }, [stateCode]);
 
-  // Reset guard when dialog closes
+  // Populate form when editing — runs once per dialog open per postId
   useEffect(() => {
-    if (!open) {
-      hasInitialized.current = false;
-    }
-  }, [open]);
-
-  // Populate form when editing — runs once per dialog open
-  useEffect(() => {
-    if (!open) return;
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
+    const key = `${open}-${editingPost?.id ?? 'new'}`;
+    if (!open) { initKeyRef.current = null; return; }
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
 
     if (editingPost) {
       // Parse "Other" values
@@ -243,7 +237,7 @@ export const SeekingCoverageDialog = ({
         pay_max: isFixedRate ? "" : (editingPost.pay_max ? String(editingPost.pay_max) : ""),
         pay_notes: editingPost.pay_notes || "",
         requires_background_check: editingPost.requires_background_check || false,
-        requires_aspen_grove: editingPost.requires_aspen_grove || false,
+        requires_aspen_grove: editingPost.requires_background_check ? editingPost.requires_aspen_grove : false,
         allow_willing_to_obtain_background_check: editingPost.allow_willing_to_obtain_background_check ?? true,
       });
       
