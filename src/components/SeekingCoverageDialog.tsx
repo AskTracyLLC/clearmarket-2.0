@@ -552,7 +552,7 @@ export const SeekingCoverageDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{editingPost ? seekingCoverageCopy.vendor.form.headerEdit : seekingCoverageCopy.vendor.form.headerNew}</DialogTitle>
           <DialogDescription>
