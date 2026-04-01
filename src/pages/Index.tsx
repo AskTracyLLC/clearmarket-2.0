@@ -33,26 +33,28 @@ const Index = () => {
       {/* Hero Section */}
       <section className="container py-16 md:py-24 flex flex-col items-center text-center">
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
-          Welcome to ClearMarket
+          Tired of chasing work through group chats and cold calls?
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8">
-          ClearMarket is the networking platform for the property inspection
-          industry. Find work, build your reputation, and grow your business.
+          ClearMarket is the professional network built for the property inspection industry. Field reps get found. Vendors get reliable coverage. Everyone gets paid.
         </p>
 
         {/* Role Selection Buttons - pass role param to signup/onboarding */}
         <div className="flex flex-col sm:flex-row gap-4">
           <Link to="/signup?role=rep">
             <Button size="lg" className="min-w-[180px]">
-              I'm a Field Rep
+              Join as a Field Rep
             </Button>
           </Link>
           <Link to="/signup?role=vendor">
             <Button size="lg" variant="secondary" className="min-w-[180px]">
-              I'm a Vendor
+              Join as a Vendor
             </Button>
           </Link>
         </div>
+        <p className="text-sm text-muted-foreground mt-4">
+          Free to join · No monthly fees for field reps · Built by people who know the industry
+        </p>
         <p className="text-sm text-muted-foreground mt-4">
           Already have an account?{" "}
           <Link to="/signin" className="text-primary hover:underline">
@@ -75,7 +77,7 @@ const Index = () => {
         <div className="max-w-4xl mx-auto text-center mb-16">
           <h2 className="text-4xl font-bold mb-6 text-foreground">How ClearMarket Works</h2>
           <p className="text-lg text-muted-foreground mb-4">
-            Smarter connections. Stronger reputation. More of the right work.
+            Two sides of the same industry. One platform that finally connects them.
           </p>
           <p className="text-muted-foreground">
             ClearMarket helps independent Field Reps and Property Inspection Vendors connect with confidence — bringing transparency, trust, and performance to an industry that's often chaotic and underpaid.
@@ -126,7 +128,7 @@ const Index = () => {
       {/* Trust Matters */}
       <section className="container mx-auto px-4 py-20 bg-card/30 rounded-3xl">
         <div className="max-w-4xl mx-auto text-center mb-12">
-          <h2 className="text-4xl font-bold mb-6 text-foreground">Trust Matters</h2>
+          <h2 className="text-4xl font-bold mb-6 text-foreground">Reputation Over Randomness</h2>
           <p className="text-muted-foreground">
             ClearMarket focuses on verified, reputation-based connections — not anonymous job boards or mass blasts. Build relationships that matter.
           </p>
@@ -158,6 +160,29 @@ const Index = () => {
             <p className="font-semibold text-foreground">Community engagement</p>
           </div>
         </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="container mx-auto px-4 py-20 text-center">
+        <h2 className="text-4xl font-bold mb-4 text-foreground">Ready to stop working the old way?</h2>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+          Join field reps and vendors who are building their networks the smarter way.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Link to="/signup?role=rep">
+            <Button size="lg" className="min-w-[180px]">
+              Join as a Field Rep
+            </Button>
+          </Link>
+          <Link to="/signup?role=vendor">
+            <Button size="lg" variant="secondary" className="min-w-[180px]">
+              Join as a Vendor
+            </Button>
+          </Link>
+        </div>
+        <p className="text-sm text-muted-foreground mt-4">
+          Free for field reps. No credit card required. Takes less than 2 minutes.
+        </p>
       </section>
 
       {/* Footer */}
